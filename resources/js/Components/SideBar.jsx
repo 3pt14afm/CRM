@@ -1,6 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
+import { GoSidebarExpand } from "react-icons/go";
+import { GoSidebarCollapse } from "react-icons/go";
+
+
 
 export default function Sidebar() {
     const { url } = usePage();
@@ -41,47 +45,59 @@ const closeAllMenus = () => {
         <aside className={`transition-all duration-300 bg-white shadow-xl h-full flex flex-col border-r overflow-hidden ${isOpen ? 'w-96' : 'w-30'}`}>
             
             {/* Header */}
-            <div className="p-4 flex items-center justify-between border-b bg-gray-50">
-                {isOpen && <span className="font-bold text-xl text-green-700 ml-2">CRM System</span>}
-                <button onClick={toggleSidebar} className="p-2 rounded-md hover:bg-gray-200 text-gray-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
+            <div className={`p-4 mb-3 flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
+                {isOpen ? (
+                    <>
+                        {/* Rectangle logo when sidebar is OPEN */}
+                        <img src="/images/logo.png" alt="CRM Logo" className="h-16 mx-3 justify-center w-auto"/>
+                        <button onClick={toggleSidebar} className="p-2 rounded-md hover:bg-gray-200 transition" aria-label="Collapse sidebar" >
+                            <GoSidebarCollapse className="w-7 h-7 text-darkgreen" />
+                        </button>
+                    </>
+                    
+                ) : (
+                    /* Square logo with hover → menu icon when COLLAPSED */
+                    <button onClick={toggleSidebar} className="group relative w-10 h-10 flex items-center justify-center rounded-md" aria-label="Toggle sidebar">
+                        {/* Square logo (default) */}
+                        <img src="/images/logoSmall.png" alt="CRM Logo" className="absolute w-10 h-10 opacity-100 group-hover:opacity-0 transition-opacity duration-200"/>
+
+                        {/* Menu icon (on hover) */}
+                        <GoSidebarExpand className="absolute w-7 h-7 text-darkgreen opacity-0 group-hover:opacity-100 transition-opacity duration-200" aria-hidden="true"/>
+                    </button>
+                )}
             </div>
 
             <nav className="flex-1 py-4 overflow-y-auto">
                 
                 {/* 1. CUSTOMER MANAGEMENT */}
-              <div className="pr-2 mb-1"> {/* Outer wrapper with consistent padding */}
+              <div className="p-2 mb-1"> {/* Outer wrapper with consistent padding */}
                 <div  className={`flex items-center transition-all duration-300 ease-in-out group ${
                         activeModule === 'customer' 
-                            ? 'bg-[#B5EBA2] shadow-2xl rounded-t-2xl' 
+                            ? 'bg-[#B5EBA2] shadow-2xl rounded-t-2xl ' 
                             : 'hover:bg-[#B5EBA2] rounded-xl'
                     } ${isOpen ? 'mx-3' : 'mx-0 justify-center'}`}  /* mx-0 and justify-center centers the item when closed */ >
-              <Link 
-                        href={route('customers.dashboard')} 
-                        onClick={closeAllMenus}
-                        className={`flex items-center transition-colors hover:text-black ${
-                            isOpen ? 'flex-1 px-3 py-2' : 'p-3 justify-center' 
-                        } ${activeModule === 'customer' ? 'text-black' : 'text-gray-600'}`}
-                    >
-                        {/* ICON CONTAINER */}
-                        <div className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors shrink-0 ${
-                            activeModule === 'customer' ? 'bg-white/30' : 'bg-gray-100 group-hover:bg-green-100'
-                        }`}>
-                            <span className="text-xl">🤝</span>
-                        </div>
-                        
-                        {/* TEXT (Only shows if Sidebar is open) */}
-                        {isOpen && (
-                            <span className={`ml-3 text-[19px] tracking-wide transition-all truncate ${
-                                activeModule === 'customer' ? 'tex-black font-semibold' : 'font-semibold'
+                    <Link 
+                        href={route('customers.dashboard')} onClick={closeAllMenus}
+                        className={`flex items-center justify-between transition-colors hover:text-black ${
+                                    isOpen ? 'flex-1 px-3 py-2' : 'p-3 justify-center' 
+                                } ${activeModule === 'customer' ? 'text-black' : 'text-gray-600'}`}
+                        >
+                            {/* ICON CONTAINER */}
+                            <div className={`flex items-center justify-center w-9 h-9 rounded-lg transition-colors shrink-0 ${
+                                activeModule === 'customer' ? 'bg-white/0' : 'bg-gray-0 group-hover:bg-green-100'
                             }`}>
-                                Customer Account <br></br> Management
-                            </span>
-                        )}
-              </Link>
+                                <img src="/icons/customer.png" alt="Customer Account Management" />
+                            </div>
+                                
+                            {/* TEXT (Only shows if Sidebar is open) */}
+                            {isOpen && (
+                                <span className={`px-6 text-[19px] tracking-wide transition-all truncate ${
+                                    activeModule === 'customer' ? 'tex-black font-semibold' : 'font-semibold'
+                                }`}>
+                                    Customer Account <br></br> Management
+                                </span>
+                            )}
+                    </Link>
                         {isOpen && (
                             <button onClick={() => handleModuleToggle('customer')} className="px-6 py-4">
                                 <span className={`inline-block transition-transform duration-300 ${activeModule === 'customer' ? 'rotate-180' : ''}`}>
@@ -89,7 +105,7 @@ const closeAllMenus = () => {
                                 </span>
                             </button>
                         )}
-                    </div>
+                </div>
 
                     {/* CUSTOMER SUB-ITEMS */}
                     {isOpen && activeModule === 'customer' && (
