@@ -24,70 +24,86 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-       <>
-       <form onSubmit={submit}>
+        <form onSubmit={submit}>
             <Head title="Log in" />
 
-            <div className="min-h-screen w-full flex items-center justify-center bg-gray-200 font-sans">
+            <div className="min-h-screen w-full flex items-center justify-center bg-gray-200 font-sans p-4">
+                <div className="flex shadow-2xl w-full max-w-5xl min-h-[600px] rounded-3xl overflow-hidden bg-white">
+                    
+                    {/* Left Side: Branding */}
+                    <div className="hidden md:flex w-[55%] bg-[#2D7813] p-8 flex-col justify-between items-center text-white">
+                       <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
 
-                {/* 2. The Card: Changed h-[60%] to a fixed h-[600px] or min-h-[60vh] for stability */}
-                <div className="flex shadow-2xl w-[60%] min-h-[698px] rounded-3xl overflow-hidden bg-white min-w-0">
-                
-                    {/* Left Side (Green section for Logo/Img) */}
-                    <div className="w-[55%] bg-[#2D7813] p-8 flex flex-col justify-between items-center text-white min-w-0 shadow-card">
-                        <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
-                            <img src="/images/logo.png" alt="Logo" /> 
+                            <img src="/images/logo.png" alt="Logo" />
+
                         </div>
                         
-                        <div className="flex justify-center w-full min-w-0">
-                            <div className="w-full max-w-[741px] h-[527px] flex items-center justify-center min-w-0">
-                                <img src="/images/graphics.png" alt="Graphics" className="max-w-full h-auto" />
-                            </div>
+                        <div className="flex justify-center w-full">
+                            <img src="/images/graphics.png" alt="Graphics" className="max-w-full h-auto object-contain" />
                         </div>
                     </div>
 
-                    {/* Right Side (White section for Form) */}
-                    <div className="flex flex-col justify-center items-start flex-1 min-w-0 m-10 p-5">
-                        <div className="py-5">
-                            <p className='text-text-secondary font-bold text-4xl p-1'>Account Login</p>
-                            <p className='text-sm text-darkgreen opacity-55 p-1'>Welcome back! Please enter your details.</p>
+                    {/* Right Side: Form */}
+                    <div className="flex flex-col justify-center items-start flex-1 p-8 md:p-12">
+                        <div className="mb-8">
+                            <h1 className='text-text-secondary font-bold text-4xl mb-2'>Account Login</h1>
+                            <p className='text-sm text-darkgreen opacity-55'>Welcome back! Please enter your details.</p>
                         </div>
-                        <div className="w-full min-w-0">
-                            <div className="w-full max-w-md min-w-0 my-1 mb-4">
-                                <p className="text-text-secondary font-bold text-sm py-2 px-1"> Username </p>
 
-                                <div className="w-full min-w-0 flex items-center gap-3 px-2 py-2 mx-1 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 cursor-text transition focus-within:border-darkgreen focus-within:bg-white focus-within:text-darkgreen group">
-                                    
-                                    <FaUser className="text-darkgreen/50 group-focus-within:text-darkgreen transition-opacity w-4 h-4 ml-3 " aria-hidden="true" />
-                                    
+                        <div className="w-full">
+                            {/* Email/Username Field */}
+                            <div className="mb-4">
+                                <InputLabel htmlFor="email" value="Username" className="text-text-secondary font-bold text-sm mb-2 ml-1" />
+
+                                <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.email ? 'border-red-500' : ''}`}>
+                                    <FaUser className="text-darkgreen/50 group-focus-within:text-darkgreen w-4 h-4 ml-3" />
                                     <input 
-                                    type="email" 
-                                    name="email"
-                                    value={data.email}
-                                    onChange={(e) => setData('email', e.target.value)}
-                                    placeholder="username" className="flex-1 w-full min-w-0 bg-transparent outline-none border-none text-sm placeholder:text-darkgreen/50 focus:outline-none focus:ring-0 focus:border-0"/>
-
+                                        id="email"
+                                        type="email" 
+                                        name="email"
+                                        value={data.email}
+                                        onChange={(e) => setData('email', e.target.value)}
+                                        placeholder="username" 
+                                        className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
+                                    />
                                 </div>
+                                
+                                
                             </div>
 
-                            <div className="w-full max-w-md min-w-0 my-1">
-                                <p className="text-text-secondary font-bold text-sm py-2 px-1"> Password </p>
+                            {/* Password Field */}
+                            <div className="mb-2">
+                                <InputLabel htmlFor="password" value="Password" className="text-text-secondary font-bold text-sm mb-2 ml-1" />
 
-                                <div className="w-full flex items-center gap-3 px-2 py-2 mx-1 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 cursor-text transition focus-within:border-darkgreen focus-within:bg-white focus-within:text-darkgreen group">
-                                    
-                                    <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen transition-opacity w-5 h-5 ml-3 " aria-hidden="true"/>
-
+                                <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.password ? 'border-red-500' : ''}`}>
+                                    <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen w-5 h-5 ml-3" />
                                     <input 
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    type="password" 
-                                    name="password"
-                                    value={data.password}
-                                    placeholder="••••••••"  className="flex-1 w-full min-w-0 bg-transparent outline-none border-none text-sm pl-2 placeholder:text-darkgreen/50 focus:outline-none focus:ring-0 focus:border-0" />
-
+                                        id="password"
+                                        type="password" 
+                                        name="password"
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        placeholder="••••••••"  
+                                        className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0" 
+                                    />
                                 </div>
+                                {/* Display Error for Password */}
+                                <InputError message={errors.password} className="mt-2" />
+                                {/* Display Error for Email */}
+                                <InputError message={errors.email} className="mt-2" />
                             </div>
 
-                            <a className="text-darkgreen opacity-65 font-medium text-xs p-5 pr-0 flex justify-end" href="">Forgot Credentials?</a>
+                            <div className="flex items-center justify-end mt-2">
+                                {canResetPassword && (
+                                    <Link
+                                        href={route('password.request')}
+                                        className="text-darkgreen opacity-65 font-medium text-xs hover:opacity-100 transition"
+                                    >
+                                        Forgot Credentials?
+                                    </Link>
+                                )}
+                            </div>
+
                             <PrimaryButton 
                                 className="w-full h-[53px] rounded-xl justify-center mt-6" 
                                 disabled={processing}
@@ -99,8 +115,6 @@ export default function Login({ status, canResetPassword }) {
 
                 </div>
             </div>
-            </form>
-       </>
-        
+        </form>
     );
 }

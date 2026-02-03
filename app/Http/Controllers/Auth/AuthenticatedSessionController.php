@@ -32,8 +32,22 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        // Example: create a cookie named 'user'
+            $cookie = cookie(
+                'user',                 // Cookie name
+                Auth::user()->id,       // Cookie value (user ID, safer than username)
+                60,                     // Expiration in minutes (1 hour)
+                '/',                    // Path
+                null,                   // Domain (default)
+                false,                  // Secure (true if using HTTPS)
+                true                    // HttpOnly
+            );
 
-        return redirect()->intended(route('dashboard', absolute: false));
+            // Redirect to dashboard with cookie attached
+            // return redirect()->intended(route('dashboard', absolute: false))
+            //                 ->cookie($cookie);
+
+            return redirect()->route('customers.dashboard')->cookie($cookie);
     }
 
     /**
