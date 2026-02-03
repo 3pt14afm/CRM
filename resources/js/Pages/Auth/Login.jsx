@@ -25,6 +25,7 @@ export default function Login({ status, canResetPassword }) {
 
     return (
        <>
+       <form onSubmit={submit}>
             <Head title="Log in" />
 
             <div className="min-h-screen w-full flex items-center justify-center bg-gray-200 font-sans">
@@ -59,7 +60,12 @@ export default function Login({ status, canResetPassword }) {
                                     
                                     <FaUser className="text-darkgreen/50 group-focus-within:text-darkgreen transition-opacity w-4 h-4 ml-3 " aria-hidden="true" />
                                     
-                                    <input type="email" placeholder="username" className="flex-1 w-full min-w-0 bg-transparent outline-none border-none text-sm placeholder:text-darkgreen/50 focus:outline-none focus:ring-0 focus:border-0"/>
+                                    <input 
+                                    type="email" 
+                                    name="email"
+                                    value={data.email}
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    placeholder="username" className="flex-1 w-full min-w-0 bg-transparent outline-none border-none text-sm placeholder:text-darkgreen/50 focus:outline-none focus:ring-0 focus:border-0"/>
 
                                 </div>
                             </div>
@@ -71,18 +77,29 @@ export default function Login({ status, canResetPassword }) {
                                     
                                     <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen transition-opacity w-5 h-5 ml-3 " aria-hidden="true"/>
 
-                                    <input type="password" placeholder="password" className="flex-1 w-full min-w-0 bg-transparent outline-none border-none text-sm pl-2 placeholder:text-darkgreen/50 focus:outline-none focus:ring-0 focus:border-0" />
+                                    <input 
+                                    onChange={(e) => setData('password', e.target.value)}
+                                    type="password" 
+                                    name="password"
+                                    value={data.password}
+                                    placeholder="••••••••"  className="flex-1 w-full min-w-0 bg-transparent outline-none border-none text-sm pl-2 placeholder:text-darkgreen/50 focus:outline-none focus:ring-0 focus:border-0" />
 
                                 </div>
                             </div>
 
                             <a className="text-darkgreen opacity-65 font-medium text-xs p-5 pr-0 flex justify-end" href="">Forgot Credentials?</a>
-                            <PrimaryButton className="flex-1 w-full min-w-0 h-[53px] rounded-xl justify-center my-4 mx-1">AUTHORIZE LOGIN</PrimaryButton>
+                            <PrimaryButton 
+                                className="w-full h-[53px] rounded-xl justify-center mt-6" 
+                                disabled={processing}
+                            >
+                                {processing ? 'AUTHORIZING...' : 'AUTHORIZE LOGIN'}
+                            </PrimaryButton>
                         </div>
                     </div>
 
                 </div>
             </div>
+            </form>
        </>
         
     );
