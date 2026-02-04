@@ -50,9 +50,9 @@ function MachineConfig() {
     const totalYieldsAll = rows.reduce((s, r) => s + (Number(r.yields) || 0), 0);
     const totalSellingAll = rows.reduce((s, r) => s + getRowCalculations(r).totalSell, 0);
     
-    // Grand Total CPPs
-    const grandCostCpp = totalYieldsAll > 0 ? totalCostAll / totalYieldsAll : 0;
-    const grandSellCpp = totalYieldsAll > 0 ? totalSellingAll / totalYieldsAll : 0;
+   // CHANGED: Summing up the individual CPP columns instead of calculating from totals
+    const grandCostCpp = rows.reduce((s, r) => s + getRowCalculations(r).costCpp, 0);
+    const grandSellCpp = rows.reduce((s, r) => s + getRowCalculations(r).sellCpp, 0);
 
     return (
         <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm mx-10 mb-5">

@@ -1,6 +1,13 @@
 import React from 'react'
 
+
+
 function Summary1stYear() {
+     
+    const info = [
+          'COMPANY NAME', 'CONTRACT TERMS', 'CONTRACT TYPE', 'REFERENCE'
+    ]
+
   return (
     <div className='mx-10 bg-[#B5EBA2]/20 border rounded-r-lg rounded-b-xl border-t-0 h-[100vh] border-b-[#B5EBA2] border-x-[#B5EBA2]'>
             {/* company info */}
@@ -14,7 +21,7 @@ function Summary1stYear() {
                 </div>
                 <div className='grid grid-cols-5 justify-center items-center'>
                     <div>
-                        <p>Company Name</p>
+                        <p className='test-xs'>COMPANY NAME</p>
                         <p>Acme Corporation</p>
                     </div>
                      <div>
