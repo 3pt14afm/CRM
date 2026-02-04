@@ -46,106 +46,104 @@ const Fees = () => {
   const grandTotal = rows.reduce((sum, row) => sum + (row.total || 0), 0);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm mx-4 mb-5 bg-white">
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0">
-          <thead>
-            <tr className="bg-[#F6FDF5] text-[10px] uppercase font-bold text-slate-600">
-              <th className="border-b border-r border-slate-200 p-2 w-10">H</th>
-              <th className="border-b border-r border-slate-200 p-2 min-w-[180px] text-left">Description</th>
-              <th className="border-b border-r border-slate-200 p-2 w-32">Unit Cost</th>
-              <th className="border-b border-r border-slate-200 p-2 w-20">Qty</th>
-              <th className="border-b border-r border-slate-200 p-2 w-32">Total</th>
-              <th className="border-b border-r border-slate-200 p-2 w-20">+/-</th>
-              <th className="border-b border-slate-200 p-2 min-w-[150px] text-left">Remarks</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td className="border-b border-r border-slate-100 text-center">
-                  <input type="checkbox" className="w-3 h-3" />
-                </td>
+<div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm mx-4 mb-5 bg-white">
+  <div className="overflow-x-auto">
+    <table className="min-w-full border-separate border-spacing-0">
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+            {/* Checkbox Column - Added px-3 for consistent spacing */}
+            <td className="border-b border-r border-slate-100 text-center px-3 py-2">
+              <input type="checkbox" className="w-3 h-3 accent-green-600" />
+            </td>
 
-                <td className="border-b border-r border-slate-100 p-2 bg-[#F6FDF5]/30">
-                  {row.isStatic ? (
-                    <span className="text-[11px] font-bold text-slate-700 pl-1">{row.label}</span>
-                  ) : (
-                    <input 
-                      type="text"
-                      value={row.label}
-                      onChange={(e) => handleUpdate(row.id, 'label', e.target.value)}
-                      placeholder="New Item Name"
-                      className={`${inputClass} !text-left italic bg-white`}
-                    />
-                  )}
-                </td>
+            {/* Label Column - Standardized p-2 */}
+            <td className="border-b border-r border-slate-100 p-2 bg-[#F6FDF5]/30 max-w-[200px]">
+              {row.isStatic ? (
+                <span className="text-[11px] font-bold text-slate-700 block px-1">{row.label}</span>
+              ) : (
+                <input 
+                  type="text"
+                  value={row.label}
+                  onChange={(e) => handleUpdate(row.id, 'label', e.target.value)}
+                  placeholder="New Item Name"
+                  className={`${inputClass} !text-left italic bg-white w-full px-2`}
+                />
+              )}
+            </td>
 
-                <td className="border-b border-r border-slate-100 p-1">
-                  <input 
-                    type="number"
-                    value={row.cost}
-                    onChange={(e) => handleUpdate(row.id, 'cost', e.target.value)}
-                    className={inputClass}
-                  />
-                </td>
+              {/* COST COLUMN */}
+          <td className="border-b border-r border-slate-100 p-1 w-28">
+            <input 
+              type="number"
+              value={row.cost}
+              onChange={(e) => handleUpdate(row.id, 'cost', e.target.value)}
+              /* Controlled width (w-16), shorter height (h-6), and smaller font */
+              className={`${inputClass} w-16 h-6 text-[10px] px-1 mx-auto block`}
+            />
+          </td>
 
-                <td className="border-b border-r border-slate-100 p-1">
-                  <input 
-                    type="number"
-                    value={row.qty}
-                    onChange={(e) => handleUpdate(row.id, 'qty', e.target.value)}
-                    className={inputClass}
-                  />
-                </td>
+          {/* QTY COLUMN */}
+          <td className="border-b border-r border-slate-100 p-1 w-14">
+            <input 
+              type="number"
+              value={row.qty}
+              onChange={(e) => handleUpdate(row.id, 'qty', e.target.value)}
+              /* Even narrower width (w-10) for small quantity numbers */
+              className={`${inputClass} w-10 h-6 text-[10px] px-1 mx-auto block`}
+            />
+          </td>
 
-                <td className="border-b border-r border-slate-100 p-1">
-                  <div className={readonlyClass}>
-                    {row.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                  </div>
-                </td>
+            {/* Total Column - Vertical alignment fix */}
+            <td className="border-b border-r border-slate-100 p-2 w-20">
+              <div className={`${readonlyClass} flex items-center justify-center min-h-[28px]`}>
+                {row.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              </div>
+            </td>
 
-                <td className="border-b border-r border-slate-100 p-1">
-                  <div className="flex gap-1 justify-center">
-                    <button onClick={addRow} className="w-6 h-6 flex items-center justify-center rounded bg-green-50 text-green-600 border border-green-200 hover:bg-green-100">+</button>
-                    <button 
-                      onClick={() => removeRow(row.id, row.isStatic)}
-                      disabled={row.isStatic}
-                      className={`w-6 h-6 flex items-center justify-center rounded border ${
-                        row.isStatic ? "border-slate-100 bg-slate-50 text-slate-300" : "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                      }`}
-                    >
-                      -
-                    </button>
-                  </div>
-                </td>
+            {/* Actions Column */}
+            <td className="border-b border-r border-slate-100 p-2">
+              <div className="flex gap-1.5 justify-center">
+                <button onClick={addRow} className="w-7 h-7 flex items-center justify-center rounded bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors">+</button>
+                <button 
+                  onClick={() => removeRow(row.id, row.isStatic)}
+                  disabled={row.isStatic}
+                  className={`w-7 h-7 flex items-center justify-center rounded border transition-colors ${
+                    row.isStatic ? "border-slate-100 bg-slate-50 text-slate-300" : "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                  }`}
+                >
+                  -
+                </button>
+              </div>
+            </td>
 
-                <td className="border-b border-slate-100 p-1">
-                  <input 
-                    type="text"
-                    value={row.remarks}
-                    onChange={(e) => handleUpdate(row.id, 'remarks', e.target.value)}
-                    placeholder="Remarks..."
-                    className={`${inputClass} !text-left px-2`}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-[#F6FDF5] font-bold text-[11px] text-slate-800">
-              <td colSpan="2" className="p-2 border-r border-slate-200 text-center uppercase">TOTAL</td>
-              <td className="border-r border-slate-200"></td>
-              <td className="border-r border-slate-200"></td>
-              <td className="p-2 border-r border-slate-200 text-center bg-[#F6FDF5]shadow-inner">
-                {grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </td>
-              <td colSpan="2"></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
+            {/* Remarks Column */}
+            <td className="border-b border-slate-100 p-2">
+              <input 
+                type="text"
+                value={row.remarks}
+                onChange={(e) => handleUpdate(row.id, 'remarks', e.target.value)}
+                placeholder="Remarks..."
+                className={`${inputClass} !text-left px-2 w-full`}
+              />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr className="bg-[#F6FDF5] font-bold text-[11px] text-slate-800">
+          <td colSpan="2" className="p-3 border-r border-slate-200 text-center uppercase tracking-wider">TOTAL</td>
+          <td className="border-r border-slate-200"></td>
+          <td className="border-r border-slate-200"></td>
+          <td className="p-3 border-r border-slate-200 text-center bg-[#F6FDF5] shadow-inner">
+            {grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+          </td>
+          <td colSpan="2" className="bg-white"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
   );
 };
 
