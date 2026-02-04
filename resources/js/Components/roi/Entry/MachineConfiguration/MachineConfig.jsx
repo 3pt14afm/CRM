@@ -33,9 +33,9 @@ function MachineConfig() {
         const sellingPrice = parseFloat(row.sellingprice) || 0;
 
         const totalCost = unitCost * qty;
-        const costCpp = yields > 0 ? totalCost / yields : 0;
+        const costCpp = yields > 0 ? unitCost / yields : 0;
         const totalSell = sellingPrice * qty;
-        const sellCpp = yields > 0 ? totalSell / yields : 0;
+        const sellCpp = yields > 0 ? sellingPrice / yields : 0;
 
         return { totalCost, costCpp, totalSell, sellCpp };
     };

@@ -3,8 +3,8 @@ import React from 'react';
 const InterestCalculator = ({ annualInterest, setAnnualInterest, percentMargin, setPercentMargin, contractYears }) => {
   
 // Convert whole number inputs to decimals for math (e.g., 5 becomes 0.05)
-  const annual = (parseFloat(annualInterest) || 0) / 100;
-  const margin = (parseFloat(percentMargin) || 0) / 100;
+  const annual = (parseFloat(annualInterest) || 0) ;
+  const margin = (parseFloat(percentMargin) || 0) ;
   const years = parseFloat(contractYears) || 0;
 
   // Validation flag
@@ -39,7 +39,7 @@ const InterestCalculator = ({ annualInterest, setAnnualInterest, percentMargin, 
                     value={annualInterest || ''} 
                     onChange={(e) => setAnnualInterest(e.target.value)}
                     className="w-full text-xs rounded-md h-6 pl-1 pr-4 text-center border border-[#DDDDDD]/50 outline-none focus:ring-1 focus:ring-green-400 bg-[#DDDDDD]/40" 
-                    placeholder="0.00"
+                    placeholder="0"
                     />
                     <span className="absolute right-2 text-[10px] font-bold text-gray-500 pointer-events-none">
                     %
