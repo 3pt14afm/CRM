@@ -55,11 +55,7 @@ export default function Sidebar() {
   const NavSubLink = ({ href, active, children }) => (
     <Link
       href={href}
-      className={`block pl-6 py-1.5 text-sm ${
-        active
-          ? 'text-darkgreen font-semibold ml-2 border-darkgreen/70 border-l bg-[#B5EBA2] w-[80%]'
-          : 'text-darkgreen/70 ml-2 border-l border-[#90E274]'
-      }`}
+      className={`block pl-6 py-1.5 text-sm ${active  ? 'text-darkgreen font-semibold ml-2 border-darkgreen/70 border-l bg-[#B5EBA2] w-[85%]' : 'text-darkgreen/70 ml-2 border-l border-[#90E274]'}`}
     >
       {children}
     </Link>
@@ -134,7 +130,7 @@ export default function Sidebar() {
 
                 {/* CUSTOMER SUB-ITEMS */}
                 {isOpen && activeModule === 'customer' && (
-                    <div className="bg-lightgreen/50 rounded-b-xl pt-2 pl-8 shadow-lg mb-9">
+                    <div className="bg-lightgreen/50 rounded-b-xl pt-2 pl-8 shadow-lg mb-7">
                         {!activeSubMenu && (
                             <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 hover:text-darkgreen hover:font-medium opacity-80">
                             Customer Information Details
@@ -192,8 +188,8 @@ export default function Sidebar() {
                                     <div className="relative ml-8 pb-2">
                                         <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>Stocks Inventory (BN/RF)</NavSubLink>
                                         <NavSubLink href={route('roi.archive')} active={route().current('roi.archive')}>Sales Transaction per AM</NavSubLink>
-                                        <NavSubLink href={route('roi.entry')} active={route().current('roi.entry')}>Sales Summary Report MTD/YTD</NavSubLink>
-                                        <NavSubLink href={route('roi.entry')} active={route().current('roi.entry')}>All Reports of Others Systems</NavSubLink>
+                                        <NavSubLink href={route('roi.entry')} active={route().current('roi.entry')}>Sales Summary Report <br />MTD/YTD</NavSubLink>
+                                        <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>All Reports of Others <br /> Systems</NavSubLink>
                                     </div>
                                 )}
                             </div>
@@ -235,12 +231,12 @@ export default function Sidebar() {
 
                         {/* MACHINE INVENTORY SUB-ITEMS */}
                         {isOpen && activeModule === 'machine' && (
-                            <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-2 pl-8 shadow-lg mb-3">
+                            <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
 
                                 {/* 1) Machine In-Field Inventory (with sublinks) */}
                                 {(activeMachineSubMenu === null || activeMachineSubMenu === 'infield') && (
                                     <div className="relative">
-                                        <div className="flex items-center -mt-3 py-2 pt-5">
+                                        <div className="flex items-center -mt-3 py-2 pb-3 pt-5">
                                             <Link href="#" onClick={() => handleMachineSubToggle('infield')} className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${ activeMachineSubMenu === 'infield' ? 'text-darkgreen/85 font-semibold ' : 'text-darkgreen/70 opacity-80'}`}
                                             >
                                                 Machine In-Field Inventory
@@ -255,11 +251,7 @@ export default function Sidebar() {
 
                                         {activeMachineSubMenu === 'infield' && (
                                             <div className="relative ml-8 pb-2">
-                                                <NavSubLink href="#" active={false}>Assigned Machines</NavSubLink>
-                                                <NavSubLink href="#" active={false}>Installation Records</NavSubLink>
-                                                <NavSubLink href="#" active={false}>In-field Status</NavSubLink>
-                                                <NavSubLink href="#" active={false}>Pull-out Requests</NavSubLink>
-                                                <NavSubLink href="#" active={false}>In-field Reports</NavSubLink>
+                                                <NavSubLink href="#" active={false}>per Company/AM/Branch</NavSubLink>
                                             </div>
                                         )}
                                     </div>
@@ -281,7 +273,7 @@ export default function Sidebar() {
                                 {(activeMachineSubMenu === null || activeMachineSubMenu === 'inventory_view') && (
                                     <div className="relative">
                                         <div className="flex items-center py-1">
-                                            <Link href="#" onClick={() => handleMachineSubToggle('inventory_view')} className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${ activeMachineSubMenu === 'inventory_view' ? 'text-darkgreen/85 font-semibold' : 'text-darkgreen/70 opacity-80'}`}
+                                            <Link href="#" onClick={() => handleMachineSubToggle('inventory_view')} className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${ activeMachineSubMenu === 'inventory_view' ? 'text-darkgreen/85 font-semibold pb-2 pt-1' : 'text-darkgreen/70 opacity-80'}`}
                                             >
                                                 Inventory Machine <br /> (View Only)
                                             </Link>
@@ -294,12 +286,10 @@ export default function Sidebar() {
                                         </div>
 
                                         {activeMachineSubMenu === 'inventory_view' && (
-                                            <div className="relative ml-8 pb-2">
-                                                <NavSubLink href="#" active={false}>All Machines</NavSubLink>
-                                                <NavSubLink href="#" active={false}>Available Units</NavSubLink>
-                                                <NavSubLink href="#" active={false}>Deployed Units</NavSubLink>
-                                                <NavSubLink href="#" active={false}>Under Maintenance</NavSubLink>
-                                                <NavSubLink href="#" active={false}>Inventory Reports</NavSubLink>
+                                            <div className="relative ml-8 pb-1">
+                                                <NavSubLink href="#" active={false}>Brand New Machine</NavSubLink>
+                                                <NavSubLink href="#" active={false}>Refurbish Machine</NavSubLink>
+                                                <NavSubLink href="#" active={false}>Returned Machine</NavSubLink>
                                             </div>
                                         )}
                                     </div>
@@ -347,56 +337,49 @@ export default function Sidebar() {
                         </div>
 
                         {isOpen && activeModule === 'service' && (
-  <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-2 pl-8 shadow-lg mb-3">
+                          <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
 
-    {/* 1) Service Ticketing (with sublinks) */}
-    {(activeServiceSubMenu === null || activeServiceSubMenu === 'ticketing') && (
-      <div className="relative">
-        <div className="flex items-center -mt-3 -mb-3 py-2">
-          <Link
-            href="#"
-            onClick={() => handleServiceSubToggle('ticketing')}
-            className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
-              activeServiceSubMenu === 'ticketing'
-                ? 'text-darkgreen/85 font-semibold pt-3 mb-2'
-                : 'text-darkgreen/70 opacity-80'
-            }`}
-          >
-            Service Ticketing
-          </Link>
+                            {/* 1) Service Ticketing (with sublinks) */}
+                            {(activeServiceSubMenu === null || activeServiceSubMenu === 'ticketing') && (
+                                <div className="relative">
+                                    <div className="flex items-center -mt-3 -mb-3 py-3">
+                                        <Link
+                                            href="#"
+                                            onClick={() => handleServiceSubToggle('ticketing')}
+                                            className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                                            activeServiceSubMenu === 'ticketing' ? 'text-darkgreen/85 font-semibold pt-1 mb-1' : 'text-darkgreen/70 opacity-80'
+                                            }`}
+                                        >
+                                            Service Ticketing
+                                        </Link>
 
-          <button onClick={() => handleServiceSubToggle('ticketing')} className="px-6 py-2">
-            <span className={`inline-block transition-transform duration-300 ${activeServiceSubMenu === 'ticketing' ? 'rotate-180' : ''}`}>
-              <IoMdArrowDropdown size={14} color={activeServiceSubMenu === 'ticketing' ? '#15803d' : 'black'} />
-            </span>
-          </button>
-        </div>
+                                        <button onClick={() => handleServiceSubToggle('ticketing')} className="px-6 py-2">
+                                            <span className={`inline-block transition-transform duration-300 ${activeServiceSubMenu === 'ticketing' ? 'rotate-180' : ''}`}>
+                                                <IoMdArrowDropdown size={14} color={activeServiceSubMenu === 'ticketing' ? '#15803d' : 'black'} />
+                                            </span>
+                                        </button>
+                                    </div>
 
-        {activeServiceSubMenu === 'ticketing' && (
-          <div className="relative ml-8 pb-2 mt-2">
-            <NavSubLink href="#" active={false}>Create Ticket</NavSubLink>
-            <NavSubLink href="#" active={false}>Open Tickets</NavSubLink>
-            <NavSubLink href="#" active={false}>Assigned to Me</NavSubLink>
-            <NavSubLink href="#" active={false}>Closed Tickets</NavSubLink>
-            <NavSubLink href="#" active={false}>Ticket Reports</NavSubLink>
-          </div>
-        )}
-      </div>
-    )}
+                                    {activeServiceSubMenu === 'ticketing' && (
+                                        <div className="relative ml-8 pb-1">
+                                            <NavSubLink href="#" active={false}>Service Dispatch Web Portal</NavSubLink>
+                                            <NavSubLink href="#" active={false}>Field Tech Web Portal</NavSubLink>
+                                            <NavSubLink href="#" active={false}>Client Direct Web Portal</NavSubLink>
+                                            <NavSubLink href="#" active={false}>Website Support Portal</NavSubLink>
+                                        </div>
+                                    )}
+                              </div>
+                            )}
 
-    {/* then the rest of the normal links (ONLY show when no submenu is open) */}
-    {!activeServiceSubMenu && (
-      <>
-        <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
-          Parts Requisition (BN/RF)
-        </Link>
-        <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
-          Reports
-        </Link>
-      </>
-    )}
-  </div>
-)}
+                            {/* Rest of the normal links (ONLY show when no submenu is open) */}
+                            {!activeServiceSubMenu && (
+                              <>
+                                <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">Parts Requisition (BN/RF)</Link>
+                                <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">Reports</Link>
+                              </>
+                            )}
+                          </div>
+                        )}
 
                     </div>
 
@@ -430,126 +413,114 @@ export default function Sidebar() {
                         </div>
 
                         {isOpen && activeModule === 'delivery' && (
-  <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-2 pl-8 shadow-lg mb-3">
+                          <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-4 pb-2 pl-8 shadow-lg mb-3">
 
-    {/* 1) Order & Delivery Management (with sublinks) */}
-    {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'order_delivery') && (
-      <div className="relative">
-        <div className="flex items-center -mt-3 -mb-3 py-2">
-          <Link
-            href="#"
-            onClick={() => handleDeliverySubToggle('order_delivery')}
-            className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
-              activeDeliverySubMenu === 'order_delivery'
-                ? 'text-darkgreen/85 font-semibold pt-3 mb-2'
-                : 'text-darkgreen/70 opacity-80'
-            }`}
-          >
-            Order & Delivery Management
-          </Link>
+                            {/* 1) Order & Delivery Management (with sublinks) */}
+                            {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'order_delivery') && (
+                              <div className="relative">
+                                <div className="flex items-center -mt-3 -mb-3 py-3">
+                                  <Link
+                                    href="#"
+                                    onClick={() => handleDeliverySubToggle('order_delivery')}
+                                    className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                                      activeDeliverySubMenu === 'order_delivery'
+                                        ? 'text-darkgreen/85 font-semibold'
+                                        : 'text-darkgreen/70 opacity-80'
+                                    }`}
+                                  >
+                                    Order & Delivery Management
+                                  </Link>
 
-          <button onClick={() => handleDeliverySubToggle('order_delivery')} className="px-6 py-2">
-            <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'order_delivery' ? 'rotate-180' : ''}`}>
-              <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'order_delivery' ? '#15803d' : 'black'} />
-            </span>
-          </button>
-        </div>
+                                  <button onClick={() => handleDeliverySubToggle('order_delivery')} className="px-6 py-2">
+                                    <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'order_delivery' ? 'rotate-180' : ''}`}>
+                                      <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'order_delivery' ? '#15803d' : 'black'} />
+                                    </span>
+                                  </button>
+                                </div>
 
-        {activeDeliverySubMenu === 'order_delivery' && (
-          <div className="relative ml-8 pb-2 mt-2">
-            <NavSubLink href="#" active={false}>Create Order</NavSubLink>
-            <NavSubLink href="#" active={false}>Dispatch Queue</NavSubLink>
-            <NavSubLink href="#" active={false}>Scheduled Deliveries</NavSubLink>
-            <NavSubLink href="#" active={false}>Completed Deliveries</NavSubLink>
-            <NavSubLink href="#" active={false}>Delivery Reports</NavSubLink>
-          </div>
-        )}
-      </div>
-    )}
+                                {activeDeliverySubMenu === 'order_delivery' && (
+                                  <div className="relative ml-8 pb-1 mt-2">
+                                    <NavSubLink href="#" active={false}>Auto Email Status <br /> Notification</NavSubLink>
+                                    <NavSubLink href="#" active={false}>Delivery Assignment</NavSubLink>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
-    {/* 2) Vehicle Tracking (with sublinks) */}
-    {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'vehicle_tracking') && (
-      <div className="relative">
-        <div className="flex items-center -mt-3 -mb-3 py-2">
-          <Link
-            href="#"
-            onClick={() => handleDeliverySubToggle('vehicle_tracking')}
-            className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
-              activeDeliverySubMenu === 'vehicle_tracking'
-                ? 'text-darkgreen/85 font-semibold pt-3 mb-2'
-                : 'text-darkgreen/70 opacity-80'
-            }`}
-          >
-            Vehicle Tracking
-          </Link>
+                            {/* 2) Vehicle Tracking (with sublinks) */}
+                            {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'vehicle_tracking') && (
+                              <div className="relative">
+                                <div className="flex items-center -mt-3 -mb-3 pb-1 py-2">
+                                  <Link
+                                    href="#"
+                                    onClick={() => handleDeliverySubToggle('vehicle_tracking')}
+                                    className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                                      activeDeliverySubMenu === 'vehicle_tracking'
+                                        ? 'text-darkgreen/85 font-semibold mb-2'
+                                        : 'text-darkgreen/70 opacity-80'
+                                    }`}
+                                  >
+                                    Vehicle Tracking
+                                  </Link>
 
-          <button onClick={() => handleDeliverySubToggle('vehicle_tracking')} className="px-6 py-2">
-            <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'vehicle_tracking' ? 'rotate-180' : ''}`}>
-              <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'vehicle_tracking' ? '#15803d' : 'black'} />
-            </span>
-          </button>
-        </div>
+                                  <button onClick={() => handleDeliverySubToggle('vehicle_tracking')} className="px-6 py-2">
+                                    <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'vehicle_tracking' ? 'rotate-180' : ''}`}>
+                                      <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'vehicle_tracking' ? '#15803d' : 'black'} />
+                                    </span>
+                                  </button>
+                                </div>
 
-        {activeDeliverySubMenu === 'vehicle_tracking' && (
-          <div className="relative ml-8 pb-2 mt-2">
-            <NavSubLink href="#" active={false}>Live Map</NavSubLink>
-            <NavSubLink href="#" active={false}>Vehicle List</NavSubLink>
-            <NavSubLink href="#" active={false}>Trip History</NavSubLink>
-            <NavSubLink href="#" active={false}>Maintenance Alerts</NavSubLink>
-            <NavSubLink href="#" active={false}>Tracking Reports</NavSubLink>
-          </div>
-        )}
-      </div>
-    )}
+                                {activeDeliverySubMenu === 'vehicle_tracking' && (
+                                  <div className="relative ml-8 pb-1 mt-1">
+                                    <NavSubLink href="#" active={false}>GPS Monitoring <br />(Manila GPS)</NavSubLink>
+                                    <NavSubLink href="#" active={false}>Dash Camera Monitoring</NavSubLink>
+                                    <NavSubLink href="#" active={false}>Gas Consumption <br /> Monitoring</NavSubLink>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
-    {/* 3) Driver Tracking (with sublinks) */}
-    {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'driver_tracking') && (
-      <div className="relative">
-        <div className="flex items-center -mt-3 -mb-3 py-2">
-          <Link
-            href="#"
-            onClick={() => handleDeliverySubToggle('driver_tracking')}
-            className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
-              activeDeliverySubMenu === 'driver_tracking'
-                ? 'text-darkgreen/85 font-semibold pt-3 mb-2'
-                : 'text-darkgreen/70 opacity-80'
-            }`}
-          >
-            Driver Tracking
-          </Link>
+                            {/* 3) Driver Tracking (with sublinks) */}
+                            {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'driver_tracking') && (
+                              <div className="relative">
+                                <div className="flex items-center -mt-3 -mb-3 pb-3 py-2">
+                                  <Link
+                                    href="#"
+                                    onClick={() => handleDeliverySubToggle('driver_tracking')}
+                                    className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                                      activeDeliverySubMenu === 'driver_tracking'
+                                        ? 'text-darkgreen/85 font-semibold mb-1'
+                                        : 'text-darkgreen/70 opacity-80'
+                                    }`}
+                                  >
+                                    Driver Tracking
+                                  </Link>
 
-          <button onClick={() => handleDeliverySubToggle('driver_tracking')} className="px-6 py-2">
-            <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'driver_tracking' ? 'rotate-180' : ''}`}>
-              <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'driver_tracking' ? '#15803d' : 'black'} />
-            </span>
-          </button>
-        </div>
+                                  <button onClick={() => handleDeliverySubToggle('driver_tracking')} className="px-6 py-2 pt-1">
+                                    <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'driver_tracking' ? 'rotate-180' : ''}`}>
+                                      <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'driver_tracking' ? '#15803d' : 'black'} />
+                                    </span>
+                                  </button>
+                                </div>
 
-        {activeDeliverySubMenu === 'driver_tracking' && (
-          <div className="relative ml-8 pb-2 mt-2">
-            <NavSubLink href="#" active={false}>Driver List</NavSubLink>
-            <NavSubLink href="#" active={false}>Assigned Trips</NavSubLink>
-            <NavSubLink href="#" active={false}>Attendance / Status</NavSubLink>
-            <NavSubLink href="#" active={false}>Incidents</NavSubLink>
-            <NavSubLink href="#" active={false}>Driver Reports</NavSubLink>
-          </div>
-        )}
-      </div>
-    )}
+                                {activeDeliverySubMenu === 'driver_tracking' && (
+                                  <div className="relative ml-8">
+                                    <NavSubLink href="#" active={false}>Tab/Phone Delivery Receipt</NavSubLink>
+                                    <NavSubLink href="#" active={false}>Tab/Phone Geolocation</NavSubLink>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
-    {/* then the rest of the normal links (ONLY show when no submenu is open) */}
-    {!activeDeliverySubMenu && (
-      <>
-        <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
-          Vehicle Maintenance
-        </Link>
-        <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
-          Reports
-        </Link>
-      </>
-    )}
-  </div>
-)}
+                            {/* then the rest of the normal links (ONLY show when no submenu is open) */}
+                            {!activeDeliverySubMenu && (
+                              <>
+                                <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">Vehicle Maintenance</Link>
+                                <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">Reports</Link>
+                              </>
+                            )}
+                          </div>
+                        )}
 
                     </div>
 
