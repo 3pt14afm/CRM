@@ -15,53 +15,51 @@ export default function Sidebar() {
   const [activeMachineSubMenu, setActiveMachineSubMenu] = useState(null);
   const [activeServiceSubMenu, setActiveServiceSubMenu] = useState(null);
   const [activeDeliverySubMenu, setActiveDeliverySubMenu] = useState(null);
-
   const [activeItem, setActiveItem] = useState(null); // "profile" | "settings" | null
-
   const profileBtnRef = useRef(null);
   const dropdownRef = useRef(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+  const sidebarRef = useRef(null);
+
 
   // Compute dropdown position when it opens (works open OR collapsed)
   useEffect(() => {
-  if (activeItem !== "profile") return;
+    if (activeItem !== "profile") return;
 
-  const btn = profileBtnRef.current;
-  if (!btn) return;
+    const btn = profileBtnRef.current;
+    if (!btn) return;
 
-  const rect = btn.getBoundingClientRect();
+    const rect = btn.getBoundingClientRect();
 
-  // Place dropdown to the right of the profile icon
-  setDropdownPos({
-    top: rect.bottom,
-    left: rect.right + 12,
-  });
+    // Place dropdown to the right of the profile icon
+    setDropdownPos({
+        top: rect.bottom,
+        left: rect.right + 12,
+    });
   }, [activeItem, isOpen]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
-  if (activeItem !== "profile") return;
+    if (activeItem !== "profile") return;
 
-  const onMouseDown = (e) => {
-    const dropdownEl = dropdownRef.current;
-    const btnEl = profileBtnRef.current;
+    const onMouseDown = (e) => {
+        const dropdownEl = dropdownRef.current;
+        const btnEl = profileBtnRef.current;
 
-    if (!dropdownEl || !btnEl) return;
+        if (!dropdownEl || !btnEl) return;
 
-    const clickedDropdown = dropdownEl.contains(e.target);
-    const clickedButton = btnEl.contains(e.target);
+        const clickedDropdown = dropdownEl.contains(e.target);
+        const clickedButton = btnEl.contains(e.target);
 
-    if (!clickedDropdown && !clickedButton) {
-        setActiveItem(null);
-    }
-  };
+        if (!clickedDropdown && !clickedButton) {
+            setActiveItem(null);
+        }
+    };
 
-  document.addEventListener("mousedown", onMouseDown);
-  return () => document.removeEventListener("mousedown", onMouseDown);
-}, [activeItem]);
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [activeItem]);
 
-
- 
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -97,6 +95,45 @@ export default function Sidebar() {
     setActiveDeliverySubMenu(activeDeliverySubMenu === name ? null : name);
   };
 
+  const openSidebarAndToggleModule = (moduleName) => {
+    // If sidebar is closed, open it first
+    if (!isOpen) {
+        setIsOpen(true);
+        setActiveModule(moduleName); // expand the clicked module
+        // reset submenus so it starts clean
+        setActiveSubMenu(null);
+        setActiveMachineSubMenu(null);
+        setActiveServiceSubMenu(null);
+        setActiveDeliverySubMenu(null);
+        return;
+    }
+
+    // If already open, behave like your normal toggle
+    handleModuleToggle(moduleName);
+  };
+
+  useEffect(() => {
+    const onPointerDown = (e) => {
+        if (!isOpen) return;
+
+        if (sidebarRef.current && sidebarRef.current.contains(e.target)) return;
+
+        setIsOpen(false);
+        setActiveItem(null);
+        closeAllMenus();
+    };
+
+    document.addEventListener("mousedown", onPointerDown, true);
+    document.addEventListener("touchstart", onPointerDown, true);
+
+    return () => {
+        document.removeEventListener("mousedown", onPointerDown, true);
+        document.removeEventListener("touchstart", onPointerDown, true);
+    };
+  }, [isOpen]);
+
+
+
   const NavSubLink = ({ href, active, children }) => (
     <Link
       href={href}
@@ -118,25 +155,25 @@ export default function Sidebar() {
             ? 'delivery'
             : null;
 
-const isCustomerActive = activeByRoute === 'customer';
-const isMachineActive = activeByRoute === 'machine';
-const isServiceActive = activeByRoute === 'service';
-const isDeliveryActive = activeByRoute === 'delivery';
+    const isCustomerActive = activeByRoute === 'customer';
+    const isMachineActive = activeByRoute === 'machine';
+    const isServiceActive = activeByRoute === 'service';
+    const isDeliveryActive = activeByRoute === 'delivery';
 
-const customerExpanded = isOpen && activeModule === 'customer';
-const machineExpanded  = isOpen && activeModule === 'machine';
-const serviceExpanded  = isOpen && activeModule === 'service';
-const deliveryExpanded = isOpen && activeModule === 'delivery';
+    const customerExpanded = isOpen && activeModule === 'customer';
+    const machineExpanded  = isOpen && activeModule === 'machine';
+    const serviceExpanded  = isOpen && activeModule === 'service';
+    const deliveryExpanded = isOpen && activeModule === 'delivery';
 
 
-  // Text reveal/hide WITHOUT moving icons
-  const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ease-in-out ${isOpen ? "max-w-[240px] opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1"}`;
+    // Text reveal/hide WITHOUT moving icons
+    const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ease-in-out ${isOpen ? "max-w-[240px] opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1"}`;
 
-  // Reserve space for chevron so row doesn’t shift
-  const chevronSlotClass = `flex items-center justify-end w-12 transition-opacity duration-300 ease-in-out ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`;
+    // Reserve space for chevron so row doesn’t shift
+    const chevronSlotClass = `flex items-center justify-end w-12 transition-opacity duration-300 ease-in-out ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`;
 
   return (
-    <aside className={`h-screen flex flex-col bg-white shadow-xl border-r overflow-hidden transition-[width] duration-300 ease-in-out ${isOpen ? "w-80" : "w-20"}`}>
+    <aside ref={sidebarRef} className={`h-screen flex flex-col bg-white shadow-xl border-r overflow-hidden transition-[width] duration-300 ease-in-out ${isOpen ? "w-80" : "w-20"}`}>
         {/* HEADER (stable: grid prevents shifting) */}
         <div className={`p-4 flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
 
@@ -165,11 +202,11 @@ const deliveryExpanded = isOpen && activeModule === 'delivery';
             {/* CUSTOMER MANAGEMENT */}
             <div className="space-y-3 mx-2">
             <div>
-                <div className={`group ${isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen'} ${customerExpanded ? 'rounded-t-xl' : 'rounded-xl'}`}>
+                <div className={`group ${isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'} ${customerExpanded ? 'rounded-t-xl' : 'rounded-xl'}`}>
                     <div className={`flex items-center px-3 py-3`}>
                         <Link
                             href={route('customers.dashboard')}
-                            onClick={() => handleModuleToggle('customer')}
+                            onClick={() => openSidebarAndToggleModule('customer')}
                             className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${isCustomerActive ? 'text-black' : 'text-darkgreen'}`}
                         >
                             {/* ICON (fixed slot) */}
@@ -185,7 +222,7 @@ const deliveryExpanded = isOpen && activeModule === 'delivery';
 
                         {/* Chevron slot (reserved width so no shifting) */}
                         <div className={chevronSlotClass}>
-                            <button onClick={() => handleModuleToggle('customer')} className="p-2" aria-label="Toggle customer menu">
+                            <button onClick={() => openSidebarAndToggleModule('customer')} className="p-2" aria-label="Toggle customer menu">
                                 <span className={`inline-block transition-transform duration-300 ${activeModule === 'customer' ? 'rotate-180' : ''}`}>
                                     <IoMdArrowDropdown color="black" size={18} />
                                 </span>
@@ -269,11 +306,11 @@ const deliveryExpanded = isOpen && activeModule === 'delivery';
 
                     {/* MACHINE INVENTORY */}
                     <div>
-                        <div className={`mx-0 group ${activeModule === 'machine' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen rounded-xl'}`}>
+                        <div className={`mx-0 group ${activeModule === 'machine' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen/40 rounded-xl'}`}>
                             <div className="flex items-center px-3 py-3">
                                 <Link
                                     href="#"
-                                    onClick={() => handleModuleToggle('machine')}
+                                    onClick={(e) => { e.preventDefault(); openSidebarAndToggleModule('machine'); }}
                                     className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${activeModule === 'machine' ? 'text-black' : 'text-darkgreen'}`}
                                 >
                                     <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors group-hover:bg-green-100">
@@ -376,11 +413,11 @@ const deliveryExpanded = isOpen && activeModule === 'delivery';
 
                     {/* SERVICE SUPPORT */}
                     <div>
-                        <div className={`mx-0 group ${ activeModule === 'service' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen rounded-xl'}`}>
+                        <div className={`mx-0 group ${ activeModule === 'service' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen/40 rounded-xl'}`}>
                             <div className="flex items-center px-3 py-3">
                                 <Link
                                     href="#"
-                                    onClick={() => handleModuleToggle('service')}
+                                    onClick={(e) => { e.preventDefault(); openSidebarAndToggleModule('service'); }}
                                     className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${ activeModule === 'service' ? 'text-black' : 'text-darkgreen'}`}
                                 >
                                     <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors group-hover:bg-green-100">
@@ -452,11 +489,11 @@ const deliveryExpanded = isOpen && activeModule === 'delivery';
 
                     {/* DELIVERY LOGISTICS */}
                     <div>
-                        <div className={`mx-0 group ${ activeModule === 'delivery' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen rounded-xl'}`}>
+                        <div className={`mx-0 group ${ activeModule === 'delivery' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen/40 rounded-xl'}`}>
                             <div className="flex items-center px-3 py-3">
                                 <Link
                                     href="#"
-                                    onClick={() => handleModuleToggle('delivery')}
+                                    onClick={(e) => { e.preventDefault(); openSidebarAndToggleModule('delivery'); }}
                                     className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${ activeModule === 'delivery' ? 'text-black' : 'text-darkgreen'}`}
                                 >
                                     <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors group-hover:bg-green-100">
