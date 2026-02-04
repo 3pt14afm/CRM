@@ -18,7 +18,7 @@ function Yields() {
   const calculateAnnual = (val) => {
     const num = parseFloat(val);
     if (!num) return '0';
-    return (num / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (num * 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   return (
