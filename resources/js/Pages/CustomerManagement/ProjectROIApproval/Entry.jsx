@@ -6,7 +6,13 @@ import SucceedingYears from './EntryRoutes/SucceedingYears';
 
 // Receive activeTab as a prop from RoiController
 export default function Entry({ activeTab = 'Machine Configuration' }) {
-    
+    const today = new Date();
+    const formattedDate = new Intl.DateTimeFormat("en-US", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    }).format(today);
+
     return (
         <>
             <Head title="ROI Entry"/>
@@ -17,7 +23,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
                 <p className="text-3xl font-semibold">Entry</p>
                 </div>
                 <div className='flex flex-col gap-1 items-end'>
-                <h1 className="text-xs text-right text-slate-500">02/03/26</h1>
+                <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
                 <p className="text-base font-semibold text-right">Reference: 1234567</p>
                 </div>
             </div>
