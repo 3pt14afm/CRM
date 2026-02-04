@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
 import { RiSettingsLine, RiSettingsFill } from "react-icons/ri";
@@ -536,8 +535,19 @@ export default function Sidebar() {
 
                 {isOpen && activeItem === "profile" && (
                     <div className="absolute left-12 bottom-0 w-28 bg-lightgreen/50 shadow-lg rounded-xl border z-50">
-                        <button className="w-full text-left px-4 py-3 text-sm rounded-t-xl font-semibold border-b text-darkgreen border-black/10 hover:bg-green/70">Edit Profile</button>
-                        <button className="w-full text-left px-4 py-3 text-sm rounded-b-xl font-semibold hover:bg-green/70 text-red-600">Logout</button>
+                        <Link href={route('profile.edit')}
+                            className="block w-full text-left px-4 py-3 text-sm rounded-t-xl font-semibold border-b text-darkgreen border-black/10 hover:bg-green/70"
+                            onClick={() => setActiveItem(null)} // close dropdown after click
+                        >
+                            Edit Profile
+                        </Link>
+                        <Link href={route('logout')} method="post" as="button"
+                            className="w-full text-left px-4 py-3 text-sm rounded-b-xl font-semibold hover:bg-green/70 text-red-600"
+                            onClick={() => setActiveItem(null)} // close dropdown
+                            >
+                            Logout
+                        </Link>
+
                     </div>
                 )}
             </div>
