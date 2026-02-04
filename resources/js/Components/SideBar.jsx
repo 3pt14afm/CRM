@@ -60,6 +60,29 @@ export default function Sidebar() {
     </Link>
   );
 
+  // ACTIVE (highlight) is route-based, independent from EXPANDED (activeModule)
+   const activeByRoute =
+        route().current('customers.*') || route().current('roi.*')
+            ? 'customer'
+            : route().current('machine.*')
+            ? 'machine'
+            : route().current('service.*')
+            ? 'service'
+            : route().current('delivery.*')
+            ? 'delivery'
+            : null;
+
+const isCustomerActive = activeByRoute === 'customer';
+const isMachineActive = activeByRoute === 'machine';
+const isServiceActive = activeByRoute === 'service';
+const isDeliveryActive = activeByRoute === 'delivery';
+
+const customerExpanded = isOpen && activeModule === 'customer';
+const machineExpanded  = isOpen && activeModule === 'machine';
+const serviceExpanded  = isOpen && activeModule === 'service';
+const deliveryExpanded = isOpen && activeModule === 'delivery';
+
+
   // Text reveal/hide WITHOUT moving icons
   const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ease-in-out ${isOpen ? "max-w-[240px] opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1"}`;
 
@@ -96,14 +119,12 @@ export default function Sidebar() {
             {/* CUSTOMER MANAGEMENT */}
             <div className="space-y-3 mx-2">
             <div>
-                <div className={` group ${activeModule === 'customer' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen rounded-xl'}`}>
-                    <div className="flex items-center px-3 py-3">
+                <div className={`group ${isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen'} ${customerExpanded ? 'rounded-t-xl' : 'rounded-xl'}`}>
+                    <div className={`flex items-center px-3 py-3`}>
                         <Link
                             href={route('customers.dashboard')}
                             onClick={() => handleModuleToggle('customer')}
-                            className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
-                            activeModule === 'customer' ? 'text-black' : 'text-darkgreen'
-                            }`}
+                            className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${isCustomerActive ? 'text-black' : 'text-darkgreen'}`}
                         >
                             {/* ICON (fixed slot) */}
                             <div className={`flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors ${activeModule === 'customer' ? 'bg-white/0' : 'group-hover:bg-green-100'}`}>
@@ -235,7 +256,7 @@ export default function Sidebar() {
                                 {/* 1) Machine In-Field Inventory (with sublinks) */}
                                 {(activeMachineSubMenu === null || activeMachineSubMenu === 'infield') && (
                                     <div className="relative">
-                                        <div className="flex items-center -mt-3 py-2 pb-3 pt-5">
+                                        <div className="flex items-center -mt-3 py-2 pb-2 pt-5">
                                             <Link href="#" onClick={() => handleMachineSubToggle('infield')} className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${ activeMachineSubMenu === 'infield' ? 'text-darkgreen/85 font-semibold ' : 'text-darkgreen/70 opacity-80'}`}
                                             >
                                                 Machine In-Field Inventory
@@ -341,7 +362,7 @@ export default function Sidebar() {
                             {/* 1) Service Ticketing (with sublinks) */}
                             {(activeServiceSubMenu === null || activeServiceSubMenu === 'ticketing') && (
                                 <div className="relative">
-                                    <div className="flex items-center -mt-3 -mb-3 py-3">
+                                    <div className="flex items-center -mt-3 -mb-3 pb-3 py-3">
                                         <Link
                                             href="#"
                                             onClick={() => handleServiceSubToggle('ticketing')}
