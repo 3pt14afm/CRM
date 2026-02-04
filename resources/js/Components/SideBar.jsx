@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
 import { RiSettingsLine, RiSettingsFill } from "react-icons/ri";
@@ -16,6 +17,51 @@ export default function Sidebar() {
   const [activeDeliverySubMenu, setActiveDeliverySubMenu] = useState(null);
 
   const [activeItem, setActiveItem] = useState(null); // "profile" | "settings" | null
+
+  const profileBtnRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+
+  // Compute dropdown position when it opens (works open OR collapsed)
+  useEffect(() => {
+  if (activeItem !== "profile") return;
+
+  const btn = profileBtnRef.current;
+  if (!btn) return;
+
+  const rect = btn.getBoundingClientRect();
+
+  // Place dropdown to the right of the profile icon
+  setDropdownPos({
+    top: rect.bottom,
+    left: rect.right + 12,
+  });
+  }, [activeItem, isOpen]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+  if (activeItem !== "profile") return;
+
+  const onMouseDown = (e) => {
+    const dropdownEl = dropdownRef.current;
+    const btnEl = profileBtnRef.current;
+
+    if (!dropdownEl || !btnEl) return;
+
+    const clickedDropdown = dropdownEl.contains(e.target);
+    const clickedButton = btnEl.contains(e.target);
+
+    if (!clickedDropdown && !clickedButton) {
+        setActiveItem(null);
+    }
+  };
+
+  document.addEventListener("mousedown", onMouseDown);
+  return () => document.removeEventListener("mousedown", onMouseDown);
+}, [activeItem]);
+
+
+ 
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -550,28 +596,49 @@ const deliveryExpanded = isOpen && activeModule === 'delivery';
         {/* Footer (fixed position, no shifting) */}
         <div className="relative p-4 ml-2 flex flex-col gap-4 items-start">
             <div className="relative">
-                <button onClick={() => setActiveItem(activeItem === "profile" ? null : "profile")} className="text-darkgreen pl-[2px] transition" aria-label="Profile">
+                <button
+                    ref={profileBtnRef}
+                    onClick={() => setActiveItem(activeItem === "profile" ? null : "profile")}
+                    className="text-darkgreen pl-[2px] transition"
+                    aria-label="Profile"
+                    type="button"
+                >
                     {activeItem === "profile" ? <FaUserCircle className="w-7 h-7" /> : <FaRegUserCircle className="w-7 h-7" />}
                 </button>
 
-                {isOpen && activeItem === "profile" && (
-                    <div className="absolute left-12 bottom-0 w-28 bg-lightgreen/50 shadow-lg rounded-xl border z-50">
-                        <Link href={route('profile.edit')}
+                {activeItem === "profile" &&
+                    createPortal(
+                    <div
+                            ref={dropdownRef}
+                            className="fixed z-[9999] w-28 bg-[#D4F0CB] shadow-lg rounded-xl border border-black/10"
+                            style={{
+                            top: dropdownPos.top,
+                            left: dropdownPos.left,
+                            transform: "translateY(-100%)", // anchor near footer nicely
+                        }}
+                    >
+                        <Link
+                            href={route("profile.edit")}
                             className="block w-full text-left px-4 py-3 text-sm rounded-t-xl font-semibold border-b text-darkgreen border-black/10 hover:bg-green/70"
-                            onClick={() => setActiveItem(null)} // close dropdown after click
+                            onClick={() => setActiveItem(null)}
                         >
                             Edit Profile
                         </Link>
-                        <Link href={route('logout')} method="post" as="button"
+
+                        <Link
+                            href={route("logout")}
+                            method="post"
+                            as="button"
                             className="w-full text-left px-4 py-3 text-sm rounded-b-xl font-semibold hover:bg-green/70 text-red-600"
-                            onClick={() => setActiveItem(null)} // close dropdown
-                            >
+                            onClick={() => setActiveItem(null)}
+                        >
                             Logout
                         </Link>
-
-                    </div>
-                )}
+                    </div>,
+                    document.body
+                    )}
             </div>
+
 
             <button onClick={() => setActiveItem(activeItem === "settings" ? null : "settings")} className="text-darkgreen transition" aria-label="Settings">
                 {activeItem === "settings" ? <RiSettingsFill className="w-8 h-8" /> : <RiSettingsLine className="w-8 h-8" />}

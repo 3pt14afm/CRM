@@ -19,13 +19,15 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     return Auth::check()
-        ? redirect()->route('Dashboard')
+        ? redirect()->route('customers.dashboard')
         : redirect()->route('login');
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+
+
+// Route::get('/dashboard', function () {
+//     return Inertia::render('Dashboard');
+// })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -34,25 +36,21 @@ Route::middleware('auth')->group(function () {
 });
 
 
-Route::prefix('customer-management')->group(function () {
-    
-    // The Module Dashboard (The summary page)
-    Route::get('/dashboard', [CustomerManagementController::class, 'dashboard'])
-        ->name('customers.dashboard');
+Route::middleware(['auth', 'verified'])
+    ->prefix('customer-management')
+    ->group(function () {
 
-    // Customer Details
-    Route::get('/details', [CustomerManagementController::class, 'details'])
-        ->name('customers.details');
+        Route::get('/dashboard', [CustomerManagementController::class, 'dashboard'])
+            ->name('customers.dashboard');
 
-    // ROI Sub-group
-    Route::prefix('roi')->group(function () {
-        Route::get('/entry', [RoiController::class, 'entry'])->name('roi.entry');
-        Route::get('/current', [RoiController::class, 'current'])->name('roi.current');
-        Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
-    });
+        Route::get('/details', [CustomerManagementController::class, 'details'])
+            ->name('customers.details');
 
-    
-    
-    // Add other routes here (Proposals, Sales Log, etc.)
+        Route::prefix('roi')->group(function () {
+            Route::get('/entry', [RoiController::class, 'entry'])->name('roi.entry');
+            Route::get('/current', [RoiController::class, 'current'])->name('roi.current');
+            Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
+        });
 });
+
 require __DIR__.'/auth.php';
