@@ -136,7 +136,7 @@ function MachineConfig() {
                             <td className="p-2 border-r border-slate-200 text-center">{formatNum(rows.reduce((s, r) => s + (Number(r.sellingprice) || 0), 0))}</td>
                             <td className="p-2 border-r border-slate-200 text-center">{formatNum(totalSellingAll)}</td>
                             {/* Added Sell CPP Total for completeness */}
-                            <td className="p-2 border-r border-slate-200 text-center text-blue-700">{formatNum(grandSellCpp)}</td>
+                            <td className="p-2 border-r border-slate-200 text-center">{formatNum(grandSellCpp)}</td>
                             <td colSpan="2" className="bg-[#F6FDF5]"></td>
                         </tr>
                     </tfoot>

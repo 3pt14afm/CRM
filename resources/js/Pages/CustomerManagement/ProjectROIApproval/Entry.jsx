@@ -1,14 +1,12 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout'; // Adjust path if needed
-import { Head } from '@inertiajs/react';
-import { useState } from 'react';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Head, Link } from '@inertiajs/react'; // Added Link
 import Summary1stYear from './EntryRoutes/Summary1stYear';
 import MachineConfigTab from './EntryRoutes/MachineConfigTab';
 import SucceedingYears from './EntryRoutes/SucceedingYears';
 
-export default function Entry() {
+// Receive activeTab as a prop from RoiController
+export default function Entry({ activeTab = 'Machine Configuration' }) {
     
-    const [tab, setTab] = useState('Machine Configuration');
-
     return (
         <>
             <Head title="ROI Entry"/>
@@ -24,28 +22,42 @@ export default function Entry() {
                 </div>
             </div>
 
-           {/* TABS */}
+           {/* TABS - Changed buttons to Links to work with your new Routes */}
            <div className='mx-10 '>
-                   <div className='flex gap-[2px]'>
-                     <button onClick={()=>setTab('Machine Configuration')} className={`px-7 text-sm  py-2 ${tab === 'Machine Configuration' ? 'bg-[#B5EBA2]/20  border border-t-[#B5EBA2] font-medium border-x-[#B5EBA2] rounded-t-xl' :  'bg-[#B5EBA2]/80 rounded-t-xl' }`}>Machine Configuration</button>
-                     <button onClick={()=>setTab('Summary')} className={`px-7 text-sm  py-2    ${tab === 'Summary' ? ' bg-[#B5EBA2]/20 font-medium  border border-t-[#B5EBA2] border-x-[#B5EBA2] rounded-t-xl' : ' bg-[#B5EBA2]/80 rounded-t-xl'}`}>Summary/1st Year</button>
-                     <button onClick={()=>setTab('Succeeding')} className={`px-7 text-sm  py-2 rounded-t-xl ${tab === 'Succeeding' ? ' bg-[#B5EBA2]/20 font-medium  border border-t-[#B5EBA2] border-x-[#B5EBA2] rounded-t-xl' : ' bg-[#B5EBA2]/80 rounded-t-xl'}`}>Succeeding Years</button>
-                   </div>
+                    <div className='flex gap-[2px]'>
+                      <Link 
+                        href={route('roi.entry.machine')} 
+                        className={`px-7 text-sm py-2 ${activeTab === 'Machine Configuration' ? 'bg-[#B5EBA2]/20 border border-t-[#B5EBA2] font-medium border-x-[#B5EBA2] rounded-t-xl' : 'bg-[#B5EBA2]/80 rounded-t-xl' }`}
+                      >
+                        Machine Configuration
+                      </Link>
+
+                      <Link 
+                        href={route('roi.entry.summary')} 
+                        className={`px-7 text-sm py-2 ${activeTab === 'Summary' ? ' bg-[#B5EBA2]/20 font-medium border border-t-[#B5EBA2] border-x-[#B5EBA2] rounded-t-xl' : ' bg-[#B5EBA2]/80 rounded-t-xl'}`}
+                      >
+                        Summary/1st Year
+                      </Link>
+
+                      <Link 
+                        href={route('roi.entry.succeeding')} 
+                        className={`px-7 text-sm py-2 rounded-t-xl ${activeTab === 'Succeeding' ? ' bg-[#B5EBA2]/20 font-medium border border-t-[#B5EBA2] border-x-[#B5EBA2] rounded-t-xl' : ' bg-[#B5EBA2]/80 rounded-t-xl'}`}
+                      >
+                        Succeeding Years
+                      </Link>
+                    </div>
             </div>
 
-           {/* THIS DIV IS THE CONTAINER OF ALL THE TABLES*/}
-                {tab === 'Machine Configuration' ? (
+           {/* CONTENT AREA */}
+                {activeTab === 'Machine Configuration' ? (
                 <MachineConfigTab />
-                ) : tab === 'Succeeding' ? (
+                ) : activeTab === 'Succeeding' ? (
                 <SucceedingYears />
                 ) : (
                 <Summary1stYear />
                 )}
-
-           
         </>
     );
 }
 
-// THIS IS THE IMPORTANT PART
 Entry.layout = page => <AuthenticatedLayout children={page} />

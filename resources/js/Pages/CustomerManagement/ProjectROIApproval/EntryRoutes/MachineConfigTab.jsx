@@ -43,7 +43,7 @@ function MachineConfigTab({}) {
 
                     {/* FEES AND TOTAL PROJECT COST */}
 
-                    <div className='grid grid-cols-[60%_40%] mx-7 mb-9'>
+                    <div className='grid grid-cols-[60%_40%] mx-7 items-center pt-5 mb-9'>
                         <Fees/>
                         <Cost/>
                     </div>

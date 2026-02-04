@@ -46,8 +46,15 @@ Route::middleware(['auth', 'verified'])
         Route::get('/details', [CustomerManagementController::class, 'details'])
             ->name('customers.details');
 
-        Route::prefix('roi')->group(function () {
-            Route::get('/entry', [RoiController::class, 'entry'])->name('roi.entry');
+       Route::prefix('roi')->group(function () {
+            // Entry Sub-menus
+            Route::prefix('entry')->group(function () {
+                Route::get('/', [RoiController::class, 'entry'])->name('roi.entry');
+                Route::get('/machine-config', [RoiController::class, 'entryMachine'])->name('roi.entry.machine');
+                Route::get('/summary-first-year', [RoiController::class, 'entrySummary'])->name('roi.entry.summary');
+                Route::get('/succeeding-years', [RoiController::class, 'entrySucceeding'])->name('roi.entry.succeeding');
+            });
+
             Route::get('/current', [RoiController::class, 'current'])->name('roi.current');
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
         });
