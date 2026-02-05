@@ -1,10 +1,11 @@
-import AddComments from '@/Components/roi/Entry/Summary1stYear/AddComments';
-import AddNotes from '@/Components/roi/Entry/Summary1stYear/AddNotes';
-import CompanyInfoSum from '@/Components/roi/Entry/Summary1stYear/CompanyInfoSum';
+import AddComments from '@/Components/roi/Entry/AddComments';
+import AddNotes from '@/Components/roi/Entry/AddNotes';
+import CompanyInfoSum from '@/Components/roi/Entry/CompanyInfoSum';
 import ContractDetails from '@/Components/roi/Entry/Summary1stYear/ContractDetails';
-import InterestCalcuSum from '@/Components/roi/Entry/Summary1stYear/InterestCalcuSum';
+import InterestCalcuSum from '@/Components/roi/Entry/InterestCalcuSum';
 import MachCon1stY from '@/Components/roi/Entry/Summary1stYear/MachCon1stY';
-import TotalMVP from '@/Components/roi/Entry/Summary1stYear/TotalMVP';
+import Names from '@/Components/roi/Entry/Names';
+import TotalMVP from '@/Components/roi/Entry/TotalMVP';
 import Totals from '@/Components/roi/Entry/Summary1stYear/Totals';
 import React from 'react'
 
@@ -47,6 +48,8 @@ function Summary1stYear() {
                 <AddNotes />
                 <AddComments />
                 </div>
+
+                <Names />
            </div>
            
       </div>
