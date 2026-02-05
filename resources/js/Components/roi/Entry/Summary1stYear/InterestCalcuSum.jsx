@@ -17,7 +17,7 @@ const InterestCalcuSum = () => {
               <td className="w-3/5 bg-[#90E274]/10 py-3 px-3 text-[12px] font-bold text-gray-800">
                 Annual Interest
               </td>
-              <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300 font-mono text-sm text-gray-700">
+              <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300  text-sm text-gray-700">
                 {/* Displaying as pure text prevents any browser UI like arrows */}
                 0.00%
               </td>
@@ -26,7 +26,7 @@ const InterestCalcuSum = () => {
               <td className="w-3/5 bg-[#90E274]/20 py-3 px-3 text-[12px] font-bold text-gray-800">
                 Percent Margin
               </td>
-              <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300 font-mono text-sm text-gray-700">
+              <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300  text-sm text-gray-700">
                 0.00%
               </td>
             </tr>
@@ -44,7 +44,7 @@ const InterestCalcuSum = () => {
                   key={index} 
                   className={index !== metrics.length - 1 ? "border-b border-gray-300" : ""}
                 >
-                  <td className="w-1/3 py-2 text-center text-sm font-mono font-medium text-gray-700">
+                  <td className="w-1/3 py-2 text-center text-sm  font-medium text-gray-700">
                     {metric.value}
                   </td>
                   <td className="w-2/3 bg-[#90E274]/10 py-2 px-3 text-left border-l border-gray-300">

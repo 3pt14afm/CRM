@@ -22,7 +22,7 @@ function MachineConfigTab({}) {
     const [percentMargin, setPercentMargin] = useState(0);          
             
   return (
-        <div className='mx-10 bg-[#B5EBA2]/20 border rounded-r-lg rounded-b-xl border-t-0  border-b-[#B5EBA2] border-x-[#B5EBA2]'>
+        <div className='mx-10 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0  border-b-[#B5EBA2] border-x-[#B5EBA2]'>
                   {/* THIS DIV IS FOR THE COMPANY INFO AND INTErest*/}
                  <div className='flex items-center px-10 pt-5 gap-3 mb-5'>
 
