@@ -34,8 +34,12 @@ export default {
             },
             boxShadow: {
                 card: '15px 0px 50px 10px rgba(0,0,0,0.2)',
-                soft: 
-                '25px 25px 50px -12px rgba(0,0,0,0.1), -25px -25px 50px -12px rgba(0,0,0,0.1)'
+                soft: '25px 25px 50px -12px rgba(0,0,0,0.1), -25px -25px 50px -12px rgba(0,0,0,0.1)',
+                innerDarkgreen: 'inset 0 0 5px rgba(19,51,7,0.8)',
+                innerGreen: 'inset 0 0 5px rgba(40,152,0,0.7)',
+                innerRed: 'inset 0 0 5px rgba(242,115,115,0.7)',
+                innerOrange: 'inset 0 0 8px rgba(78, 30, 0, 1)',
+                innerBlue: 'inset 0 0 10px rgba(0, 36, 76, 1)'
             }
         },
     },
