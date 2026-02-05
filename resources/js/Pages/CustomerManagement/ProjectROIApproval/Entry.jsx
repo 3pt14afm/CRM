@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Summary1stYear from './EntryRoutes/Summary1stYear';
 import MachineConfigTab from './EntryRoutes/MachineConfigTab';
 import SucceedingYears from './EntryRoutes/SucceedingYears';
@@ -9,6 +9,7 @@ import { IoPrintSharp, IoSend, IoTrashSharp } from "react-icons/io5";
 import { MdDisabledByDefault } from "react-icons/md";
 import { FaArrowLeft, FaArrowRight, FaCheckSquare } from 'react-icons/fa';
 import { LuScanEye } from "react-icons/lu";
+import { useProjectData } from '@/Context/ProjectContext';
 
 
 // Receive activeTab as a prop from RoiController
@@ -20,6 +21,33 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
       year: "2-digit",
     }).format(today);
 
+    const { setProjectData } = useProjectData(); // Access the setter
+     const [projectRef] = useState(() => `PRJ-${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
+const handleSaveAll = () => {
+    // Commit the header metadata to Context
+    setProjectData(prev => ({
+        ...prev,
+        companyInfo: {
+            ...prev.companyInfo,
+            reference: projectRef, // Uses the state variable
+        },
+        metadata: {
+            ...prev.metadata,
+            lastSaved: formattedDate // Uses your existing formattedDate variable
+        }
+    }));
+
+    // Trigger child components to save their local states
+    setButtonClicked(true);
+
+    // Reset signal
+    setTimeout(() => {
+        setButtonClicked(false);
+    }, 100); 
+
+    console.log("Header Data committed to Context.");
+};
+
     const machineRef = useRef(null);
     const summaryRef = useRef(null);
     const succeedingRef = useRef(null);
@@ -30,6 +58,19 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
       if (activeTab === 'Succeeding') return succeedingRef;
       return null;
     }, [activeTab]);
+
+    const [tab, setTab] = useState('Machine');
+    const [buttonClicked, setButtonClicked] = useState(false);
+    // const handleSaveAll = () => {
+    //     setButtonClicked(true);
+
+    //     // Reset it back to false after a tiny delay 
+    //     // so the child components catch the "true" signal
+    //     setTimeout(() => {
+    //         setButtonClicked(false);
+    //     }, 100); 
+    // };
+
 
     // Machine footer actions
     const handleClearAll = () => currentTabRef?.current?.clearAll?.();
@@ -62,12 +103,12 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
 
                   <div className="flex flex-col gap-1 items-end">
                     <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
-                    <p className="text-base font-semibold text-right">Reference: 123456789</p>
+                    <p className="text-base font-semibold text-right">Reference: {projectRef}</p>
                   </div>
                 </div>
 
                 {/* TABS */}
-                <div className="mx-10">
+                {/* <div className="mx-10">
                   <div className="flex gap-[2px]">
                     <Link
                       href={route('roi.entry.machine')}
@@ -102,23 +143,71 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
                       Succeeding Years
                     </Link>
                   </div>
+                </div> */}
+
+                
+                {/* TABS */}
+                <div className="mx-10">
+                  <div className="flex gap-[2px]">
+                    <button onClick={()=>setTab('Machine')}
+                      className={`px-7 text-sm py-2 ${
+                        tab === 'Machine'
+                          ? 'bg-[#B5EBA2]/10 border border-t-[#B5EBA2] font-medium border-b-0 border-x-[#B5EBA2] rounded-t-xl'
+                          : 'bg-[#B5EBA2]/80 rounded-t-xl'
+                      }`}
+                    >
+                      Machine Configuration
+                    </button>
+
+                    <button
+                     button onClick={()=>setTab('Summary')}
+                      className={`px-7 text-sm py-2 ${
+                        tab === 'Summary'
+                          ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0  border-x-[#B5EBA2] rounded-t-xl'
+                          : 'bg-[#B5EBA2]/80 rounded-t-xl'
+                      }`}
+                    >
+                      Summary/1st Year
+                    </button>
+
+                    <button
+                      button onClick={()=>setTab('Succeeding')}
+                      className={`px-7 text-sm py-2 rounded-t-xl ${
+                        tab === 'Succeeding'
+                          ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0  border-x-[#B5EBA2] rounded-t-xl'
+                          : 'bg-[#B5EBA2]/80 rounded-t-xl'
+                      }`}
+                    >
+                      Succeeding Years
+                    </button>
+                  </div>
                 </div>
 
-                {/* CONTENT */}
+                {/* CONTENT
                 {activeTab === 'Machine Configuration' ? (
                   <MachineConfigTab ref={machineRef} />
                 ) : activeTab === 'Succeeding' ? (
                   <SucceedingYears ref={succeedingRef} />
                 ) : (
                   <Summary1stYear ref={summaryRef} />
-                )}
+                )} */}
+
+                             
+               {tab === 'Machine' ? (
+                  <MachineConfigTab buttonClicked={buttonClicked} />
+                ) : tab === 'Succeeding' ? (
+                  <SucceedingYears />
+                ) : tab === 'Summary' ? (
+                  <Summary1stYear />
+                ) : null}
+
               </div>
 
               {/* FOOTER / BUTTONS */}
               <div className="sticky bottom-0 z-40 bg-white/95 backdrop-blur border-t border-black/10">
                 <div className="px-10 py-3 flex items-center justify-between">
                   {/* MACHINE CONFIG FOOTER*/}
-                  {isMachine && (
+                  {tab === 'Machine' && (
                     <>
                       <button
                       type="button"
@@ -139,7 +228,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
 
                         <button
                           type="button"
-                          onClick={handleSubmit}
+                          onClick={handleSaveAll}
                           className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#289800] hover:shadow-innerDarkgreen text-white font-semibold shadow"
                         >
                           Submit <IoSend/>
@@ -149,7 +238,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
                   )}
                   
                   {/* SUMMARY + SUCCEEDING FOOTER */}
-                  {isSummaryOrSucceeding && (
+                  {tab=== 'Summary' && (
                     <>
                       {/* LEFT */}
                       <div className="flex items-center gap-3">

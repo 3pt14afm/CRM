@@ -7,7 +7,7 @@ import CompanyInfo from '@/Components/roi/Entry/MachineConfiguration/CompanyInfo
 import Yields from '@/Components/roi/Entry/MachineConfiguration/Yields';
 import Fees from '@/Components/roi/Entry/MachineConfiguration/Fees';
 import { useState } from 'react';
-function MachineConfigTab({}) {
+function MachineConfigTab({buttonClicked}) {
 
         
     //state for the company info 
@@ -26,25 +26,24 @@ function MachineConfigTab({}) {
                   {/* THIS DIV IS FOR THE COMPANY INFO AND INTErest*/}
                  <div className='flex items-center px-10 pt-5 gap-3 mb-5'>
 
-                      <CompanyInfo companyName={companyName} contractYears={contractYears} companyTypes={companyTypes} purpose={purpose}
-                                   setCompanyName={setCompanyName} setContractYears={setContractYears} setCompanyTypes ={setCompanyTypes} setPurpose={setPurpose}
+                      <CompanyInfo buttonClicked={buttonClicked}
                        />
                         {/* annual interests */}
                     {/* ANNUAL INTERESTS & YIELDS SECTION */}
                    <div className='flex flex-col gap-5 items-center justify-center '>
                     {/* annual and monthly interest container */}
-                    <InterestCalculator annualInterest={annualInterest} setAnnualInterest={setAnnualInterest} percentMargin={percentMargin} setPercentMargin={setPercentMargin} contractYears={contractYears}/>
+                    <InterestCalculator buttonClicked={buttonClicked}/>
                      {/* Yields table */}
-                     <Yields/>
+                     <Yields buttonClicked={buttonClicked}/>
                    </div>
             </div>
 
-                  <MachineConfig />
+                  <MachineConfig buttonClicked={buttonClicked}/>
 
                     {/* FEES AND TOTAL PROJECT COST */}
 
                     <div className='grid grid-cols-[60%_40%] mx-7 items-center pt-5 mb-9'>
-                        <Fees/>
+                        <Fees buttonClicked={buttonClicked}/>
                         <Cost/>
                     </div>
 
