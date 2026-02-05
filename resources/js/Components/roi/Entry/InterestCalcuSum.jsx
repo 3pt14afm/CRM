@@ -8,16 +8,16 @@ const InterestCalcuSum = () => {
   ];
 
   return (
-    <div className='grid grid-cols-2 items-start gap-4 p-2 font-sans'>
+    <div className='grid [grid-template-columns:40%_60%] gap-4 mr-2 items-start p-2 font-sans'>
       {/* Left Table: Static Values (No Inputs = No Arrows) */}
-      <div className="overflow-hidden rounded-lg border border-slate-300 w-full shadow-lg">
+      <div className="overflow-hidden rounded-lg border ml-auto border-slate-300 w-[90%] shadow-lg">
         <table className="w-full border-collapse">
           <tbody>
             <tr className="border-b border-slate-200">
-              <td className="w-3/5 bg-[#90E274]/10 py-3 px-3 text-[12px] font-bold text-gray-800">
+              <td className="w-[30%] bg-[#90E274]/10 py-3 px-3 text-[12px] font-bold text-gray-800">
                 Annual Interest
               </td>
-              <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300  text-sm text-gray-700">
+              <td className="w-[70%] py-3 px-3 text-center border-l bg-white border-slate-300  text-sm text-gray-700">
                 {/* Displaying as pure text prevents any browser UI like arrows */}
                 0.00%
               </td>
@@ -44,10 +44,10 @@ const InterestCalcuSum = () => {
                   key={index} 
                   className={index !== metrics.length - 1 ? "border-b border-gray-300" : ""}
                 >
-                  <td className="w-1/3 py-2 text-center text-sm  font-medium text-gray-700">
+                  <td className="w-[30%] py-2 text-center text-sm  font-medium text-gray-700">
                     {metric.value}
                   </td>
-                  <td className="w-2/3 bg-[#90E274]/10 py-2 px-3 text-left border-l border-gray-300">
+                  <td className="w-[70%] bg-[#90E274]/10 py-2 px-4 text-left border-l border-gray-300">
                     <span className="block text-[12px] font-bold leading-tight text-gray-800 tracking-tight">
                       {metric.label}
                     </span>
@@ -57,8 +57,6 @@ const InterestCalcuSum = () => {
             </tbody>
           </table>
         </div>
-
-
       </div>
     </div>
   );

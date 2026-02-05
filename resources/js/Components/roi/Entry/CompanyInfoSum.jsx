@@ -8,19 +8,19 @@ function CompanyInfoSum() {
             { label: 'COMPANY NAME', value: 'Acme Corporation' },
             { label: 'CONTRACT TERM', value: '3 Years' },
             { label: 'CONTRACT TYPE', value: 'Service and Prints' },
-            { label: 'REFERENCE #', value: '1234567' },
+            { label: 'REFERENCE #', value: '123456789' },
         ],
         purpose: 'Standard office fleet refresh across 3 regional headquarters including full lifecycle management and hardware replacement.'
     };
     
   return (
-      <div className='grid grid-cols-[70%_30%] items-stretch shadow-lg rounded-xl overflow-hidden border border-white/60'>
+      <div className='grid grid-cols-[60%_40%] items-stretch shadow-lg ml-4 rounded-xl overflow-hidden border border-white/60'>
                     
                     {/* Left Side: White Card Content */}
-                    <div className='flex flex-col bg-white px-8 py-6 gap-2'>
+                    <div className='flex flex-col bg-white px-9 py-6 pr-10 gap-2'>
                         <div className='flex gap-2 items-center'>
                             <FaFileContract color='green' />
-                            <p className='font-extrabold text-xs text-gray-500 tracking-tight uppercase'>Contract Info</p>
+                            <p className='font-bold text-xs text-gray-500 tracking-tight uppercase'>Contract Info</p>
                         </div>
                     {/* Changed grid-cols-4 to a flex container with justify-between */}
                     <div className='flex justify-between items-start mt-4 w-full '>
