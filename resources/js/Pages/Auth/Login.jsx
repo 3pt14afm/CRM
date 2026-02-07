@@ -1,12 +1,12 @@
-import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState, useRef } from "react";
 import { FaUser } from "react-icons/fa";
 import { MdLock } from "react-icons/md";
+import { LuEye, LuEyeClosed } from "react-icons/lu";
+
 
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -21,6 +21,31 @@ export default function Login({ status, canResetPassword }) {
         post(route('login'), {
             onFinish: () => reset('password'),
         });
+    };
+
+    const [showPassword, setShowPassword] = useState(false);
+    const passwordRef = useRef(null);
+
+    const togglePassword = () => {
+    const el = passwordRef.current;
+    if (!el) {
+        setShowPassword((v) => !v);
+        return;
+    }
+
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+
+    setShowPassword((v) => !v);
+
+    requestAnimationFrame(() => {
+        el.focus();
+        try {
+        el.setSelectionRange(start, end);
+        } catch {
+        // Some browsers can throw when type changes; ignore safely
+        }
+    });
     };
 
     return (
@@ -78,14 +103,26 @@ export default function Login({ status, canResetPassword }) {
                                 <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.password ? 'border-red-500' : ''}`}>
                                     <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen w-5 h-5 ml-3" />
                                     <input 
+                                        ref={passwordRef}
                                         id="password"
-                                        type="password" 
+                                        type={showPassword ? "text" : "password"} 
                                         name="password"
                                         value={data.password}
                                         onChange={(e) => setData('password', e.target.value)}
                                         placeholder="••••••••"  
                                         className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0" 
                                     />
+
+                                    <button
+                                        type="button"
+                                        onMouseDown={(e) => e.preventDefault()}    
+                                        onClick={togglePassword}
+                                        className="mr-3 text-darkgreen/50 hover:text-darkgreen transition"
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {/* CLOSED eye when hidden (default), OPEN eye when shown */}
+                                        {showPassword ? <LuEye className="w-5 h-5" /> : <LuEyeClosed className="w-5 h-5" />}
+                                    </button>
                                 </div>
                                 {/* Display Error for Password */}
                                 <InputError message={errors.password} className="mt-2" />
