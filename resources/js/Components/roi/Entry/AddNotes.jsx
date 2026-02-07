@@ -20,21 +20,19 @@ function formatDateTime(date) {
   return `${datePart} - ${timePart}`;
 }
 
-function AddNotes() {
-  const { auth } = usePage().props; // Breeze/Inertia usually provides this
+function AddNotes({ scopeKey = "default" }) {
+  const { auth } = usePage().props;
   const userName = useMemo(() => auth?.user?.name ?? "John Doe", [auth]);
+  const userId = auth?.user?.id ?? "guest";
 
-  // ✅ Stable storage key per page (route name)
-  // If route().current() returns false/null, fall back to "default"
+  // ✅ Scoped storage key per tab/page (you pass scopeKey from the parent)
   const STORAGE_KEY = useMemo(() => {
-    const current = route().current();
-    return `roi-notes:${current ? current : "default"}`;
-  }, []);
+    return `roi-notes:${userId}:${scopeKey}`;
+  }, [userId, scopeKey]);
 
   const [open, setOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
 
-  // Notes list (local only for now)
   const [notes, setNotes] = useState([]);
 
   const modalRef = useRef(null);
@@ -43,28 +41,34 @@ function AddNotes() {
   const openModal = () => setOpen(true);
   const closeModal = () => setOpen(false);
 
-  // ✅ Load notes + draft once on mount
+  // ✅ Load notes + draft once per STORAGE_KEY
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        setNotes([]);
+        setNoteDraft("");
+        return;
+      }
 
       const parsed = JSON.parse(raw);
 
       if (Array.isArray(parsed?.notes)) setNotes(parsed.notes);
+      else setNotes([]);
+
       if (typeof parsed?.noteDraft === "string") setNoteDraft(parsed.noteDraft);
+      else setNoteDraft("");
     } catch (e) {
       console.warn("Failed to load notes from localStorage:", e);
+      setNotes([]);
+      setNoteDraft("");
     }
   }, [STORAGE_KEY]);
 
   // ✅ Save notes + draft whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ notes, noteDraft })
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ notes, noteDraft }));
     } catch (e) {
       console.warn("Failed to save notes to localStorage:", e);
     }
@@ -73,7 +77,6 @@ function AddNotes() {
   // Focus textarea when modal opens
   useEffect(() => {
     if (open) {
-      // small delay so the element exists
       setTimeout(() => textareaRef.current?.focus(), 0);
     }
   }, [open]);
@@ -116,7 +119,6 @@ function AddNotes() {
       body: noteDraft.trim(),
     };
 
-    // Put newest on top
     setNotes((prev) => [newNote, ...prev]);
 
     // ✅ Clear draft ONLY after successful add
@@ -130,7 +132,10 @@ function AddNotes() {
       {/* Trigger + Notes list wrapper */}
       <div className="w-full mx-auto mb-6 px-4">
         {/* Trigger row (NO typing here — just opens modal) */}
-        <div onClick={openModal} className="flex items-center hover:cursor-pointer bg-white border border-gray-200 rounded-2xl py-6 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]">
+        <div
+          onClick={openModal}
+          className="flex items-center hover:cursor-pointer bg-white border border-gray-200 rounded-2xl py-6 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+        >
           <div className="flex-grow text-gray-400 text-sm">
             Write your notes here.....
           </div>

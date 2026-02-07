@@ -21,12 +21,15 @@ function formatDateTime(date) {
   return `${datePart} - ${timePart}`;
 }
 
-export default function AddComments() {
+export default function AddComments({ scopeKey = "default" }) {
   const { auth } = usePage().props;
+  const userId = auth?.user?.id ?? "guest";
   const userName = useMemo(() => auth?.user?.name ?? "John Doe", [auth]);
 
-  // unique per route
-  const STORAGE_KEY = `roi-comments:${route().current() ? route().current() : "default"}`;
+  // ✅ Stable + scoped storage key (prevents Summary and Succeeding sharing the same data)
+  const STORAGE_KEY = useMemo(() => {
+    return `roi-comments:${userId}:${scopeKey}`;
+  }, [userId, scopeKey]);
 
   const [open, setOpen] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
@@ -38,23 +41,30 @@ export default function AddComments() {
   const openModal = () => setOpen(true);
   const closeModal = () => setOpen(false);
 
-  // Load saved on mount
+  // ✅ Load saved on mount / when key changes
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        setComments([]);
+        setCommentDraft("");
+        return;
+      }
 
       const parsed = JSON.parse(raw);
 
       if (Array.isArray(parsed?.comments)) setComments(parsed.comments);
-      if (typeof parsed?.draft === "string") setCommentDraft(parsed.draft);
-    } catch (e) {
-      // ignore corrupted storage
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      else setComments([]);
 
-  // Save whenever comments/draft changes
+      if (typeof parsed?.draft === "string") setCommentDraft(parsed.draft);
+      else setCommentDraft("");
+    } catch (e) {
+      setComments([]);
+      setCommentDraft("");
+    }
+  }, [STORAGE_KEY]);
+
+  // ✅ Save whenever comments/draft changes
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -71,9 +81,7 @@ export default function AddComments() {
 
   // Focus textarea when modal opens
   useEffect(() => {
-    if (open) {
-      setTimeout(() => textareaRef.current?.focus(), 0);
-    }
+    if (open) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open]);
 
   // Close on ESC
@@ -116,7 +124,7 @@ export default function AddComments() {
 
     setComments((prev) => [newComment, ...prev]);
 
-    // after adding, clear the modal input so next comment starts fresh
+    // ✅ Clear draft ONLY after successful add
     setCommentDraft("");
 
     closeModal();
@@ -127,7 +135,10 @@ export default function AddComments() {
       {/* Trigger + Comments list wrapper */}
       <div className="w-full mx-auto mb-6 px-4">
         {/* Trigger row (NO typing here — just opens modal) */}
-        <div onClick={openModal} className="flex items-center hover:cursor-pointer bg-white border border-gray-200 rounded-2xl py-6 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]">
+        <div
+          onClick={openModal}
+          className="flex items-center hover:cursor-pointer bg-white border border-gray-200 rounded-2xl py-6 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+        >
           <div className="flex-grow text-gray-400 text-sm">
             Write your comments here.....
           </div>
