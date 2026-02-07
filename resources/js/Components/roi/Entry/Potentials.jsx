@@ -32,9 +32,13 @@ function Potentials({ title = "1st Year Potential" }) {
 
   // GRAND TOTAL CALCULATIONS
   const overallTotalQty = totalMachineQty + totalConsumableQty + totalFeesQty;
-  const overallTotalCost = totalMachineCost + totalConsumableCost + totalCompanyFeesAmount;
-  const overallTotalSales = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
+  const overallTotalCost = totalMachineCost + totalConsumableCost;
+  const overallTotalSales = totalMachineSales + totalConsumableSales;
   
+  const grandtotalCost = totalMachineCost + totalConsumableCost + totalCompanyFeesAmount;
+  const grandtotalSell = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
+
+
   const grossProfit = overallTotalSales - overallTotalCost;
   const roiPercentage = overallTotalCost > 0 ? (grossProfit / overallTotalCost) * 100 : 0;
 
@@ -150,8 +154,8 @@ function Potentials({ title = "1st Year Potential" }) {
               {/* Grand Total Row */}
               <tr className="bg-[#E2F4D8] font-bold text-gray-800">
                 <td className="py-3 border-r border-gray-300"></td>
-                <td className="py-3 border-r border-gray-300">{format(totalCompanyFeesAmount)}</td>
-                <td className="py-3">{format(totalCustomerFeesAmount)}</td>
+                <td className="py-3 border-r border-gray-300">{format(grandtotalCost)}</td>
+                <td className="py-3">{format( grandtotalSell)}</td>
               </tr>
             </tbody>
           </table>

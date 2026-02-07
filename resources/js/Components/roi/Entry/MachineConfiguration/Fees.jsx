@@ -88,7 +88,7 @@ const Fees = ({ buttonClicked }) => {
         <table className="min-w-full border-separate border-spacing-0">
           <thead>
              <tr className="bg-slate-50 text-[10px] uppercase text-slate-500">
-               <th className="border-b border-r border-slate-100 p-2 font-semibold">Bill Cust?</th>
+               <th className="border-b border-r border-slate-100 p-2 font-semibold"></th>
                <th className="border-b border-r border-slate-100 p-2 font-semibold text-left">Description</th>
                <th className="border-b border-r border-slate-100 p-2 font-semibold">Cost</th>
                <th className="border-b border-r border-slate-100 p-2 font-semibold">Qty</th>

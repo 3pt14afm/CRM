@@ -52,7 +52,7 @@ function Totals() {
                             <table className="w-full bg-white table-fixed">
                                 <thead className="bg-[#E2F4D8] border-b border-gray-300 text-[11px]">
                                     <tr>
-                                        <th className="px-3 py-3 text-center w-[50%] uppercase">OTHERS</th>
+                                        <th className="px-3 py-3 text-center w-[60%] uppercase">OTHERS</th>
                                         <th className="px-3 py-3 text-center border-l border-gray-300 w-[40%] uppercase">Amount</th>
                                     </tr>
                                 </thead>
@@ -60,10 +60,10 @@ function Totals() {
                                     {allAdditionalFees.length > 0 ? (
                                         allAdditionalFees.map((fee, idx) => (
                                             <tr key={fee.id || idx} className="border-b border-gray-100 last:border-b-0">
-                                                <td className="px-4 py-2 text-gray-600 truncate">
+                                                <td className="px-4 py-2 text-[12px] text-gray-600 truncate border-r">
                                                     {fee.label}
                                                 </td>
-                                                <td className=" pr-4 font-medium">
+                                                <td className=" pr-4 font-medium text-[11px] text-right">
                                                     {f(fee.total)}
                                                 </td>
                                             </tr>
@@ -79,7 +79,7 @@ function Totals() {
                                             </tr>
                                     )}
                                     <tr className="bg-[#E2F4D8] border-t-2 border-gray-300 font-bold">
-                                        <td className="px-3 py-2 text-[11px] border-r uppercase">Total</td>
+                                        <td className="px-3 py-2 text-[11px] border-r uppercase border-r">Total</td>
                                         {/* Shows the combined sum of both company and customer fees here */}
                                         <td className="text-right text-[11px] pr-4">{f(grandTotalCost)}</td>
                                     </tr>
