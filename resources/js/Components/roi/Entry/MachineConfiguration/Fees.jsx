@@ -4,11 +4,16 @@ import { useProjectData } from '@/Context/ProjectContext';
 const Fees = ({ buttonClicked }) => {
   const { setProjectData, projectData } = useProjectData();
 
-  // 1. Initialize local state - Flattening the incoming context data for the table
+  // 1. Initialize local state
   const [rows, setRows] = useState(() => {
     const fees = projectData.additionalFees;
-    // Combine existing machine and consumable fees if they exist, else start with one empty row
-    const existing = [...(fees?.machine || []), ...(fees?.consumable || [])];
+    
+    // FIX: Checkbox (isMachine) should be TRUE for Customer, FALSE for Company
+    const existingCompany = (fees?.company || []).map(f => ({ ...f, isMachine: false }));
+    const existingCustomer = (fees?.customer || []).map(f => ({ ...f, isMachine: true }));
+    
+    const existing = [...existingCompany, ...existingCustomer];
+
     return existing.length > 0 
       ? existing 
       : [{ id: Date.now(), label: '', cost: 0, qty: 0, total: 0, remarks: '', isMachine: false, type: 'Consumable' }];
@@ -16,38 +21,34 @@ const Fees = ({ buttonClicked }) => {
 
   const currentGrandTotal = rows.reduce((sum, row) => sum + (row.total || 0), 0);
 
-  // 2. SAVE TRIGGER with Filtering
+  // 2. SAVE TRIGGER
   useEffect(() => {
     if (buttonClicked) {
-      // FILTER: Only keep rows that have a Label (Fee name)
       const validRows = rows.filter(r => r.label && r.label.trim() !== "");
 
-      // Split into Machine vs Consumable categories for the Totals table
-      const machineFees = validRows.filter(r => r.isMachine);
-      const consumableFees = validRows.filter(r => !r.isMachine);
+      // FIX: Checked (isMachine: true) = Customer | Unchecked (isMachine: false) = Company
+      const customerFees = validRows.filter(r => r.isMachine); 
+      const companyFees = validRows.filter(r => !r.isMachine);
 
       const calculatedSum = validRows.reduce((sum, row) => sum + (row.total || 0), 0);
 
-      // Construct the data object to match Context exactly
-      const dataToSave = {
-        additionalFees: {
-          machine: machineFees,
-          consumable: consumableFees,
-          grandTotal: calculatedSum
-        },
-        totalProjectCost: {
-          ...projectData.totalProjectCost,
-          grandTotalCost: calculatedSum
-        }
+      // Construct final state
+      const updatedAdditionalFees = {
+        company: companyFees,
+        customer: customerFees,
+        grandTotal: calculatedSum
       };
 
       setProjectData(prev => ({
         ...prev,
-        additionalFees: dataToSave.additionalFees,
-        totalProjectCost: dataToSave.totalProjectCost
+        additionalFees: updatedAdditionalFees,
+        totalProjectCost: {
+          ...prev.totalProjectCost,
+          grandTotalCost: calculatedSum // Sum of all fees
+        }
       }));
 
-      console.log("--- FEES SAVED (EMPTY ROWS SKIPPED) ---", dataToSave); 
+      console.log("--- FEES SAVED (LOGIC: CHECKED=CUSTOMER) ---", updatedAdditionalFees); 
     }
   }, [buttonClicked]);
 
@@ -56,7 +57,7 @@ const Fees = ({ buttonClicked }) => {
 
   const addRow = () => {
     setRows([...rows, { 
-      id: Date.now(), label: '', cost: 0, qty: 0, total: 0, remarks: '', isMachine: false, type: 'Consumable' 
+      id: Date.now(), label: '', cost: 0, qty: 1, total: 0, remarks: '', isMachine: false, type: 'Consumable' 
     }]);
   };
 
@@ -69,7 +70,9 @@ const Fees = ({ buttonClicked }) => {
     setRows(rows.map(row => {
       if (row.id === id) {
         const updatedRow = { ...row, [field]: value };
-        if (field === 'isMachine') updatedRow.type = value ? 'Machine' : 'Consumable';
+        // Sync type with checkbox logic
+        if (field === 'isMachine') updatedRow.type = value ? 'Customer' : 'Company';
+        
         if (field === 'cost' || field === 'qty') {
           updatedRow.total = (parseFloat(updatedRow.cost) || 0) * (parseFloat(updatedRow.qty) || 0);
         }
@@ -83,6 +86,17 @@ const Fees = ({ buttonClicked }) => {
     <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm mx-4 mb-5 bg-white">
       <div className="overflow-x-auto">
         <table className="min-w-full border-separate border-spacing-0">
+          <thead>
+             <tr className="bg-slate-50 text-[10px] uppercase text-slate-500">
+               <th className="border-b border-r border-slate-100 p-2 font-semibold">Bill Cust?</th>
+               <th className="border-b border-r border-slate-100 p-2 font-semibold text-left">Description</th>
+               <th className="border-b border-r border-slate-100 p-2 font-semibold">Cost</th>
+               <th className="border-b border-r border-slate-100 p-2 font-semibold">Qty</th>
+               <th className="border-b border-r border-slate-100 p-2 font-semibold">Total</th>
+               <th className="border-b border-r border-slate-100 p-2 font-semibold">Actions</th>
+               <th className="border-b border-slate-100 p-2 font-semibold text-left">Remarks</th>
+             </tr>
+          </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
@@ -100,7 +114,7 @@ const Fees = ({ buttonClicked }) => {
                     type="text"
                     value={row.label}
                     onChange={(e) => handleUpdate(row.id, 'label', e.target.value)}
-                    placeholder="Fee Description (e.g. Shipping)"
+                    placeholder="Shipping, Insurance, etc."
                     className={`${inputClass} !text-left bg-white w-full px-2 ${!row.label ? 'border-orange-100' : ''}`}
                   />
                 </td>
@@ -131,8 +145,8 @@ const Fees = ({ buttonClicked }) => {
 
                 <td className="border-b border-r border-slate-100 p-1">
                   <div className="flex gap-1 justify-center items-center h-8">
-                    <button onClick={addRow} className="w-7 h-7 flex items-center justify-center rounded bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors">+</button>
-                    <button onClick={() => removeRow(row.id)} disabled={rows.length <= 1} className={`w-7 h-7 flex items-center justify-center rounded border transition-colors ${rows.length <= 1 ? "border-slate-100 bg-slate-50 text-slate-300" : "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"}`}>-</button>
+                    <button onClick={addRow} className="w-6 h-6 flex items-center justify-center rounded bg-green-50 text-green-600 border border-green-200 hover:bg-green-100">+</button>
+                    <button onClick={() => removeRow(row.id)} disabled={rows.length <= 1} className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${rows.length <= 1 ? "border-slate-100 bg-slate-50 text-slate-300" : "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"}`}>-</button>
                   </div>
                 </td>
 
@@ -141,7 +155,7 @@ const Fees = ({ buttonClicked }) => {
                     type="text"
                     value={row.remarks}
                     onChange={(e) => handleUpdate(row.id, 'remarks', e.target.value)}
-                    placeholder="Remarks..."
+                    placeholder="Notes..."
                     className={`${inputClass} !text-left px-2 w-full`}
                   />
                 </td>

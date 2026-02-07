@@ -36,8 +36,8 @@ export const ProjectDataProvider = ({ children }) => {
               }
         }, 
         additionalFees: {
-            machine: [],
-            consumable: [],
+            company: [],
+            customer: [],
             grandTotal: 0
         },
         totalProjectCost: {

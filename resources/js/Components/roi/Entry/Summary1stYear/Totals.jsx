@@ -6,15 +6,15 @@ function Totals() {
    
     // 1. DATA DESTRUCTURING
     const config = projectData?.machineConfiguration || {};
-    const machineTotals = config.totals || {}; // Using pre-calculated totals from MachineConfig
+    const machineTotals = config.totals || {}; 
     
-    // Destructuring additionalFees object
-    const addFeesObj = projectData?.additionalFees || { machine: [], consumable: [], grandTotal: 0 };
-    
-    // Combine arrays safely
+    // Destructuring additionalFees object based on the new company/customer context
+    const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
+    const grandTotalCost = addFeesObj.grandTotal || {};
+    // Combine company and customer arrays for the list display
     const allAdditionalFees = [
-        ...(addFeesObj.machine || []), 
-        ...(addFeesObj.consumable || [])
+        ...(addFeesObj.company || []), 
+        ...(addFeesObj.customer || [])
     ];
 
     // 2. FORMATTING HELPER
@@ -24,22 +24,27 @@ function Totals() {
     }).format(num || 0);
 
     // 3. DYNAMIC CALCULATIONS
-    // Use pre-calculated values from our MachineConfig component if available, else fallback to 0
     const totalItemsCost = machineTotals.totalCost || 0;
-    const totalGrossSales = machineTotals.totalSell || 0;
+    const totalMachineSales = machineTotals.totalSell || 0;
     
-    // Total from Additional Fees context
-    const totalOtherAmount = Number(addFeesObj.grandTotal) || 0;
+    // Differentiate additional fee totals
+    const totalCompanyFees = (addFeesObj.company || []).reduce((sum, fee) => sum + (Number(fee.total) || 0), 0);
+    const totalCustomerFees = (addFeesObj.customer || []).reduce((sum, fee) => sum + (Number(fee.total) || 0), 0);
 
     // Grand Totals Logic
-    const finalTotalCost = totalItemsCost + totalOtherAmount;
-    const finalTotalROI = totalGrossSales - finalTotalCost;
+    // Total Cost = Machines/Consumables Cost + Company-absorbed Fees
+    const finalTotalCost = totalItemsCost + totalCompanyFees;
+    
+    // Total Revenue = Machine/Consumable Sales + Fees charged to Customer
+    const finalTotalRevenue = totalMachineSales + totalCustomerFees;
+
+    const finalTotalROI = finalTotalRevenue - finalTotalCost;
     const roiPercentage = finalTotalCost !== 0 ? (finalTotalROI / finalTotalCost) * 100 : 0;
 
     return (
         <div className="mt-5 space-y-8 font-sans uppercase font-bold tracking-tight text-gray-800 text-[10px]">
             <div className="items-start text-[11px]">
-                <div className='flex gap-4'> {/* Increased gap for better spacing */}
+                <div className='flex gap-4'> 
                     
                     {/* 1. ADDITIONAL FEES TABLE (LEFT) */}
                     <div className="flex-none w-full min-w-[90px] max-w-[50%]">
@@ -55,13 +60,11 @@ function Totals() {
                                     {allAdditionalFees.length > 0 ? (
                                         allAdditionalFees.map((fee, idx) => (
                                             <tr key={fee.id || idx} className="border-b border-gray-100 last:border-b-0">
-                                                {/* FIX: Looking for any possible name/description key */}
                                                 <td className="px-4 py-2 text-gray-600 truncate">
-                                                    { fee.label}
+                                                    {fee.label}
                                                 </td>
-                                                {/* FIX: Looking for any possible value/cost key */}
                                                 <td className="text-right pr-4 font-medium">
-                                                    {f(fee.total || fee.price)}
+                                                    {f(fee.total)}
                                                 </td>
                                             </tr>
                                         ))
@@ -73,8 +76,9 @@ function Totals() {
                                         </tr>
                                     )}
                                     <tr className="bg-[#E2F4D8] border-t-2 border-gray-300 font-bold">
-                                        <td className="px-3 py-2 uppercase">Total Others</td>
-                                        <td className="text-right pr-4">{f(totalOtherAmount)}</td>
+                                        <td className="px-3 py-2 uppercase">Total</td>
+                                        {/* Shows the combined sum of both company and customer fees here */}
+                                        <td className="text-right pr-4">{f(grandTotalCost)}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -102,7 +106,7 @@ function Totals() {
                                     </tr>
                                     <tr className="font-bold border-t border-gray-200">
                                         <td className="px-4 py-3 text-[11px] text-gray-500 uppercase">Total Revenue</td>
-                                        <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(totalGrossSales)}</td>
+                                        <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(finalTotalRevenue)}</td>
                                     </tr>
                                 </tbody>
                             </table>
