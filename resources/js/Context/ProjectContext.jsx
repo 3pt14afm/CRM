@@ -4,12 +4,7 @@ const ProjectContext = createContext();
 
 export const ProjectDataProvider = ({ children }) => {
     const [projectData, setProjectData] = useState({
-        // --- NEW METADATA SECTION ---
-        metadata: {
-            projectId: null,
-            lastSaved: null, 
-            version: 1
-        },
+        metadata: { projectId: null, lastSaved: null, version: 1 },
         companyInfo: {
             companyName: '',
             contractYears: 0,
@@ -26,13 +21,25 @@ export const ProjectDataProvider = ({ children }) => {
             monoAmvpYields: { monthly: 0, annual: 0 },
             colorAmvpYields: { monthly: 0, annual: 0 }
         },
-        machineConfiguration: [], 
-                    
-            additionalFees: {
-                machine: [],      // Rows where checkbox is checked
-                consumable: [],   // Rows where checkbox is unchecked
-                grandTotal: 0
-            },
+        machineConfiguration: {
+              machine: [],
+              consumable: [],
+              totals: {
+                  totalUnitCost: 0, 
+                  totalQty: 0,
+                  totalCost: 0,
+                  totalYields: 0,
+                  totalCostCpp: 0,
+                  totalSellingPrice: 0,
+                  totalSell: 0,
+                  totalSellCpp: 0
+              }
+        }, 
+        additionalFees: {
+            machine: [],
+            consumable: [],
+            grandTotal: 0
+        },
         totalProjectCost: {
             grandTotalCost: 0,
             grandTotalSelling: 0,
@@ -40,6 +47,7 @@ export const ProjectDataProvider = ({ children }) => {
         }
     });
 
+    // GENERIC UPDATE: Use for simple sections like companyInfo
     const updateSection = useCallback((section, newData) => {
         setProjectData(prev => ({
             ...prev,
@@ -47,10 +55,14 @@ export const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
-    const setMachineConfig = useCallback((newList) => {
+    // SPECIFIC UPDATE: Prevents overwriting the machineConfiguration object structure
+    const setMachineConfig = useCallback((newConfig) => {
         setProjectData(prev => ({
             ...prev,
-            machineConfiguration: newList
+            machineConfiguration: {
+                ...prev.machineConfiguration,
+                ...newConfig // This safely merges {machine, consumable, totals}
+            }
         }));
     }, []);
 

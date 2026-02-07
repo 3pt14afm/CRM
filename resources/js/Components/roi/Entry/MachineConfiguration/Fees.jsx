@@ -4,41 +4,50 @@ import { useProjectData } from '@/Context/ProjectContext';
 const Fees = ({ buttonClicked }) => {
   const { setProjectData, projectData } = useProjectData();
 
-  // 1. Initialize local state
-  const [rows, setRows] = useState(
-    projectData.additionalFees?.length > 0 
-      ? projectData.additionalFees 
-      : [{ id: Date.now(), label: '', cost: 0, qty: 0, total: 0, remarks: '', isMachine: false, type: 'Consumable' }]
-  );
+  // 1. Initialize local state - Flattening the incoming context data for the table
+  const [rows, setRows] = useState(() => {
+    const fees = projectData.additionalFees;
+    // Combine existing machine and consumable fees if they exist, else start with one empty row
+    const existing = [...(fees?.machine || []), ...(fees?.consumable || [])];
+    return existing.length > 0 
+      ? existing 
+      : [{ id: Date.now(), label: '', cost: 0, qty: 0, total: 0, remarks: '', isMachine: false, type: 'Consumable' }];
+  });
 
-  // Live calculation of grand total for UI and Saving
   const currentGrandTotal = rows.reduce((sum, row) => sum + (row.total || 0), 0);
 
-// 2. SAVE TRIGGER
+  // 2. SAVE TRIGGER with Filtering
   useEffect(() => {
     if (buttonClicked) {
-      // Calculate sum locally to ensure accuracy in the log
-      const calculatedSum = rows.reduce((sum, row) => sum + (row.total || 0), 0);
+      // FILTER: Only keep rows that have a Label (Fee name)
+      const validRows = rows.filter(r => r.label && r.label.trim() !== "");
 
-      // Construct the data object exactly as it will look in Context
+      // Split into Machine vs Consumable categories for the Totals table
+      const machineFees = validRows.filter(r => r.isMachine);
+      const consumableFees = validRows.filter(r => !r.isMachine);
+
+      const calculatedSum = validRows.reduce((sum, row) => sum + (row.total || 0), 0);
+
+      // Construct the data object to match Context exactly
       const dataToSave = {
-        additionalFees: rows,
+        additionalFees: {
+          machine: machineFees,
+          consumable: consumableFees,
+          grandTotal: calculatedSum
+        },
         totalProjectCost: {
           ...projectData.totalProjectCost,
           grandTotalCost: calculatedSum
         }
       };
 
-      // 1. Update Context
       setProjectData(prev => ({
         ...prev,
         additionalFees: dataToSave.additionalFees,
         totalProjectCost: dataToSave.totalProjectCost
       }));
 
-      // 2. Log as an Object
-      console.log("--- PROJECT DATA SAVED ---");
-      console.log(dataToSave); 
+      console.log("--- FEES SAVED (EMPTY ROWS SKIPPED) ---", dataToSave); 
     }
   }, [buttonClicked]);
 
@@ -60,11 +69,7 @@ const Fees = ({ buttonClicked }) => {
     setRows(rows.map(row => {
       if (row.id === id) {
         const updatedRow = { ...row, [field]: value };
-        
-        if (field === 'isMachine') {
-          updatedRow.type = value ? 'Machine' : 'Consumable';
-        }
-
+        if (field === 'isMachine') updatedRow.type = value ? 'Machine' : 'Consumable';
         if (field === 'cost' || field === 'qty') {
           updatedRow.total = (parseFloat(updatedRow.cost) || 0) * (parseFloat(updatedRow.qty) || 0);
         }
@@ -95,8 +100,8 @@ const Fees = ({ buttonClicked }) => {
                     type="text"
                     value={row.label}
                     onChange={(e) => handleUpdate(row.id, 'label', e.target.value)}
-                    placeholder="Additional Fees"
-                    className={`${inputClass} !text-left bg-white w-full px-2`}
+                    placeholder="Fee Description (e.g. Shipping)"
+                    className={`${inputClass} !text-left bg-white w-full px-2 ${!row.label ? 'border-orange-100' : ''}`}
                   />
                 </td>
 
@@ -105,7 +110,7 @@ const Fees = ({ buttonClicked }) => {
                     type="number"
                     value={row.cost}
                     onChange={(e) => handleUpdate(row.id, 'cost', e.target.value)}
-                    className={`${inputClass} w-16 h-6 text-[10px] px-1 mx-auto block`}
+                    className={`${inputClass} w-20 h-6 text-[10px] px-1 mx-auto block`}
                   />
                 </td>
 
@@ -145,7 +150,7 @@ const Fees = ({ buttonClicked }) => {
           </tbody>
           <tfoot>
             <tr className="bg-[#F6FDF5] font-bold text-[11px] text-slate-800">
-              <td colSpan="2" className="p-3 border-r border-slate-200 text-center uppercase tracking-wider">TOTAL</td>
+              <td colSpan="2" className="p-3 border-r border-slate-200 text-center uppercase tracking-wider">TOTAL FEES</td>
               <td className="border-r border-slate-200"></td>
               <td className="border-r border-slate-200"></td>
               <td className="p-3 border-r border-slate-200 text-center bg-[#F6FDF5] shadow-inner">

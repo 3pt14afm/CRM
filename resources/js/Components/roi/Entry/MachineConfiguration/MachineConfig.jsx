@@ -4,15 +4,18 @@ import { useProjectData } from '@/Context/ProjectContext';
 function MachineConfig({ buttonClicked }) {
     const { setProjectData, projectData } = useProjectData();
 
-    // 1. STANDARDIZED INITIALIZATION
+    // 1. INITIALIZATION
     const [rows, setRows] = useState(() => {
-        const existing = projectData.machineConfiguration || [];
-        return existing.length > 0 ? existing : [{ 
+        const config = projectData.machineConfiguration;
+        const existingMachines = config?.machine || [];
+        const existingConsumables = config?.consumable || [];
+        const combined = [...existingMachines, ...existingConsumables];
+        
+        return combined.length > 0 ? combined : [{ 
             id: Date.now(), sku: '', cost: 0, qty: 0, yields: 0, price: 0, remarks: '', type: 'consumable' 
         }];
     });
 
-    // 2. CLEAN CALCULATION HELPER
     const getRowCalculations = (row) => {
         const cost = parseFloat(row.cost) || 0;
         const qty = parseFloat(row.qty) || 0;
@@ -27,24 +30,42 @@ function MachineConfig({ buttonClicked }) {
         };
     };
 
-    // 3. OFFICIAL SAVE LOGIC
+    // 2. SAVE LOGIC with Empty SKU Filter
     useEffect(() => {
         if (buttonClicked) {
-            const rowsWithCalcs = rows.map(r => {
-                const calcs = getRowCalculations(r);
-                return {
-                    ...r,
-                    ...calcs,
-                    cost: Number(r.cost) || 0,
-                    price: Number(r.price) || 0,
-                    qty: Number(r.qty) || 0,
-                    yields: Number(r.yields) || 0
-                };
-            });
+            // FILTER: Only process rows that have a SKU/Item Name
+            const validRows = rows.filter(r => r.sku && r.sku.trim() !== "");
+
+            const processedRows = validRows.map(r => ({
+                ...r,
+                ...getRowCalculations(r),
+                cost: Number(r.cost) || 0,
+                price: Number(r.price) || 0,
+                qty: Number(r.qty) || 0,
+                yields: Number(r.yields) || 0
+            }));
+
+            const machines = processedRows.filter(r => r.type === 'machine');
+            const consumables = processedRows.filter(r => r.type === 'consumable');
+
+            const totalsObj = {
+                totalUnitCost: processedRows.reduce((s, r) => s + r.cost, 0),
+                totalQty: processedRows.reduce((s, r) => s + r.qty, 0),
+                totalCost: processedRows.reduce((s, r) => s + r.totalCost, 0),
+                totalYields: processedRows.reduce((s, r) => s + r.yields, 0),
+                totalCostCpp: processedRows.reduce((s, r) => s + r.costCpp, 0),
+                totalSellingPrice: processedRows.reduce((s, r) => s + r.price, 0),
+                totalSell: processedRows.reduce((s, r) => s + r.totalSell, 0),
+                totalSellCpp: processedRows.reduce((s, r) => s + r.sellCpp, 0)
+            };
 
             setProjectData(prev => ({
                 ...prev,
-                machineConfiguration: rowsWithCalcs 
+                machineConfiguration: {
+                    machine: machines,
+                    consumable: consumables,
+                    totals: totalsObj
+                }
             }));
         }
     }, [buttonClicked]);
@@ -113,7 +134,7 @@ function MachineConfig({ buttonClicked }) {
                                             />
                                         </td>
                                         <td className="border-b border-r border-slate-100 p-1">
-                                            <input type="text" value={row.sku} onChange={(e) => handleInputChange(row.id, 'sku', e.target.value)} className={inputClass} placeholder="SKU-XXX" />
+                                            <input type="text" value={row.sku} onChange={(e) => handleInputChange(row.id, 'sku', e.target.value)} className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''}`} placeholder="SKU-XXX" />
                                         </td>
                                         <td className="border-b border-r border-slate-100 p-1">
                                             <input type="number" value={row.cost} onChange={(e) => handleInputChange(row.id, 'cost', e.target.value)} className={inputClass} />
@@ -152,21 +173,6 @@ function MachineConfig({ buttonClicked }) {
                                 );
                             })}
                         </tbody>
-                        {/* FOOTER TOTALS SECTION RE-INSERTED */}
-                        <tfoot className="bg-[#F6FDF5] font-bold text-[10px] text-slate-700">
-                            <tr>
-                                <td colSpan="2" className="p-2 border-r border-slate-200 text-center uppercase font-black">Grand Totals</td>
-                                <td className="p-2 border-r border-slate-200 text-center">{formatNum(rows.reduce((s, r) => s + (Number(r.cost) || 0), 0))}</td>
-                                <td className="p-2 border-r border-slate-200 text-center"></td>
-                                <td className="p-2 border-r border-slate-200 text-center">{formatNum(rows.reduce((s, r) => s + getRowCalculations(r).totalCost, 0))}</td>
-                                <td className="p-2 border-r border-slate-200 text-center">{rows.reduce((s, r) => s + (Number(r.yields) || 0), 0).toLocaleString()}</td>
-                                <td className="p-2 border-r border-slate-200 text-center text-green-700">{formatNum(rows.reduce((s, r) => s + getRowCalculations(r).costCpp, 0))}</td>
-                                <td className="p-2 border-r border-slate-200 text-center">{formatNum(rows.reduce((s, r) => s + (Number(r.price) || 0), 0))}</td>
-                                <td className="p-2 border-r border-slate-200 text-center">{formatNum(rows.reduce((s, r) => s + getRowCalculations(r).totalSell, 0))}</td>
-                                <td className="p-2 border-r border-slate-200 text-center text-blue-700">{formatNum(rows.reduce((s, r) => s + getRowCalculations(r).sellCpp, 0))}</td>
-                                <td colSpan="2" className="bg-white"></td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
             </div>

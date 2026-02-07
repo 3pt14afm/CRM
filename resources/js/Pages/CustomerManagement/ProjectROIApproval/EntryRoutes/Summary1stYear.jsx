@@ -37,7 +37,7 @@ function Summary1stYear() {
 
 
                <div className='grid grid-cols-[70%_30%] items-center gap-10 mx-8 mt-6 mb-5'>
-                   <div className='flex flex-col'>
+                   <div className='flex flex-col gap-3'>
                          {/* MACHINE & CONSUMABLES */}
                         <MachCon1stY />
                         
@@ -45,7 +45,7 @@ function Summary1stYear() {
                         <Totals />
                 
                    </div>
-                    <div className='-mt-7'>
+                    <div className='-mt-14'>
                         <Potentials />
                     </div>
                </div>

@@ -1,6 +1,13 @@
+import { useProjectData } from '@/Context/ProjectContext'
 import React from 'react'
 
+
+
 function ContractDetails() {
+
+    const {projectData} = useProjectData();
+
+    
   return (
     /* Changed max-w-5xl to max-w-7xl for a wider layout */
     <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-dull mx-auto mb-6">
