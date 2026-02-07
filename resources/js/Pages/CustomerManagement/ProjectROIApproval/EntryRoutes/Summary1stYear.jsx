@@ -8,6 +8,7 @@ import Names from '@/Components/roi/Entry/Names';
 import TotalMVP from '@/Components/roi/Entry/TotalMVP';
 import Totals from '@/Components/roi/Entry/Summary1stYear/Totals';
 import React from 'react'
+import Potentials from '@/Components/roi/Entry/Potentials';
 
 
 function Summary1stYear() {
@@ -34,12 +35,21 @@ function Summary1stYear() {
 
                 </div>
 
-                {/* MACHINE & CONSUMABLES */}
-                <MachCon1stY />
+
+               <div className='grid grid-cols-[70%_30%] items-center gap-10 mx-8 mt-6 mb-5'>
+                   <div className='flex flex-col'>
+                         {/* MACHINE & CONSUMABLES */}
+                        <MachCon1stY />
+                        
+                        {/* TOTAL OTHERS */}
+                        <Totals />
                 
-                {/* TOTAL OTHERS */}
-                <Totals />
-                
+                   </div>
+                    <div className='-mt-7'>
+                        <Potentials />
+                    </div>
+               </div>
+         
                 {/* CONTRACT DETAILS */}
                 <ContractDetails />
 
