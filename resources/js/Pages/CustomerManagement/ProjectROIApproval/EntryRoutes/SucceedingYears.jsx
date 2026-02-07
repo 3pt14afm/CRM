@@ -32,9 +32,9 @@ function SucceedingYears() {
                 
 
                 {/* ADD NOTES AND ADD COMMENTS */}
-                <div className='grid grid-cols-2 items-center gap-4'>
-                <AddNotes />
-                <AddComments />
+                <div className='grid grid-cols-2 items-center gap-4' >
+                <AddNotes scopeKey="roi-succeding-years" />
+                <AddComments scopeKey="roi-succeeding-years" />
                 </div>
 
                 <Names />

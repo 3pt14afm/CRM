@@ -116,7 +116,15 @@ export default function Sidebar() {
     const onPointerDown = (e) => {
         if (!isOpen) return;
 
-        if (sidebarRef.current && sidebarRef.current.contains(e.target)) return;
+        const sidebarEl = sidebarRef.current;
+        const dropdownEl = dropdownRef.current;    
+        const profileBtnEl = profileBtnRef.current; 
+        
+        if (sidebarEl && sidebarEl.contains(e.target)) return;
+
+        if (dropdownEl && dropdownEl.contains(e.target)) return;
+
+        if (profileBtnEl && profileBtnEl.contains(e.target)) return;
 
         setIsOpen(false);
         setActiveItem(null);
