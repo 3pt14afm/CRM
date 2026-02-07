@@ -10,7 +10,7 @@ function Totals() {
     
     // Destructuring additionalFees object based on the new company/customer context
     const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
-    const grandTotalCost = addFeesObj.grandTotal || {};
+    const grandTotalCost = addFeesObj.grandTotal ||0;
     // Combine company and customer arrays for the list display
     const allAdditionalFees = [
         ...(addFeesObj.company || []), 
@@ -42,8 +42,8 @@ function Totals() {
     const roiPercentage = finalTotalCost !== 0 ? (finalTotalROI / finalTotalCost) * 100 : 0;
 
     return (
-        <div className="mt-5 space-y-8 font-sans uppercase font-bold tracking-tight text-gray-800 text-[10px]">
-            <div className="items-start text-[11px]">
+        <div className="mt-5 space-y-8 font-sans  font-bold tracking-tight text-gray-800 text-[10px]">
+            <div className="items-start text-[12px]">
                 <div className='flex gap-4'> 
                     
                     {/* 1. ADDITIONAL FEES TABLE (LEFT) */}
@@ -52,7 +52,7 @@ function Totals() {
                             <table className="w-full bg-white table-fixed">
                                 <thead className="bg-[#E2F4D8] border-b border-gray-300 text-[11px]">
                                     <tr>
-                                        <th className="px-3 py-3 text-center w-[60%] uppercase">Additional Fees</th>
+                                        <th className="px-3 py-3 text-center w-[50%] uppercase">OTHERS</th>
                                         <th className="px-3 py-3 text-center border-l border-gray-300 w-[40%] uppercase">Amount</th>
                                     </tr>
                                 </thead>
@@ -63,22 +63,25 @@ function Totals() {
                                                 <td className="px-4 py-2 text-gray-600 truncate">
                                                     {fee.label}
                                                 </td>
-                                                <td className="text-right pr-4 font-medium">
+                                                <td className=" pr-4 font-medium">
                                                     {f(fee.total)}
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr>
-                                            <td colSpan="2" className="px-4 py-4 text-center text-gray-400 italic normal-case font-normal">
-                                                No fees recorded
-                                            </td>
-                                        </tr>
+                                        <tr className="border-b border-gray-100 last:border-b-0">
+                                                <td className="px-4 py-3 text-[11px] text-gray-600 truncate border-r">
+                                                    X
+                                                </td>
+                                                <td className="text-right text-[11px] pr-4 font-medium">
+                                                   0.00
+                                                </td>
+                                            </tr>
                                     )}
                                     <tr className="bg-[#E2F4D8] border-t-2 border-gray-300 font-bold">
-                                        <td className="px-3 py-2 uppercase">Total</td>
+                                        <td className="px-3 py-2 text-[11px] border-r uppercase">Total</td>
                                         {/* Shows the combined sum of both company and customer fees here */}
-                                        <td className="text-right pr-4">{f(grandTotalCost)}</td>
+                                        <td className="text-right text-[11px] pr-4">{f(grandTotalCost)}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -91,21 +94,21 @@ function Totals() {
                             <table className="w-full text-[11px]">
                                 <tbody>
                                     <tr className="border-b border-gray-100">
-                                        <td className="px-4 py-3 font-bold bg-[#E2F4D8]/20 text-[11px] text-gray-500 uppercase">Total Cost</td>
+                                        <td className="px-4 py-3 font-bold bg-[#E2F4D8]/20 text-[11px] text-gray-500 ">Total Cost</td>
                                         <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(finalTotalCost)}</td>
                                     </tr>
                                     <tr className="bg-[#E2F4D8] font-bold">
-                                        <td className="px-4 py-3 uppercase">Total ROI</td>
+                                        <td className="px-4 py-3 ">Total ROI</td>
                                         <td className="px-4 py-3 text-right border-l border-gray-300">{f(finalTotalROI)}</td>
                                     </tr>
                                     <tr className="border-b border-gray-100">
                                         <td className="py-2 text-[10px] text-gray-400 italic px-4"></td>
-                                        <td className={`px-4 py-2 bg-white text-right border-l border-gray-100 font-black ${roiPercentage >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                        <td className={`px-4 py-2 bg-white text-right border-l border-gray-100  ${roiPercentage >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                                             {roiPercentage.toFixed(2)}%
                                         </td>
                                     </tr>
                                     <tr className="font-bold border-t border-gray-200">
-                                        <td className="px-4 py-3 text-[11px] text-gray-500 uppercase">Total Revenue</td>
+                                        <td className="px-4 py-3 text-[11px] text-gray-500 ">Total Revenue</td>
                                         <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(finalTotalRevenue)}</td>
                                     </tr>
                                 </tbody>

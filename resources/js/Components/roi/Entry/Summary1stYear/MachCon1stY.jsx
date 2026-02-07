@@ -48,7 +48,14 @@ function MachCon1stY() {
                                 <td className="text-center text-[11px] border-l border-gray-100">{formatNum(m.sellCpp, 4)}</td>
                             </tr>
                         )) : (
-                            <tr><td colSpan="6" className="px-6 py-2 text-[10px] text-gray-400 normal-case italic text-center">No machines configured</td></tr>
+                            <tr className="border-b border-gray-100 last:border-b-0">
+                                <td className="px-6 py-3 text-[11px]">x</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                            </tr>
                         )}
 
                         {/* Consumable Section */}
@@ -65,7 +72,14 @@ function MachCon1stY() {
                                 <td className="border-l text-[11px] border-gray-100 text-center px-2 py-1">{formatNum(c.sellCpp, 4)}</td>
                             </tr>
                         )) : (
-                            <tr><td colSpan="6" className="px-6 py-2 text-[10px] text-gray-400 normal-case italic text-center">No consumables configured</td></tr>
+                            <tr className="border-b border-gray-100 last:border-b-0">
+                                <td className="px-6 py-3 text-[11px]">x</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                                <td className="text-center text-[11px] border-l border-gray-100">0</td>
+                            </tr>
                         )}
                     </tbody>
 
