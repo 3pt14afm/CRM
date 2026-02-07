@@ -79,7 +79,7 @@ function Totals() {
                                             </tr>
                                     )}
                                     <tr className="bg-[#E2F4D8] border-t-2 border-gray-300 font-bold">
-                                        <td className="px-3 py-2 text-[11px] border-r uppercase border-r">Total</td>
+                                        <td className="px-3 py-2 text-[11px]  uppercase border-r">Total</td>
                                         {/* Shows the combined sum of both company and customer fees here */}
                                         <td className="text-right text-[11px] pr-4">{f(grandTotalCost)}</td>
                                     </tr>

@@ -19,7 +19,7 @@ function MachCon1stY() {
         });
 
     return (
-        <div className="w-full gap-4 font-sans uppercase font-bold tracking-tight text-gray-800">
+        <div className="gap-4 font-sans uppercase font-bold tracking-tight text-gray-800">
             
             <div className="flex-[3] border border-gray-300 rounded-xl overflow-hidden shadow-sm">
                 <table className="w-full bg-white border-collapse">
