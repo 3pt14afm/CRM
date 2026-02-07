@@ -21,7 +21,7 @@ const InterestCalcuSum = () => {
         <table className="w-full border-collapse">
           <tbody>
             <tr className="border-b border-slate-200">
-              <td className="w-3/5 bg-[#90E274]/10 py-3 px-3 text-[12px] font-bold text-gray-800">
+              <td className="w-[30%] bg-[#90E274]/10 py-3 px-3 text-[12px] font-bold text-gray-800">
                 Annual Interest
               </td>
               <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
@@ -53,7 +53,7 @@ const InterestCalcuSum = () => {
                   <td className="w-1/3 py-2 text-center text-sm font-semibold text-gray-800">
                     {metric.value}
                   </td>
-                  <td className="w-2/3 bg-[#90E274]/10 py-2 px-3 text-left border-l border-gray-300">
+                  <td className="w-[70%] bg-[#90E274]/10 py-2 px-4 text-left border-l border-gray-300">
                     <span className="block text-[12px] font-bold leading-tight text-gray-800 tracking-tight">
                       {metric.label}
                     </span>
