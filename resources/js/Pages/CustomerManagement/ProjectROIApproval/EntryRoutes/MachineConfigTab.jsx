@@ -26,16 +26,15 @@ function MachineConfigTab({buttonClicked}) {
                   {/* THIS DIV IS FOR THE COMPANY INFO AND INTErest*/}
                  <div className='flex items-center px-10 pt-5 gap-3 mb-5'>
 
-                      <CompanyInfo buttonClicked={buttonClicked}
-                       />
+                    <CompanyInfo buttonClicked={buttonClicked}/>
                         {/* annual interests */}
                     {/* ANNUAL INTERESTS & YIELDS SECTION */}
-                   <div className='flex flex-col gap-5 items-center justify-center '>
+                  <div className='flex flex-col gap-2 items-center justify-center '>
                     {/* annual and monthly interest container */}
                     <InterestCalculator buttonClicked={buttonClicked}/>
-                     {/* Yields table */}
-                     <Yields buttonClicked={buttonClicked}/>
-                   </div>
+                    {/* Yields table */}
+                    <Yields buttonClicked={buttonClicked}/>
+                  </div>
             </div>
 
                   <MachineConfig buttonClicked={buttonClicked}/>
