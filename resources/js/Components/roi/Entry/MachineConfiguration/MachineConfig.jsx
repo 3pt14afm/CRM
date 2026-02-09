@@ -155,29 +155,29 @@ function MachineConfig() {
                 const calcs = getRowCalculations(row);
                 return (
                   <tr key={row.id} className='border-b'>
-                    <td className="border-r border-slate-100 text-center">
+                    <td className="border-r border-slate-100 text-center px-3 py-2">
                       <input type="checkbox" className="w-4 h-4 accent-green-600 cursor-pointer"
                         checked={row.type === 'machine'}
                         onChange={e => handleInputChange(row.id, 'isMachine', e.target.checked)} />
                     </td>
-                    <td className="border-r border-slate-100 p-1">
+                    <td className="border-b border-r border-slate-100 p-1">
                       <input type="text" value={row.sku} onChange={e => handleInputChange(row.id, 'sku', e.target.value)} className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''}`} placeholder="SKU-XXX" />
                     </td>
-                    <td className="border-r border-slate-100 p-1"><input type="number" value={row.cost} onChange={e => handleInputChange(row.id, 'cost', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-r border-slate-100 p-1"><input type="number" value={row.qty} onChange={e => handleInputChange(row.id, 'qty', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.totalCost)}</div></td>
-                    <td className="border-r border-slate-100 p-1"><input type="number" value={row.yields} onChange={e => handleInputChange(row.id, 'yields', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.costCpp)}</div></td>
-                    <td className="border-r border-slate-100 p-1"><input type="number" value={row.price} onChange={e => handleInputChange(row.id, 'price', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.totalSell)}</div></td>
-                    <td className="border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.sellCpp)}</div></td>
-                    <td className="border-r border-slate-100 p-1">
+                    <td className="border-b border-r border-slate-100 p-1"><input type="number" value={row.cost} onChange={e => handleInputChange(row.id, 'cost', e.target.value)} className={inputClass} placeholder="0" /></td>
+                    <td className="border-b border-r border-slate-100 p-1"><input type="number" value={row.qty} onChange={e => handleInputChange(row.id, 'qty', e.target.value)} className={inputClass} placeholder="0" /></td>
+                    <td className="border-b border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.totalCost)}</div></td>
+                    <td className="border-b border-r border-slate-100 p-1"><input type="number" value={row.yields} onChange={e => handleInputChange(row.id, 'yields', e.target.value)} className={inputClass} placeholder="0" /></td>
+                    <td className="border-b border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.costCpp)}</div></td>
+                    <td className="border-b border-r border-slate-100 p-1"><input type="number" value={row.price} onChange={e => handleInputChange(row.id, 'price', e.target.value)} className={inputClass} placeholder="0" /></td>
+                    <td className="border-b border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.totalSell)}</div></td>
+                    <td className="border-b border-r border-slate-100 p-1"><div className={readonlyClass}>{formatNum(calcs.sellCpp)}</div></td>
+                    <td className="border-b border-r border-slate-100 p-1">
                       <div className="flex gap-1 justify-center">
                         <button onClick={addRow} className="w-6 h-6 rounded bg-green-50 text-green-600 border border-green-200 hover:bg-green-100">+</button>
                         <button onClick={() => removeRow(row.id)} className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">-</button>
                       </div>
                     </td>
-                    <td className="border-slate-100 p-1"><input type="text" value={row.remarks} onChange={e => handleInputChange(row.id, 'remarks', e.target.value)} className={inputClass} /></td>
+                    <td className="border-b border-slate-100 p-1"><input type="text" value={row.remarks} onChange={e => handleInputChange(row.id, 'remarks', e.target.value)} className={inputClass} /></td>
                   </tr>
                 );
               })}

@@ -47,13 +47,13 @@ function Totals() {
                 <div className='flex gap-4'> 
                     
                     {/* 1. ADDITIONAL FEES TABLE (LEFT) */}
-                    <div className="flex-none w-full min-w-[90px] max-w-[50%]">
+                    <div className="flex-none w-[35%]">
                         <div className="border border-gray-300 rounded-xl overflow-hidden shadow-sm">
                             <table className="w-full bg-white table-fixed">
                                 <thead className="bg-[#E2F4D8] border-b border-gray-300 text-[11px]">
                                     <tr>
-                                        <th className="px-3 py-3 text-center w-[60%] uppercase">OTHERS</th>
-                                        <th className="px-3 py-3 text-center border-l border-gray-300 w-[40%] uppercase">Amount</th>
+                                        <th className="px-3 py-1.5 text-center w-[72%] uppercase">OTHERS</th>
+                                        <th className="px-3 py-1.5 text-center border-l border-gray-300 w-[28%] uppercase">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[10px]">
@@ -78,7 +78,7 @@ function Totals() {
                                                 </td>
                                             </tr>
                                     )}
-                                    <tr className="bg-[#E2F4D8] border-t-2 border-gray-300 font-bold">
+                                    <tr className="bg-[#E2F4D8] border-t font-bold">
                                         <td className="px-3 py-2 text-[11px]  uppercase border-r">Total</td>
                                         {/* Shows the combined sum of both company and customer fees here */}
                                         <td className="text-right text-[11px] pr-4">{f(grandTotalCost)}</td>
@@ -89,7 +89,7 @@ function Totals() {
                     </div>
 
                     {/* 2. SUMMARY ROI BOX (CENTER) */}
-                    <div className="flex justify-center w-full mt-44">
+                    <div className="flex justify-center w-full mt-28">
                         <div className="border border-gray-300 rounded-xl overflow-hidden shadow-sm w-[400px]">
                             <table className="w-full text-[11px]">
                                 <tbody>

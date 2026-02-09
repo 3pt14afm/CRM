@@ -41,7 +41,7 @@ function Potentials({ title = "1st Year Potential" }) {
   });
 
   return (
-    <div className="p-4">
+    <div className="p-4 pt-0">
       {/* TITLE SECTION */}
       <div className="text-center mb-2 pr-1">
         <span className="text-[17px] font-bold uppercase tracking-tight text-gray-700">
@@ -54,13 +54,13 @@ function Potentials({ title = "1st Year Potential" }) {
         <table className="w-full bg-white border-collapse table-fixed">
           <thead className="bg-[#E2F4D8] border-b border-gray-300">
             <tr>
-              <th className="w-1/4 px-1 py-3 text-[11px] text-center font-bold uppercase">Qty</th>
-              <th className="w-3/8 px-1 py-3 text-[11px] text-center border-l border-gray-300 uppercase">Total Cost</th>
-              <th className="w-3/8 px-1 py-3 text-[11px] text-center border-l border-gray-300 uppercase">Gross Sales</th>
+              <th className="w-1/4 px-1 py-2.5 text-[11px] text-center font-bold uppercase">Qty</th>
+              <th className="w-3/8 px-1 py-2.5 text-[11px] text-center border-l border-gray-300 uppercase">Total Cost</th>
+              <th className="w-3/8 px-1 py-2.5 text-[11px] text-center border-l border-gray-300 uppercase">Gross Sales</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="bg-[#E2F4D8]/20"><td colSpan="3" className="py-3"></td></tr>
+            <tr className="bg-[#E2F4D8]/20 border-b"><td colSpan="3" className="py-3.5"></td></tr>
             
             {machines.length > 0 ? (
               machines.map((m, index) => (
@@ -78,7 +78,7 @@ function Potentials({ title = "1st Year Potential" }) {
               </tr>
             )}
 
-            <tr className="bg-[#E2F4D8]/20 border-t border-gray-200">
+            <tr className="bg-[#E2F4D8]/20 border-b">
               <td colSpan="3" className="py-3"></td>
             </tr>
 
@@ -117,31 +117,31 @@ function Potentials({ title = "1st Year Potential" }) {
                   const isCompany = companyFees.includes(fee);
                   return (
                     <tr key={index} className="border-b border-gray-100">
-                      <td className="w-1/4 py-3 border-r font-bold bg-gray-50 text-center">{fee.qty || 0}</td>
-                      <td className="w-3/8 py-3 border-r text-gray-500 text-center">{isCompany ? format(fee.total) : format(0)}</td>
-                      <td className="w-3/8 py-3 text-gray-500 text-center">{!isCompany ? format(fee.total) : format(0)}</td>
+                      <td className="w-1/4 py-2 border-r font-bold bg-gray-50 text-center">{fee.qty || 0}</td>
+                      <td className="w-3/8 py-2 border-r text-gray-500 text-center">{isCompany ? format(fee.total) : format(0)}</td>
+                      <td className="w-3/8 py-2 text-gray-500 text-center">{!isCompany ? format(fee.total) : format(0)}</td>
                     </tr>
                   );
                 })
               ) : (
                 <tr className="border-b border-gray-100">
-                  <td className="py-3 border-r font-bold text-center">0</td>
-                  <td className="py-3 border-r font-bold text-center">0.00</td>
-                  <td className="py-3 font-bold text-center">0.00</td>
+                  <td className="py-2 border-r font-bold text-center">0</td>
+                  <td className="py-2 border-r font-bold text-center">0.00</td>
+                  <td className="py-2 font-bold text-center">0.00</td>
                 </tr>
               )}
 
               <tr className="bg-[#E2F4D8] font-bold text-gray-800">
-                <td className="py-3 border-r border-gray-300"></td>
-                <td className="py-3 border-r border-gray-300">{format(grandtotalCost)}</td>
-                <td className="py-3">{format(grandtotalSell)}</td>
+                <td className="py-2 border-r border-gray-300"></td>
+                <td className="py-2 border-r border-gray-300">{format(grandtotalCost)}</td>
+                <td className="py-2">{format(grandtotalSell)}</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         {/* ROI Final Result Box */} 
-        <div className="border border-gray-300 rounded-lg overflow-hidden w-[75%] bg-white shadow-sm"> 
+        <div className="border border-gray-300 rounded-lg overflow-hidden w-[75%] mt-5 bg-white shadow-sm"> 
           <table className="w-full text-center table-fixed text-[11px]"> 
             <tbody> 
                    <tr className=" border-b border-gray-300">

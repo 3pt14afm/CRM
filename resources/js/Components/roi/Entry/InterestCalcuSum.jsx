@@ -19,24 +19,24 @@ const InterestCalcuSum = () => {
   ];
 
   return (
-    <div className='grid grid-cols-2 items-start gap-4 p-2 font-sans'>
+    <div className='grid [grid-template-columns:40%_60%] items-start gap-4 mr-2 p-2 font-sans'>
       {/* Left Table: Static Values */}
-      <div className="overflow-hidden rounded-lg border border-slate-300 w-full shadow-lg">
+      <div className="overflow-hidden rounded-lg border border-slate-300 ml-auto w-[90%] shadow-lg">
         <table className="w-full border-collapse">
           <tbody>
             <tr className="border-b border-slate-200">
-              <td className="w-[30%] bg-[#90E274]/10 py-3 px-3 text-[12px] font-bold text-gray-800">
+              <td className="w-[50%] bg-[#90E274]/10 py-3 px-3 text-[12px] font-bold text-gray-800">
                 Annual Interest
               </td>
-              <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
+              <td className="w-[50%] py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
                 {(projectData.interest?.annualInterest || 0)}%
               </td>
             </tr>
             <tr>
-              <td className="w-3/5 bg-[#90E274]/20 py-3 px-3 text-[12px] font-bold text-gray-800">
+              <td className="w-[50%] bg-[#90E274]/20 py-3 px-3 text-[12px] font-bold text-gray-800">
                 Percent Margin
               </td>
-              <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
+              <td className="w-[50%] py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
                 {(projectData.interest?.percentMargin || 0)}%
               </td>
             </tr>
@@ -51,7 +51,7 @@ const InterestCalcuSum = () => {
             <tbody>
               {metrics.map((metric, index) => (
                 <tr key={index} className={index !== metrics.length - 1 ? "border-b border-gray-300" : ""}>
-                  <td className="w-1/3 py-2 text-center text-sm font-semibold text-gray-800">
+                  <td className="w-[30%] py-2 text-center text-sm font-semibold text-gray-800">
                     {metric.value}
                   </td>
                   <td className="w-[70%] bg-[#90E274]/10 py-2 px-4 text-left border-l border-gray-300">
