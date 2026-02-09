@@ -3,11 +3,14 @@ import { useProjectData } from '@/Context/ProjectContext';
 
 function TotalMVP() {
     const { projectData } = useProjectData();
-    const { interest } = projectData;
+    const yieldData = projectData.yield || {};
 
     // Helper for currency/number formatting
-    const formatNum = (val) => 
-        (val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formatNum = (val) =>
+        (parseFloat(val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Compute annual dynamically
+    const getAnnual = (monthly) => (parseFloat(monthly) || 0) * 12;
 
     return (
         <div className="overflow-hidden rounded-2xl border border-gray-200 shadow-sm font-sans text-gray-800">
@@ -24,28 +27,27 @@ function TotalMVP() {
                     <tr className="border-b border-gray-100">
                         <td className="px-4 py-2 font-medium border-r border-gray-100 text-sm">Mono AMVP</td>
                         <td className="px-4 py-2 text-right text-sm border-r border-gray-100">
-                            {formatNum(interest.monoAmvpYields?.monthly)}
+                            {formatNum(yieldData.monoAmvpYields?.monthly)}
                         </td>
                         <td className="px-4 py-2 text-right text-sm">
-                            {formatNum(interest.monoAmvpYields?.annual)}
+                            {formatNum(getAnnual(yieldData.monoAmvpYields?.monthly))}
                         </td>
                     </tr>
                     
                     <tr className="border-b border-gray-100">
                         <td className="px-4 py-2 font-medium border-r border-gray-100 text-sm">Color AMVP</td>
                         <td className="px-4 py-2 text-right text-sm border-r border-gray-100">
-                            {formatNum(interest.colorAmvpYields?.monthly)}
+                            {formatNum(yieldData.colorAmvpYields?.monthly)}
                         </td>
                         <td className="px-4 py-2 text-right text-sm">
-                            {formatNum(interest.colorAmvpYields?.annual)}
+                            {formatNum(getAnnual(yieldData.colorAmvpYields?.monthly))}
                         </td>
                     </tr>
                     
-                    {/* Placeholder: Update these fields once you add the Periodic Maintenance logic to your context */}
                     <tr>
                         <td className="px-4 py-2 font-medium border-r border-gray-100 text-sm">Periodic Maintenance Supplies Count</td>
                         <td className="px-4 py-2 text-right text-sm border-r border-gray-100">
-                            {formatNum(0)} 
+                            {formatNum(0)}
                         </td>
                         <td className="px-4 py-2 text-right text-sm">
                             {formatNum(0)}

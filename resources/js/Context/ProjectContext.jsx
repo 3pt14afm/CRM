@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 const ProjectContext = createContext();
 
-export const ProjectDataProvider = ({ children }) => {
+const ProjectDataProvider = ({ children }) => {
     const [projectData, setProjectData] = useState({
         metadata: { projectId: null, lastSaved: null, version: 1 },
         companyInfo: {
@@ -15,30 +15,29 @@ export const ProjectDataProvider = ({ children }) => {
         interest: {
             annualInterest: 0,
             percentMargin: 0,
-            monthlyInterest: 0,
-            monthlyMarginForContract: 0,
-            annualMargin: 0,
+        },
+        yield: {
             monoAmvpYields: { monthly: 0, annual: 0 },
             colorAmvpYields: { monthly: 0, annual: 0 }
         },
         machineConfiguration: {
-              machine: [],
-              consumable: [],
-              totals: {
-                  totalUnitCost: 0, 
-                  totalQty: 0,
-                  totalCost: 0,
-                  totalYields: 0,
-                  totalCostCpp: 0,
-                  totalSellingPrice: 0,
-                  totalSell: 0,
-                  totalSellCpp: 0
-              }
-        }, 
-        additionalFees: {
             machine: [],
             consumable: [],
-            grandTotal: 0
+            totals: {
+                unitCost: 0,
+                qty: 0,
+                totalCost: 0,
+                yields: 0,
+                costCpp: 0,
+                sellingPrice: 0,
+                totalSell: 0,
+                sellCpp: 0
+            }
+        },
+        additionalFees: {
+            company: [],
+            customer: [],
+            total: 0, // ✅ Store total for live display
         },
         totalProjectCost: {
             grandTotalCost: 0,
@@ -47,7 +46,7 @@ export const ProjectDataProvider = ({ children }) => {
         }
     });
 
-    // GENERIC UPDATE: Use for simple sections like companyInfo
+    // GENERIC UPDATE: For simple sections like companyInfo
     const updateSection = useCallback((section, newData) => {
         setProjectData(prev => ({
             ...prev,
@@ -55,19 +54,54 @@ export const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
-    // SPECIFIC UPDATE: Prevents overwriting the machineConfiguration object structure
+    // SPECIFIC UPDATE: For machine configuration
     const setMachineConfig = useCallback((newConfig) => {
         setProjectData(prev => ({
             ...prev,
             machineConfiguration: {
                 ...prev.machineConfiguration,
-                ...newConfig // This safely merges {machine, consumable, totals}
+                ...newConfig // merges {machine, consumable, totals}
+            }
+        }));
+    }, []);
+
+    // SPECIFIC UPDATE: For yields
+    const setYield = useCallback((type, monthly) => {
+        setProjectData(prev => ({
+            ...prev,
+            yield: {
+                ...prev.yield,
+                [`${type}AmvpYields`]: { 
+                    monthly, 
+                    annual: monthly * 12 
+                }
+            }
+        }));
+    }, []);
+
+    // SPECIFIC UPDATE: For additional fees with live total
+    const setAdditionalFees = useCallback((feesObj) => {
+        const allRows = [...(feesObj.company || []), ...(feesObj.customer || [])];
+        const total = allRows.reduce((sum, row) => sum + (row.total || 0), 0);
+
+        setProjectData(prev => ({
+            ...prev,
+            additionalFees: {
+                ...feesObj,
+                total
             }
         }));
     }, []);
 
     return (
-        <ProjectContext.Provider value={{ projectData, setProjectData, updateSection, setMachineConfig }}>
+        <ProjectContext.Provider value={{
+            projectData,
+            setProjectData,
+            updateSection,
+            setMachineConfig,
+            setYield,
+            setAdditionalFees
+        }}>
             {children}
         </ProjectContext.Provider>
     );
@@ -78,3 +112,5 @@ export const useProjectData = () => {
     if (!context) throw new Error("useProjectData must be used within a ProjectDataProvider");
     return context;
 };
+
+export default ProjectDataProvider; // ✅ default export

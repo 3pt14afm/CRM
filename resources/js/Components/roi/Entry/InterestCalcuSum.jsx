@@ -1,22 +1,26 @@
 import React from 'react';
-import { useProjectData } from '@/Context/ProjectContext'; // Adjust path as needed
+import { useProjectData } from '@/Context/ProjectContext';
+import { interest as calculateInterest } from '@/Utils/interest'; // Adjust path if needed
 
 const InterestCalcuSum = () => {
   const { projectData } = useProjectData();
-  const { interest } = projectData;
 
-  // Helper function for clean number formatting
-  const formatNum = (val) => (val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Use your util to get derived interest values
+  const { monthlyInterest, monthlyMarginForContract, annualMargin } = calculateInterest(projectData);
+
+  // Helper for formatting
+  const formatNum = (val) =>
+    (parseFloat(val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const metrics = [
-    { label: "Monthly Interest", value: formatNum(interest.monthlyInterest) },
-    { label: "Monthly Margin for Contract Duration", value: formatNum(interest.monthlyMarginForContract) },
-    { label: "Annual Margin", value: formatNum(interest.annualMargin) },
+    { label: "Monthly Interest", value: formatNum(monthlyInterest) },
+    { label: "Monthly Margin for Contract Duration", value: formatNum(monthlyMarginForContract) },
+    { label: "Annual Margin", value: formatNum(annualMargin) },
   ];
 
   return (
     <div className='grid grid-cols-2 items-start gap-4 p-2 font-sans'>
-      {/* Left Table: Static Values (Interest and Margin %) */}
+      {/* Left Table: Static Values */}
       <div className="overflow-hidden rounded-lg border border-slate-300 w-full shadow-lg">
         <table className="w-full border-collapse">
           <tbody>
@@ -25,7 +29,7 @@ const InterestCalcuSum = () => {
                 Annual Interest
               </td>
               <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
-                {(interest.annualInterest || 0)}%
+                {(projectData.interest?.annualInterest || 0)}%
               </td>
             </tr>
             <tr>
@@ -33,23 +37,20 @@ const InterestCalcuSum = () => {
                 Percent Margin
               </td>
               <td className="w-2/5 py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
-                {(interest.percentMargin || 0)}%
+                {(projectData.interest?.percentMargin || 0)}%
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      {/* Right Column: Metrics Table */}
+      {/* Right Column: Calculated Metrics */}
       <div className="flex flex-col w-full gap-1">
         <div className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-lg">
           <table className="w-full border-collapse">
             <tbody>
               {metrics.map((metric, index) => (
-                <tr 
-                  key={index} 
-                  className={index !== metrics.length - 1 ? "border-b border-gray-300" : ""}
-                >
+                <tr key={index} className={index !== metrics.length - 1 ? "border-b border-gray-300" : ""}>
                   <td className="w-1/3 py-2 text-center text-sm font-semibold text-gray-800">
                     {metric.value}
                   </td>

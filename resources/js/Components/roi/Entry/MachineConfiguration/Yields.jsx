@@ -1,55 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 
-function Yields({ buttonClicked }) {
-  const { setProjectData, projectData } = useProjectData();
+function Yields() {
+  const { projectData, setProjectData } = useProjectData();
 
-  // 1. Local state for drafting
-  const [localYields, setLocalYields] = useState({
-    mono: projectData.interest.monoAmvpYields?.monthly || '',
-    color: projectData.interest.colorAmvpYields?.monthly || ''
-  });
+  const monoMonthly = parseFloat(projectData.yield.monoAmvpYields?.monthly) || 0;
+  const colorMonthly = parseFloat(projectData.yield.colorAmvpYields?.monthly) || 0;
 
-  // 2. LIVE COMPUTATION (Runs every time localYields changes)
-  const monoMonthly = parseFloat(localYields.mono) || 0;
-  const colorMonthly = parseFloat(localYields.color) || 0;
   const monoAnnual = monoMonthly * 12;
   const colorAnnual = colorMonthly * 12;
 
-  // 3. Official Save Logic
-  useEffect(() => {
-    if (buttonClicked) {
-      // Create the final payload object
-      const finalYieldData = {
-        monoAmvpYields: { 
-          monthly: Number(monoMonthly.toFixed(2)), 
-          annual: Number(monoAnnual.toFixed(2)) 
-        },
-        colorAmvpYields: { 
-          monthly: Number(colorMonthly.toFixed(2)), 
-          annual: Number(colorAnnual.toFixed(2)) 
+  // Proper handleChange that updates context and logs the updated state
+  const handleChange = (type, value) => {
+    setProjectData(prev => {
+      const updated = {
+        ...prev,
+        yield: {
+          ...prev.yield,
+          [`${type}AmvpYields`]: { monthly: Number(value) }
         }
       };
-
-      setProjectData(prev => ({
-        ...prev,
-        interest: {
-          ...prev.interest,
-          ...finalYieldData
-        }
-      }));
-
-      // FIX: Log finalYieldData directly to see the save result on Click #1
-      console.log("--- AMVP Yields Saved to Context ---");
-      console.log(finalYieldData);
-    }
-  }, [buttonClicked]);
-
-  const handleChange = (key, value) => {
-    // Only allow numbers and decimals
-    if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
-      setLocalYields(prev => ({ ...prev, [key]: value }));
-    }
+      console.log('Updated projectData:', updated); // log here to see latest
+      return updated;
+    });
   };
 
   return (
@@ -73,17 +46,16 @@ function Yields({ buttonClicked }) {
               Mono AMVP
             </td>
             <td className="border-b border-r border-slate-200 p-1 bg-white">
-              <input 
-                type="text" 
-                value={localYields.mono}
+              <input
+                type="number"
+                value={monoMonthly}
                 onChange={(e) => handleChange('mono', e.target.value)}
                 placeholder="0"
-                className="w-24 h-7 text-[12px] rounded border border-slate-200 text-center outline-none focus:ring-1 focus:ring-green-400 bg-slate-50/50 mx-auto block" 
+                className="w-24 h-7 text-[12px] rounded border border-slate-200 text-center outline-none focus:ring-1 focus:ring-green-400 bg-slate-50/50 mx-auto block"
               />
             </td>
             <td className="border-b border-slate-200 p-1 bg-slate-50/30 text-[12px] text-black">
-              {/* Annual updates instantly on-change */}
-              {monoAnnual.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {monoAnnual.toLocaleString(undefined)}
             </td>
           </tr>
 
@@ -93,16 +65,16 @@ function Yields({ buttonClicked }) {
               Color AMVP
             </td>
             <td className="border-r border-slate-200 p-1 bg-white">
-              <input 
-                type="text" 
-                value={localYields.color}
+              <input
+                type="number"
+                value={colorMonthly}
                 onChange={(e) => handleChange('color', e.target.value)}
                 placeholder="0"
-                className="w-24 h-7 text-[12px] rounded border border-slate-200 text-center outline-none focus:ring-1 focus:ring-green-400 bg-slate-50/50 mx-auto block" 
+                className="w-24 h-7 text-[12px] rounded border border-slate-200 text-center outline-none focus:ring-1 focus:ring-green-400 bg-slate-50/50 mx-auto block"
               />
             </td>
             <td className="p-1 bg-slate-50/30 text-[12px] text-black">
-              {colorAnnual.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {colorAnnual.toLocaleString(undefined)}
             </td>
           </tr>
         </tbody>

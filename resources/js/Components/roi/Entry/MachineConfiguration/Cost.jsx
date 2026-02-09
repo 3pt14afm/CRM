@@ -1,6 +1,23 @@
-import React from 'react'
+import React from 'react';
+import { useProjectData } from '@/Context/ProjectContext'; // Adjust path to your context file
 
 function Cost() {
+  const { projectData } = useProjectData();
+
+  // Helper to format currency
+  const format = (val) => 
+    new Intl.NumberFormat('en-PH', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    }).format(val);
+
+  // Pulling the totalCost that gets updated by MachineConfig or Fees
+  const totalCost = projectData.machineConfiguration?.totals?.totalCost || 0;
+  const additionalFees = projectData.additionalFees?.total || 0;
+  
+  // Total Project Cost = Machine/Consumable Totals + Additional Fees
+  const grandTotal = totalCost + additionalFees;
+
   return (
    <div class="flex items-center justify-center">
   <div class="bg-[#59A846] rounded-[2rem] p-10 shadow-lg inline-block text-white font-sans">
@@ -10,8 +27,8 @@ function Cost() {
     </h2>
 
     <div class="flex items-baseline gap-2 mb-4">
-      <span class="text-3xl font-bold tracking-tighter">
-        999,999,999.99
+      <span class="text-4xl font-bold tracking-tighter">
+       {format(grandTotal)}
       </span>
       <span class="text-3xl font-bold">
         PHP
