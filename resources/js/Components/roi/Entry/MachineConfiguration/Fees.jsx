@@ -9,7 +9,7 @@ const Fees = () => {
     const companyRows = (projectData.additionalFees?.company || []).map(f => ({ ...f, isMachine: false }));
     const customerRows = (projectData.additionalFees?.customer || []).map(f => ({ ...f, isMachine: true }));
     const initialRows = [...companyRows, ...customerRows];
-    return initialRows.length > 0 ? initialRows : [{ id: Date.now(), label: '', cost: 0, qty: 1, total: 0, remarks: '', isMachine: false }];
+    return initialRows.length > 0 ? initialRows : [{ id: Date.now(), label: '', cost: 0, qty: 0, total: 0, remarks: '', isMachine: false }];
   });
 
   // 2️⃣ Sync rows with context (only valid rows with labels)
@@ -17,7 +17,7 @@ const Fees = () => {
     const validRows = rows.filter(r => r.label && r.label.trim() !== '');
     const customerFees = validRows.filter(r => r.isMachine);
     const companyFees = validRows.filter(r => !r.isMachine);
-    const grandTotal = validRows.reduce((sum, r) => sum + (r.total || 0), 0);
+    const grandTotal = rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
     setProjectData(prev => ({
       ...prev,
@@ -45,7 +45,13 @@ const Fees = () => {
 
           // Update total when cost or qty changes
           if (field === 'cost' || field === 'qty') {
-            updatedRow.total = (parseFloat(updatedRow.cost) || 0) * (parseFloat(updatedRow.qty) || 0);
+            const nextCost =
+              field === 'cost' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.cost) || 0);
+
+            const nextQty =
+              field === 'qty' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.qty) || 0);
+
+            updatedRow.total = nextCost * nextQty;
           }
 
           return updatedRow;
@@ -56,24 +62,31 @@ const Fees = () => {
   };
 
   // 4️⃣ Add / Remove rows
-  const addRow = () => setRows(prev => [...prev, { id: Date.now(), label: '', cost: 0, qty: 1, total: 0, remarks: '', isMachine: false }]);
+  const addRow = () => setRows(prev => [...prev, { id: Date.now(), label: '', cost: 0, qty: 0, total: 0, remarks: '', isMachine: false }]);
   const removeRow = id => setRows(prev => (prev.length > 1 ? prev.filter(r => r.id !== id) : prev));
 
   // 5️⃣ Classes
-  const inputClass = "w-full h-8 text-[11px] text-center rounded-md border border-slate-200 outline-none focus:border-green-400 bg-white px-1";
-  const readonlyClass = "w-full h-8 text-[11px] text-center rounded-md border border-slate-100 bg-slate-50 text-slate-500 font-bold flex items-center justify-center";
+  const inputClass = "w-full min-w-0 h-8 text-[12px] text-center rounded-md border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  const readonlyClass = "w-full h-8 text-[12px] text-center rounded-md border border-slate-100 bg-slate-50 text-slate-500 font-bold flex items-center justify-center";
 
-  // 6️⃣ Current grand total (for display only)
-  const currentGrandTotal = rows
-    .filter(r => r.label && r.label.trim() !== '')
-    .reduce((sum, r) => sum + (r.total || 0), 0);
+  const currentGrandTotal = rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
+
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm mx-4 mb-5 bg-white">
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0">
+      <div className="w-full">
+        <table className="w-full table-fixed border-separate border-spacing-0">
+           <colgroup>
+            <col style={{ width: "4%" }} />
+            <col style={{ width: "30%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "6%" }} /> {/* actions */}
+            <col style={{ width: "20%" }} /> {/* remarks */}
+          </colgroup>
           <thead>
-            <tr className="bg-slate-50 text-[10px] uppercase text-slate-500">
+            <tr className="bg-slate-100 text-[10px] uppercase text-slate-600">
               <th className="border-b border-r border-slate-100 p-2 font-semibold"></th>
               <th className="border-b border-r border-slate-100 p-2 font-semibold text-left">Description</th>
               <th className="border-b border-r border-slate-100 p-2 font-semibold">Cost</th>
@@ -94,12 +107,12 @@ const Fees = () => {
                     type="checkbox"
                     checked={row.isMachine}
                     onChange={e => handleUpdate(row.id, 'isMachine', e.target.checked)}
-                    className="w-3 h-3 accent-green-600"
+                    className=" w-4 h-4 accent-green-600"
                   />
                 </td>
 
                 {/* Label */}
-                <td className="border-b border-r border-slate-100 p-2 bg-[#F6FDF5]/30 max-w-[200px]">
+                <td className="border-b border-r border-slate-100 p-2 bg-[#F6FDF5]/30  ">
                   <input
                     type="text"
                     value={row.label}
@@ -110,23 +123,26 @@ const Fees = () => {
                 </td>
 
                 {/* Cost, Qty, Total */}
-                <td className="border-b border-r border-slate-100 p-1 w-28">
+                <td className="border-b border-r border-slate-100 p-1 ">
                   <input
                     type="number"
-                    value={row.cost}
+                    value={row.cost === 0 || row.cost === "" ? "" : row.cost}
+                    placeholder="0"
                     onChange={e => handleUpdate(row.id, 'cost', e.target.value)}
-                    className={`${inputClass} w-20 h-6 text-[10px] px-1 mx-auto block`}
+                    className={`${inputClass} h-6 text-[10px] px-1 mx-auto block`}
                   />
                 </td>
-                <td className="border-b border-r border-slate-100 p-1 w-14">
+                <td className="border-b border-r border-slate-100 p-1 ">
                   <input
                     type="number"
-                    value={row.qty}
+                    value={row.qty === 0 || row.qty === "" ? "" : row.qty}
+                    placeholder="0"
                     onChange={e => handleUpdate(row.id, 'qty', e.target.value)}
-                    className={`${inputClass} w-10 h-6 text-[10px] px-1 mx-auto block`}
+                    className={`${inputClass} h-6 text-[10px] px-1 mx-auto block`}
                   />
+
                 </td>
-                <td className="border-b border-r border-slate-100 p-2 w-20">
+                <td className="border-b border-r border-slate-100 p-2 ">
                   <div className={`${readonlyClass} flex items-center justify-center min-h-[28px]`}>
                     {(row.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
@@ -164,11 +180,11 @@ const Fees = () => {
 
           {/* 8️⃣ Footer */}
           <tfoot>
-            <tr className="bg-[#F6FDF5] font-bold text-[11px] text-slate-800">
+            <tr className="bg-[#F6FDF5] font-bold text-[11px]">
               <td colSpan="2" className="p-3 border-r border-slate-200 text-center uppercase tracking-wider">TOTAL FEES</td>
               <td className="border-r border-slate-200"></td>
               <td className="border-r border-slate-200"></td>
-              <td className="p-3 border-r border-slate-200 text-center bg-[#F6FDF5] shadow-inner">
+              <td className="p-3 border-r border-slate-200 text-center bg-[#F6FDF5]">
                 {currentGrandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </td>
               <td colSpan="2" className="bg-white"></td>

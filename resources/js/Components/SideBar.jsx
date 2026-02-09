@@ -181,7 +181,7 @@ export default function Sidebar() {
     const chevronSlotClass = `flex items-center justify-end w-12 transition-opacity duration-300 ease-in-out ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`;
 
   return (
-    <aside ref={sidebarRef} className={`h-screen flex flex-col bg-white shadow-xl border-r overflow-hidden transition-[width] duration-300 ease-in-out ${isOpen ? "w-80" : "w-20"}`}>
+    <aside ref={sidebarRef} className={`h-screen flex flex-col bg-[#FBFFFA] shadow-xl border-r overflow-hidden transition-[width] duration-300 ease-in-out ${isOpen ? "w-80" : "w-20"}`}>
         {/* HEADER (stable: grid prevents shifting) */}
         <div className={`p-4 flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
 

@@ -35,3 +35,11 @@
     transition: background-color 9999s ease-out 0s;
   }
 }
+
+:root{
+  --col-check: 40px;
+  --col-item: 420px;   /* Item SKU / Description */
+  --col-cost: 96px;    /* Unit Cost / Cost */
+  --col-qty: 64px;     /* Qty */
+  --col-total: 96px;   /* Total Cost / Total */
+}

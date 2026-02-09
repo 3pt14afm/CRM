@@ -204,7 +204,7 @@ const handleSaveAll = () => {
               </div>
 
               {/* FOOTER / BUTTONS */}
-              <div className="sticky bottom-0 z-40 bg-white/95 backdrop-blur border-t border-black/10">
+              <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
                 <div className="px-10 py-3 flex items-center justify-between">
                   {/* MACHINE CONFIG FOOTER*/}
                   {tab === 'Machine' && (
@@ -212,7 +212,7 @@ const handleSaveAll = () => {
                       <button
                       type="button"
                       onClick={handleClearAll}
-                      className="flex items-center gap-2 px-5 py-2 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+                      className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
                       >
                         <IoTrashSharp/>  Clear All
                       </button>
@@ -221,7 +221,7 @@ const handleSaveAll = () => {
                         <button
                           type="button"
                           onClick={handleSaveDraft}
-                          className="flex items-center gap-2 px-5 pl-4 py-2 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
+                          className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
                         >
                           <FaRegFloppyDisk/> Save Draft
                         </button>
@@ -229,7 +229,7 @@ const handleSaveAll = () => {
                         <button
                           type="button"
                           onClick={handleSaveAll}
-                          className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#289800] hover:shadow-innerDarkgreen text-white font-semibold shadow"
+                          className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
                         >
                           Submit <IoSend/>
                         </button>
@@ -245,7 +245,7 @@ const handleSaveAll = () => {
                         <button
                           type="button"
                           onClick={handleReject}
-                          className="px-5 py-2 gap-2 items-center flex rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold"
+                          className="px-5 py-1 gap-2 items-center flex rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-medium"
                         >
                           <MdDisabledByDefault/>  Disapprove/Reject
                         </button>
@@ -253,20 +253,40 @@ const handleSaveAll = () => {
                         <button
                           type="button"
                           onClick={handleBackToSender}
-                          className="px-5 py-2 gap-2 items-center flex rounded-xl border bg-[#CD4E00] text-white hover:shadow-innerOrange font-semibold"
+                          className="px-5 py-1 gap-2 items-center flex rounded-xl border bg-[#CD4E00] text-white hover:shadow-innerOrange font-medium"
                         >
                           <FaArrowLeft />  Back to Sender
                         </button>
                       </div>
 
+                       <div className="flex items-center gap-2">
+                         <button
+                          type="button"
+                          onClick={() => currentTabRef?.current?.printPreview?.()}
+                          className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                        >
+                          <LuScanEye/>  Print Preview
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => currentTabRef?.current?.print?.()}
+                          className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                        >
+                          <IoPrintSharp/>   Print
+                        </button> 
+                      </div>
+
+                         
+
                       {/* RIGHT */}
-                      <div className="flex flex-col items-end gap-3">
+                      <div className="flex flex-col items-end gap-2">
                         {/* Top row */}
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
                             onClick={handleSubmitToNextLevel}
-                            className="flex items-center gap-2 px-5 py-2 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-semibold"
+                            className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
                           >
                             Submit to Next Level <FaArrowRight/> 
                           </button>
@@ -274,30 +294,14 @@ const handleSaveAll = () => {
                           <button
                             type="button"
                             onClick={handleApprove}
-                            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#289800] text-white font-semibold hover:shadow-innerDarkgreen shadow"
+                            className="flex items-center gap-2 px-5 py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow"
                           >
                             <FaCheckSquare /> Approve 
                           </button>
                         </div>
 
                         {/* Bottom row */}
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => currentTabRef?.current?.printPreview?.()}
-                            className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-semibold shadow"
-                          >
-                            <LuScanEye/>  Print Preview
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => currentTabRef?.current?.print?.()}
-                            className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-semibold shadow"
-                          >
-                            <IoPrintSharp/>   Print
-                          </button>
-                        </div>
+                       
                       </div>
                     </>
                   )}
