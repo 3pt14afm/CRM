@@ -117,69 +117,58 @@ function Potentials({ title = "1st Year Potential" }) {
       </div>
 
       {/* SUMMARY CALCULATIONS */}
-      <div className="flex flex-col items-end gap-2 mt-8">
-        <div className="border border-gray-300 rounded-lg overflow-hidden w-full bg-white">
-          <table className="w-full text-center table-fixed text-[11px]">
-            <tbody>
-            
-              {/* ADDITIONAL FEES ROW */}
-            {(totalFeesQty > 0 ||
-              totalCompanyFeesAmount > 0 ||
-              totalCustomerFeesAmount > 0) ? (
-              <tr className="border-b border-gray-100">
+      {/* SUMMARY CALCULATIONS */}
+<div className="flex flex-col items-end gap-2 mt-8">
+  <div className="border border-gray-300 rounded-lg overflow-hidden w-full bg-white">
+    <table className="w-full text-center table-fixed text-[11px]">
+      <tbody>
+
+        {/* DYNAMIC ADDITIONAL FEES ROWS */}
+        {[...companyFees, ...customerFees].length > 0 ? (
+          [...companyFees, ...customerFees].map((fee, index) => {
+            const isCompany = companyFees.includes(fee);
+
+            return (
+              <tr key={index} className="border-b border-gray-100">
+                {/* Qty */}
                 <td className="w-1/4 py-3 border-r font-bold bg-gray-50 text-center">
-                  {totalFeesQty}
+                  {fee.qty || 0}
                 </td>
+
+                {/* Company Column */}
                 <td className="w-3/8 py-3 border-r text-gray-500 text-center">
-                  {format(totalCompanyFeesAmount)}
+                  {isCompany ? format(fee.total) : format(0)}
                 </td>
+
+                {/* Customer Column */}
                 <td className="w-3/8 py-3 text-gray-500 text-center">
-                  {format(totalCustomerFeesAmount)}
+                  {!isCompany ? format(fee.total) : format(0)}
                 </td>
               </tr>
-            ) : (
-              <tr className="border-b border-gray-100">
-                <td className="w-1/4 py-3 border-r font-bold text-center">
-                  0.00
-                </td>
-                  <td className="w-3/8 py-3 border-r font-bold text-center">
-                  0.00
-                </td>
-                  <td className="w-3/8 py-3 border-r font-bold text-center">
-                  0.00
-                </td>
-              </tr>
-            )}
+            );
+          })
+        ) : (
+          <tr className="border-b border-gray-100">
+            <td className="py-3 border-r font-bold text-center">0</td>
+            <td className="py-3 border-r font-bold text-center">0.00</td>
+            <td className="py-3 font-bold text-center">0.00</td>
+          </tr>
+        )}
 
-              {/* Grand Total Row */}
-              <tr className="bg-[#E2F4D8] font-bold text-gray-800">
-                <td className="py-3 border-r border-gray-300"></td>
-                <td className="py-3 border-r border-gray-300">{format(grandtotalCost)}</td>
-                <td className="py-3">{format( grandtotalSell)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {/* Grand Total Row */}
+        <tr className="bg-[#E2F4D8] font-bold text-gray-800">
+          <td className="py-3 border-r border-gray-300"></td>
+          <td className="py-3 border-r border-gray-300">{format(grandtotalCost)}</td>
+          <td className="py-3">{format(grandtotalSell)}</td>
+        </tr>
 
-        {/* ROI Final Result Box */}
-        <div className="border border-gray-300 rounded-lg overflow-hidden w-[75%] bg-white shadow-sm">
-          <table className="w-full text-center table-fixed text-[11px]">
-            <tbody>
-              <tr className="bg-[#E2F4D8] border-b border-gray-300">
-                <td className="py-3 border-r font-bold border-gray-300 uppercase text-[10px]">ROI</td>
-                <td className="py-3 font-bold text-gray-800">{format(grossProfit)}</td>
-              </tr>
-              <tr>
-                <td className="py-3 border-r border-gray-100 italic text-gray-400 text-[9px]"></td>
-                <td className={`py-3 font-black ${roiPercentage >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                  {roiPercentage.toFixed(2)}%
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </tbody>
+    </table>
+  </div>
+
     </div>
+
+     </div>
   );
 }
 
