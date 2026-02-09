@@ -1,48 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
+import { interest } from '@/utils/interest';
 
-const InterestCalculator = ({ buttonClicked }) => {
-  const { setProjectData, projectData } = useProjectData();
+const InterestCalculator = () => {
+  const { projectData, setProjectData } = useProjectData();
 
-  // 1. Local State for live typing
-  const [localAnnual, setLocalAnnual] = useState(projectData.interest.annualInterest || '');
-  const [localMargin, setLocalMargin] = useState(projectData.interest.percentMargin || '');
-
-  // 2. LIVE CALCULATIONS
-  const annualVal = parseFloat(localAnnual) || 0;
-  const marginVal = parseFloat(localMargin) || 0;
-  
-  // Dependency: Contract Years from Company Info Tab
-  const contractYears = parseFloat(projectData.companyInfo.contractYears) || 0;
-  const hasValidYears = contractYears > 0;
-
-  const liveMonthlyInterest = annualVal / 12;
-  const liveMonthlyMargin = hasValidYears ? (marginVal / (12 * contractYears)) : 0;
-  const liveAnnualMargin = hasValidYears ? (marginVal / contractYears) : 0;
-
-  // 3. SAVE TO CONTEXT (Only on Submit click)
-// ... inside InterestCalculator.jsx
-useEffect(() => {
-  if (buttonClicked) {
+  // Memoize interest calculation
+  const { monthlyInterest, monthlyMarginForContract, annualMargin, hasValidYears } = useMemo(() => {
+    return interest(projectData);
+  }, [
+    projectData?.interest?.annualInterest,
+    projectData?.interest?.percentMargin,
+    projectData?.companyInfo?.contractYears
+  ]);
+  const handleChange = (field, value) => {
     setProjectData(prev => ({
       ...prev,
       interest: {
         ...prev.interest,
-        annualInterest: annualVal,
-        percentMargin: marginVal,
-        monthlyInterest: Number(liveMonthlyInterest.toFixed(2)),
-        // FIXED NAME HERE:
-        monthlyMarginForContract: Number(liveMonthlyMargin.toFixed(2)), 
-        annualMargin: Number(liveAnnualMargin.toFixed(2))
+        [field]: value
       }
     }));
-  }
-}, [buttonClicked]);
+  };
 
   const metrics = [
-    { label: "Monthly Interest", value: `${liveMonthlyInterest.toFixed(2)}%` },
-    { label: "Monthly Margin for Contract Duration", value: `${liveMonthlyMargin.toFixed(2)}%` },
-    { label: "Annual Margin", value: `${liveAnnualMargin.toFixed(2)}%` },
+    { label: "Monthly Interest", value: `${monthlyInterest.toFixed(2)}%` },
+    { label: "Monthly Margin for Contract Duration", value: `${monthlyMarginForContract.toFixed(2)}%` },
+    { label: "Annual Margin", value: `${annualMargin.toFixed(2)}%` },
   ];
 
   return (
@@ -59,8 +43,8 @@ useEffect(() => {
                 <div className="relative w-full">
                   <input
                     type="number"
-                    value={localAnnual}
-                    onChange={(e) => setLocalAnnual(e.target.value)}
+                    value={projectData.interest.annualInterest}
+                    onChange={(e) => handleChange("annualInterest", e.target.value)}
                     className="w-full text-sm rounded-md h-6 text-center pr-6 py-3 border border-gray-200 outline-none focus:ring-1 focus:ring-green-400 bg-gray-50
                               [appearance:textfield]
                               [&::-webkit-outer-spin-button]:appearance-none
@@ -81,8 +65,8 @@ useEffect(() => {
                 <div className="relative w-full">
                   <input
                     type="number"
-                    value={localMargin}
-                    onChange={(e) => setLocalMargin(e.target.value)}
+                    value={projectData.interest.percentMargin}
+                    onChange={(e) => handleChange("percentMargin",e.target.value)}
                     className="w-full text-sm rounded-md h-6 text-center pr-6 py-3 border border-gray-200 outline-none focus:ring-1 focus:ring-green-400 bg-gray-50
                               [appearance:textfield]
                               [&::-webkit-outer-spin-button]:appearance-none
@@ -122,8 +106,8 @@ useEffect(() => {
 
         {/* COMPACT ERROR MESSAGE */}
         {!hasValidYears && (
-          <p className="text-[10px] text-red-600 font-bold px-1 italic">
-            * Please set Contract Years in Company Info to calculate margins.
+          <p className="text-[10px] text-red-600 font-bold px-1">
+            * Please set Contract Years in Company Info.
           </p>
         )}
       </div>

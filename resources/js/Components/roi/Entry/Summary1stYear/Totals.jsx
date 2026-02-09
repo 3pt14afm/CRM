@@ -10,7 +10,7 @@ function Totals() {
     
     // Destructuring additionalFees object based on the new company/customer context
     const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
-    const grandTotalCost = addFeesObj.grandTotal ||0;
+    const grandTotalCost = addFeesObj.total ||0;
     // Combine company and customer arrays for the list display
     const allAdditionalFees = [
         ...(addFeesObj.company || []), 

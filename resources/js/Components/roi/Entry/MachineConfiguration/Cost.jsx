@@ -13,7 +13,7 @@ function Cost() {
 
   // Pulling the totalCost that gets updated by MachineConfig or Fees
   const totalCost = projectData.machineConfiguration?.totals?.totalCost || 0;
-  const additionalFees = projectData.additionalFees?.grandTotal || 0;
+  const additionalFees = projectData.additionalFees?.total || 0;
   
   // Total Project Cost = Machine/Consumable Totals + Additional Fees
   const grandTotal = totalCost + additionalFees;
