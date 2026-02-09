@@ -43,8 +43,16 @@ const InterestCalculator = () => {
                 <div className="relative w-full">
                   <input
                     type="number"
-                    value={projectData.interest.annualInterest}
-                    onChange={(e) => handleChange("annualInterest", e.target.value)}
+                    value={
+                        projectData?.interest?.annualInterest === 0
+                        ? ""
+                        : projectData?.interest?.annualInterest ?? ""
+                    }
+                    placeholder="0"
+                    onChange={(e) => {
+                      const v = e.target.value; // string
+                      handleChange("annualInterest", v === "" ? "" : v);
+                    }}
                     className="w-full text-sm rounded-md h-6 text-center pr-6 py-3 border border-gray-200 outline-none focus:ring-1 focus:ring-green-400 bg-gray-50
                               [appearance:textfield]
                               [&::-webkit-outer-spin-button]:appearance-none
@@ -65,8 +73,16 @@ const InterestCalculator = () => {
                 <div className="relative w-full">
                   <input
                     type="number"
-                    value={projectData.interest.percentMargin}
-                    onChange={(e) => handleChange("percentMargin",e.target.value)}
+                    value={
+                      projectData?.interest?.percentMargin === 0
+                        ? ""
+                        : projectData?.interest?.percentMargin ?? ""
+                    }
+                    placeholder="0"
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      handleChange("percentMargin", v === "" ? "" : v);
+                    }}
                     className="w-full text-sm rounded-md h-6 text-center pr-6 py-3 border border-gray-200 outline-none focus:ring-1 focus:ring-green-400 bg-gray-50
                               [appearance:textfield]
                               [&::-webkit-outer-spin-button]:appearance-none
