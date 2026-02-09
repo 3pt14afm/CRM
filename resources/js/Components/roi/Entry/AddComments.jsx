@@ -133,11 +133,11 @@ export default function AddComments({ scopeKey = "default" }) {
   return (
     <>
       {/* Trigger + Comments list wrapper */}
-      <div className="w-full mx-auto mb-6 px-4">
+      <div className="w-[70%] mx-auto mb-6 px-4">
         {/* Trigger row (NO typing here — just opens modal) */}
         <div
           onClick={openModal}
-          className="flex items-center hover:cursor-pointer bg-white border border-gray-200 rounded-2xl py-6 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+          className="flex items-center hover:cursor-pointer bg-white border border-gray-200 rounded-2xl py-5 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
         >
           <div className="flex-grow text-gray-400 text-sm">
             Write your comments here.....
