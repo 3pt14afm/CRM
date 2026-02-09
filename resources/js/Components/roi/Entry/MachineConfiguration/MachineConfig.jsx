@@ -71,19 +71,40 @@ function MachineConfig() {
 
   // Live update context whenever rows change
  // Live update context whenever rows change
-        useEffect(() => {
-        // Only include rows that have a SKU
-        const machines = rows.filter(r => r.type === 'machine' && r.sku?.trim() !== '');
-        const consumables = rows.filter(r => r.type === 'consumable' && r.sku?.trim() !== '');
-        
-        const totalsObj = computeTotals(rows);
+ // Live update context whenever rows change
+    useEffect(() => {
+      // Map through rows and attach the calculated fields (totalCost, totalSell, etc.)
+      const rowsWithCalculations = rows.map(r => {
+        const calcs = getRowCalculations(r);
+        return {
+          ...r,
+          totalCost: calcs.totalCost,
+          totalSell: calcs.totalSell,
+          costCpp: calcs.costCpp,
+          sellCpp: calcs.sellCpp
+        };
+      });
 
-        setProjectData(prev => ({
-            ...prev,
-            machineConfiguration: { machine: machines, consumable: consumables, totals: totalsObj }
-        }));
-        }, [rows]);
+      // Filter based on SKU and type
+      const machines = rowsWithCalculations.filter(
+        r => r.type === 'machine' && r.sku?.trim() !== ''
+      );
+      const consumables = rowsWithCalculations.filter(
+        r => r.type === 'consumable' && r.sku?.trim() !== ''
+      );
+      
+      // Calculate the grand totals for the context totals object
+      const totalsObj = computeTotals(rows);
 
+      setProjectData(prev => ({
+        ...prev,
+        machineConfiguration: { 
+          machine: machines, 
+          consumable: consumables, 
+          totals: totalsObj 
+        }
+      }));
+    }, [rows]);
 
   const inputClass = "w-full min-w-0 h-8 text-[13px] text-center rounded-md border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const readonlyClass = "w-full h-8 text-[13px] text-center px-1 flex items-center justify-center";

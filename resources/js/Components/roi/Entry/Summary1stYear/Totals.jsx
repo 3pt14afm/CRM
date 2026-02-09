@@ -89,7 +89,7 @@ function Totals() {
                     </div>
 
                     {/* 2. SUMMARY ROI BOX (CENTER) */}
-                    <div className="flex justify-center w-full mt-28">
+                    <div className="flex justify-center w-full mt-44">
                         <div className="border border-gray-300 rounded-xl overflow-hidden shadow-sm w-[400px]">
                             <table className="w-full text-[11px]">
                                 <tbody>

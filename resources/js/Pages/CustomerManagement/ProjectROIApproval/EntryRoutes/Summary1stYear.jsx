@@ -45,7 +45,7 @@ function Summary1stYear() {
                         <Totals />
                 
                    </div>
-                    <div className='-mt-32'>
+                    <div className='-mt-20'>
                         <Potentials />
                     </div>
                </div>

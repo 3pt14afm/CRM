@@ -12,6 +12,8 @@ function CompanyInfo() {
         [field]: value,
       },
     }));
+
+    console.log(projectData);
   };
 
   return (
