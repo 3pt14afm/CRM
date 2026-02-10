@@ -54,61 +54,67 @@ function Potentials({ title = "1st Year Potential" }) {
         <table className="w-full bg-white border-collapse table-fixed">
           <thead className="bg-[#E2F4D8] border-b border-gray-300">
             <tr>
-              <th className="w-1/4 px-1 py-2.5 text-[11px] text-center font-bold uppercase">Qty</th>
-              <th className="w-3/8 px-1 py-2.5 text-[11px] text-center border-l border-gray-300 uppercase">Total Cost</th>
-              <th className="w-3/8 px-1 py-2.5 text-[11px] text-center border-l border-gray-300 uppercase">Gross Sales</th>
+              <th className="w-1/4 px-1 py-2.5 text-[13px] text-center font-bold uppercase">Qty</th>
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-bold border-l border-gray-300 uppercase">Total Cost</th>
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-bold border-l border-gray-300 uppercase">Gross Sales</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="bg-[#E2F4D8]/20 border-b"><td colSpan="3" className="py-3.5"></td></tr>
+            <tr className="bg-[#E2F4D8]/20 border-b h-[27px]">
+              <td className="py-3"></td>
+              <td className="py-3"></td>
+              <td className="py-3"></td>
+            </tr>
             
             {machines.length > 0 ? (
               machines.map((m, index) => (
-                <tr key={`m-${index}`} className="border-b border-gray-100 last:border-b-0">
-                  <td className="px-1 py-3 text-[11px] text-center">{m.qty}</td>
-                  <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(m.totalCost)}</td>
-                  <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(m.totalSell)}</td>
+                <tr key={`m-${index}`} className="border-b font-semibold border-gray-100 last:border-b-0">
+                  <td className="px-1 py-3 text-[12px] text-center">{m.qty}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(m.totalCost)}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(m.totalSell)}</td>
                 </tr>
               ))
             ) : (
-              <tr className="border-b border-gray-100">
-                <td className="px-1 py-3 text-[11px] text-center">0</td>
-                <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
-                <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
+              <tr className="border-b font-semibold border-gray-100">
+                <td className="px-1 py-3 text-[12px] text-center">0</td>
+                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
+                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
               </tr>
             )}
 
-            <tr className="bg-[#E2F4D8]/20 border-b">
-              <td colSpan="3" className="py-3"></td>
+            <tr className="bg-[#E2F4D8]/20 border-b h-[27px]">
+              <td className="py-3"></td>
+              <td className="py-3"></td>
+              <td className="py-3 "></td>
             </tr>
 
             {consumables.length > 0 ? (
               consumables.map((c, index) => (
-                <tr key={`c-${index}`} className="border-b border-gray-100 last:border-b-0">
-                  <td className="px-1 py-3 text-[11px] text-center">{c.qty}</td>
-                  <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(c.totalCost)}</td>
-                  <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(c.totalSell)}</td>
+                <tr key={`c-${index}`} className="border-b font-semibold border-gray-100 last:border-b-0">
+                  <td className="px-1 py-3 text-[12px] text-center">{c.qty}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(c.totalCost)}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(c.totalSell)}</td>
                 </tr>
               ))
             ) : (
-              <tr className="border-b border-gray-100">
-                <td className="px-1 py-3 text-[11px] text-center">0</td>
-                <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
-                <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
+              <tr className="border-b font-semibold border-gray-100">
+                <td className="px-1 py-3 text-[12px] text-center">0</td>
+                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
+                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
               </tr>
             )}
 
-            <tr className="bg-[#E2F4D8] border-b border-gray-100 last:border-b-0">
-              <td className="px-1 py-3 text-[11px] text-center font-bold ">{totalMachineQty + totalConsumableQty}</td>
-              <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineCost + totalConsumableCost)}</td>
-              <td className="border-l text-[11px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineSales + totalConsumableSales)}</td>
+            <tr className="bg-[#E2F4D8] border-b font-semibold border-gray-100 last:border-b-0">
+              <td className="px-1 py-3 text-[12px] text-center font-bold ">{totalMachineQty + totalConsumableQty}</td>
+              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineCost + totalConsumableCost)}</td>
+              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineSales + totalConsumableSales)}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       {/* SUMMARY CALCULATIONS */}
-      <div className="flex flex-col items-end gap-2 mt-16">
+      <div className="flex flex-col items-end gap-2 mt-14">
         <div className="border border-gray-300 rounded-lg overflow-hidden w-full bg-white">
           <table className="w-full text-center table-fixed text-[11px]">
             <tbody>
