@@ -40,6 +40,8 @@ function Potentials({ title = "1st Year Potential" }) {
     maximumFractionDigits: 2
   });
 
+  ////wapani nahumannnnnnnnnnnnnnn ang total cost
+
   return (
     <div className="p-4 pt-0">
       {/* TITLE SECTION */}
@@ -70,7 +72,10 @@ function Potentials({ title = "1st Year Potential" }) {
               machines.map((m, index) => (
                 <tr key={`m-${index}`} className="border-b font-semibold border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center">{m.qty}</td>
-                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(m.totalCost)}</td>
+                  <td className="border-l text-[12px]  border-gray-100 text-center px-1 py-2 flex flex-col gap-1">
+                    <p>{format(m.cost)}</p>
+                    <p className='text-[10px] text-blue-700 italic'>{m.machineMargin}</p>
+                  </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(m.totalSell)}</td>
                 </tr>
               ))
