@@ -42,17 +42,17 @@ function Totals() {
     const roiPercentage = finalTotalCost !== 0 ? (finalTotalROI / finalTotalCost) * 100 : 0;
 
     return (
-        <div className="mt-5 space-y-8 font-sans  font-bold tracking-tight text-gray-800 text-[10px]">
+        <div className="mt-2 space-y-8 font-sans  font-bold tracking-tight text-gray-800 text-[10px]">
             <div className="items-start text-[12px]">
-                <div className='flex gap-4'> 
+                <div className=''> 
                     
                     {/* 1. ADDITIONAL FEES TABLE (LEFT) */}
-                    <div className="flex-none w-[35%]">
+                    <div className="flex-none w-[57%]">
                         <div className="border border-gray-300 rounded-xl overflow-hidden shadow-sm">
                             <table className="w-full bg-white table-fixed">
                                 <thead className="bg-[#E2F4D8] border-b border-gray-300 text-[11px]">
                                     <tr>
-                                        <th className="px-3 py-1.5 text-center w-[72%] uppercase">OTHERS</th>
+                                        <th className="px-3 py-1.5 text-center w-[96%] uppercase">OTHERS</th>
                                         <th className="px-3 py-1.5 text-center border-l border-gray-300 w-[28%] uppercase">Amount</th>
                                     </tr>
                                 </thead>
@@ -89,7 +89,7 @@ function Totals() {
                     </div>
 
                     {/* 2. SUMMARY ROI BOX (CENTER) */}
-                    <div className="flex justify-center w-full mt-28">
+                    <div className="flex justify-end w-full pr-8 mt-1">
                         <div className="border border-gray-300 rounded-xl overflow-hidden shadow-sm w-[400px]">
                             <table className="w-full text-[11px]">
                                 <tbody>
