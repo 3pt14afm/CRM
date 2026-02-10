@@ -66,14 +66,14 @@ const Fees = () => {
   const removeRow = id => setRows(prev => (prev.length > 1 ? prev.filter(r => r.id !== id) : prev));
 
   // 5️⃣ Classes
-  const inputClass = "w-full min-w-0 h-8 text-[12px] text-center rounded-md border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
-  const readonlyClass = "w-full h-8 text-[12px] text-center rounded-md border border-slate-100 bg-slate-50 text-slate-500 font-bold flex items-center justify-center";
+  const inputClass = "w-full capitalize min-w-0 h-8 text-[12px] text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  const readonlyClass = "w-full h-8 text-[12px] text-center rounded-sm border border-slate-100 text-slate-900 font-medium flex items-center justify-center";
 
   const currentGrandTotal = rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm mx-4 mb-5 bg-white">
+    <div className="overflow-hidden rounded-md border border-darkgreen/15 shadow-md mx-4 mb-5 bg-lightgreen/5">
       <div className="w-full">
         <table className="w-full table-fixed border-separate border-spacing-0">
            <colgroup>
@@ -86,14 +86,14 @@ const Fees = () => {
             <col style={{ width: "20%" }} /> {/* remarks */}
           </colgroup>
           <thead>
-            <tr className="bg-slate-100 text-[10px] uppercase text-slate-600">
-              <th className="border-b border-r border-slate-100 p-2 font-semibold"></th>
-              <th className="border-b border-r border-slate-100 p-2 font-semibold text-left">Description</th>
-              <th className="border-b border-r border-slate-100 p-2 font-semibold">Cost</th>
-              <th className="border-b border-r border-slate-100 p-2 font-semibold">Qty</th>
-              <th className="border-b border-r border-slate-100 p-2 font-semibold">Total</th>
-              <th className="border-b border-r border-slate-100 p-2 font-semibold">Actions</th>
-              <th className="border-b border-slate-100 p-2 font-semibold text-left">Remarks</th>
+            <tr className="bg-lightgreen/25 text-[10px] uppercase text-slate-800">
+              <th className="border-b border-r border-darkgreen/15 p-2"></th>
+              <th className="border-b border-r border-darkgreen/15 p-2 font-bold text-left">Description</th>
+              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Cost</th>
+              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Qty</th>
+              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Total</th>
+              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Actions</th>
+              <th className="border-b border-darkgreen/15 p-2 font-bold text-left">Remarks</th>
             </tr>
           </thead>
 
@@ -102,7 +102,7 @@ const Fees = () => {
             {rows.map(row => (
               <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
                 {/* Checkbox */}
-                <td className="border-b border-r border-slate-100 text-center px-3 py-2">
+                <td className="border-b border-r border-darkgreen/15 text-center px-3 py-2">
                   <input
                     type="checkbox"
                     checked={row.isMachine}
@@ -112,7 +112,7 @@ const Fees = () => {
                 </td>
 
                 {/* Label */}
-                <td className="border-b border-r border-slate-100 p-2 bg-[#F6FDF5]/30  ">
+                <td className="border-b border-r border-darkgreen/15 p-1  bg-[#F6FDF5]/30  ">
                   <input
                     type="text"
                     value={row.label}
@@ -123,7 +123,7 @@ const Fees = () => {
                 </td>
 
                 {/* Cost, Qty, Total */}
-                <td className="border-b border-r border-slate-100 p-1 ">
+                <td className="border-b border-r border-darkgreen/15 p-1 ">
                   <input
                     type="number"
                     value={row.cost === 0 || row.cost === "" ? "" : row.cost}
@@ -132,7 +132,7 @@ const Fees = () => {
                     className={`${inputClass} h-6 text-[10px] px-1 mx-auto block`}
                   />
                 </td>
-                <td className="border-b border-r border-slate-100 p-1 ">
+                <td className="border-b border-r border-darkgreen/15 p-1 ">
                   <input
                     type="number"
                     value={row.qty === 0 || row.qty === "" ? "" : row.qty}
@@ -142,22 +142,22 @@ const Fees = () => {
                   />
 
                 </td>
-                <td className="border-b border-r border-slate-100 p-2 ">
+                <td className="border-b border-r border-darkgreen/15 p-1 ">
                   <div className={`${readonlyClass} flex items-center justify-center min-h-[28px]`}>
                     {(row.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </td>
 
                 {/* Actions */}
-                <td className="border-b border-r border-slate-100 p-1">
+                <td className="border-b border-r border-darkgreen/15 p-1">
                   <div className="flex gap-1 justify-center items-center h-8">
-                    <button onClick={addRow} className="w-6 h-6 flex items-center justify-center rounded bg-green-50 text-green-600 border border-green-200 hover:bg-green-100">+</button>
+                    <button onClick={addRow} className="w-6 h-6 flex items-center justify-center rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100">+</button>
                     <button
                       onClick={() => removeRow(row.id)}
                       disabled={rows.length <= 1}
                       className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${
                         rows.length <= 1
-                          ? 'border-slate-100 bg-slate-50 text-slate-300'
+                          ? 'border-red-200 bg-red-50 text-red-600'
                           : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
                       }`}
                     >-</button>
@@ -165,7 +165,7 @@ const Fees = () => {
                 </td>
 
                 {/* Remarks */}
-                <td className="border-b border-slate-100 p-2">
+                <td className="border-b border-darkgreen/15 p-1">
                   <input
                     type="text"
                     value={row.remarks}
@@ -180,14 +180,14 @@ const Fees = () => {
 
           {/* 8️⃣ Footer */}
           <tfoot>
-            <tr className="bg-[#F6FDF5] font-bold text-[11px]">
-              <td colSpan="2" className="p-3 border-r border-slate-200 text-center uppercase tracking-wider">TOTAL FEES</td>
+            <tr className="bg-[#D9F2D0] font-bold text-[12px]">
+              <td colSpan="2" className="p-2 border-r border-darkgreen/15 text-center uppercase tracking-wider">TOTAL FEES</td>
               <td className="border-r border-slate-200"></td>
               <td className="border-r border-slate-200"></td>
-              <td className="p-3 border-r border-slate-200 text-center bg-[#F6FDF5]">
+              <td className="p-2 border-r border-l border-darkgreen/15 text-center bg-[#D9F2D0]">
                 {currentGrandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </td>
-              <td colSpan="2" className="bg-white"></td>
+              <td colSpan="2" className="bg-[#D9F2D0]"></td>
             </tr>
           </tfoot>
         </table>

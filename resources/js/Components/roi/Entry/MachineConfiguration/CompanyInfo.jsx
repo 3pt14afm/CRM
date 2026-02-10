@@ -17,14 +17,14 @@ function CompanyInfo() {
   };
 
   return (
-    <div className="flex flex-col bg-white shadow-[0px_1px_10px_3px_rgba(0,_0,_0,_0.1)] rounded-lg p-8 gap-1 w-[60%]">
+    <div className="flex flex-col bg-lightgreen/5 shadow-md border border-slate-300 rounded-md p-8 gap-1 w-[60%]">
       <div className="flex justify-between items-center">
         <div className="flex flex-col gap-1 w-[70%]">
-          <p className="font-bold text-[11px] uppercase text-slate-600">
+          <p className="font-bold text-[11px] uppercase">
             Company Name
           </p>
           <input
-            className="rounded-md border px-2 text-sm outline-none focus:border-[#289800] border-[#A6E28A]/60 h-10"
+            className="rounded-sm border px-2 text-sm outline-none focus:outline-none focus:ring-0 focus:border-[#289800] border-darkgreen/10 h-10"
             type="text"
             value={projectData.companyInfo.companyName}
             onChange={(e) => handleChange("companyName", e.target.value)}
@@ -32,7 +32,7 @@ function CompanyInfo() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <p className="font-bold text-[11px] uppercase text-slate-600">
+          <p className="font-bold text-[11px] uppercase">
             Contract Years
           </p>
 
@@ -49,7 +49,7 @@ function CompanyInfo() {
               // store "" when empty so placeholder shows
               handleChange("contractYears", v === "" ? "" : Number(v));
             }}
-            className="rounded-md border px-2 text-sm border-[#A6E28A]/60 h-10 w-32 outline-none focus:border-[#289800] bg-green-50/30 text-center
+            className="rounded-sm border px-2 text-sm border-darkgreen/10 h-10 w-32 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-green-50/30 text-center
               [appearance:textfield]
               [&::-webkit-outer-spin-button]:appearance-none
               [&::-webkit-inner-spin-button]:appearance-none"
@@ -58,24 +58,31 @@ function CompanyInfo() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="flex flex-col mt-2 gap-1">
-          <p className="font-bold text-[11px] uppercase text-slate-600">
+        <div className="flex flex-col mt-2 gap-1 w-[70%]">
+          <p className="font-bold text-[11px] uppercase ">
             Contract Type
           </p>
-          <input
-            className="rounded-md border px-2 text-sm border-[#A6E28A]/60 h-10 outline-none focus:border-[#289800]"
-            type="text"
+          <select
+            className={`rounded-sm border px-2 text-sm border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white ${!projectData.companyInfo.contractType ? "text-slate-400" : "text-black"}`}
             value={projectData.companyInfo.contractType}
             onChange={(e) => handleChange("contractType", e.target.value)}
-          />
+          >
+            <option value="" disabled>
+              Select contract type
+            </option>
+            <option className="text-black" value="Free Use">Free Use</option>
+            <option className="text-black" value="Rental + Click">Rental + Click</option>
+            <option className="text-black" value="Fix Click">Fix Click</option>
+            <option className="text-black" value="Monthly Rental">Monthly Rental</option>
+          </select>
         </div>
 
         <div className="flex flex-col">
-          <p className="font-bold text-[11px] uppercase text-slate-600">
+          <p className="font-bold text-[11px] uppercase ">
             Purpose
           </p>
           <input
-            className="rounded-md border px-2 text-sm border-[#A6E28A]/60 h-10 outline-none focus:border-[#289800]"
+            className="rounded-sm border px-2 text-sm capitalize border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800]"
             type="text"
             value={projectData.companyInfo.purpose}
             onChange={(e) => handleChange("purpose", e.target.value)}

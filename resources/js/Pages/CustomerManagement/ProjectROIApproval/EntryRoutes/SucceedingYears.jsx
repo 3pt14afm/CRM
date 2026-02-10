@@ -8,6 +8,7 @@ import MachCon1stY from '@/Components/roi/Entry/Summary1stYear/MachCon1stY'
 import Totals from '@/Components/roi/Entry/Summary1stYear/Totals'
 import ContractDetails from '@/Components/roi/Entry/Summary1stYear/ContractDetails'
 import Names from '@/Components/roi/Entry/Names'
+import Potentials from '@/Components/roi/Entry/Potentials'
 
 function SucceedingYears() {
   return (
@@ -28,6 +29,14 @@ function SucceedingYears() {
                     <InterestCalcuSum />
                     </div>
 
+                </div>
+
+                <div className="flex my-6 mb-10">
+                    <Potentials/>
+                    <Potentials/>
+                    <Potentials/>
+                    <Potentials/>
+                    <Potentials/>
                 </div>
                 
 
