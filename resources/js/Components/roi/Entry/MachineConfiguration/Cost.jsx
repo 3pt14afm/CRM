@@ -20,7 +20,7 @@ function Cost() {
 
   return (
    <div class="flex items-center justify-center">
-  <div class="bg-[#59A846] rounded-[2rem] p-10 shadow-lg inline-block text-white font-sans">
+  <div class="bg-[#59A846] rounded-xl p-7 shadow-lg inline-block text-white font-sans">
     
     <h2 class="text-base font-bold tracking-tight mb-1 opacity-95">
       TOTAL PROJECT COST

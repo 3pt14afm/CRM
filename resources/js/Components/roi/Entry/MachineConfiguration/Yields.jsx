@@ -28,11 +28,11 @@ function Yields() {
   };
 
   const numberInputClass =
-    "w-24 h-7 text-[12px] rounded border border-slate-200 text-center outline-none focus:ring-1 focus:ring-green-400 bg-slate-50/50 mx-auto block" +
+    "w-28 h-7 text-[12px] rounded-sm border border-slate-200 text-center outline-none focus:ring-1 focus:ring-green-400 bg-white mx-auto block" +
     " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-300 max-w-md shadow-[0px_6px_10px_3px_rgba(0,_0,_0,_0.1)] w-full bg-white">
+    <div className="overflow-hidden rounded-md border border-slate-300 max-w-md shadow-md w-full bg-white">
       <table className="min-w-full border-separate border-spacing-0">
         <thead>
           <tr className="bg-[#F6FDF5]">
@@ -53,7 +53,7 @@ function Yields() {
               Mono AMVP
             </td>
 
-            <td className="border-b border-r border-slate-200 p-1 bg-white">
+            <td className="border-b border-r border-slate-200 p-1 bg-lightgreen/2">
               <input
                 type="number"
                 placeholder="0"
@@ -63,7 +63,7 @@ function Yields() {
               />
             </td>
 
-            <td className="border-b border-slate-200 p-1 bg-slate-50/30 text-[12px] text-black">
+            <td className="border-b border-slate-200 p-1 bg-lightgreen/2 text-[12px] text-black">
               {monoAnnual.toLocaleString(undefined)}
             </td>
           </tr>
@@ -74,7 +74,7 @@ function Yields() {
               Color AMVP
             </td>
 
-            <td className="border-r border-slate-200 p-1 bg-white">
+            <td className="border-r border-slate-200 p-1 bg-lightgreen/2">
               <input
                 type="number"
                 placeholder="0"
@@ -84,7 +84,7 @@ function Yields() {
               />
             </td>
 
-            <td className="p-1 bg-slate-50/30 text-[12px] text-black">
+            <td className="p-1 bg-lightgreen/2 text-[12px] text-black">
               {colorAnnual.toLocaleString(undefined)}
             </td>
           </tr>
