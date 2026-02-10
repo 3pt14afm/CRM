@@ -1,50 +1,67 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const ProjectContext = createContext();
 
-const ProjectDataProvider = ({ children }) => {
-    const [projectData, setProjectData] = useState({
-        metadata: { projectId: null, lastSaved: null, version: 1 },
-        companyInfo: {
-            companyName: '',
-            contractYears: 0,
-            contractType: '',
-            reference: '',
-            purpose: ''
-        },
-        interest: {
-            annualInterest: 0,
-            percentMargin: 0,
-        },
-        yield: {
-            monoAmvpYields: { monthly: 0, annual: 0 },
-            colorAmvpYields: { monthly: 0, annual: 0 }
-        },
-        machineConfiguration: {
-            machine: [],
-            consumable: [],
-            totals: {
-                unitCost: 0,
-                qty: 0,
-                totalCost: 0,
-                yields: 0,
-                costCpp: 0,
-                sellingPrice: 0,
-                totalSell: 0,
-                sellCpp: 0
-            }
-        },
-        additionalFees: {
-            company: [],
-            customer: [],
-            total: 0, // ✅ Store total for live display
-        },
-        totalProjectCost: {
-            grandTotalCost: 0,
-            grandTotalSelling: 0,
-            overallMargin: 0
+const STORAGE_KEY = 'roi_draft';
+
+// Define the default state outside to keep the component clean
+const defaultInitialState = {
+    metadata: { projectId: null, lastSaved: null, version: 1 },
+    companyInfo: {
+        companyName: '',
+        contractYears: 0,
+        contractType: '',
+        reference: '',
+        purpose: ''
+    },
+    interest: {
+        annualInterest: 0,
+        percentMargin: 0,
+    },
+    yield: {
+        monoAmvpYields: { monthly: 0, annual: 0 },
+        colorAmvpYields: { monthly: 0, annual: 0 }
+    },
+    machineConfiguration: {
+        machine: [],
+        consumable: [],
+        totals: {
+            unitCost: 0,
+            qty: 0,
+            totalCost: 0,
+            yields: 0,
+            costCpp: 0,
+            sellingPrice: 0,
+            totalSell: 0,
+            sellCpp: 0
         }
+    },
+    additionalFees: {
+        company: [],
+        customer: [],
+        total: 0,
+    },
+    totalProjectCost: {
+        grandTotalCost: 0,
+        grandTotalSelling: 0,
+        overallMargin: 0
+    }
+};
+
+const ProjectDataProvider = ({ children }) => {
+    // 1. Initialize state from Local Storage or default
+    const [projectData, setProjectData] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : defaultInitialState;
+        }
+        return defaultInitialState;
     });
+
+    // 2. Automatically save to Local Storage whenever projectData changes
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(projectData));
+    }, [projectData]);
 
     // GENERIC UPDATE: For simple sections like companyInfo
     const updateSection = useCallback((section, newData) => {
@@ -60,7 +77,7 @@ const ProjectDataProvider = ({ children }) => {
             ...prev,
             machineConfiguration: {
                 ...prev.machineConfiguration,
-                ...newConfig // merges {machine, consumable, totals}
+                ...newConfig
             }
         }));
     }, []);
@@ -93,6 +110,12 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
+    // NEW: Function to clear everything (useful for the "Clear All" button)
+    const resetProject = useCallback(() => {
+        setProjectData(defaultInitialState);
+        localStorage.removeItem(STORAGE_KEY);
+    }, []);
+
     return (
         <ProjectContext.Provider value={{
             projectData,
@@ -100,7 +123,8 @@ const ProjectDataProvider = ({ children }) => {
             updateSection,
             setMachineConfig,
             setYield,
-            setAdditionalFees
+            setAdditionalFees,
+            resetProject // Exported for the Clear All button
         }}>
             {children}
         </ProjectContext.Provider>
@@ -113,4 +137,4 @@ export const useProjectData = () => {
     return context;
 };
 
-export default ProjectDataProvider; // ✅ default export
+export default ProjectDataProvider;

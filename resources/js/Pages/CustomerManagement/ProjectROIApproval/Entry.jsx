@@ -11,8 +11,6 @@ import { FaArrowLeft, FaArrowRight, FaCheckSquare } from 'react-icons/fa';
 import { LuScanEye } from "react-icons/lu";
 import { useProjectData } from '@/Context/ProjectContext';
 
-
-// Receive activeTab as a prop from RoiController
 export default function Entry({ activeTab = 'Machine Configuration' }) {
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat("en-US", {
@@ -21,32 +19,51 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
       year: "2-digit",
     }).format(today);
 
-    const { setProjectData } = useProjectData(); // Access the setter
-     const [projectRef] = useState(() => `PRJ-${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
-const handleSaveAll = () => {
-    // Commit the header metadata to Context
-    setProjectData(prev => ({
-        ...prev,
-        companyInfo: {
-            ...prev.companyInfo,
-            reference: projectRef, // Uses the state variable
-        },
-        metadata: {
-            ...prev.metadata,
-            lastSaved: formattedDate // Uses your existing formattedDate variable
+    // Get resetProject from context along with others
+    const { setProjectData, projectData, resetProject } = useProjectData(); 
+    const [projectRef] = useState(() => `PRJ-${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
+    const [tab, setTab] = useState('Machine');
+    const [buttonClicked, setButtonClicked] = useState(false);
+
+    // --- UPDATED BUTTON FUNCTIONS ---
+
+    // Shared logic to push metadata to context and signal children to save
+    
+    const triggerSync = () => {
+        setProjectData(prev => ({
+            ...prev,
+            companyInfo: {
+                ...prev.companyInfo,
+                reference: projectRef,
+            },
+            metadata: {
+                ...prev.metadata,
+                lastSaved: formattedDate
+            }
+        }));
+
+        setButtonClicked(true);
+        setTimeout(() => setButtonClicked(false), 100);
+    };
+
+    const handleSaveAll = () => {
+        triggerSync();
+        console.log("Submitting Project Data:", projectData);
+        // Note: Your ProjectDataProvider handles the actual localStorage save via useEffect
+    };
+
+    const handleSaveDraft = () => {
+        triggerSync();
+        alert("Draft saved successfully to local storage.");
+    };
+
+    const handleClearAll = () => {
+        if(confirm("Are you sure you want to clear all data? This will wipe your draft.")){
+            resetProject(); // Wipes context and localStorage
         }
-    }));
+    };
 
-    // Trigger child components to save their local states
-    setButtonClicked(true);
-
-    // Reset signal
-    setTimeout(() => {
-        setButtonClicked(false);
-    }, 100); 
-
-    console.log("Header Data committed to Context.");
-};
+    // --- END UPDATED FUNCTIONS ---
 
     const machineRef = useRef(null);
     const summaryRef = useRef(null);
@@ -59,40 +76,15 @@ const handleSaveAll = () => {
       return null;
     }, [activeTab]);
 
-    const [tab, setTab] = useState('Machine');
-    const [buttonClicked, setButtonClicked] = useState(false);
-    // const handleSaveAll = () => {
-    //     setButtonClicked(true);
-
-    //     // Reset it back to false after a tiny delay 
-    //     // so the child components catch the "true" signal
-    //     setTimeout(() => {
-    //         setButtonClicked(false);
-    //     }, 100); 
-    // };
-
-
-    // Machine footer actions
-    const handleClearAll = () => currentTabRef?.current?.clearAll?.();
-    const handleSaveDraft = () => currentTabRef?.current?.saveDraft?.();
-    const handleSubmit = () => currentTabRef?.current?.submit?.();
-
-    // Summary/Succeeding footer actions
     const handleReject = () => currentTabRef?.current?.reject?.();
     const handleBackToSender = () => currentTabRef?.current?.backToSender?.();
     const handleSubmitToNextLevel = () => currentTabRef?.current?.submitToNextLevel?.();
     const handleApprove = () => currentTabRef?.current?.approve?.();
 
-    const isMachine = activeTab === 'Machine Configuration';
-    const isSummaryOrSucceeding = activeTab === 'Summary' || activeTab === 'Succeeding';
-
-
-
     return (
         <>
             <Head title="ROI Entry"/>
             <div className="min-h-screen flex flex-col">
-              {/* PAGE CONTENT */}
               <div className="flex-1 pb-24">
                 <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
                   <div className="flex gap-1">
@@ -108,45 +100,6 @@ const handleSaveAll = () => {
                 </div>
 
                 {/* TABS */}
-                {/* <div className="mx-10">
-                  <div className="flex gap-[2px]">
-                    <Link
-                      href={route('roi.entry.machine')}
-                      className={`px-7 text-sm py-2 ${
-                        activeTab === 'Machine Configuration'
-                          ? 'bg-[#B5EBA2]/10 border border-t-[#B5EBA2] font-medium border-b-0 border-x-[#B5EBA2] rounded-t-xl'
-                          : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                      }`}
-                    >
-                      Machine Configuration
-                    </Link>
-
-                    <Link
-                      href={route('roi.entry.summary')}
-                      className={`px-7 text-sm py-2 ${
-                        activeTab === 'Summary'
-                          ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0  border-x-[#B5EBA2] rounded-t-xl'
-                          : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                      }`}
-                    >
-                      Summary/1st Year
-                    </Link>
-
-                    <Link
-                      href={route('roi.entry.succeeding')}
-                      className={`px-7 text-sm py-2 rounded-t-xl ${
-                        activeTab === 'Succeeding'
-                          ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0  border-x-[#B5EBA2] rounded-t-xl'
-                          : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                      }`}
-                    >
-                      Succeeding Years
-                    </Link>
-                  </div>
-                </div> */}
-
-                
-                {/* TABS */}
                 <div className="mx-10">
                   <div className="flex gap-[2px]">
                     <button onClick={()=>setTab('Machine')}
@@ -159,8 +112,7 @@ const handleSaveAll = () => {
                       Machine Configuration
                     </button>
 
-                    <button
-                     button onClick={()=>setTab('Summary')}
+                    <button onClick={()=>setTab('Summary')}
                       className={`px-7 text-sm py-2 ${
                         tab === 'Summary'
                           ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0  border-x-[#B5EBA2] rounded-t-xl'
@@ -170,8 +122,7 @@ const handleSaveAll = () => {
                       Summary/1st Year
                     </button>
 
-                    <button
-                      button onClick={()=>setTab('Succeeding')}
+                    <button onClick={()=>setTab('Succeeding')}
                       className={`px-7 text-sm py-2 rounded-t-xl ${
                         tab === 'Succeeding'
                           ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0  border-x-[#B5EBA2] rounded-t-xl'
@@ -182,15 +133,6 @@ const handleSaveAll = () => {
                     </button>
                   </div>
                 </div>
-
-                {/* CONTENT
-                {activeTab === 'Machine Configuration' ? (
-                  <MachineConfigTab ref={machineRef} />
-                ) : activeTab === 'Succeeding' ? (
-                  <SucceedingYears ref={succeedingRef} />
-                ) : (
-                  <Summary1stYear ref={summaryRef} />
-                )} */}
 
                              
                {tab === 'Machine' ? (
@@ -203,16 +145,14 @@ const handleSaveAll = () => {
 
               </div>
 
-              {/* FOOTER / BUTTONS */}
               <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
                 <div className="px-10 py-3 flex items-center justify-between">
-                  {/* MACHINE CONFIG FOOTER*/}
                   {tab === 'Machine' && (
                     <>
                       <button
-                      type="button"
-                      onClick={handleClearAll}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+                        type="button"
+                        onClick={handleClearAll}
+                        className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
                       >
                         <IoTrashSharp/>  Clear All
                       </button>
@@ -237,10 +177,8 @@ const handleSaveAll = () => {
                     </>
                   )}
                   
-                  {/* SUMMARY + SUCCEEDING FOOTER */}
                   {tab=== 'Summary' && (
                     <>
-                      {/* LEFT */}
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
@@ -277,11 +215,7 @@ const handleSaveAll = () => {
                         </button> 
                       </div>
 
-                         
-
-                      {/* RIGHT */}
                       <div className="flex flex-col items-end gap-2">
-                        {/* Top row */}
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
@@ -299,13 +233,9 @@ const handleSaveAll = () => {
                             <FaCheckSquare /> Approve 
                           </button>
                         </div>
-
-                        {/* Bottom row */}
-                       
                       </div>
                     </>
                   )}
-                 
                 </div>
               </div>
             </div>
