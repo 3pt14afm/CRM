@@ -152,7 +152,7 @@ const handleSaveAll = () => {
                     <button onClick={()=>setTab('Machine')}
                       className={`px-7 text-sm py-2 ${
                         tab === 'Machine'
-                          ? 'bg-[#B5EBA2]/10 border border-t-[#B5EBA2] font-medium border-b-0 border-x-[#B5EBA2] rounded-t-xl'
+                          ? 'bg-[#B5EBA2]/10 border border-t-[#B5EBA2]/80 font-medium border-b-0 border-x-[#B5EBA2]/80 rounded-t-xl'
                           : 'bg-[#B5EBA2]/80 rounded-t-xl'
                       }`}
                     >

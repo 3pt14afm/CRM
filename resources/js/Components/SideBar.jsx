@@ -190,15 +190,15 @@ export default function Sidebar() {
                 ) : (
                     <button onClick={toggleSidebar} className="group absolute h-14 w-10 flex items-center justify-center rounded-md">
                         <img src="/images/logoSmall.png" alt="CRM Logo" className="absolute object-contain opacity-100 group-hover:opacity-0 transition-opacity duration-200"/>
-                        <GoSidebarExpand className="absolute w-6 h-6 text-darkgreen opacity-0 group-hover:opacity-100 transition-opacity duration-200" aria-hidden="true"/>
+                        <GoSidebarExpand className="absolute w-5 h-5 text-darkgreen opacity-0 group-hover:opacity-100 transition-opacity duration-200" aria-hidden="true"/>
                     </button>
             )}
 
             {/* Right side: collapse button (slot reserved when closed) */}
             <div className=" w-12 flex justify-end">
                 {isOpen ? (
-                    <button onClick={toggleSidebar} className="p-2 rounded-md hover:bg-gray-200 transition" aria-label="Collapse sidebar">
-                        <GoSidebarCollapse className="w-6 h-6 text-darkgreen" />
+                    <button onClick={toggleSidebar} className="p-2 mt-1 rounded-md hover:bg-gray-200 transition" aria-label="Collapse sidebar">
+                        <GoSidebarCollapse className="w-5 h-5 text-darkgreen" />
                     </button>
                 ) : (
                     <div className="w-10 h-16" />
@@ -210,8 +210,8 @@ export default function Sidebar() {
             {/* CUSTOMER MANAGEMENT */}
             <div className="space-y-3 mx-2">
             <div>
-                <div className={`group ${isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'} ${customerExpanded ? 'rounded-t-xl' : 'rounded-xl'}`}>
-                    <div className={`flex items-center px-3 py-3`}>
+                <div className={`group ${isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'} ${customerExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
+                    <div className={`flex items-center px-3 py-2`}>
                         <Link
                             href={route('customers.dashboard')}
                             onClick={() => openSidebarAndToggleModule('customer')}
@@ -223,7 +223,7 @@ export default function Sidebar() {
                             </div>
 
                             {/* LABEL (reveal/hide only) */}
-                            <span className={`ml-4 text-lg tracking-wide font-semibold ${labelClass}`}>
+                            <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
                                 Customer Account <br /> Management
                             </span>
                         </Link>
@@ -241,7 +241,7 @@ export default function Sidebar() {
 
                 {/* CUSTOMER SUB-ITEMS */}
                 {isOpen && activeModule === 'customer' && (
-                    <div className="bg-lightgreen/50 rounded-b-xl pt-2 pl-8 shadow-lg mb-7">
+                    <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-8 shadow-lg mb-7">
                         {!activeSubMenu && (
                             <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 hover:text-darkgreen hover:font-medium opacity-80">
                             Customer Information Details
@@ -314,8 +314,8 @@ export default function Sidebar() {
 
                     {/* MACHINE INVENTORY */}
                     <div>
-                        <div className={`mx-0 group ${activeModule === 'machine' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen/40 rounded-xl'}`}>
-                            <div className="flex items-center px-3 py-3">
+                        <div className={`mx-0 group ${activeModule === 'machine' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg'}`}>
+                            <div className="flex items-center px-3 py-2">
                                 <Link
                                     href="#"
                                     onClick={(e) => { e.preventDefault(); openSidebarAndToggleModule('machine'); }}
@@ -325,7 +325,7 @@ export default function Sidebar() {
                                         <img src="/icons/machine.png" alt="Machine Inventory Management" />
                                     </div>
 
-                                    <span className={`ml-4 text-lg tracking-wide font-semibold ${labelClass}`}>
+                                    <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
                                         Machine Inventory <br /> Management
                                     </span>
                                 </Link>
@@ -342,7 +342,7 @@ export default function Sidebar() {
 
                         {/* MACHINE INVENTORY SUB-ITEMS */}
                         {isOpen && activeModule === 'machine' && (
-                            <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
+                            <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
 
                                 {/* 1) Machine In-Field Inventory (with sublinks) */}
                                 {(activeMachineSubMenu === null || activeMachineSubMenu === 'infield') && (
@@ -421,8 +421,8 @@ export default function Sidebar() {
 
                     {/* SERVICE SUPPORT */}
                     <div>
-                        <div className={`mx-0 group ${ activeModule === 'service' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen/40 rounded-xl'}`}>
-                            <div className="flex items-center px-3 py-3">
+                        <div className={`mx-0 group ${ activeModule === 'service' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg'}`}>
+                            <div className="flex items-center px-3 py-2">
                                 <Link
                                     href="#"
                                     onClick={(e) => { e.preventDefault(); openSidebarAndToggleModule('service'); }}
@@ -432,7 +432,7 @@ export default function Sidebar() {
                                         <img src="/icons/service.png" alt="Service Support Management" />
                                     </div>
 
-                                    <span className={`ml-4 text-lg tracking-wide font-semibold ${labelClass}`}>
+                                    <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
                                         Service Support <br /> Management
                                     </span>
                                 </Link>
@@ -448,7 +448,7 @@ export default function Sidebar() {
                         </div>
 
                         {isOpen && activeModule === 'service' && (
-                          <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
+                          <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
 
                             {/* 1) Service Ticketing (with sublinks) */}
                             {(activeServiceSubMenu === null || activeServiceSubMenu === 'ticketing') && (
@@ -497,8 +497,8 @@ export default function Sidebar() {
 
                     {/* DELIVERY LOGISTICS */}
                     <div>
-                        <div className={`mx-0 group ${ activeModule === 'delivery' ? 'bg-lightgreen shadow-lg rounded-t-xl' : 'hover:bg-lightgreen/40 rounded-xl'}`}>
-                            <div className="flex items-center px-3 py-3">
+                        <div className={`mx-0 group ${ activeModule === 'delivery' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg'}`}>
+                            <div className="flex items-center px-3 py-2">
                                 <Link
                                     href="#"
                                     onClick={(e) => { e.preventDefault(); openSidebarAndToggleModule('delivery'); }}
@@ -508,7 +508,7 @@ export default function Sidebar() {
                                         <img src="/icons/delivery.png" alt="Delivery Logistics Management" />
                                     </div>
 
-                                    <span className={`ml-4 text-lg tracking-wide font-semibold ${labelClass}`}>
+                                    <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
                                         Delivery Logistics <br /> Management
                                     </span>
                                 </Link>
@@ -524,7 +524,7 @@ export default function Sidebar() {
                         </div>
 
                         {isOpen && activeModule === 'delivery' && (
-                          <div className="bg-lightgreen/50 rounded-b-xl mx-0 pt-4 pb-2 pl-8 shadow-lg mb-3">
+                          <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-4 pb-2 pl-8 shadow-lg mb-3">
 
                             {/* 1) Order & Delivery Management (with sublinks) */}
                             {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'order_delivery') && (
@@ -655,7 +655,7 @@ export default function Sidebar() {
                     createPortal(
                     <div
                             ref={dropdownRef}
-                            className="fixed z-[9999] w-28 bg-[#D4F0CB] shadow-lg rounded-xl border border-black/10"
+                            className="fixed z-[9999] w-28 bg-[#D4F0CB] shadow-lg rounded-lg border border-black/10"
                             style={{
                             top: dropdownPos.top,
                             left: dropdownPos.left,
@@ -664,7 +664,7 @@ export default function Sidebar() {
                     >
                         <Link
                             href={route("profile.edit")}
-                            className="block w-full text-left px-4 py-3 text-sm rounded-t-xl font-semibold border-b text-darkgreen border-black/10 hover:bg-green/70"
+                            className="block w-full text-left px-4 py-3 text-sm rounded-t-lg font-semibold border-b text-darkgreen border-black/10 hover:bg-green/70"
                             onClick={() => setActiveItem(null)}
                         >
                             Edit Profile
@@ -674,7 +674,7 @@ export default function Sidebar() {
                             href={route("logout")}
                             method="post"
                             as="button"
-                            className="w-full text-left px-4 py-3 text-sm rounded-b-xl font-semibold hover:bg-green/70 text-red-600"
+                            className="w-full text-left px-4 py-3 text-sm rounded-b-lg font-semibold hover:bg-green/70 text-red-600"
                             onClick={() => setActiveItem(null)}
                         >
                             Logout
