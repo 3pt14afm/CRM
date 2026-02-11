@@ -10,6 +10,8 @@ import { MdDisabledByDefault } from "react-icons/md";
 import { FaArrowLeft, FaArrowRight, FaCheckSquare } from 'react-icons/fa';
 import { LuScanEye } from "react-icons/lu";
 import { useProjectData } from '@/Context/ProjectContext';
+import { route } from "ziggy-js";
+
 
 export default function Entry({ activeTab = 'Machine Configuration' }) {
   const today = new Date();
@@ -81,6 +83,44 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
   const handleApprove = () => currentTabRef?.current?.approve?.();
 
   const showApprovalFooter = tab === 'Summary' || tab === 'Succeeding';
+
+  const openPrintPage = (autoPrint = false) => {
+  if (!(tab === "Summary" || tab === "Succeeding")) return;
+
+  const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
+  const storageKey = `roi-print:${projectRef}:${Date.now()}`;
+
+  try {
+    sessionStorage.setItem(storageKey, JSON.stringify(projectData));
+  } catch (e) {
+    console.error("Failed to save print snapshot:", e);
+    alert("Print failed: snapshot too large.");
+    return;
+  }
+
+  // You are currently on: /customer-management/roi/entry
+  // So print is: /customer-management/roi/entry/print
+  const current = window.location.pathname.replace(/\/$/, "");
+  const printPath = `${current}/print`;
+
+  const href =
+    `${printPath}` +
+    `?tab=${encodeURIComponent(tabParam)}` +
+    `&storageKey=${encodeURIComponent(storageKey)}` +
+    `&autoprint=${autoPrint ? 1 : 0}`;
+
+  const a = document.createElement("a");
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
+
+
+
 
   return (
     <>
@@ -205,7 +245,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => currentTabRef?.current?.printPreview?.()}
+                    onClick={() => openPrintPage(false)}
                     className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
                   >
                     <LuScanEye /> Print Preview
@@ -213,7 +253,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
 
                   <button
                     type="button"
-                    onClick={() => currentTabRef?.current?.print?.()}
+                    onClick={() => openPrintPage(true)}
                     className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
                   >
                     <IoPrintSharp /> Print

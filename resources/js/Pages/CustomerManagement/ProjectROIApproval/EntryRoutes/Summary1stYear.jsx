@@ -16,28 +16,28 @@ function Summary1stYear() {
 
 
     return (
-        <div className='mx-10 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0  border-b-[#B5EBA2] border-x-[#B5EBA2]'>
-            <div className='mx-10 pt-8'> 
+        <div className='mx-10 print:mx-0 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0  border-b-[#B5EBA2] border-x-[#B5EBA2]'>
+            <div className='mx-10 print:mx-0 print:pt-0 pt-8'> 
                 {/* The "One Piece" Illusion Container */}
               
                 <CompanyInfoSum />
 
                 {/* TOTAL MVP AND ANNUAL INTERESTS */}
-               <div className='grid grid-cols-2 gap-3 mt-4 items-center'>
+               <div className='grid grid-cols-2 gap-3 mt-4 items-center print:grid-cols-2 print:gap-0'>
 
-                    <div class="max-w-4xl w-full ml-4 mt-3">
+                    <div className="max-w-4xl w-full ml-4 mt-3 print:ml-0 print:mt-0">
                         <TotalMVP />
                     </div>
                     
-                    <div className='-mt-5'>
+                    <div className='-mt-5 print:mt-0'>
                     <InterestCalcuSum />
                     </div>
 
                 </div>
 
 
-               <div className='grid grid-cols-[70%_30%] items-start gap-8 mx-5 mt-0 mb-5'>
-                   <div className='flex flex-col gap-2 pt-8'>
+               <div className='grid grid-cols-[70%_30%] items-start gap-8 mx-5 mt-0 mb-5 print:mx-0 print:gap-0'>
+                   <div className='flex flex-col gap-2 pt-8 print:gap-0'>
                          {/* MACHINE & CONSUMABLES */}
                         <MachCon1stY />
                         
@@ -54,7 +54,7 @@ function Summary1stYear() {
                 <ContractDetails />
 
                 {/* ADD NOTES AND ADD COMMENTS */}
-                <div className='grid grid-cols-2 items-start gap-4'>
+                <div className='grid grid-cols-2 items-start gap-4 print:gap-1'>
                 <AddNotes />
                 <AddComments />
                 </div>

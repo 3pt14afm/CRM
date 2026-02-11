@@ -139,7 +139,7 @@ export default function AddComments({ scopeKey = "default" }) {
           onClick={openModal}
           className="flex items-center hover:cursor-pointer bg-white border border-gray-200 rounded-2xl py-5 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
         >
-          <div className="flex-grow text-gray-400 text-sm">
+          <div className="flex-grow text-gray-400 text-sm print:text-[10px]">
             Write your comments here.....
           </div>
 
