@@ -1,46 +1,35 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
-import { get1YrPotential } from '@/utils/calculations/freeuse/get1YrPotential';
 
-function Potentials({ title = "1st Year Potential" }) {
+function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
   const { projectData } = useProjectData();
 
+  // Get data directly from the yearlyBreakdown in context
+  // Fallback to an empty object if the year hasn't been calculated/saved yet
+  const yearData = projectData?.yearlyBreakdown?.[yearNumber] || {};
 
- const FirstYeatPotentinal = useMemo (()=> get1YrPotential(projectData), [projectData]);
-
- 
-   
-const {
-   totalMachineQty,
-    totalMachineCost,
-    totalMachineSales,
-    totalConsumableQty,
-    totalConsumableCost,
-    totalConsumableSales,
-    totalFeesQty,
-    totalCompanyFeesAmount,
-    totalCustomerFeesAmount,
-    grandtotalCost,
-    grandtotalSell,
-    grossProfit,
-    roiPercentage,
-      config,
-    machines,
-    consumables,
-     addFeesObj,
-    companyFees,
-    customerFees
-} = FirstYeatPotentinal;
-
-
-
+  // Destructure with defaults to prevent "undefined" errors in UI
+  const {
+    totalMachineQty = 0,
+    totalMachineCost = 0,
+    totalMachineSales = 0,
+    totalConsumableQty = 0,
+    totalConsumableCost = 0,
+    totalConsumableSales = 0,
+    grandtotalCost = 0,
+    grandtotalSell = 0,
+    grossProfit = 0,
+    roiPercentage = 0,
+    machines = [],
+    consumables = [],
+    companyFees = [],
+    customerFees = []
+  } = yearData;
 
   const format = (val) => (Number(val) || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
-
-  ////wapani nahumannnnnnnnnnnnnnn ang total cost
 
   return (
     <div className="p-4 pt-0">
@@ -63,18 +52,16 @@ const {
           </thead>
           <tbody>
             <tr className="bg-[#E2F4D8]/20 border-b h-[27px]">
-              <td className="py-3"></td>
-              <td className="py-3"></td>
-              <td className="py-3"></td>
+              <td className="py-3"></td><td className="py-3"></td><td className="py-3"></td>
             </tr>
             
             {machines.length > 0 ? (
               machines.map((m, index) => (
                 <tr key={`m-${index}`} className="border-b font-semibold border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center">{m.qty}</td>
-                  <td className="border-l text-[12px]  border-gray-100 text-center px-1 py-2 flex flex-col gap-1">
-                    <p>{format(m.cost)}</p>
-                    <p className='text-[11px] text-blue-700 italic'>{format(m.machineMargin)}</p>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1">
+                    <p>{format(m.totalCost)}</p>
+                    <p className='text-[11px] text-blue-700 italic'>{format(m.machineMargin || 0)}</p>
                   </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(m.totalSell)}</td>
                 </tr>
@@ -88,9 +75,7 @@ const {
             )}
 
             <tr className="bg-[#E2F4D8]/20 border-b h-[27px]">
-              <td className="py-3"></td>
-              <td className="py-3"></td>
-              <td className="py-3 "></td>
+              <td className="py-3"></td><td className="py-3"></td><td className="py-3"></td>
             </tr>
 
             {consumables.length > 0 ? (
@@ -125,7 +110,7 @@ const {
             <tbody>
               {[...companyFees, ...customerFees].length > 0 ? (
                 [...companyFees, ...customerFees].map((fee, index) => {
-                  const isCompany = companyFees.includes(fee);
+                  const isCompany = companyFees.some(cf => cf.id === fee.id);
                   return (
                     <tr key={index} className="border-b border-gray-100">
                       <td className="w-1/4 py-2 border-r font-bold bg-gray-50 text-center">{fee.qty || 0}</td>
@@ -155,7 +140,7 @@ const {
         <div className="border border-gray-300 rounded-lg overflow-hidden w-[75%] mt-5 bg-white shadow-sm"> 
           <table className="w-full text-center table-fixed text-[11px]"> 
             <tbody> 
-                   <tr className=" border-b border-gray-300">
+              <tr className=" border-b border-gray-300">
                 <td className="py-3 border-r font-bold border-gray-300 uppercase text-[10px]">{format(grandtotalCost)}</td> 
                 <td className="py-3 font-bold text-gray-800">{format(grandtotalSell)}</td>
               </tr>
