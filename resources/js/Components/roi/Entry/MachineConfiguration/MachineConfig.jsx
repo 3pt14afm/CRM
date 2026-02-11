@@ -18,6 +18,7 @@ function MachineConfig() {
     }];
   });
 
+  
   // Row calculations
   const getRowCalculations = (row) => {
      const rawCost = Number(row.cost) || 0;
@@ -46,7 +47,7 @@ function MachineConfig() {
       inputtedCost: rawCost,
       computedCost: finalComputedCost,
       basePerYear: basePerYear, // Returning this so it can be stored
-      totalCost: finalComputedCost * qty,
+      totalCost: (finalComputedCost+machineMargin) * qty,
       costCpp: yields > 0 ? finalComputedCost / yields : 0,
       totalSell: price * qty,
       sellCpp: yields > 0 ? price / yields : 0,
@@ -177,7 +178,8 @@ function MachineConfig() {
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
                       <input type="checkbox" className="w-4 h-4 accent-green-600 cursor-pointer"
                         checked={row.type === 'machine'}
-                        onChange={e => handleInputChange(row.id, 'isMachine', e.target.checked)} />
+                        onChange={e => toggleMachine(row.id, e.target.checked)}
+                        />
                     </td>
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <input type="text" value={row.sku} onChange={e => handleInputChange(row.id, 'sku', e.target.value)} className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''}`} placeholder="SKU-XXX" />
