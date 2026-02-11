@@ -13,6 +13,12 @@ function MachCon1stY() {
     // Formatting helper
     const formatNum = (val, decimals = 2) => 
         (Number(val) || 0).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    
+   
+     const machineMargin = machine.map(m=>m.machineMargin);
+ 
+
+
 
     return (
         <div className="gap-4 font-sans tracking-tight ">
@@ -49,7 +55,10 @@ function MachCon1stY() {
                         {filteredMachine.length > 0 ? filteredMachine.map((m, index) => (
                             <tr key={m.id || `m-${index}`} className="border-b border-gray-100 last:border-b-0">
                                 <td className="px-7 py-3 text-[12px]">{m.sku}</td>
-                                <td className="text-center text-[12px] border-l border-gray-300">{formatNum(m.cost)}</td>
+                                <td className="text-center py-2 flex flex-col gap-1 text-[12px] border-l border-gray-300">
+                                    <p>{formatNum(m.cost)}</p>
+                                    <p className='text-[10px] text-blue-700 italic'>{formatNum(machineMargin)}</p>
+                                </td>
                                 <td className="text-center text-[12px] border-l border-gray-100">{Number(m.yields || 0).toLocaleString()}</td>
                                 <td className="text-center text-[12px] border-l border-gray-100">{formatNum(m.yields > 0 ? m.cost / m.yields : 0, 4)}</td>
                                 <td className="text-center text-[12px] border-l border-gray-300">{formatNum(m.price)}</td>
