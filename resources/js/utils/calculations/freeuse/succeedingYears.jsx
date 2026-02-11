@@ -2,38 +2,56 @@ export const succeedingYears = (projectData) => {
   // 1. DATA DESTRUCTURING with defaults
   const config = projectData?.machineConfiguration || {};
   const machines = config.machine || [];
-  const consumables = config.consumable || [];
+  const rawConsumables = config.consumable || [];
+  
+  // NEW: Get Annual Mono Yields (Same as Year 1 logic)
+  const annualMonoYields = Number(projectData?.yield?.monoAmvpYields?.monthly) * 12 || 0;
 
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
   
   // 1.5 FILTER OUT ONE-TIME FEES
-  // We only want fees that are NOT categorized as "one-time-fee" for succeeding years
   const companyFees = (addFeesObj.company || []).filter(f => f.category !== "one-time-fee");
   const customerFees = (addFeesObj.customer || []).filter(f => f.category !== "one-time-fee");
 
-  // 2. CALCULATION LOGIC
+  // 2. NEW: MAP CONSUMABLES WITH DYNAMIC QTY (Logic from get1YrPotential)
+  const processedConsumables = rawConsumables.map(c => {
+    const itemYields = Number(c.yields) || 1; 
+    const dynamicQty = Math.ceil(annualMonoYields / itemYields); 
+    
+    const unitCost = Number(c.cost) || 0;
+    const unitSell = Number(c.price) || 0;
+
+    return {
+      ...c,
+      qty: dynamicQty,
+      totalCost: dynamicQty * unitCost,
+      totalSell: dynamicQty * unitSell
+    };
+  });
+
+  // 3. CALCULATION LOGIC
   const totalMachineQty = machines.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalMachineCost = machines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
   const totalMachineSales = machines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
 
-  const totalConsumableQty = consumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-  const totalConsumableCost = consumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
-  const totalConsumableSales = consumables.reduce((sum, c) => sum + (Number(c.totalSell) || 0), 0);
+  // Use the NEW processedConsumables for totals
+  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (item.qty || 0), 0);
+  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (c.totalCost || 0), 0);
+  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (c.totalSell || 0), 0);
 
-  // totalFeesQty now only reflects recurring fees
   const totalFeesQty = [...companyFees, ...customerFees].reduce((sum, f) => sum + (Number(f.qty) || 0), 0);
-  
-  // These amounts now exclude One Time Charges and Shipping
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
   const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
 
+  // Note: Machine costs are usually 0 in succeeding years if they are one-time buys, 
+  // but we keep the logic here in case you have recurring lease/maintenance costs.
   const grandtotalCost = totalMachineCost + totalConsumableCost + totalCompanyFeesAmount;
   const grandtotalSell = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
 
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-  // 3. RETURN ALL VALUES
+  // 4. RETURN ALL VALUES
   return {
     totalMachineQty,
     totalMachineCost,
@@ -50,9 +68,9 @@ export const succeedingYears = (projectData) => {
     roiPercentage,
     config,
     machines,
-    consumables,
+    consumables: processedConsumables, // Returning the calculated version
     addFeesObj,
-    companyFees, // Returned filtered
-    customerFees  // Returned filtered
+    companyFees,
+    customerFees
   };
 };
