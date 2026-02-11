@@ -25,6 +25,7 @@ function SucceedingYears() {
     { length: contractYears - 1 }, 
     (_, i) => i + 2
   );
+  
       
   return (
             <div className='mx-10 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0  border-b-[#B5EBA2] border-x-[#B5EBA2]'>
@@ -46,14 +47,15 @@ function SucceedingYears() {
 
                 </div>
 
-                <div className="flex my-6 mb-10">
-                  {potentialYears.map((year) => (
-                        <SucceedingYearsPotential 
-                        key={year} 
-                        title={`${year}${getOrdinalSuffix(year)} Year Potential`} 
-                        />
-                    ))}
-                </div>
+                <div className="my-6 mb-10 mx-auto flex flex-wrap justify-center gap-y-12">
+  {potentialYears.map((year) => (
+    <div key={year} className="flex-[0_0_400px]">
+      <SucceedingYearsPotential
+        title={`${year}${getOrdinalSuffix(year)} Year Potential`}
+      />
+    </div>
+  ))}
+</div>
                 
 
                 {/* ADD NOTES AND ADD COMMENTS */}
