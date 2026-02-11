@@ -1,12 +1,13 @@
 import React, { useMemo } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 import { get1YrPotential } from '@/utils/calculations/freeuse/get1YrPotential';
+import { succeedingYears } from '@/utils/calculations/freeuse/succeedingYears';
 
-function Potentials({ title = "1st Year Potential" }) {
+function SucceedingYearsPotential({ title = "2nd Year Potential" }) {
   const { projectData } = useProjectData();
 
 
- const FirstYeatPotentinal = useMemo (()=> get1YrPotential(projectData), [projectData]);
+ const succeedingYearsPotential = useMemo (()=> succeedingYears(projectData), [projectData]);
 
  
    
@@ -30,7 +31,7 @@ const {
      addFeesObj,
     companyFees,
     customerFees
-} = FirstYeatPotentinal;
+} = succeedingYearsPotential;
 
 
 
@@ -177,4 +178,4 @@ const {
   );
 }
 
-export default Potentials;
+export default SucceedingYearsPotential;

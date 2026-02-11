@@ -28,7 +28,6 @@ const blankRow = () => ({
 const ensureFreeUseFixedRows = (rows) => {
   const normalize = (s) => (s || '').trim().toLowerCase();
 
-  // split existing rows into: matches fixed labels vs others
   const remaining = [...rows];
 
   const fixedRows = FIXED_FEE_LABELS.map((fixedLabel) => {
@@ -49,14 +48,11 @@ const ensureFreeUseFixedRows = (rows) => {
     };
   });
 
-  // everything else is not fixed
   const nonFixed = remaining.map(r => ({ ...r, __fixed: false }));
-
   return [...fixedRows, ...nonFixed];
 };
 
 const stripLocalFields = (row) => {
-  // remove __fixed before saving to context
   const { __fixed, ...clean } = row;
   return clean;
 };
@@ -76,26 +72,37 @@ const Fees = () => {
     return isFreeUse ? ensureFreeUseFixedRows(seeded) : seeded.map(r => ({ ...r, __fixed: false }));
   });
 
-  // 1.5️⃣ When contract type changes, enforce fixed rows for Free Use
+  // 1.5️⃣ When contract type changes
   useEffect(() => {
     setRows(prev => {
       if (isFreeUse) return ensureFreeUseFixedRows(prev);
-      // for non-free use (future), unlock everything but keep rows
       return prev.map(r => ({ ...r, __fixed: false }));
     });
   }, [isFreeUse]);
 
-  // 2️⃣ Sync rows with context (only valid rows with labels)
+  // 2️⃣ Sync rows with context (logic updated for categories)
   useEffect(() => {
     const validRows = rows.filter(r => r.label && r.label.trim() !== '');
 
-    const customerFees = validRows
-      .filter(r => r.isMachine)
-      .map(stripLocalFields);
+    const processRow = (r) => {
+      const clean = stripLocalFields(r);
+      const label = (r.label || '').trim().toLowerCase();
 
-    const companyFees = validRows
-      .filter(r => !r.isMachine)
-      .map(stripLocalFields);
+      // Categorization logic
+      if (label === "one time charge" || label === "shipping") {
+        clean.category = "one-time-fee";
+      } else if (label === "support services") {
+        clean.category = "yearlyFee";
+      } else {
+        // Optional: remove category if label changes to something else
+        delete clean.category;
+      }
+      
+      return clean;
+    };
+
+    const customerFees = validRows.filter(r => r.isMachine).map(processRow);
+    const companyFees = validRows.filter(r => !r.isMachine).map(processRow);
 
     const grandTotal = rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
@@ -118,23 +125,14 @@ const Fees = () => {
     setRows(prev =>
       prev.map(row => {
         if (row.id !== id) return row;
-
-        // prevent editing the label of fixed rows (Free Use)
         if (isFreeUse && row.__fixed && field === 'label') return row;
 
         const updatedRow = { ...row, [field]: value };
-
-        // Assign type for context (optional, your existing logic)
         if (field === 'isMachine') updatedRow.type = value ? 'Customer' : 'Company';
 
-        // Update total when cost or qty changes
         if (field === 'cost' || field === 'qty') {
-          const nextCost =
-            field === 'cost' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.cost) || 0);
-
-          const nextQty =
-            field === 'qty' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.qty) || 0);
-
+          const nextCost = field === 'cost' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.cost) || 0);
+          const nextQty = field === 'qty' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.qty) || 0);
           updatedRow.total = nextCost * nextQty;
         }
 
@@ -149,10 +147,7 @@ const Fees = () => {
   const removeRow = (id) => {
     setRows(prev => {
       const target = prev.find(r => r.id === id);
-
-      // don’t remove fixed rows in Free Use
       if (isFreeUse && target?.__fixed) return prev;
-
       const next = prev.filter(r => r.id !== id);
       return next.length > 0 ? next : [blankRow()];
     });
@@ -195,7 +190,6 @@ const Fees = () => {
           <tbody>
             {rows.map(row => (
               <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                {/* Checkbox */}
                 <td className="border-b border-r border-darkgreen/15 text-center px-3 py-2">
                   <input
                     type="checkbox"
@@ -205,7 +199,6 @@ const Fees = () => {
                   />
                 </td>
 
-                {/* Label */}
                 <td className="border-b border-r border-darkgreen/15 p-1 bg-[#F6FDF5]/30">
                   {isFreeUse && row.__fixed ? (
                     <div className="h-8 flex items-center text-[12px] font-semibold text-slate-800 px-2 text-left">
@@ -222,7 +215,6 @@ const Fees = () => {
                   )}
                 </td>
 
-                {/* Cost */}
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   <input
                     type="number"
@@ -233,7 +225,6 @@ const Fees = () => {
                   />
                 </td>
 
-                {/* Qty */}
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   <input
                     type="number"
@@ -244,14 +235,12 @@ const Fees = () => {
                   />
                 </td>
 
-                {/* Total */}
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   <div className={`${readonlyClass} flex items-center justify-center min-h-[28px]`}>
                     {(row.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </td>
 
-                {/* Actions */}
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   <div className="flex gap-1 justify-center items-center h-8">
                     <button
@@ -260,7 +249,6 @@ const Fees = () => {
                     >
                       +
                     </button>
-
                     <button
                       onClick={() => removeRow(row.id)}
                       disabled={(isFreeUse && row.__fixed) || rows.length <= 1}
@@ -276,7 +264,6 @@ const Fees = () => {
                   </div>
                 </td>
 
-                {/* Remarks */}
                 <td className="border-b border-darkgreen/15 p-1">
                   <input
                     type="text"
