@@ -41,6 +41,9 @@ const defaultInitialState = {
         customer: [],
         total: 0,
     },
+    yearlyBreakdown: {
+        // years will look like: "1": { totalCost: 0, totalSell: 0, profit: 0 },
+    },
     totalProjectCost: {
         grandTotalCost: 0,
         grandTotalSelling: 0,
@@ -110,6 +113,40 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
+    // SPECIFIC UPDATE: Save data for a specific year (1, 2, 3...)
+    const setYearlyData = useCallback((yearNumber, data) => {
+        setProjectData(prev => ({
+            ...prev,
+            yearlyBreakdown: {
+                ...prev.yearlyBreakdown,
+                [yearNumber]: data
+            }
+        }));
+    }, []);
+
+
+    // Add this to your Context Provider
+const syncYearlyBreakdown = useCallback((contractYears, firstYearData, recurringData) => {
+        setProjectData(prev => {
+            const newBreakdown = {};
+            
+            // Only build up to the current contract years
+            if (contractYears >= 1) {
+                newBreakdown[1] = firstYearData;
+            }
+            
+            for (let i = 2; i <= contractYears; i++) {
+                newBreakdown[i] = recurringData;
+            }
+
+            return {
+                ...prev,
+                yearlyBreakdown: newBreakdown // This completely replaces the old object
+            };
+        });
+    }, []);
+
+
     // NEW: Function to clear everything (useful for the "Clear All" button)
     const resetProject = useCallback(() => {
         setProjectData(defaultInitialState);
@@ -124,7 +161,9 @@ const ProjectDataProvider = ({ children }) => {
             setMachineConfig,
             setYield,
             setAdditionalFees,
-            resetProject // Exported for the Clear All button
+            resetProject, // Exported for the Clear All button
+            setYearlyData,
+            syncYearlyBreakdown
         }}>
             {children}
         </ProjectContext.Provider>

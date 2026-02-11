@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculations';
+import { get1YrPotential } from '@/utils/calculations/freeuse/get1YrPotential';
+import { succeedingYears } from '@/utils/calculations/freeuse/succeedingYears';
 
 function MachineConfig() {
-  const { setProjectData, projectData } = useProjectData();
+  const { setProjectData, projectData, setYearlyData } = useProjectData();
 
   // Initialize rows from context or default
   const [rows, setRows] = useState(() => {
@@ -95,6 +97,9 @@ function MachineConfig() {
       ...prev,
       machineConfiguration: { machine: machines, consumable: consumables, totals: totalsObj }
     }));
+
+
+
   }, [rows, projectData.interest.annualInterest, projectData.companyInfo.contractYears]);
 
   const inputClass = "w-full capitalize min-w-0 h-8 text-[13px] text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
