@@ -98,24 +98,9 @@ function MachineConfig() {
       machineConfiguration: { machine: machines, consumable: consumables, totals: totalsObj }
     }));
 
-  const contractYears = Number(projectData?.companyInfo?.contractYears) || 1;
 
-// 1. Calculate and set the 1st Year (Includes one-time fees)
-const data1stYear = get1YrPotential(projectData); 
-setYearlyData(1, data1stYear);
 
-// 2. Only run if there are more than 1 year
-if (contractYears > 1) {
-    // Calculate the recurring data once (Excludes one-time fees)
-    const dataSucceeding = succeedingYears(projectData);
-
-    // 3. Loop from 2nd year up to the total contract years
-    for (let year = 2; year <= contractYears; year++) {
-        setYearlyData(year, dataSucceeding);
-    }
-}
-
-  }, [rows, projectData.interest.annualInterest, projectData.companyInfo.contractYears, projectData]);
+  }, [rows, projectData.interest.annualInterest, projectData.companyInfo.contractYears]);
 
   const inputClass = "w-full capitalize min-w-0 h-8 text-[13px] text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const readonlyClass = "w-full h-8 text-[13px] text-center px-1 flex items-center justify-center";

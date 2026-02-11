@@ -124,6 +124,29 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
+
+    // Add this to your Context Provider
+const syncYearlyBreakdown = useCallback((contractYears, firstYearData, recurringData) => {
+        setProjectData(prev => {
+            const newBreakdown = {};
+            
+            // Only build up to the current contract years
+            if (contractYears >= 1) {
+                newBreakdown[1] = firstYearData;
+            }
+            
+            for (let i = 2; i <= contractYears; i++) {
+                newBreakdown[i] = recurringData;
+            }
+
+            return {
+                ...prev,
+                yearlyBreakdown: newBreakdown // This completely replaces the old object
+            };
+        });
+    }, []);
+
+
     // NEW: Function to clear everything (useful for the "Clear All" button)
     const resetProject = useCallback(() => {
         setProjectData(defaultInitialState);
@@ -139,7 +162,8 @@ const ProjectDataProvider = ({ children }) => {
             setYield,
             setAdditionalFees,
             resetProject, // Exported for the Clear All button
-            setYearlyData
+            setYearlyData,
+            syncYearlyBreakdown
         }}>
             {children}
         </ProjectContext.Provider>
