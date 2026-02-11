@@ -110,7 +110,7 @@ const {
             )}
 
             <tr className="bg-[#E2F4D8] border-b font-semibold border-gray-100 last:border-b-0">
-              <td className="px-1 py-3 text-[12px] text-center font-bold ">{totalMachineQty + totalConsumableQty}</td>
+              <td className="px-1 py-3 text-[12px] text-center font-bold "></td>
               <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineCost + totalConsumableCost)}</td>
               <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineSales + totalConsumableSales)}</td>
             </tr>
