@@ -60,7 +60,7 @@ function MachCon1stY() {
                                     <p className='text-[11px] text-blue-700 italic'>{formatNum(m.machineMarginTotal)}</p>
                                 </td>
                                 <td className="text-center text-[12px] border-l border-gray-100">{Number(m.yields || 0).toLocaleString()}</td>
-                                <td className="text-center text-[12px] border-l border-gray-100">{formatNum(m.yields > 0 ? m.cost / m.yields : 0, 4)}</td>
+                                <td className="text-center text-[12px] border-l border-gray-100">{formatNum(m.costCpp)}</td>
                                 <td className="text-center text-[12px] border-l border-gray-300">{formatNum(m.price)}</td>
                                 <td className="text-center text-[12px] border-l border-gray-100">{formatNum(m.yields > 0 ? m.price / m.yields : 0, 4)}</td>
                             </tr>
@@ -116,13 +116,13 @@ function MachCon1stY() {
                                 {Number(totals.yields || 0).toLocaleString()}
                             </td>
                             <td className="text-center text-[12px] font-bold border-l border-gray-300 text-green-700">
-                                {formatNum(totals.yields > 0 ? totals.unitCost / totals.yields : 0, 4)}
+                                {formatNum(totals.costCpp)}
                             </td>
                             <td className="text-center text-[12px] font-bold border-l border-gray-300">
                                 {formatNum(totals.sellingPrice)}
                             </td>
                             <td className="text-center text-[12px] font-bold border-l border-gray-300">
-                                {formatNum(totals.yields > 0 ? totals.sellingPrice / totals.yields : 0, 4)}
+                                {formatNum(totals.sellCpp)}
                             </td>
                         </tr>
                     </tfoot>
