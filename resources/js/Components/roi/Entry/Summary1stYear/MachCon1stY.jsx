@@ -23,7 +23,7 @@ function MachCon1stY() {
     return (
         <div className="gap-4 font-sans tracking-tight ">
             <div className="flex-[3] border border-gray-300 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full bg-white border-collapse">
+                <table className="w-full bg-white border-collapse table-fixed">
                     <colgroup>
                         <col className="w-[44%]" />
                         <col className="w-[13%]" />
@@ -54,7 +54,7 @@ function MachCon1stY() {
                         </tr>
                         {filteredMachine.length > 0 ? filteredMachine.map((m, index) => (
                             <tr key={m.id || `m-${index}`} className="border-b border-gray-100 last:border-b-0">
-                                <td className="px-7 py-3 text-[12px]">{m.sku}</td>
+                                <td className="px-7 py-3 text-[12px] print:px-3 break-words">{m.sku}</td>
                                 <td className="text-center py-2 flex flex-col gap-1 text-[12px] border-l border-gray-300">
                                     <p>{formatNum(m.inputtedCost)}</p>
                                     <p className='text-[11px] text-blue-700 italic'>{formatNum(m.machineMarginTotal)}</p>

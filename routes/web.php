@@ -53,11 +53,22 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/machine-config', [RoiController::class, 'entryMachine'])->name('roi.entry.machine');
                 Route::get('/summary-first-year', [RoiController::class, 'entrySummary'])->name('roi.entry.summary');
                 Route::get('/succeeding-years', [RoiController::class, 'entrySucceeding'])->name('roi.entry.succeeding');
+
+                Route::get('/print', function () {
+                    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
+                        'tab' => request('tab', 'summary'),
+                        'storageKey' => request('storageKey'),
+                        'autoprint' => (bool) request('autoprint', false),
+                    ]);
+                })->name('roi.entry.print');
             });
 
             Route::get('/current', [RoiController::class, 'current'])->name('roi.current');
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
         });
 });
+
+
+
 
 require __DIR__.'/auth.php';
