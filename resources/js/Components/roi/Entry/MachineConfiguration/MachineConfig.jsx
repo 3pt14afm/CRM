@@ -81,6 +81,7 @@ function MachineConfig() {
 
     
     const totalsObj = rowsWithCalculations.reduce((acc, r) => {
+     
       acc.unitCost += r.inputtedCost;
       acc.qty += Number(r.qty) || 0;
       acc.totalCost += r.totalCost;

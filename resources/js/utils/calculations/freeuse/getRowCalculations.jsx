@@ -30,7 +30,7 @@ export const getRowCalculations = (row, projectData) => {
 
             console.log({
                 type: row?.type,
-                base: basePerYear,
+                machineMargin: machineMargin,
                 marginPercent: percentMargin,
                 machineMarginTotal: machineMarginTotal
                 });
