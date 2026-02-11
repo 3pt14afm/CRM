@@ -44,7 +44,7 @@ const {
   ////wapani nahumannnnnnnnnnnnnnn ang total cost
 
   return (
-    <div className="p-4 pt-0">
+    <div className="p-4 pt-0 max-w-lg">
       {/* TITLE SECTION */}
       <div className="text-center mb-2 pr-1">
         <span className="text-[17px] font-bold uppercase tracking-tight text-gray-700">
