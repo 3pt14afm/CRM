@@ -60,7 +60,7 @@ function SucceedingYearsPotential({ title = "2nd Year Potential", yearNumber = 2
                 <tr key={`m-${index}`} className="border-b font-semibold border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center">{m.qty}</td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1">
-                    <p>{format(m.totalCost)}</p>
+                    <p>{format(m.cost)}</p>
                     <p className='text-[11px] text-blue-700 italic'>{format(m.machineMargin || 0)}</p>
                   </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(m.totalSell)}</td>

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
+import { calculateProjectPotentials } from '@/utils/calculations/freeuse/calculatProjectPotentials';
 
 function Totals() {
     const { projectData } = useProjectData();
@@ -40,6 +41,13 @@ function Totals() {
 
     const finalTotalROI = finalTotalRevenue - finalTotalCost;
     const roiPercentage = finalTotalCost !== 0 ? (finalTotalROI / finalTotalCost) * 100 : 0;
+
+
+  const lifetime = useMemo(() => 
+    calculateProjectPotentials(projectData.yearlyBreakdown), 
+    [projectData.yearlyBreakdown]
+  );
+
 
     return (
         <div className="mt-2 space-y-8 font-sans  font-bold tracking-tight text-gray-800 text-[10px]">
@@ -95,21 +103,21 @@ function Totals() {
                                 <tbody>
                                     <tr className="border-b border-gray-100">
                                         <td className="px-4 py-3 font-bold bg-[#E2F4D8]/20 text-[11px] text-gray-500 ">Total Cost</td>
-                                        <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(finalTotalCost)}</td>
+                                        <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(lifetime.totalCost)}</td>
                                     </tr>
                                     <tr className="bg-[#E2F4D8] font-bold">
                                         <td className="px-4 py-3 ">Total ROI</td>
-                                        <td className="px-4 py-3 text-right border-l border-gray-300">{f(finalTotalROI)}</td>
+                                        <td className="px-4 py-3 text-right border-l border-gray-300">{f(lifetime.totalGrossProfit)}</td>
                                     </tr>
                                     <tr className="border-b border-gray-100">
                                         <td className="py-2 text-[10px] text-gray-400 italic px-4"></td>
                                         <td className={`px-4 py-2 bg-white text-right border-l border-gray-100  ${roiPercentage >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                                            {roiPercentage.toFixed(2)}%
+                                            {lifetime.totalRoiPercentage.toFixed(2)}%
                                         </td>
                                     </tr>
                                     <tr className="font-bold border-t border-gray-200">
                                         <td className="px-4 py-3 text-[11px] text-gray-500 ">Total Revenue</td>
-                                        <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(finalTotalRevenue)}</td>
+                                        <td className="px-4 py-3 bg-white text-right border-l border-gray-100">{f(lifetime.totalRevenue)}</td>
                                     </tr>
                                 </tbody>
                             </table>
