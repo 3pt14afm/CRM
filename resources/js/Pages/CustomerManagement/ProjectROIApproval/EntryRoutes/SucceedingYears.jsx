@@ -47,24 +47,23 @@ const SucceedingYears = forwardRef(function SucceedingYears(_props, ref) {
   }));
 
   return (
-    <div className="mx-10 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0 border-b-[#B5EBA2] border-x-[#B5EBA2]">
-      <div className="mx-10 pt-8">
+    <div className="mx-10 print:mx-0 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0  border-b-[#B5EBA2] border-x-[#B5EBA2]">
+      <div className="mx-10 print:mx-0 print:pt-0 pt-8">
         <CompanyInfoSum />
 
-        <div className="grid grid-cols-2 mt-4 items-center">
-          {/* ✅ className (not class) */}
-          <div className="max-w-4xl w-full mx-auto p-4">
+        <div className="grid grid-cols-2 gap-3 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-1 print:gap-0">
+          <div className="max-w-4xl w-full ml-4 mt-3 print:ml-0 print:mt-0 print:mr-0">
             <TotalMVP />
           </div>
 
-          <div className="-mt-10">
+          <div className="mt-1 print:mt-0">
             <InterestCalcuSum />
           </div>
         </div>
 
-        <div className="my-6 mb-10 mx-auto flex flex-wrap justify-center gap-y-12">
+        <div className="my-6 mb-10 print:mx-0 mx-auto flex flex-wrap justify-center gap-y-12">
           {potentialYears.map((year) => (
-            <div key={year} className="flex-[0_0_400px]">
+            <div key={year} className="flex-[0_0_400px] print:flex-[0_0_260px]">
               <SucceedingYearsPotential title={`${year}${getOrdinalSuffix(year)} Year Potential`} />
             </div>
           ))}
