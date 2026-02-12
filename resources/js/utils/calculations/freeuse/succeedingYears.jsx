@@ -1,19 +1,20 @@
 export const succeedingYears = (projectData) => {
   // 1. DATA DESTRUCTURING with defaults
   const config = projectData?.machineConfiguration || {};
-  const rawMachines = config.machine || []; // Changed to rawMachines to process them
+  const rawMachines = config.machine || [];
   const rawConsumables = config.consumable || [];
   
-  // Get Annual Mono Yields
-  const annualMonoYields = Number(projectData?.yield?.monoAmvpYields?.monthly) * 12 || 0;
+  // Get BOTH Annual Yields (Mono and Color)
+  const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
+  const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
   
-  // 1.5 FILTER OUT ONE-TIME FEES
+  // 1.5 FILTER OUT ONE-TIME FEES (Recurring years only)
   const companyFees = (addFeesObj.company || []).filter(f => f.category !== "one-time-fee");
   const customerFees = (addFeesObj.customer || []).filter(f => f.category !== "one-time-fee");
 
-  // 2. PROCESS MACHINES (Force Qty to 1)
+  // 2. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
     const unitCost = Number(m.cost) || 0;
     const unitSell = Number(m.price) || 0;
@@ -27,10 +28,27 @@ export const succeedingYears = (projectData) => {
     };
   });
 
-  // 3. MAP CONSUMABLES WITH DYNAMIC QTY
+  // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
   const processedConsumables = rawConsumables.map(c => {
     const itemYields = Number(c.yields) || 1; 
-    const dynamicQty = Math.ceil(annualMonoYields / itemYields); 
+    let dynamicQty = 0;
+
+    // Apply the same Mode logic as Year 1
+    switch (c.mode?.toLowerCase()) {
+      case 'mono':
+        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+        break;
+      case 'color':
+        dynamicQty = Math.ceil(annualColorYields / itemYields);
+        break;
+      case 'others':
+        // Respect manual qty for non-toner items
+        dynamicQty = Number(c.qty) || 1;
+        break;
+      default:
+        // Default fallback to Mono
+        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+    }
     
     const unitCost = Number(c.cost) || 0;
     const unitSell = Number(c.price) || 0;
@@ -44,7 +62,6 @@ export const succeedingYears = (projectData) => {
   });
 
   // 4. CALCULATION LOGIC
-  // Use the processedMachines for totals
   const totalMachineQty = processedMachines.reduce((sum, item) => sum + item.qty, 0);
   const totalMachineCost = rawMachines.reduce((sum, m) => sum + (m.totalCost || 0), 0);
   const totalMachineSales = processedMachines.reduce((sum, m) => sum + (m.totalSell || 0), 0);
@@ -57,7 +74,6 @@ export const succeedingYears = (projectData) => {
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
   const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
 
-  // Recalculated Grand Totals
   const grandtotalCost = totalMachineCost + totalConsumableCost + totalCompanyFeesAmount;
   const grandtotalSell = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
 
@@ -80,7 +96,7 @@ export const succeedingYears = (projectData) => {
     grossProfit,
     roiPercentage,
     config,
-    machines: processedMachines, // Return updated machines
+    machines: processedMachines,
     consumables: processedConsumables, 
     addFeesObj,
     companyFees,
