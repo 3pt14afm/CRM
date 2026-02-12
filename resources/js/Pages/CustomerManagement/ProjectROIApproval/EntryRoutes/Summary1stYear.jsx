@@ -23,13 +23,13 @@ function Summary1stYear() {
                 <CompanyInfoSum />
 
                 {/* TOTAL MVP AND ANNUAL INTERESTS */}
-               <div className='grid grid-cols-2 gap-3 mt-4 items-center print:grid-cols-2 print:gap-0'>
+               <div className='grid grid-cols-2 gap-3 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-1 print:gap-0'>
 
-                    <div className="max-w-4xl w-full ml-4 mt-3 print:ml-0 print:mt-0">
+                    <div className="max-w-4xl w-full ml-4 mt-3 print:ml-0 print:mt-0 print:mr-0">
                         <TotalMVP />
                     </div>
                     
-                    <div className='-mt-5 print:mt-0'>
+                    <div className='mt-1 print:mt-0'>
                     <InterestCalcuSum />
                     </div>
 
@@ -37,7 +37,7 @@ function Summary1stYear() {
 
 
                <div className='grid grid-cols-[70%_30%] items-start gap-8 mx-5 mt-0 mb-5 print:mx-0 print:gap-0'>
-                   <div className='flex flex-col gap-2 pt-8 print:gap-0'>
+                   <div className='flex flex-col gap-2 pt-8 print:pt-7 print:gap-0'>
                          {/* MACHINE & CONSUMABLES */}
                         <MachCon1stY />
                         
@@ -54,7 +54,7 @@ function Summary1stYear() {
                 <ContractDetails />
 
                 {/* ADD NOTES AND ADD COMMENTS */}
-                <div className='grid grid-cols-2 items-start gap-4 print:gap-1'>
+                <div className='grid grid-cols-2 items-start mx-56 gap-1 print:mx-0 print:gap-0'>
                 <AddNotes />
                 <AddComments />
                 </div>
