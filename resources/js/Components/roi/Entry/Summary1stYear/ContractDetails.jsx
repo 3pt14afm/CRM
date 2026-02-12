@@ -61,7 +61,7 @@ useEffect(() => {
               </td>
               <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-600 text-xs font-mono">PHP 0.00</td>
               <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-600 text-xs font-mono">-</td>
-              <td className="px-4 py-2 text-gray-600 text-[10px] italic text-left uppercase">FREE USE PRINTER</td>
+              <td className="px-4 py-2 text-gray-600 text-[10px] italic text-left uppercase">{item.remarks}</td>
             </tr>
           ))}
 
@@ -83,7 +83,7 @@ useEffect(() => {
                 <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-600 text-xs font-mono">{formatCurrency(price)}</td>
                 <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-600 text-xs font-mono">{formatCurrency(amount)}</td>
                 <td className="px-4 py-2 text-gray-600 text-[10px] text-left">
-                  {idx === 0 ? "Initial toner requirement (OEM)" : ""}
+                  {item.remarks}
                 </td>
               </tr>
             );
