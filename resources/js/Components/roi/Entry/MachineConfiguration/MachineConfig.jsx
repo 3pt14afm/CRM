@@ -9,17 +9,27 @@ function MachineConfig() {
 
   // Initialize rows from context or default
   const [rows, setRows] = useState(() => {
-    const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
-    const combined = [...machine, ...consumable];
-    return combined.length > 0 ? combined.map(r => ({
+  const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
+  const combined = [...machine, ...consumable];
+
+  return combined.length > 0
+    ? combined.map(r => ({
         ...r,
-        // When initializing, if 'cost' was already the computed cost from context,
-        // we prefer 'inputtedCost' to show the raw user input in the field.
-        cost: r.inputtedCost || r.cost 
-    })) : [{
-      id: Date.now(), sku: '', cost: '', qty: '', yields: '', price: '', remarks: '', type: 'consumable'
-    }];
-  });
+        cost: r.inputtedCost || r.cost,
+        mode: r.mode || "", // ✅ default for old saved rows
+      }))
+    : [{
+        id: Date.now(),
+        sku: '',
+        cost: '',
+        qty: '',
+        yields: '',
+        price: '',
+        remarks: '',
+        type: 'consumable',
+        mode: '', // ✅ default for new rows
+      }];
+});
 
 
 
@@ -46,12 +56,37 @@ function MachineConfig() {
   };
 
   const toggleMachine = (id, isMachine) => {
-    setRows(prevRows => prevRows.map(row => (row.id === id ? { ...row, type: isMachine ? 'machine' : 'consumable' } : row)));
+    setRows(prev =>
+      prev.map(r => {
+        if (r.id !== id) return r;
+
+        // going to MACHINE: store current mode, clear mode (blank)
+        if (isMachine) {
+          return {
+            ...r,
+            type: "machine",
+            prevMode: r.mode || "",
+            mode: "", // ✅ blank while machine
+          };
+        }
+
+        // going back to CONSUMABLE: restore previous mode
+        return {
+          ...r,
+          type: "consumable",
+          mode: r.prevMode || "",
+        };
+      })
+    );
+  };
+
+  const setMode = (id, mode) => {
+    setRows(prev => prev.map(r => (r.id === id ? { ...r, mode } : r)));
   };
 
 
   // Add / Remove row
-  const addRow = () => setRows([...rows, { id: Date.now(), sku: '', cost: '', qty: '', yields: '', price: '', remarks: '', type: 'consumable' }]);
+  const addRow = () => setRows([...rows, { id: Date.now(), sku: '', cost: '', qty: '', yields: '', price: '', remarks: '', type: 'consumable', mode: '', }]);
   const removeRow = (id) => rows.length > 1 && setRows(rows.filter(r => r.id !== id));
   const formatNum = (num) => (Number(num) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -77,8 +112,6 @@ function MachineConfig() {
 
     const machines = rowsWithCalculations.filter(r => r.type === 'machine' && r.sku?.trim() !== '');
     const consumables = rowsWithCalculations.filter(r => r.type === 'consumable' && r.sku?.trim() !== '');
-
-
     
     const totalsObj = rowsWithCalculations.reduce((acc, r) => {
      
@@ -98,9 +131,6 @@ function MachineConfig() {
       ...prev,
       machineConfiguration: { machine: machines, consumable: consumables, totals: totalsObj }
     }));
-
-
-
   }, [rows, projectData.interest.annualInterest, projectData.companyInfo.contractYears]);
 
   const inputClass = "w-full capitalize min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
@@ -118,22 +148,24 @@ function MachineConfig() {
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
               <col style={{ width: "4%" }} />
+              <col style={{ width: "7%" }} />
               <col style={{ width: "30%" }} />
               <col style={{ width: "10%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "12%" }} />
+              <col style={{ width: "5%" }} />
+              <col style={{ width: "11%" }} />
               {/* remaining columns can share what's left */}
               <col style={{ width: "8%" }} />
-              <col style={{ width: "8%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "9%" }} />
               <col style={{ width: "10%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "8%" }} />
+              <col style={{ width: "7%" }} />
               <col style={{ width: "6%" }} />
               <col style={{ width: "16%" }} /> {/* remarks */}
             </colgroup>
             <thead>
               <tr className="bg-lightgreen/15 text-[11px] uppercase text-black">
                 <th className="border-b border-r border-darkgreen/15 p-2">H</th>
+                <th className="border-b border-r border-darkgreen/15 p-2">T</th>
                 <th className="border-b border-r border-darkgreen/15 p-2">Item SKU</th>
                 <th className="border-b border-r border-darkgreen/15 p-2 ">Unit Cost</th>
                 <th className="border-b border-r border-darkgreen/15 p-2 ">Qty</th>
@@ -153,35 +185,54 @@ function MachineConfig() {
                 return (
                   <tr key={row.id} className='border-b'>
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
-                      <input type="checkbox" className="w-4 h-4 accent-green-600 cursor-pointer"
+                      <input type="checkbox" className="w-4 h-4 border border-darkgreen/30 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
                         checked={row.type === 'machine'}
                         onChange={e => toggleMachine(row.id, e.target.checked)}
                         />
                     </td>
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <input type="text" value={row.sku} onChange={e => handleInputChange(row.id, 'sku', e.target.value)} className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''}`} placeholder="SKU-XXX" />
-                    </td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.cost} onChange={e => handleInputChange(row.id, 'cost', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.qty} onChange={e => handleInputChange(row.id, 'qty', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.totalCost)}</div></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.yields} onChange={e => handleInputChange(row.id, 'yields', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.costCpp)}</div></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.price} onChange={e => handleInputChange(row.id, 'price', e.target.value)} className={inputClass} placeholder="0" /></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.totalSell)}</div></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.sellCpp)}</div></td>
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <div className="flex gap-1 justify-center">
-                        <button onClick={addRow} className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100">+</button>
-                        <button onClick={() => removeRow(row.id)} className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">-</button>
+                    <td className="border-r border-b border-darkgreen/15 px-1">
+                      <div className="flex items-center justify-center">
+                        <select
+                          value={row.type === "machine" ? "" : (row.mode || "")}
+                          onChange={(e) => setMode(row.id, e.target.value)}
+                          disabled={row.type === "machine"}
+                          className={`w-[90%] min-w-0 h-6 text-[11px] sm:text-xs px-2 py-0 rounded-sm accent-green-600 border border-darkgreen/20 bg-white outline-none focus:outline-none focus:ring-0 focus:border-darkgreen/20  ${row.type === "machine" ? "opacity-50 cursor-not-allowed bg-slate-100" : "cursor-pointer"}`}
+                          aria-label="Select mode: Mono / Color / Others"
+                        >
+                           {/* blank display for machine */}
+                          <option className="text-gray-400" value="">Select</option>
+
+                          <option value="mono">Mono</option>
+                          <option value="color">Color</option>
+                          <option value="others">Others</option>
+                        </select>
                       </div>
                     </td>
-                    <td className="border-b border-darkgreen/15 p-1"><input type="text" value={row.remarks} onChange={e => handleInputChange(row.id, 'remarks', e.target.value)} className={`${inputClass} text-start`} /></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1">
+                        <input type="text" value={row.sku} onChange={e => handleInputChange(row.id, 'sku', e.target.value)} className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''}`} placeholder="SKU-XXX" />
+                      </td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.cost} onChange={e => handleInputChange(row.id, 'cost', e.target.value)} className={inputClass} placeholder="0" /></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.qty} onChange={e => handleInputChange(row.id, 'qty', e.target.value)} className={inputClass} placeholder="0" /></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.totalCost)}</div></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.yields} onChange={e => handleInputChange(row.id, 'yields', e.target.value)} className={inputClass} placeholder="0" /></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.costCpp)}</div></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><input type="number" value={row.price} onChange={e => handleInputChange(row.id, 'price', e.target.value)} className={inputClass} placeholder="0" /></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.totalSell)}</div></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1"><div className={readonlyClass}>{formatNum(calcs.sellCpp)}</div></td>
+                      <td className="border-b border-r border-darkgreen/15 p-1">
+                        <div className="flex gap-1 justify-center">
+                          <button onClick={addRow} className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100">+</button>
+                          <button onClick={() => removeRow(row.id)} className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">-</button>
+                        </div>
+                      </td>
+                      <td className="border-b border-darkgreen/15 p-1"><input type="text" value={row.remarks} onChange={e => handleInputChange(row.id, 'remarks', e.target.value)} className={`${inputClass} text-start`} /></td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
               <tr>
+                <td className={footerCellClass}></td>
                 <td className={footerCellClass}></td>
                 <td className={footerCellClass}>TOTALS</td>
                 <td className={footerCellClass}>{formatNum(tableTotals.unitCost)}</td>
