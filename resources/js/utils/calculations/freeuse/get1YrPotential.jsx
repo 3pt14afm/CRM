@@ -4,8 +4,9 @@ export const get1YrPotential = (projectData) => {
   const rawMachines = config.machine || [];
   const rawConsumables = config.consumable || [];
   
-  // Get Annual Mono Yields from projectData
-  const annualMonoYields = Number(projectData?.yield?.monoAmvpYields?.monthly) * 12 || 0;
+  // Get BOTH Annual Yields
+  const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
+  const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
   const companyFees = addFeesObj.company || [];
@@ -20,15 +21,33 @@ export const get1YrPotential = (projectData) => {
     return {
       ...m,
       qty: fixedQty,
-      totalCost: fixedQty * unitCost, // Now reflects cost of exactly 1
-      totalSell: fixedQty * unitSell   // Now reflects sale of exactly 1
+      totalCost: fixedQty * unitCost,
+      totalSell: fixedQty * unitSell
     };
   });
 
-  // 3. MAP CONSUMABLES WITH DYNAMIC QTY
+  // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
   const processedConsumables = rawConsumables.map(c => {
     const itemYields = Number(c.yields) || 1; 
-    const dynamicQty = Math.ceil(annualMonoYields / itemYields); 
+    let dynamicQty = 0;
+
+    // Logic based on the new 'mode' selection
+    switch (c.mode?.toLowerCase()) {
+      case 'mono':
+        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+        break;
+      case 'color':
+        dynamicQty = Math.ceil(annualColorYields / itemYields);
+        break;
+      case 'others':
+        // For 'others', we usually keep the manually entered qty 
+        // or default to 1 if it's a fixed-count item
+        dynamicQty = Number(c.qty) || 1;
+        break;
+      default:
+        // Fallback to mono if no mode is selected
+        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+    }
     
     const unitCost = Number(c.cost) || 0;
     const unitSell = Number(c.price) || 0;
@@ -42,12 +61,10 @@ export const get1YrPotential = (projectData) => {
   });
 
   // 4. CALCULATION LOGIC
-  // Use the processedMachines for totals
   const totalMachineQty = processedMachines.reduce((sum, m) => sum + m.qty, 0);
   const totalMachineCost = rawMachines.reduce((sum, m) => sum + (m.totalCost || 0), 0);
   const totalMachineSales = processedMachines.reduce((sum, m) => sum + (m.totalSell || 0), 0);
 
-  // Use the processedConsumables for totals
   const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (item.qty || 0), 0);
   const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (c.totalCost || 0), 0);
   const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (c.totalSell || 0), 0);
@@ -78,7 +95,7 @@ export const get1YrPotential = (projectData) => {
     grossProfit,
     roiPercentage,
     config,
-    machines: processedMachines, // Return updated machine list
+    machines: processedMachines,
     consumables: processedConsumables,
     addFeesObj,
     companyFees,
