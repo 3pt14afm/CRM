@@ -42,7 +42,7 @@ export const getRowCalculations = (row, projectData) => {
                 inputtedCost: rawCost,
                 computedCost: finalComputedCost,
                 basePerYear,
-                totalCost: (finalComputedCost + machineMargin) * qty,
+                totalCost: (finalComputedCost + machineMargin),
                 costCpp: yields > 0 ? rawCost / yields : 0,
                 totalSell: price * qty,
                 sellCpp: yields > 0 ? price / yields : 0,
