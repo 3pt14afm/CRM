@@ -4,7 +4,6 @@ const ProjectContext = createContext();
 
 const STORAGE_KEY = 'roi_draft';
 
-// Define the default state outside to keep the component clean
 const defaultInitialState = {
     metadata: { projectId: null, lastSaved: null, version: 1 },
     companyInfo: {
@@ -41,18 +40,21 @@ const defaultInitialState = {
         customer: [],
         total: 0,
     },
-    yearlyBreakdown: {
-        // years will look like: "1": { totalCost: 0, totalSell: 0, profit: 0 },
-    },
+    yearlyBreakdown: {},
     totalProjectCost: {
         grandTotalCost: 0,
         grandTotalSelling: 0,
         overallMargin: 0
+    },
+    // Ensure this is structured correctly in the state
+    contractDetails: {
+        machine: [],
+        consumable: [],
+        totalInitial: 0
     }
 };
 
 const ProjectDataProvider = ({ children }) => {
-    // 1. Initialize state from Local Storage or default
     const [projectData, setProjectData] = useState(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -61,12 +63,10 @@ const ProjectDataProvider = ({ children }) => {
         return defaultInitialState;
     });
 
-    // 2. Automatically save to Local Storage whenever projectData changes
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(projectData));
     }, [projectData]);
 
-    // GENERIC UPDATE: For simple sections like companyInfo
     const updateSection = useCallback((section, newData) => {
         setProjectData(prev => ({
             ...prev,
@@ -74,7 +74,17 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
-    // SPECIFIC UPDATE: For machine configuration
+    // NEW SPECIFIC UPDATE: For contract details
+    const setContractDetails = useCallback((details) => {
+        setProjectData(prev => ({
+            ...prev,
+            contractDetails: {
+                ...prev.contractDetails,
+                ...details
+            }
+        }));
+    }, []);
+
     const setMachineConfig = useCallback((newConfig) => {
         setProjectData(prev => ({
             ...prev,
@@ -85,7 +95,6 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
-    // SPECIFIC UPDATE: For yields
     const setYield = useCallback((type, monthly) => {
         setProjectData(prev => ({
             ...prev,
@@ -99,7 +108,6 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
-    // SPECIFIC UPDATE: For additional fees with live total
     const setAdditionalFees = useCallback((feesObj) => {
         const allRows = [...(feesObj.company || []), ...(feesObj.customer || [])];
         const total = allRows.reduce((sum, row) => sum + (row.total || 0), 0);
@@ -113,7 +121,6 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
-    // SPECIFIC UPDATE: Save data for a specific year (1, 2, 3...)
     const setYearlyData = useCallback((yearNumber, data) => {
         setProjectData(prev => ({
             ...prev,
@@ -124,30 +131,20 @@ const ProjectDataProvider = ({ children }) => {
         }));
     }, []);
 
-
-    // Add this to your Context Provider
-const syncYearlyBreakdown = useCallback((contractYears, firstYearData, recurringData) => {
+    const syncYearlyBreakdown = useCallback((contractYears, firstYearData, recurringData) => {
         setProjectData(prev => {
             const newBreakdown = {};
-            
-            // Only build up to the current contract years
-            if (contractYears >= 1) {
-                newBreakdown[1] = firstYearData;
-            }
-            
+            if (contractYears >= 1) newBreakdown[1] = firstYearData;
             for (let i = 2; i <= contractYears; i++) {
                 newBreakdown[i] = recurringData;
             }
-
             return {
                 ...prev,
-                yearlyBreakdown: newBreakdown // This completely replaces the old object
+                yearlyBreakdown: newBreakdown
             };
         });
     }, []);
 
-
-    // NEW: Function to clear everything (useful for the "Clear All" button)
     const resetProject = useCallback(() => {
         setProjectData(defaultInitialState);
         localStorage.removeItem(STORAGE_KEY);
@@ -161,9 +158,10 @@ const syncYearlyBreakdown = useCallback((contractYears, firstYearData, recurring
             setMachineConfig,
             setYield,
             setAdditionalFees,
-            resetProject, // Exported for the Clear All button
+            resetProject,
             setYearlyData,
-            syncYearlyBreakdown
+            syncYearlyBreakdown,
+            setContractDetails // Added to provider
         }}>
             {children}
         </ProjectContext.Provider>

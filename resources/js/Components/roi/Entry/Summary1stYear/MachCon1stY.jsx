@@ -54,7 +54,7 @@ function MachCon1stY() {
                         </tr>
                         {filteredMachine.length > 0 ? filteredMachine.map((m, index) => (
                             <tr key={m.id || `m-${index}`} className="border-b border-gray-100 last:border-b-0">
-                                <td className="px-7 py-3 text-[12px]">{m.sku}</td>
+                                <td className="px-7 py-3 text-[12px] print:px-3 break-words uppercase">{m.sku}</td>
                                 <td className="text-center py-2 flex flex-col gap-1 text-[12px] border-l border-gray-300">
                                     <p>{formatNum(m.inputtedCost)}</p>
                                     <p className='text-[11px] text-blue-700 italic'>{formatNum(m.machineMarginTotal)}</p>
