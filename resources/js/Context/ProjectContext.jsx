@@ -43,8 +43,9 @@ const defaultInitialState = {
     yearlyBreakdown: {},
     totalProjectCost: {
         grandTotalCost: 0,
-        grandTotalSelling: 0,
-        overallMargin: 0
+        grandTotalRevenue:0,
+        grandROI:0,
+        grandROIPercentage:0
     },
     // Ensure this is structured correctly in the state
     contractDetails: {

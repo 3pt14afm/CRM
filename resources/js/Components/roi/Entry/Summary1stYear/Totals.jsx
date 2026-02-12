@@ -1,18 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react'; // Added useEffect
 import { useProjectData } from '@/Context/ProjectContext';
 import { calculateProjectPotentials } from '@/utils/calculations/freeuse/calculatProjectPotentials';
 
 function Totals() {
-    const { projectData } = useProjectData();
+    const { projectData, updateSection } = useProjectData(); // Added updateSection
    
     // 1. DATA DESTRUCTURING
     const config = projectData?.machineConfiguration || {};
     const machineTotals = config.totals || {}; 
     
-    // Destructuring additionalFees object based on the new company/customer context
-    const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
-    const grandTotalCost = addFeesObj.total ||0;
-    // Combine company and customer arrays for the list display
+    const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
+    const grandTotalCostFees = addFeesObj.total || 0;
+
     const allAdditionalFees = [
         ...(addFeesObj.company || []), 
         ...(addFeesObj.customer || [])
@@ -28,40 +27,42 @@ function Totals() {
     const totalItemsCost = machineTotals.totalCost || 0;
     const totalMachineSales = machineTotals.totalSell || 0;
     
-    // Differentiate additional fee totals
     const totalCompanyFees = (addFeesObj.company || []).reduce((sum, fee) => sum + (Number(fee.total) || 0), 0);
     const totalCustomerFees = (addFeesObj.customer || []).reduce((sum, fee) => sum + (Number(fee.total) || 0), 0);
 
-    // Grand Totals Logic
-    // Total Cost = Machines/Consumables Cost + Company-absorbed Fees
     const finalTotalCost = totalItemsCost + totalCompanyFees;
-    
-    // Total Revenue = Machine/Consumable Sales + Fees charged to Customer
     const finalTotalRevenue = totalMachineSales + totalCustomerFees;
-
     const finalTotalROI = finalTotalRevenue - finalTotalCost;
     const roiPercentage = finalTotalCost !== 0 ? (finalTotalROI / finalTotalCost) * 100 : 0;
 
+    const lifetime = useMemo(() => 
+        calculateProjectPotentials(projectData.yearlyBreakdown), 
+        [projectData.yearlyBreakdown]
+    );
 
-  const lifetime = useMemo(() => 
-    calculateProjectPotentials(projectData.yearlyBreakdown), 
-    [projectData.yearlyBreakdown]
-  );
-
+    // --- ADDED USEEFFECT TO SAVE TO CONTEXT ---
+    useEffect(() => {
+        updateSection('totalProjectCost', {
+            grandTotalCost: lifetime.totalCost,
+            grandTotalRevenue: lifetime.totalRevenue,
+            grandROI: lifetime.totalGrossProfit,
+            grandROIPercentage: lifetime.totalRoiPercentage
+        });
+    }, [finalTotalCost, finalTotalRevenue, finalTotalROI, roiPercentage, updateSection]);
+    // ------------------------------------------
 
     return (
-        <div className="mt-2 space-y-8 font-sans  font-bold tracking-tight text-[10px]">
+        <div className="mt-2 space-y-8 font-sans font-bold tracking-tight text-[10px]">
             <div className="items-start text-[12px]">
-                <div className=''> 
-                    
-                    {/* 1. ADDITIONAL FEES TABLE (LEFT) */}
+                <div> 
+                    {/* 1. ADDITIONAL FEES TABLE */}
                     <div className="flex-none w-[57%]">
                         <div className="border border-gray-300 rounded-xl overflow-hidden shadow-sm">
                             <table className="w-full bg-white table-fixed">
                                 <thead className="bg-[#E2F4D8] border-b border-gray-300 text-[11px]">
                                     <tr>
-                                        <th className="px-3 py-1.5 text-center w-[96%] uppercase print:font-semibold print:text-[10px]">OTHERS</th>
-                                        <th className="px-3 py-1.5 text-center border-l border-gray-300 w-[28%] uppercase print:font-semibold print:text-[10px]">Amount</th>
+                                        <th className="px-3 py-1.5 text-center w-[96%] uppercase">OTHERS</th>
+                                        <th className="px-3 py-1.5 text-center border-l border-gray-300 w-[28%] uppercase">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[10px]">
@@ -77,26 +78,21 @@ function Totals() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr className="border-b border-gray-100 last:border-b-0">
-                                                <td className="px-4 py-3 text-[11px] text-gray-600 truncate border-r">
-                                                    X
-                                                </td>
-                                                <td className="text-right text-[11px] pr-4 font-medium">
-                                                   0.00
-                                                </td>
-                                            </tr>
+                                        <tr className="border-b border-gray-100">
+                                            <td className="px-4 py-3 text-[11px] text-gray-600 truncate border-r">X</td>
+                                            <td className="text-right text-[11px] pr-4 font-medium">0.00</td>
+                                        </tr>
                                     )}
                                     <tr className="bg-[#E2F4D8] border-t font-bold">
-                                        <td className="px-3 py-2 text-[11px]  uppercase border-r">Total</td>
-                                        {/* Shows the combined sum of both company and customer fees here */}
-                                        <td className="text-right text-[11px] pr-4">{f(grandTotalCost)}</td>
+                                        <td className="px-3 py-2 text-[11px] uppercase border-r">Total</td>
+                                        <td className="text-right text-[11px] pr-4">{f(grandTotalCostFees)}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    {/* 2. SUMMARY ROI BOX (CENTER) */}
+                    {/* 2. SUMMARY ROI BOX */}
                     <div className="flex justify-end w-full pr-8 mt-1">
                         <div className="border border-gray-300 rounded-xl overflow-hidden shadow-sm w-[400px]">
                             <table className="w-full text-[11px]">
@@ -111,7 +107,7 @@ function Totals() {
                                     </tr>
                                     <tr className="border-b border-gray-100">
                                         <td className="py-2 text-[10px] text-gray-400 italic px-4"></td>
-                                        <td className={`px-4 py-2 bg-white text-right border-l border-gray-100  ${roiPercentage >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                        <td className={`px-4 py-2 bg-white text-right border-l border-gray-100 ${roiPercentage >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                                             {lifetime.totalRoiPercentage.toFixed(2)}%
                                         </td>
                                     </tr>

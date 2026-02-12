@@ -115,7 +115,6 @@ const Fees = () => {
       },
       totalProjectCost: {
         ...prev.totalProjectCost,
-        grandTotalCost: grandTotal
       }
     }));
   }, [rows, setProjectData]);
