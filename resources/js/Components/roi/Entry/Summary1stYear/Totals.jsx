@@ -50,7 +50,7 @@ function Totals() {
 
 
     return (
-        <div className="mt-2 space-y-8 font-sans  font-bold tracking-tight text-gray-800 text-[10px]">
+        <div className="mt-2 space-y-8 font-sans  font-bold tracking-tight text-[10px]">
             <div className="items-start text-[12px]">
                 <div className=''> 
                     
@@ -60,8 +60,8 @@ function Totals() {
                             <table className="w-full bg-white table-fixed">
                                 <thead className="bg-[#E2F4D8] border-b border-gray-300 text-[11px]">
                                     <tr>
-                                        <th className="px-3 py-1.5 text-center w-[96%] uppercase">OTHERS</th>
-                                        <th className="px-3 py-1.5 text-center border-l border-gray-300 w-[28%] uppercase">Amount</th>
+                                        <th className="px-3 py-1.5 text-center w-[96%] uppercase print:font-semibold print:text-[10px]">OTHERS</th>
+                                        <th className="px-3 py-1.5 text-center border-l border-gray-300 w-[28%] uppercase print:font-semibold print:text-[10px]">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[10px]">

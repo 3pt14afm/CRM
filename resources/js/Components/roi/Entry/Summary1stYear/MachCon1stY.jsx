@@ -34,18 +34,18 @@ function MachCon1stY() {
                     </colgroup>
                     <thead className="bg-[#E2F4D8] border border-gray-200">
                         <tr>
-                            <th className="px-3 py-2.5 text-[13px] font-bold border-l text-center">MACHINE & CONSUMABLES</th>
-                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300">COST</th>
-                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300">YIELDS</th>
-                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300">COST CPP</th>
-                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300">SELLING PRICE</th>
-                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300">SELL CPP</th>
+                            <th className="px-3 py-2.5 text-[13px] font-bold border-l text-center print:font-semibold">MACHINE & CONSUMABLES</th>
+                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300 print:font-semibold">COST</th>
+                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300 print:font-semibold">YIELDS</th>
+                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300 print:font-semibold">COST CPP</th>
+                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300 print:font-semibold">SELLING PRICE</th>
+                            <th className="px-2 py-2.5 text-[13px] font-bold text-center border-l border-gray-300 print:font-semibold">SELL CPP</th>
                         </tr>
                     </thead>
                     <tbody>
                         {/* Machine Section */}
                         <tr className="bg-[#E2F4D8]/20 border border-gray-200 grid-cols-6">
-                            <td className="px-4 py-1 font-bold border border-r-gray-300 text-[12px] border-gray-200">MACHINE</td>
+                            <td className="px-4 py-1 font-bold border border-r-gray-300 text-[12px] border-gray-200 print:font-semibold">MACHINE</td>
                             <td  className="px-4 py-1 font-bold"></td>
                             <td  className="px-4 py-1 font-bold "></td>
                             <td  className="px-4 py-1 border-y font-bold border-gray-200 "></td>
@@ -54,7 +54,7 @@ function MachCon1stY() {
                         </tr>
                         {filteredMachine.length > 0 ? filteredMachine.map((m, index) => (
                             <tr key={m.id || `m-${index}`} className="border-b border-gray-100 last:border-b-0">
-                                <td className="px-7 py-3 text-[12px] print:px-3 break-words">{m.sku}</td>
+                                <td className="px-7 py-3 text-[12px]">{m.sku}</td>
                                 <td className="text-center py-2 flex flex-col gap-1 text-[12px] border-l border-gray-300">
                                     <p>{formatNum(m.inputtedCost)}</p>
                                     <p className='text-[11px] text-blue-700 italic'>{formatNum(m.machineMarginTotal)}</p>
@@ -77,7 +77,7 @@ function MachCon1stY() {
 
                         {/* Consumable Section */}
                         <tr className="bg-[#E2F4D8]/50 text-[12px] grid-cols-6 border border-gray-200">
-                            <td className="px-4 py-1 border font-bold border-r-gray-300 ">CONSUMABLES</td>
+                            <td className="px-4 py-1 border font-bold border-r-gray-300 print:font-semibold">CONSUMABLES</td>
                             <td  className="px-4 py-1 border-y border-l font-bold border-gray-200 "></td>
                             <td  className="px-4 py-1 border-y border-gray-200 font-bold "></td>
                             <td  className="px-4 py-1 border-y font-bold border-gray-200 "></td>

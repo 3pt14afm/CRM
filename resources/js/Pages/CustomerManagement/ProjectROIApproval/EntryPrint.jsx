@@ -8,6 +8,7 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
   const { setProjectData } = useProjectData();
   const [loaded, setLoaded] = useState(false);
 
+  // Load snapshot from sessionStorage
   useEffect(() => {
     try {
       if (!storageKey) {
@@ -29,11 +30,35 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
     }
   }, [storageKey, setProjectData]);
 
+  // Enable print-mode so preview uses the same styling as print
+  useEffect(() => {
+    document.documentElement.classList.add("print-mode");
+    return () => document.documentElement.classList.remove("print-mode");
+  }, []);
+
+  // Auto-print (optional)
   useEffect(() => {
     if (!autoprint || !loaded) return;
+
+    // Ensure print-mode is applied before printing
+    document.documentElement.classList.add("print-mode");
+
     const t = setTimeout(() => window.print(), 300);
     return () => clearTimeout(t);
   }, [autoprint, loaded]);
+
+  const handlePrint = () => {
+    document.documentElement.classList.add("print-mode");
+    window.print();
+  };
+
+  const handleClose = () => {
+    // window.close() only works reliably for windows opened by script
+    window.close();
+    setTimeout(() => {
+      if (!window.closed) window.history.back();
+    }, 50);
+  };
 
   const title =
     tab === "succeeding"
@@ -41,15 +66,15 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
       : "Summary / 1st Year — Print Preview";
 
   return (
-    <div>
-      {/* Not printed */}
-      <div className="flex items-center justify-between mb-6 print:hidden">
+    <div className="preview-mode">
+      {/* Not printed (and not shown in preview print-mode if your CSS hides .no-print) */}
+      <div className="no-print flex items-center justify-between mb-6">
         <h1 className="text-lg font-semibold">{title}</h1>
 
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="px-4 py-2 rounded-md bg-darkgreen text-white text-sm font-medium"
           >
             Print
@@ -57,7 +82,7 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
 
           <button
             type="button"
-            onClick={() => window.close()}
+            onClick={handleClose}
             className="px-4 py-2 rounded-md border border-slate-300 text-sm font-medium"
           >
             Close
@@ -69,7 +94,6 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
       <div className="print-root">
         {tab === "succeeding" ? <SucceedingYears /> : <Summary1stYear />}
       </div>
-
     </div>
   );
 }

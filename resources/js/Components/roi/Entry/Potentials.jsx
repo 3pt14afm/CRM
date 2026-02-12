@@ -32,7 +32,7 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
   });
 
   return (
-    <div className="p-4 pt-0">
+    <div className="p-4 pt-0 print:px-2">
       {/* TITLE SECTION */}
       <div className="text-center mb-2 pr-1">
         <span className="text-[17px] font-bold uppercase tracking-tight text-gray-700">
@@ -45,25 +45,25 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
         <table className="w-full bg-white border-collapse table-fixed">
           <thead className="bg-[#E2F4D8] border-b border-gray-300">
             <tr>
-              <th className="w-1/4 px-1 py-2.5 text-[13px] text-center font-bold uppercase">Qty</th>
-              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-bold border-l border-gray-300 uppercase">Total Cost</th>
-              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-bold border-l border-gray-300 uppercase">Gross Sales</th>
+              <th className="w-1/4 px-1 py-2.5 text-[13px] text-center font-bold print:font-semibold uppercase">Qty</th>
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-bold print:font-semibold border-l border-gray-300 uppercase">Total Cost</th>
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-bold print:font-semibold border-l border-gray-300 uppercase">Gross Sales</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="bg-[#E2F4D8]/20 border-b h-[27px]">
-              <td className="py-3"></td><td className="py-3"></td><td className="py-3"></td>
+            <tr className="bg-[#E2F4D8]/20 border-b h-[27px] print:h-[24px]">
+              <td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td>
             </tr>
             
             {machines.length > 0 ? (
               machines.map((m, index) => (
-                <tr key={`m-${index}`} className="border-b font-semibold border-gray-100 last:border-b-0">
-                  <td className="px-1 py-3 text-[12px] text-center">{m.qty}</td>
-                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1">
+                <tr key={`m-${index}`} className="border-b border-gray-100 last:border-b-0">
+                  <td className="px-1 py-3 text-[12px] text-center ">{m.qty}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1 ">
                     <p>{format(m.cost)}</p>
                     <p className='text-[11px] text-blue-700 italic'>{format(m.machineMargin || 0)}</p>
                   </td>
-                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(m.totalSell)}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 ">{format(m.totalSell)}</td>
                 </tr>
               ))
             ) : (
@@ -74,23 +74,23 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
               </tr>
             )}
 
-            <tr className="bg-[#E2F4D8]/20 border-b h-[27px]">
-              <td className="py-3"></td><td className="py-3"></td><td className="py-3"></td>
+            <tr className="bg-[#E2F4D8]/20 border-b h-[27px] print:h-[24px]">
+              <td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td>
             </tr>
 
             {consumables.length > 0 ? (
               consumables.map((c, index) => (
-                <tr key={`c-${index}`} className="border-b font-semibold border-gray-100 last:border-b-0">
+                <tr key={`c-${index}`} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center">{c.qty}</td>
-                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(c.totalCost)}</td>
-                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(c.totalSell)}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-4">{format(c.totalCost)}</td>
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-4">{format(c.totalSell)}</td>
                 </tr>
               ))
             ) : (
               <tr className="border-b font-semibold border-gray-100">
                 <td className="px-1 py-3 text-[12px] text-center">0</td>
-                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
-                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3">{format(0)}</td>
+                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-4">{format(0)}</td>
+                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-4">{format(0)}</td>
               </tr>
             )}
 
