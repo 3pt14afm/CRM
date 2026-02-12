@@ -46,7 +46,7 @@ export const succeedingYears = (projectData) => {
   // 4. CALCULATION LOGIC
   // Use the processedMachines for totals
   const totalMachineQty = processedMachines.reduce((sum, item) => sum + item.qty, 0);
-  const totalMachineCost = processedMachines.reduce((sum, m) => sum + (m.totalCost || 0), 0);
+  const totalMachineCost = rawMachines.reduce((sum, m) => sum + (m.totalCost || 0), 0);
   const totalMachineSales = processedMachines.reduce((sum, m) => sum + (m.totalSell || 0), 0);
 
   const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (item.qty || 0), 0);
