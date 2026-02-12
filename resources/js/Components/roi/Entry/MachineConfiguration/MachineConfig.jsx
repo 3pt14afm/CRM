@@ -82,7 +82,7 @@ function MachineConfig() {
     
     const totalsObj = rowsWithCalculations.reduce((acc, r) => {
      
-      acc.unitCost += r.inputtedCost;
+      acc.unitCost += r.inputtedCost; 
       acc.qty += Number(r.qty) || 0;
       acc.totalCost += r.totalCost;
       acc.yields += Number(r.yields) || 0;
@@ -103,8 +103,8 @@ function MachineConfig() {
 
   }, [rows, projectData.interest.annualInterest, projectData.companyInfo.contractYears]);
 
-  const inputClass = "w-full capitalize min-w-0 h-8 text-[13px] text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
-  const readonlyClass = "w-full h-8 text-[13px] text-center px-1 flex items-center justify-center";
+  const inputClass = "w-full capitalize min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  const readonlyClass = "w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center";
   const footerCellClass ="bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ";
 
 

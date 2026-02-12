@@ -3,7 +3,7 @@ import React from "react";
 export default function PrintLayout({ children }) {
   return (
     <div className="print-shell">
-      <div className="paper">
+      <div className="paper print-root">
         {children}
       </div>
 
@@ -18,14 +18,12 @@ export default function PrintLayout({ children }) {
             padding: 24px;
             }
             .paper {
-            width: 210mm;
+            width: 400mm;
             min-height: 297mm;
             margin: 0 auto;
             background: #fff;
             padding: 12mm;
             box-sizing: border-box;
-            box-shadow: 0 10px 30px rgba(0,0,0,.15);
-            border-radius: 6px;
             }
         }
 
@@ -40,6 +38,7 @@ export default function PrintLayout({ children }) {
             max-width: 100% !important;
             box-sizing: border-box !important;
             }
+           
 
             /* ✅ If any component uses zoom/transform, undo it for print */
             .print-root {
@@ -55,13 +54,18 @@ export default function PrintLayout({ children }) {
             width: 100% !important;
             table-layout: fixed !important;
             }
+
             th, td {
             word-break: break-word;
             overflow-wrap: anywhere;
             }
 
+            .no-print { display: none !important; }
+
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
+
+        
         `}</style>
 
     </div>
