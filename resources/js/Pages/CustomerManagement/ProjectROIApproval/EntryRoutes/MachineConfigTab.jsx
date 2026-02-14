@@ -41,7 +41,7 @@ function MachineConfigTab({buttonClicked}) {
 
                     {/* FEES AND TOTAL PROJECT COST */}
 
-                    <div className='grid grid-cols-[70%_30%] mx-7 items-center pt-5 mb-9'>
+                    <div className='grid grid-cols-[75%_25%] mx-7 items-center pt-5 mb-9'>
                         <Fees buttonClicked={buttonClicked}/>
                         <Cost/>
                     </div>
