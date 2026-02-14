@@ -5,6 +5,8 @@ import React, { useEffect } from "react";
 
 function CompanyInfo() {
   const { projectData, setProjectData, syncYearlyBreakdown } = useProjectData();
+
+
     useEffect(() => {
         const contractYears = Number(projectData?.companyInfo?.contractYears) || 0;
 
@@ -26,6 +28,8 @@ function CompanyInfo() {
         projectData.additionalFees,
         syncYearlyBreakdown
     ]);
+
+    
   const handleChange = (field, value) => {
     setProjectData((prev) => ({
       ...prev,

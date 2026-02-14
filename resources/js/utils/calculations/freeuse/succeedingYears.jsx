@@ -1,4 +1,7 @@
 export const succeedingYears = (projectData) => {
+  // CALCULATES THE SUCCEEDING YEARS AFTER 1ST YEAR POTENTIAL
+
+
   // 1. DATA DESTRUCTURING with defaults
   const config = projectData?.machineConfiguration || {};
   const rawMachines = config.machine || [];
@@ -14,7 +17,7 @@ export const succeedingYears = (projectData) => {
   const companyFees = (addFeesObj.company || []).filter(f => f.category !== "one-time-fee");
   const customerFees = (addFeesObj.customer || []).filter(f => f.category !== "one-time-fee");
 
-  // 2. PROCESS MACHINES
+  // 2. PROCESS MACHINES --> FOR FREE USE MACHINE
   const processedMachines = rawMachines.map(m => {
     const unitCost = Number(m.cost) || 0;
     const unitSell = Number(m.price) || 0;
@@ -29,6 +32,7 @@ export const succeedingYears = (projectData) => {
   });
 
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
+    // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP 
   const processedConsumables = rawConsumables.map(c => {
     const itemYields = Number(c.yields) || 1; 
     let dynamicQty = 0;
