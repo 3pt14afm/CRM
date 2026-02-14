@@ -1,10 +1,12 @@
 export const get1YrPotential = (projectData) => {
+  //CALCULATES THE 1ST YEAR POTENTIAL
+
   // 1. DATA DESTRUCTURING with defaults
   const config = projectData?.machineConfiguration || {};
   const rawMachines = config.machine || [];
   const rawConsumables = config.consumable || [];
   
-  // Get BOTH Annual Yields
+  // Get BOTH Annual Yields FROM PROJECT DATA CONTEXT 
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
@@ -12,7 +14,7 @@ export const get1YrPotential = (projectData) => {
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
 
-  // 2. PROCESS MACHINES (Force Qty to 1)
+  // 2. PROCESS MACHINES (Force Qty to 1) --> FOR FREE USE MACHINE
   const processedMachines = rawMachines.map(m => {
     const unitCost = Number(m.cost) || 0;
     const unitSell = Number(m.price) || 0;
@@ -26,7 +28,9 @@ export const get1YrPotential = (projectData) => {
     };
   });
 
+
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
+  // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP 
   const processedConsumables = rawConsumables.map(c => {
     const itemYields = Number(c.yields) || 1; 
     let dynamicQty = 0;
@@ -59,6 +63,7 @@ export const get1YrPotential = (projectData) => {
       totalSell: dynamicQty * unitSell
     };
   });
+  
 
   // 4. CALCULATION LOGIC
   const totalMachineQty = processedMachines.reduce((sum, m) => sum + m.qty, 0);

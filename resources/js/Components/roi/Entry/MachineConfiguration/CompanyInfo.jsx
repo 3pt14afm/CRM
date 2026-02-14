@@ -6,26 +6,30 @@ import React, { useEffect } from "react";
 function CompanyInfo() {
   const { projectData, setProjectData, syncYearlyBreakdown } = useProjectData();
 
-  useEffect(() => {
-    const contractYears = Number(projectData?.companyInfo?.contractYears) || 0;
 
-    if (contractYears > 0) {
-      const data1stYear = get1YrPotential(projectData);
-      const dataSucceeding = succeedingYears(projectData);
+    useEffect(() => {
+        const contractYears = Number(projectData?.companyInfo?.contractYears) || 0;
 
-      // Sync everything in one state update
-      syncYearlyBreakdown(contractYears, data1stYear, dataSucceeding);
-    } else {
-      // If years is 0, clear the breakdown
-      syncYearlyBreakdown(0, null, null);
-    }
-  }, [
-    projectData.companyInfo.contractYears,
-    projectData.machineConfiguration,
-    projectData.additionalFees,
-    syncYearlyBreakdown,
-  ]);
+        if (contractYears > 0) {
+            const data1stYear = get1YrPotential(projectData);
+            const dataSucceeding = succeedingYears(projectData);
 
+            // Sync everything in one state update
+            syncYearlyBreakdown(contractYears, data1stYear, dataSucceeding);
+        } else {
+            // If years is 0, clear the breakdown
+            syncYearlyBreakdown(0, null, null);
+        }
+        
+        // Watch specific triggers to avoid infinite loops
+    }, [
+        projectData.companyInfo.contractYears, 
+        projectData.machineConfiguration, 
+        projectData.additionalFees,
+        syncYearlyBreakdown
+    ]);
+
+    
   const handleChange = (field, value) => {
     setProjectData((prev) => ({
       ...prev,
