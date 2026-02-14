@@ -61,6 +61,9 @@ function MachineConfig() {
     e.preventDefault();
   };
 
+
+
+  
   // Initialize rows from context or default
   const [rows, setRows] = useState(() => {
     const { machine = [], consumable = [] } = projectData.machineConfiguration || {};

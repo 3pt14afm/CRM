@@ -1,5 +1,5 @@
 export const get1YrPotential = (projectData) => {
-  //CALCULATES THE 1ST YEAR POTENTIAL
+  // CALCULATES THE 1ST YEAR POTENTIAL
 
   // 1. DATA DESTRUCTURING with defaults
   const config = projectData?.machineConfiguration || {};
@@ -63,7 +63,7 @@ export const get1YrPotential = (projectData) => {
       totalSell: dynamicQty * unitSell
     };
   });
-  
+
 
   // 4. CALCULATION LOGIC
   const totalMachineQty = processedMachines.reduce((sum, m) => sum + m.qty, 0);

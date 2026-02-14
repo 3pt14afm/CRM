@@ -1,4 +1,7 @@
 export const calculateProjectPotentials = (yearlyBreakdown) => {
+   //CALCULATES THE TOTAL ROI, REVENUE, COST AND ROI PERCENTAGE
+ 
+ 
   // Convert object values into an array of year data
   const years = Object.values(yearlyBreakdown || {});
 
