@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 
-const FIXED_FEE_LABELS = [
+const FIXED_FEE_LABELS_FREE_USE = [
   "One Time Charge",
   "Shipping",
   "Rebate",
   "Support Services",
+];
+
+const FIXED_FEE_LABELS_MONTHLY_RENTAL = [
+  "One Time Charge",
+  "Shipping",
+  "Rebate",
+  "Support Services",
+  "Monthly Rental",
 ];
 
 // a safer id generator than Date.now() alone
@@ -25,12 +33,11 @@ const blankRow = () => ({
   __fixed: false, // local-only flag
 });
 
-const ensureFreeUseFixedRows = (rows) => {
+const ensureFixedRows = (rows, fixedLabels) => {
   const normalize = (s) => (s || '').trim().toLowerCase();
-
   const remaining = [...rows];
 
-  const fixedRows = FIXED_FEE_LABELS.map((fixedLabel) => {
+  const fixedRows = fixedLabels.map((fixedLabel) => {
     const idx = remaining.findIndex(r => normalize(r.label) === normalize(fixedLabel));
     if (idx >= 0) {
       const existing = remaining.splice(idx, 1)[0];
@@ -59,8 +66,18 @@ const stripLocalFields = (row) => {
 
 const Fees = () => {
   const { projectData, setProjectData } = useProjectData();
+
   const contractType = projectData?.companyInfo?.contractType || "";
   const isFreeUse = contractType === "Free Use";
+  const isMonthlyRental = contractType === "Monthly Rental";
+
+  const activeFixedLabels = isFreeUse
+    ? FIXED_FEE_LABELS_FREE_USE
+    : isMonthlyRental
+      ? FIXED_FEE_LABELS_MONTHLY_RENTAL
+      : null;
+
+  const hasFixedRows = Array.isArray(activeFixedLabels);
 
   // 1️⃣ Initialize local state
   const [rows, setRows] = useState(() => {
@@ -69,16 +86,19 @@ const Fees = () => {
     const initialRows = [...companyRows, ...customerRows];
 
     const seeded = initialRows.length > 0 ? initialRows : [blankRow()];
-    return isFreeUse ? ensureFreeUseFixedRows(seeded) : seeded.map(r => ({ ...r, __fixed: false }));
+
+    return hasFixedRows
+      ? ensureFixedRows(seeded, activeFixedLabels)
+      : seeded.map(r => ({ ...r, __fixed: false }));
   });
 
-  // 1.5️⃣ When contract type changes
+  // 1.5️⃣ When contract type changes (apply fixed rows for Free Use / Monthly Rental)
   useEffect(() => {
     setRows(prev => {
-      if (isFreeUse) return ensureFreeUseFixedRows(prev);
+      if (hasFixedRows) return ensureFixedRows(prev, activeFixedLabels);
       return prev.map(r => ({ ...r, __fixed: false }));
     });
-  }, [isFreeUse]);
+  }, [hasFixedRows, contractType]); // contractType included so it re-runs when switching between fixed modes
 
   // 2️⃣ Sync rows with context (logic updated for categories)
   useEffect(() => {
@@ -88,16 +108,15 @@ const Fees = () => {
       const clean = stripLocalFields(r);
       const label = (r.label || '').trim().toLowerCase();
 
-      // Categorization logic
+      // Categorization logic (unchanged)
       if (label === "one time charge" || label === "shipping") {
         clean.category = "one-time-fee";
       } else if (label === "support services") {
         clean.category = "yearlyFee";
       } else {
-        // Optional: remove category if label changes to something else
         delete clean.category;
       }
-      
+
       return clean;
     };
 
@@ -124,14 +143,24 @@ const Fees = () => {
     setRows(prev =>
       prev.map(row => {
         if (row.id !== id) return row;
-        if (isFreeUse && row.__fixed && field === 'label') return row;
+
+        // lock label editing for fixed rows in Free Use OR Monthly Rental
+        if (hasFixedRows && row.__fixed && field === 'label') return row;
 
         const updatedRow = { ...row, [field]: value };
         if (field === 'isMachine') updatedRow.type = value ? 'Customer' : 'Company';
 
         if (field === 'cost' || field === 'qty') {
-          const nextCost = field === 'cost' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.cost) || 0);
-          const nextQty = field === 'qty' ? (value === '' ? 0 : parseFloat(value)) : (parseFloat(row.qty) || 0);
+          const nextCost =
+            field === 'cost'
+              ? (value === '' ? 0 : parseFloat(value))
+              : (parseFloat(row.cost) || 0);
+
+          const nextQty =
+            field === 'qty'
+              ? (value === '' ? 0 : parseFloat(value))
+              : (parseFloat(row.qty) || 0);
+
           updatedRow.total = nextCost * nextQty;
         }
 
@@ -146,7 +175,8 @@ const Fees = () => {
   const removeRow = (id) => {
     setRows(prev => {
       const target = prev.find(r => r.id === id);
-      if (isFreeUse && target?.__fixed) return prev;
+      if (hasFixedRows && target?.__fixed) return prev;
+
       const next = prev.filter(r => r.id !== id);
       return next.length > 0 ? next : [blankRow()];
     });
@@ -166,12 +196,12 @@ const Fees = () => {
         <table className="w-full table-fixed border-separate border-spacing-0">
           <colgroup>
             <col style={{ width: "4%" }} />
-            <col style={{ width: "30%" }} />
+            <col style={{ width: "37%" }} />
             <col style={{ width: "10%" }} />
-            <col style={{ width: "8%" }} />
-            <col style={{ width: "12%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "11%" }} />
             <col style={{ width: "6%" }} />
-            <col style={{ width: "20%" }} />
+            <col style={{ width: "24%" }} />
           </colgroup>
 
           <thead>
@@ -199,7 +229,7 @@ const Fees = () => {
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1 bg-[#F6FDF5]/30">
-                  {isFreeUse && row.__fixed ? (
+                  {hasFixedRows && row.__fixed ? (
                     <div className="h-8 flex items-center text-[12px] font-semibold text-slate-800 px-2 text-left">
                       {row.label}
                     </div>
@@ -250,13 +280,13 @@ const Fees = () => {
                     </button>
                     <button
                       onClick={() => removeRow(row.id)}
-                      disabled={(isFreeUse && row.__fixed) || rows.length <= 1}
+                      disabled={(hasFixedRows && row.__fixed) || rows.length <= 1}
                       className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${
-                        (isFreeUse && row.__fixed) || rows.length <= 1
+                        (hasFixedRows && row.__fixed) || rows.length <= 1
                           ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
                           : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
                       }`}
-                      title={(isFreeUse && row.__fixed) ? "Fixed row" : "Remove row"}
+                      title={(hasFixedRows && row.__fixed) ? "Fixed row" : "Remove row"}
                     >
                       -
                     </button>
