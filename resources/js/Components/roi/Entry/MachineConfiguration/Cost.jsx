@@ -16,8 +16,8 @@ function Cost() {
   const additionalFees = projectData.additionalFees?.total || 0;
   
   // Total Project Cost = Machine/Consumable Totals + Additional Fees
-  const grandTotal = totalCost + additionalFees;
-
+  // const grandTotal = totalCost + additionalFees;
+    const grandTotal = projectData.totalProjectCost.grandTotalCost;
   return (
    <div class="flex items-center justify-center">
   <div class="bg-[#59A846] rounded-xl p-7 shadow-lg inline-block text-white font-sans">
