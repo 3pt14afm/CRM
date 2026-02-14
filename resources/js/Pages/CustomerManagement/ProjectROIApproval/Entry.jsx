@@ -26,7 +26,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
     `PRJ-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
   );
 
-  // ✅ Set initial tab based on prop (optional, but keeps your prop useful)
+  // Set initial tab based on prop (optional, but keeps prop useful)
   const initialTab =
     activeTab === 'Summary' ? 'Summary' :
     activeTab === 'Succeeding' ? 'Succeeding' :
@@ -98,7 +98,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
     return;
   }
 
-  // You are currently on: /customer-management/roi/entry
+  // Currently on: /customer-management/roi/entry
   // So print is: /customer-management/roi/entry/print
   const current = window.location.pathname.replace(/\/$/, "");
   const printPath = `${current}/print`;
