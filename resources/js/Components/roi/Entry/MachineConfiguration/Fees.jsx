@@ -8,6 +8,17 @@ const FIXED_FEE_LABELS_FREE_USE = [
   "Support Services",
 ];
 
+const FIXED_FEE_LABELS_RENTAL_CLICK = [
+  "One Time Charge",
+  "Shipping",
+  "Monthly Rental",
+  "Support Services",
+  "Rebate",
+  "A4/A3 MONO CLICK",
+  "A4/LGL COLOR CLICK",
+  "A3 COLOR CLICK",
+];
+
 const FIXED_FEE_LABELS_MONTHLY_RENTAL = [
   "One Time Charge",
   "Shipping",
@@ -69,13 +80,17 @@ const Fees = () => {
 
   const contractType = projectData?.companyInfo?.contractType || "";
   const isFreeUse = contractType === "Free Use";
+  const isRentalClick = contractType === "Rental + Click";
   const isMonthlyRental = contractType === "Monthly Rental";
 
-  const activeFixedLabels = isFreeUse
-    ? FIXED_FEE_LABELS_FREE_USE
-    : isMonthlyRental
-      ? FIXED_FEE_LABELS_MONTHLY_RENTAL
-      : null;
+  const activeFixedLabels =
+    isFreeUse
+      ? FIXED_FEE_LABELS_FREE_USE
+      : isRentalClick
+        ? FIXED_FEE_LABELS_RENTAL_CLICK
+        : isMonthlyRental
+          ? FIXED_FEE_LABELS_MONTHLY_RENTAL
+          : null;
 
   const hasFixedRows = Array.isArray(activeFixedLabels);
 
@@ -92,7 +107,7 @@ const Fees = () => {
       : seeded.map(r => ({ ...r, __fixed: false }));
   });
 
-  // 1.5️⃣ When contract type changes (apply fixed rows for Free Use / Monthly Rental)
+  // 1.5️⃣ When contract type changes (apply fixed rows for Free Use / Rental+Click / Monthly Rental)
   useEffect(() => {
     setRows(prev => {
       if (hasFixedRows) return ensureFixedRows(prev, activeFixedLabels);
@@ -144,7 +159,7 @@ const Fees = () => {
       prev.map(row => {
         if (row.id !== id) return row;
 
-        // lock label editing for fixed rows in Free Use OR Monthly Rental
+        // lock label editing for fixed rows (Free Use / Rental+Click / Monthly Rental)
         if (hasFixedRows && row.__fixed && field === 'label') return row;
 
         const updatedRow = { ...row, [field]: value };
