@@ -41,14 +41,19 @@ function Totals() {
     );
 
     // --- ADDED USEEFFECT TO SAVE TO CONTEXT ---
-    useEffect(() => {
-        updateSection('totalProjectCost', {
-            grandTotalCost: lifetime.totalCost,
-            grandTotalRevenue: lifetime.totalRevenue,
-            grandROI: lifetime.totalGrossProfit,
-            grandROIPercentage: lifetime.totalRoiPercentage
-        });
-    }, [finalTotalCost, finalTotalRevenue, finalTotalROI, roiPercentage, updateSection]);
+    // --- UPDATED USEEFFECT ---
+        useEffect(() => {
+            // We only update if lifetime actually exists to prevent "undefined" errors
+            if (lifetime) {
+                updateSection('totalProjectCost', {
+                    grandTotalCost: lifetime.totalCost,
+                    grandTotalRevenue: lifetime.totalRevenue,
+                    grandROI: lifetime.totalGrossProfit,
+                    grandROIPercentage: lifetime.totalRoiPercentage
+                });
+            }
+            // Dependency should be on the 'lifetime' object itself
+        }, [lifetime, updateSection]);
     // ------------------------------------------
 
     return (
