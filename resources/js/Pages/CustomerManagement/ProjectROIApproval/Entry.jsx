@@ -21,7 +21,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
     year: "2-digit",
   }).format(today);
 
-  const { setProjectData, projectData, resetProject } = useProjectData();
+  const { setProjectData, projectData, resetProject, saveDraft } = useProjectData();
   const [projectRef] = useState(() =>
     `PRJ-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
   );
@@ -35,8 +35,8 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
   const [tab, setTab] = useState(initialTab);
   const [buttonClicked, setButtonClicked] = useState(false);
 
-  const triggerSync = () => {
-    setProjectData(prev => ({
+  const triggerSync = (persist = false) => {
+    const updater = (prev) => ({
       ...prev,
       companyInfo: {
         ...prev.companyInfo,
@@ -44,29 +44,42 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
       },
       metadata: {
         ...prev.metadata,
-        lastSaved: formattedDate
-      }
-    }));
+        lastSaved: formattedDate,
+      },
+    });
+
+    if (persist) {
+      saveDraft(updater);     // ✅ updates state AND writes to localStorage
+    } else {
+      setProjectData(updater); // normal in-memory update
+    }
 
     setButtonClicked(true);
     setTimeout(() => setButtonClicked(false), 100);
   };
 
   const handleSaveAll = () => {
-    triggerSync();
+    triggerSync(false);
     console.log("Submitting Project Data:", projectData);
   };
 
   const handleSaveDraft = () => {
-    triggerSync();
+    triggerSync(true);
     alert("Draft saved successfully to local storage.");
   };
 
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
       resetProject();
-    }
-  };
+
+      // force all tab components to remount (clears their local useState too)
+      setResetKey(k => k + 1);
+
+      // optional but usually nicer UX after clearing
+      setTab('Machine');
+  }
+};
+
 
   const summaryRef = useRef(null);
   const succeedingRef = useRef(null);
@@ -118,6 +131,7 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
   a.remove();
 };
 
+const [resetKey, setResetKey] = useState(0);
 
 
 
@@ -180,11 +194,11 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
 
           {/* CONTENT */}
           {tab === 'Machine' ? (
-            <MachineConfigTab buttonClicked={buttonClicked} />
+            <MachineConfigTab  key={`machine-${resetKey}`} buttonClicked={buttonClicked} />
           ) : tab === 'Summary' ? (
-             <Summary1stYear ref={summaryRef} />
+             <Summary1stYear key={`summary-${resetKey}`} ref={summaryRef} />
           ) : tab === 'Succeeding' ? (
-            <SucceedingYears ref={succeedingRef} />
+            <SucceedingYears key={`succeeding-${resetKey}`} ref={succeedingRef} />
           ) : null}
         </div>
 
