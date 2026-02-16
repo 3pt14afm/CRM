@@ -144,27 +144,44 @@ function MachineConfig() {
   const formatNum = (num) => (Number(num) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Live update context whenever rows change
-  useEffect(() => {
+useEffect(() => {
+    // 1. Check conditions for bundling
+    const isMonthlyRental = projectData.companyInfo?.contractType === "Monthly Rental";
+    const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
+
     const rowsWithCalculations = rows.map(r => {
       const calcs = getRowCalculations(r, projectData);
       return {
         ...r,
         inputtedCost: calcs.inputtedCost,
         cost: calcs.computedCost,
-        basePerYear: calcs.basePerYear, // Storing basePerYear in context here
+        basePerYear: calcs.basePerYear,
         totalCost: calcs.totalCost,
         costCpp: calcs.costCpp,
         totalSell: calcs.totalSell,
         sellCpp: calcs.sellCpp,
         machineMargin: calcs.machineMargin,
-        machineMarginTotal : calcs.machineMarginTotal
+        machineMarginTotal: calcs.machineMarginTotal
       };
     });
 
-    // Filter based on SKU and type
     const machines = rowsWithCalculations.filter(r => r.type === 'machine' && r.sku?.trim() !== '');
     const consumables = rowsWithCalculations.filter(r => r.type === 'consumable' && r.sku?.trim() !== '');
 
+    // 2. Calculate Bundle Price based on Mode (Mono/Color)
+    let calculatedBundledPrice = 0;
+    if (isMonthlyRental && isBundleChecked) {
+      calculatedBundledPrice = consumables.reduce((sum, r) => {
+        const mode = r.mode?.toLowerCase();
+        // If the item is set to Mono or Color, add its total cost to the bundle
+        if (mode === 'mono' || mode === 'color') {
+          return sum + (Number(r.totalCost) || 0);
+        }
+        return sum;
+      }, 0);
+    }
+
+    // 3. Aggregate Totals and include totalBundledPrice
     const totalsObj = rowsWithCalculations.reduce((acc, r) => {
       acc.unitCost += r.inputtedCost;
       acc.qty += Number(r.qty) || 0;
@@ -174,16 +191,35 @@ function MachineConfig() {
       acc.sellingPrice += Number(r.price) || 0;
       acc.totalSell += r.totalSell;
       acc.sellCpp += r.sellCpp;
-
       return acc;
-    }, { unitCost: 0, qty: 0, totalCost: 0, yields: 0, costCpp: 0, sellingPrice: 0, totalSell: 0, sellCpp: 0 });
+    }, { 
+      unitCost: 0, 
+      qty: 0, 
+      totalCost: 0, 
+      yields: 0, 
+      costCpp: 0, 
+      sellingPrice: 0, 
+      totalSell: 0, 
+      sellCpp: 0,
+      totalBundledPrice: calculatedBundledPrice // ✅ Stored here in Context
+    });
 
     setProjectData(prev => ({
       ...prev,
-      machineConfiguration: { machine: machines, consumable: consumables, totals: totalsObj }
+      machineConfiguration: { 
+        machine: machines, 
+        consumable: consumables, 
+        totals: totalsObj 
+      }
     }));
-  }, [rows, projectData.interest.annualInterest, projectData.companyInfo.contractYears]);
-
+    
+  }, [
+    rows, 
+    projectData.interest.annualInterest, 
+    projectData.companyInfo.contractYears,
+    projectData.companyInfo.contractType,
+    projectData.companyInfo.bundledStdInk
+  ]);
   const inputClass = "w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const readonlyClass = "w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center";
   const footerCellClass ="bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ";

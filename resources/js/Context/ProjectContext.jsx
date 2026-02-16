@@ -33,6 +33,7 @@ const defaultInitialState = {
             sellingPrice: 0,
             totalSell: 0,
             sellCpp: 0,
+            totalBundledPrice:0
         }
     },
     additionalFees: {

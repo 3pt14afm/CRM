@@ -23,7 +23,8 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
     machines = [],
     consumables = [],
     companyFees = [],
-    customerFees = []
+    customerFees = [],
+    bundleDeduction
   } = yearData;
 
   const format = (val) => (Number(val) || 0).toLocaleString(undefined, {
@@ -96,7 +97,16 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
 
             <tr className="bg-[#E2F4D8] border-b font-semibold border-gray-100 last:border-b-0">
               <td className="px-1 py-3 text-[12px] text-center font-bold "></td>
-              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineCost + totalConsumableCost)}</td>
+              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">
+                <p>{format(totalMachineCost + totalConsumableCost)}</p>
+                
+                {/* Only show if bundleDeduction exists and is greater than 0 */}
+                {bundleDeduction > 0 && (
+                  <p className='text-[10px] text-red-700'>
+                    -{format(bundleDeduction)}
+                  </p>
+                )}
+              </td>
               <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineSales + totalConsumableSales)}</td>
             </tr>
           </tbody>

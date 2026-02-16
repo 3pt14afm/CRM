@@ -11,7 +11,7 @@ export const calculateProjectPotentials = (yearlyBreakdown) => {
   const totalGrossProfit = years.reduce((sum, year) => sum + (year.grossProfit || 0), 0);
 
   // 2. Aggregate specific segments (optional but helpful for summaries)
-  const totalMachineCost = years.reduce((sum, year) => sum + (year.totalMachineCost || 0), 0);
+  const totalMachineCost = years.reduce((sum, year) => sum + (year.totalMachineCost || 0), 0); // pure machine cost
   const totalConsumableCost = years.reduce((sum, year) => sum + (year.totalConsumableCost || 0), 0);
   const totalFeesCost = years.reduce((sum, year) => sum + (year.totalCompanyFeesAmount || 0), 0);
 

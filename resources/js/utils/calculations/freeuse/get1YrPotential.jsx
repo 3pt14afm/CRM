@@ -6,6 +6,10 @@ export const get1YrPotential = (projectData) => {
   const rawMachines = config.machine || [];
   const rawConsumables = config.consumable || [];
   
+  const isMonthlyRental = projectData?.companyInfo?.contractType === "Monthly Rental";
+  const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
+  const bundleDeduction = (isMonthlyRental && isBundleChecked) ? (Number(config.totals.totalBundledPrice) || 0) : 0;
+
   // Get BOTH Annual Yields FROM PROJECT DATA CONTEXT 
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
@@ -78,7 +82,7 @@ export const get1YrPotential = (projectData) => {
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
   const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
 
-  const grandtotalCost = totalMachineCost + totalConsumableCost + totalCompanyFeesAmount;
+  const grandtotalCost = (totalMachineCost + totalConsumableCost + totalCompanyFeesAmount) - bundleDeduction;
   const grandtotalSell = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
 
   const grossProfit = grandtotalSell - grandtotalCost;
@@ -104,6 +108,7 @@ export const get1YrPotential = (projectData) => {
     consumables: processedConsumables,
     addFeesObj,
     companyFees,
-    customerFees
+    customerFees,
+    bundleDeduction
   };
 };

@@ -10,9 +10,10 @@ export const getRowCalculations = (row, projectData) => {
             const yields = Number(row?.yields) || 0; 
             const price = Number(row?.price) || 0;  
 
-
+            
             // Safely extract global settings with fallbacks
             // EXTRACT DATA FROM PROJECT DATA CONTEXT
+
             const annualInterestRate = (Number(projectData?.interest?.annualInterest) || 0) / 100; 
             const contractYears = Number(projectData?.companyInfo?.contractYears) || 1; 
             const percentMargin = (Number(projectData?.interest?.percentMargin) || 0) / 100;
