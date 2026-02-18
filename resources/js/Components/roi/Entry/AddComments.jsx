@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoMdSend } from "react-icons/io";
 import { FaRegUserCircle } from "react-icons/fa";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
+import { route } from "ziggy-js";
 
 function formatDateTime(date) {
   const d = new Date(date);
-
   const datePart = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "2-digit",
@@ -22,18 +22,22 @@ function formatDateTime(date) {
 }
 
 export default function AddComments({ scopeKey = "default" }) {
-  const { auth } = usePage().props;
-  const userId = auth?.user?.id ?? "guest";
-  const userName = useMemo(() => auth?.user?.name ?? "John Doe", [auth]);
+  const { auth, project } = usePage().props;
 
-  // ✅ Stable + scoped storage key (prevents Summary and Succeeding sharing the same data)
-  const STORAGE_KEY = useMemo(() => {
-    return `roi-comments:${userId}:${scopeKey}`;
-  }, [userId, scopeKey]);
+  const projectId = project?.id;
+  const userId = auth?.user?.id ?? "guest";
+
+  const DRAFT_KEY = useMemo(() => {
+    return projectId ? `roi-comment-draft:${userId}:${projectId}:${scopeKey}` : null;
+  }, [userId, projectId, scopeKey]);
 
   const [open, setOpen] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
-  const [comments, setComments] = useState([]);
+
+  const serverComments = useMemo(() => {
+    const rows = project?.comments ?? [];
+    return Array.isArray(rows) ? rows : [];
+  }, [project]);
 
   const modalRef = useRef(null);
   const textareaRef = useRef(null);
@@ -41,100 +45,67 @@ export default function AddComments({ scopeKey = "default" }) {
   const openModal = () => setOpen(true);
   const closeModal = () => setOpen(false);
 
-  // ✅ Load saved on mount / when key changes
   useEffect(() => {
+    if (!DRAFT_KEY) return;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        setComments([]);
-        setCommentDraft("");
-        return;
-      }
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (typeof raw === "string") setCommentDraft(raw);
+    } catch {}
+  }, [DRAFT_KEY]);
 
-      const parsed = JSON.parse(raw);
-
-      if (Array.isArray(parsed?.comments)) setComments(parsed.comments);
-      else setComments([]);
-
-      if (typeof parsed?.draft === "string") setCommentDraft(parsed.draft);
-      else setCommentDraft("");
-    } catch (e) {
-      setComments([]);
-      setCommentDraft("");
-    }
-  }, [STORAGE_KEY]);
-
-  // ✅ Save whenever comments/draft changes
   useEffect(() => {
+    if (!DRAFT_KEY) return;
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          comments,
-          draft: commentDraft,
-        })
-      );
-    } catch (e) {
-      // ignore storage failures (quota, etc)
-    }
-  }, [comments, commentDraft, STORAGE_KEY]);
+      localStorage.setItem(DRAFT_KEY, commentDraft);
+    } catch {}
+  }, [DRAFT_KEY, commentDraft]);
 
-  // Focus textarea when modal opens
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open]);
 
-  // Close on ESC
   useEffect(() => {
     if (!open) return;
-
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") closeModal();
-    };
-
+    const onKeyDown = (e) => e.key === "Escape" && closeModal();
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
-
     const onMouseDown = (e) => {
-      if (modalRef.current && !modalRef.current.contains(e.target)) {
-        closeModal();
-      }
+      if (modalRef.current && !modalRef.current.contains(e.target)) closeModal();
     };
-
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
-  const canSubmit = commentDraft.trim().length > 0;
+  const canSubmit = commentDraft.trim().length > 0 && !!projectId;
 
   const handleAddComment = () => {
     if (!canSubmit) return;
 
-    const newComment = {
-      id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      author: userName,
-      createdAt: new Date().toISOString(),
-      body: commentDraft.trim(),
-    };
-
-    setComments((prev) => [newComment, ...prev]);
-
-    // ✅ Clear draft ONLY after successful add
-    setCommentDraft("");
-
-    closeModal();
+    router.post(
+      route("roi.projects.comments.store", projectId),
+      { body: commentDraft.trim() },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setCommentDraft("");
+          router.reload({ only: ["project"] });
+          closeModal();
+        },
+        onError: (errs) => {
+          console.error(errs);
+          alert("Failed to add comment. Check console/logs.");
+        },
+      }
+    );
   };
 
   return (
     <>
-      {/* Trigger + Comments list wrapper */}
       <div className="w-full mx-auto mb-6 px-4">
-        {/* Trigger row (NO typing here — just opens modal) */}
         <div
           onClick={openModal}
           className="flex items-center print:hidden hover:cursor-pointer bg-white border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
@@ -155,10 +126,10 @@ export default function AddComments({ scopeKey = "default" }) {
           </button>
         </div>
 
-        {/* Comments list (below trigger) */}
-        <div className=" mt-2 print:mt-1">
+        <div className="mt-2 print:mt-1">
           <span className="font-medium text-[11px] text-gray-400 pl-2">COMMENTS</span>
-          {comments.map((c) => (
+
+          {serverComments.map((c) => (
             <div
               key={c.id}
               className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
@@ -166,11 +137,13 @@ export default function AddComments({ scopeKey = "default" }) {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <FaRegUserCircle className="text-lg text-gray-400 print:text-base" />
-                  <span className="font-semibold text-sm text-gray-900">{c.author}</span>
+                  <span className="font-semibold text-sm text-gray-900">
+                    {c.author?.name ?? "Unknown"}
+                  </span>
                 </div>
 
                 <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
-                  {formatDateTime(c.createdAt)}
+                  {formatDateTime(c.created_at)}
                 </div>
               </div>
 
@@ -182,13 +155,10 @@ export default function AddComments({ scopeKey = "default" }) {
         </div>
       </div>
 
-      {/* Modal */}
       {open && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/35" />
 
-          {/* Modal Card */}
           <div
             ref={modalRef}
             className="relative w-[92%] max-w-5xl bg-white rounded-2xl shadow-xl border border-black/10 overflow-hidden"
