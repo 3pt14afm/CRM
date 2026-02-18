@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoIosAddCircle } from "react-icons/io";
 import { FaRegUserCircle } from "react-icons/fa";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
+import { route } from "ziggy-js";
 
 function formatDateTime(date) {
   const d = new Date(date);
@@ -20,20 +21,25 @@ function formatDateTime(date) {
   return `${datePart} - ${timePart}`;
 }
 
-function AddNotes({ scopeKey = "default" }) {
-  const { auth } = usePage().props;
-  const userName = useMemo(() => auth?.user?.name ?? "John Doe", [auth]);
+export default function AddNotes({ scopeKey = "default" }) {
+  const { auth, project } = usePage().props;
+
+  const projectId = project?.id;
   const userId = auth?.user?.id ?? "guest";
 
-  // ✅ Scoped storage key per tab/page (you pass scopeKey from the parent)
-  const STORAGE_KEY = useMemo(() => {
-    return `roi-notes:${userId}:${scopeKey}`;
-  }, [userId, scopeKey]);
+  // ✅ Keep draft in localStorage so typing isn't lost
+  const DRAFT_KEY = useMemo(() => {
+    return projectId ? `roi-note-draft:${userId}:${projectId}:${scopeKey}` : null;
+  }, [userId, projectId, scopeKey]);
 
   const [open, setOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
 
-  const [notes, setNotes] = useState([]);
+  // ✅ DB-backed notes from Inertia props
+  const serverNotes = useMemo(() => {
+    const rows = project?.notes ?? [];
+    return Array.isArray(rows) ? rows : [];
+  }, [project]);
 
   const modalRef = useRef(null);
   const textareaRef = useRef(null);
@@ -41,54 +47,32 @@ function AddNotes({ scopeKey = "default" }) {
   const openModal = () => setOpen(true);
   const closeModal = () => setOpen(false);
 
-  // ✅ Load notes + draft once per STORAGE_KEY
+  // load draft once (per project + scope)
   useEffect(() => {
+    if (!DRAFT_KEY) return;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        setNotes([]);
-        setNoteDraft("");
-        return;
-      }
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (typeof raw === "string") setNoteDraft(raw);
+    } catch {}
+  }, [DRAFT_KEY]);
 
-      const parsed = JSON.parse(raw);
-
-      if (Array.isArray(parsed?.notes)) setNotes(parsed.notes);
-      else setNotes([]);
-
-      if (typeof parsed?.noteDraft === "string") setNoteDraft(parsed.noteDraft);
-      else setNoteDraft("");
-    } catch (e) {
-      console.warn("Failed to load notes from localStorage:", e);
-      setNotes([]);
-      setNoteDraft("");
-    }
-  }, [STORAGE_KEY]);
-
-  // ✅ Save notes + draft whenever they change
+  // save draft as you type
   useEffect(() => {
+    if (!DRAFT_KEY) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ notes, noteDraft }));
-    } catch (e) {
-      console.warn("Failed to save notes to localStorage:", e);
-    }
-  }, [STORAGE_KEY, notes, noteDraft]);
+      localStorage.setItem(DRAFT_KEY, noteDraft);
+    } catch {}
+  }, [DRAFT_KEY, noteDraft]);
 
   // Focus textarea when modal opens
   useEffect(() => {
-    if (open) {
-      setTimeout(() => textareaRef.current?.focus(), 0);
-    }
+    if (open) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open]);
 
   // Close on ESC
   useEffect(() => {
     if (!open) return;
-
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") closeModal();
-    };
-
+    const onKeyDown = (e) => e.key === "Escape" && closeModal();
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
@@ -96,42 +80,40 @@ function AddNotes({ scopeKey = "default" }) {
   // Close on outside click (draft stays)
   useEffect(() => {
     if (!open) return;
-
     const onMouseDown = (e) => {
-      if (modalRef.current && !modalRef.current.contains(e.target)) {
-        closeModal();
-      }
+      if (modalRef.current && !modalRef.current.contains(e.target)) closeModal();
     };
-
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
-  const canSubmit = noteDraft.trim().length > 0;
+  const canSubmit = noteDraft.trim().length > 0 && !!projectId;
 
   const handleAddNote = () => {
     if (!canSubmit) return;
 
-    const newNote = {
-      id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      author: userName,
-      createdAt: new Date().toISOString(),
-      body: noteDraft.trim(),
-    };
-
-    setNotes((prev) => [newNote, ...prev]);
-
-    // ✅ Clear draft ONLY after successful add
-    setNoteDraft("");
-
-    closeModal();
+    router.post(
+      route("roi.projects.notes.store", projectId),
+      { body: noteDraft.trim() },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setNoteDraft("");
+          // keep UI in sync with DB list
+          router.reload({ only: ["project"] });
+          closeModal();
+        },
+        onError: (errs) => {
+          console.error(errs);
+          alert("Failed to add note. Check console/logs.");
+        },
+      }
+    );
   };
 
   return (
     <>
-      {/* Trigger + Notes list wrapper */}
       <div className="w-full mb-6 px-4">
-        {/* Trigger row (NO typing here — just opens modal) */}
         <div
           onClick={openModal}
           className="flex items-center print:hidden hover:cursor-pointer bg-white border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
@@ -152,10 +134,10 @@ function AddNotes({ scopeKey = "default" }) {
           </button>
         </div>
 
-        {/* Notes list (below trigger) */}
         <div className="mt-2 print:mt-1">
           <span className="font-medium text-[11px] text-gray-400 pl-2">NOTES</span>
-          {notes.map((n) => (
+
+          {serverNotes.map((n) => (
             <div
               key={n.id}
               className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
@@ -163,11 +145,13 @@ function AddNotes({ scopeKey = "default" }) {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <FaRegUserCircle className="text-lg text-gray-400" />
-                  <span className="font-semibold text-sm text-gray-900">{n.author}</span>
+                  <span className="font-semibold text-sm text-gray-900">
+                    {n.author?.name ?? "Unknown"}
+                  </span>
                 </div>
 
                 <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
-                  {formatDateTime(n.createdAt)}
+                  {formatDateTime(n.created_at)}
                 </div>
               </div>
 
@@ -179,13 +163,10 @@ function AddNotes({ scopeKey = "default" }) {
         </div>
       </div>
 
-      {/* Modal */}
       {open && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/35" />
 
-          {/* Modal Card */}
           <div
             ref={modalRef}
             className="relative w-[92%] max-w-5xl bg-white rounded-2xl shadow-xl border border-black/10 overflow-hidden"
@@ -240,5 +221,3 @@ function AddNotes({ scopeKey = "default" }) {
     </>
   );
 }
-
-export default AddNotes;

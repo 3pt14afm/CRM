@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
-import { useMemo, useRef, useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Summary1stYear from './EntryRoutes/Summary1stYear';
 import MachineConfigTab from './EntryRoutes/MachineConfigTab';
 import SucceedingYears from './EntryRoutes/SucceedingYears';
@@ -12,8 +12,124 @@ import { LuScanEye } from "react-icons/lu";
 import { useProjectData } from '@/Context/ProjectContext';
 import { route } from "ziggy-js";
 
+function mapEntryProjectToContext(entryProject) {
+  const items = entryProject?.items ?? [];
+  const fees = entryProject?.fees ?? [];
 
-export default function Entry({ activeTab = 'Machine Configuration' }) {
+  const mapItem = (r) => ({
+    id: r.client_row_id || String(r.id),
+    sku: r.sku ?? "",
+    qty: Number(r.qty ?? 0),
+    yields: Number(r.yields ?? 0),
+    mode: r.mode ?? "",
+    remarks: r.remarks ?? "",
+
+    inputtedCost: Number(r.inputted_cost ?? 0),
+    cost: Number(r.cost ?? 0),
+    price: Number(r.price ?? 0),
+
+    basePerYear: Number(r.base_per_year ?? 0),
+    totalCost: Number(r.total_cost ?? 0),
+    costCpp: Number(r.cost_cpp ?? 0),
+    totalSell: Number(r.total_sell ?? 0),
+    sellCpp: Number(r.sell_cpp ?? 0),
+    machineMargin: Number(r.machine_margin ?? 0),
+    machineMarginTotal: Number(r.machine_margin_total ?? 0),
+  });
+
+  const machine = items.filter((r) => r.kind === "machine").map(mapItem);
+  const consumable = items.filter((r) => r.kind === "consumable").map(mapItem);
+
+  const mapFee = (f) => ({
+    id: f.client_row_id || String(f.id),
+    label: f.label ?? "",
+    category: f.category ?? "",
+    remarks: f.remarks ?? "",
+    cost: Number(f.cost ?? 0),
+    qty: Number(f.qty ?? 0),
+    total: Number(f.total ?? 0),
+    isMachine: Boolean(f.is_machine),
+  });
+
+  const companyFees = fees.filter((f) => f.payer === "company").map(mapFee);
+  const customerFees = fees.filter((f) => f.payer === "customer").map(mapFee);
+
+  const feesTotal =
+    companyFees.reduce((s, r) => s + (r.total || 0), 0) +
+    customerFees.reduce((s, r) => s + (r.total || 0), 0);
+
+  return {
+    metadata: {
+      projectId: entryProject.id,
+      lastSaved: entryProject.last_saved_at ?? null,
+      version: entryProject.version ?? 1,
+    },
+
+    companyInfo: {
+      companyName: entryProject.company_name ?? "",
+      contractYears: Number(entryProject.contract_years ?? 0),
+      contractType: entryProject.contract_type ?? "",
+      reference: entryProject.reference ?? "",
+      purpose: "", // you dropped this; keep safe default
+    },
+
+    interest: {
+      annualInterest: Number(entryProject.annual_interest ?? 0),
+      percentMargin: Number(entryProject.percent_margin ?? 0),
+    },
+
+    yield: {
+      monoAmvpYields: {
+        monthly: Number(entryProject.mono_yield_monthly ?? 0),
+        annual: Number(entryProject.mono_yield_annual ?? 0),
+      },
+      colorAmvpYields: {
+        monthly: Number(entryProject.color_yield_monthly ?? 0),
+        annual: Number(entryProject.color_yield_annual ?? 0),
+      },
+    },
+
+    machineConfiguration: {
+      machine,
+      consumable,
+      totals: {
+        unitCost: Number(entryProject.mc_unit_cost ?? 0),
+        qty: Number(entryProject.mc_qty ?? 0),
+        totalCost: Number(entryProject.mc_total_cost ?? 0),
+        yields: Number(entryProject.mc_yields ?? 0),
+        costCpp: Number(entryProject.mc_cost_cpp ?? 0),
+        sellingPrice: Number(entryProject.mc_selling_price ?? 0),
+        totalSell: Number(entryProject.mc_total_sell ?? 0),
+        sellCpp: Number(entryProject.mc_sell_cpp ?? 0),
+        totalBundledPrice: Number(entryProject.mc_total_bundled_price ?? 0),
+      },
+    },
+
+    additionalFees: {
+      company: companyFees,
+      customer: customerFees,
+      total: Number(entryProject.fees_total ?? feesTotal),
+    },
+
+    yearlyBreakdown: entryProject.yearly_breakdown ?? {},
+
+    totalProjectCost: {
+      grandTotalCost: Number(entryProject.grand_total_cost ?? 0),
+      grandTotalRevenue: Number(entryProject.grand_total_revenue ?? 0),
+      grandROI: Number(entryProject.grand_roi ?? 0),
+      grandROIPercentage: Number(entryProject.grand_roi_percentage ?? 0),
+    },
+
+    // not used in your new design
+    contractDetails: {
+      machine: [],
+      consumable: [],
+      totalInitial: 0,
+    },
+  };
+}
+
+export default function Entry({ activeTab = 'Machine Configuration', entryProject = null }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -22,11 +138,35 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
   }).format(today);
 
   const { setProjectData, projectData, resetProject, saveDraft } = useProjectData();
-  const [projectRef] = useState(() =>
-    `PRJ-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+
+  // stable generated ref only once per page load
+  const [generatedRef] = useState(() =>
+    `PRJ-${Math.random().toString(36).slice(2, 9).toUpperCase()}`
   );
 
-  // Set initial tab based on prop (optional, but keeps prop useful)
+  // reference priority: server entryProject -> context -> generated
+  const projectRef =
+    entryProject?.reference ||
+    projectData?.companyInfo?.reference ||
+    generatedRef;
+
+  // hydrate context when opening /entry/projects/{id}
+  useEffect(() => {
+    if (!entryProject) return;
+
+    // avoid re-hydrating if already on same project
+    if (projectData?.metadata?.projectId === entryProject.id) return;
+
+    const mapped = mapEntryProjectToContext(entryProject);
+
+    // set context immediately (in-memory)
+    setProjectData(mapped);
+
+    // also persist to localStorage (optional but matches your setup)
+    saveDraft(mapped);
+  }, [entryProject?.id]); // keep dependency tight
+
+  // initial tab
   const initialTab =
     activeTab === 'Summary' ? 'Summary' :
     activeTab === 'Succeeding' ? 'Succeeding' :
@@ -34,52 +174,69 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
 
   const [tab, setTab] = useState(initialTab);
   const [buttonClicked, setButtonClicked] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
-  const triggerSync = (persist = false) => {
-    const updater = (prev) => ({
-      ...prev,
-      companyInfo: {
-        ...prev.companyInfo,
-        reference: projectRef,
-      },
-      metadata: {
-        ...prev.metadata,
-        lastSaved: formattedDate,
-      },
-    });
+  const buildPayload = () => ({
+    ...projectData,
+    metadata: {
+      ...projectData.metadata,
+      // keep existing id if it exists
+      projectId: entryProject?.id ?? projectData?.metadata?.projectId ?? null,
+      lastSaved: formattedDate,
+    },
+    companyInfo: {
+      ...projectData.companyInfo,
+      reference: projectRef,
+    },
+  });
 
-    if (persist) {
-      saveDraft(updater);     // ✅ updates state AND writes to localStorage
-    } else {
-      setProjectData(updater); // normal in-memory update
-    }
-
+  const triggerBlink = () => {
     setButtonClicked(true);
     setTimeout(() => setButtonClicked(false), 100);
   };
 
-  const handleSaveAll = () => {
-    triggerSync(false);
-    console.log("Submitting Project Data:", projectData);
+  // ✅ Save Draft = create/update draft in DB (controller redirects to /entry/projects/{id})
+  const handleSaveDraft = () => {
+    const payload = buildPayload();
+
+    // keep local draft consistent (optional, ok to keep)
+    saveDraft(payload);
+
+    router.post(route("roi.entry.draft.save"), payload, {
+     // preserveScroll: true,
+      onSuccess: () => {
+        // ✅ let the redirect happen; blink after success
+        triggerBlink();
+      },
+      onError: (errors) => {
+        console.log("Save draft failed:", errors);
+        alert("Save draft failed. Check required fields / console.");
+      },
+    });
   };
 
-  const handleSaveDraft = () => {
-    triggerSync(true);
-    alert("Draft saved successfully to local storage.");
+
+  // ✅ Submit = PATCH /entry/projects/{id}/submit (must exist first)
+  const handleSubmit = () => {
+    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
+
+    if (!projectId) {
+      alert("Please click Save Draft first to create the project.");
+      return;
+    }
+
+    router.patch(route("roi.entry.projects.submit", projectId), {}, {
+      preserveScroll: true,
+    });
   };
 
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
       resetProject();
-
-      // force all tab components to remount (clears their local useState too)
-      setResetKey(k => k + 1);
-
-      // optional but usually nicer UX after clearing
+      setResetKey((k) => k + 1);
       setTab('Machine');
-  }
-};
-
+    }
+  };
 
   const summaryRef = useRef(null);
   const succeedingRef = useRef(null);
@@ -98,43 +255,36 @@ export default function Entry({ activeTab = 'Machine Configuration' }) {
   const showApprovalFooter = tab === 'Summary' || tab === 'Succeeding';
 
   const openPrintPage = (autoPrint = false) => {
-  if (!(tab === "Summary" || tab === "Succeeding")) return;
+    if (!(tab === "Summary" || tab === "Succeeding")) return;
 
-  const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
-  const storageKey = `roi-print:${projectRef}:${Date.now()}`;
+    const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
+    const storageKey = `roi-print:${projectRef}:${Date.now()}`;
 
-  try {
-    sessionStorage.setItem(storageKey, JSON.stringify(projectData));
-  } catch (e) {
-    console.error("Failed to save print snapshot:", e);
-    alert("Print failed: snapshot too large.");
-    return;
-  }
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(projectData));
+    } catch (e) {
+      console.error("Failed to save print snapshot:", e);
+      alert("Print failed: snapshot too large.");
+      return;
+    }
 
-  // Currently on: /customer-management/roi/entry
-  // So print is: /customer-management/roi/entry/print
-  const current = window.location.pathname.replace(/\/$/, "");
-  const printPath = `${current}/print`;
+    const current = window.location.pathname.replace(/\/$/, "");
+    const printPath = `${current}/print`;
 
-  const href =
-    `${printPath}` +
-    `?tab=${encodeURIComponent(tabParam)}` +
-    `&storageKey=${encodeURIComponent(storageKey)}` +
-    `&autoprint=${autoPrint ? 1 : 0}`;
+    const href =
+      `${printPath}` +
+      `?tab=${encodeURIComponent(tabParam)}` +
+      `&storageKey=${encodeURIComponent(storageKey)}` +
+      `&autoprint=${autoPrint ? 1 : 0}`;
 
-  const a = document.createElement("a");
-  a.href = href;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-};
-
-const [resetKey, setResetKey] = useState(0);
-
-
-
+    const a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
 
   return (
     <>
@@ -194,9 +344,9 @@ const [resetKey, setResetKey] = useState(0);
 
           {/* CONTENT */}
           {tab === 'Machine' ? (
-            <MachineConfigTab  key={`machine-${resetKey}`} buttonClicked={buttonClicked} />
+            <MachineConfigTab key={`machine-${resetKey}`} buttonClicked={buttonClicked} />
           ) : tab === 'Summary' ? (
-             <Summary1stYear key={`summary-${resetKey}`} ref={summaryRef} />
+            <Summary1stYear key={`summary-${resetKey}`} ref={summaryRef} />
           ) : tab === 'Succeeding' ? (
             <SucceedingYears key={`succeeding-${resetKey}`} ref={succeedingRef} />
           ) : null}
@@ -226,7 +376,7 @@ const [resetKey, setResetKey] = useState(0);
 
                   <button
                     type="button"
-                    onClick={handleSaveAll}
+                    onClick={handleSubmit}
                     className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
                   >
                     Submit <IoSend />
@@ -302,4 +452,4 @@ const [resetKey, setResetKey] = useState(0);
   );
 }
 
-Entry.layout = page => <AuthenticatedLayout children={page} />;
+Entry.layout = (page) => <AuthenticatedLayout children={page} />;

@@ -6,16 +6,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\RoiController;
+use App\Http\Controllers\RoiEntryProjectController; // ✅ ADD THIS
 use Inertia\Inertia;
-
-// Route::get('/', function () {
-//     return Inertia::render('Welcome', [
-//         'canLogin' => Route::has('login'),
-//         'canRegister' => Route::has('register'),
-//         'laravelVersion' => Application::VERSION,
-//         'phpVersion' => PHP_VERSION,
-//     ]);
-// });
 
 Route::get('/', function () {
     return Auth::check()
@@ -23,18 +15,11 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
-
-
-// Route::get('/dashboard', function () {
-//     return Inertia::render('Dashboard');
-// })->middleware(['auth', 'verified'])->name('dashboard');
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
 
 Route::middleware(['auth', 'verified'])
     ->prefix('customer-management')
@@ -46,7 +31,8 @@ Route::middleware(['auth', 'verified'])
         Route::get('/details', [CustomerManagementController::class, 'details'])
             ->name('customers.details');
 
-       Route::prefix('roi')->group(function () {
+        Route::prefix('roi')->group(function () {
+
             // Entry Sub-menus
             Route::prefix('entry')->group(function () {
                 Route::get('/', [RoiController::class, 'entry'])->name('roi.entry');
@@ -61,14 +47,21 @@ Route::middleware(['auth', 'verified'])
                         'autoprint' => (bool) request('autoprint', false),
                     ]);
                 })->name('roi.entry.print');
+
+                //  Create/update on Save Draft ROUTES
+                Route::post('/draft', [RoiEntryProjectController::class, 'saveDraft'])
+                    ->name('roi.entry.draft.save');
+
+                Route::get('/projects/{project}', [RoiEntryProjectController::class, 'show'])
+                    ->name('roi.entry.projects.show');
+
+                Route::patch('/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
+                    ->name('roi.entry.projects.submit');
             });
 
             Route::get('/current', [RoiController::class, 'current'])->name('roi.current');
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
         });
-});
-
-
-
+    });
 
 require __DIR__.'/auth.php';
