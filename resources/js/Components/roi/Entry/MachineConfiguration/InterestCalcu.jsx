@@ -6,7 +6,7 @@ const InterestCalculator = () => {
   const { projectData, setProjectData } = useProjectData();
 
   // Memoize interest calculation
-  const { monthlyInterest, monthlyMarginForContract, annualMargin, hasValidYears } = useMemo(() => {
+  const { monthlyInterest, monthlyMarginForContract, annualMargin, hasValidYears, percentMargin } = useMemo(() => {
     return interest(projectData);
   }, [
     projectData?.interest?.annualInterest,
@@ -41,25 +41,8 @@ const InterestCalculator = () => {
               </td>
               <td className="w-[50%] p-1.5 text-center border-l bg-lightgreen/2">
                 <div className="relative w-full">
-                  <input
-                    type="number"
-                    value={
-                        projectData?.interest?.annualInterest === 0
-                        ? ""
-                        : projectData?.interest?.annualInterest ?? ""
-                    }
-                    placeholder="0"
-                    onChange={(e) => {
-                      const v = e.target.value; // string
-                      handleChange("annualInterest", v === "" ? "" : v);
-                    }}
-                    className="w-full text-sm rounded-sm h-6 text-center pr-6 py-3.5 border border-slate-200 outline-none focus:ring-1 focus:ring-green-400 bg-white
-                              [appearance:textfield]
-                              [&::-webkit-outer-spin-button]:appearance-none
-                              [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-gray-500 pointer-events-none">
-                    %
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none">
+                    {projectData?.interest?.annualInterest}%
                   </span>
                 </div>
               </td>
@@ -71,25 +54,8 @@ const InterestCalculator = () => {
               </td>
               <td className="w-[50%] p-1.5 text-center border-l bg-lightgreen/2">
                 <div className="relative w-full">
-                  <input
-                    type="number"
-                    value={
-                      projectData?.interest?.percentMargin === 0
-                        ? ""
-                        : projectData?.interest?.percentMargin ?? ""
-                    }
-                    placeholder="0"
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      handleChange("percentMargin", v === "" ? "" : v);
-                    }}
-                    className="w-full text-sm rounded-sm h-6 text-center pr-6 py-3.5 border border-slate-200 outline-none focus:ring-1 focus:ring-green-400 bg-white
-                              [appearance:textfield]
-                              [&::-webkit-outer-spin-button]:appearance-none
-                              [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-gray-500 pointer-events-none">
-                    %
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none">
+                    {percentMargin}%
                   </span>
                 </div>
               </td>

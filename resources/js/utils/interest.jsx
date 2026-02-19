@@ -1,15 +1,14 @@
 export function interest(projectData) {
-  const annualInterest =
-    parseFloat(projectData?.interest?.annualInterest) || 0;
-
-  const percentMargin =
-    parseFloat(projectData?.interest?.percentMargin) || 0;
-
+  const annualInterest = 12 ;
+  
   const contractYears =
     parseFloat(projectData?.companyInfo?.contractYears) || 0;
 
   const hasValidYears = contractYears > 0;
+  
+  const percentMargin = annualInterest * contractYears;
 
+ 
   const monthlyInterest = annualInterest / 12;
 
   const monthlyMarginForContract = hasValidYears
@@ -24,6 +23,7 @@ export function interest(projectData) {
     monthlyInterest,
     monthlyMarginForContract,
     annualMargin,
-    hasValidYears
+    hasValidYears,
+    percentMargin
   };
 }
