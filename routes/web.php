@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\RoiController;
+use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController; 
 use Inertia\Inertia;
 
@@ -88,7 +89,10 @@ Route::middleware(['auth', 'verified'])
             });
 
 
-            Route::get('/current', [RoiController::class, 'current'])->name('roi.current');
+               Route::prefix('current')->group(function (){
+                Route::get('/', [RoiCurrentProjectController::class, 'current'])->name('roi.current');
+            });
+
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
         });
     });

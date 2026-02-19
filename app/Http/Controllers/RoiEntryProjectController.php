@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RoiCurrentFee;
+use App\Models\RoiCurrentItem;
+use App\Models\RoiCurrentProject;
 use App\Models\RoiEntryProject;
 use App\Models\RoiEntryItem;
 use App\Models\RoiEntryFee;
@@ -224,18 +227,49 @@ class RoiEntryProjectController extends Controller
 
         // Optional: block submit if still empty fields
         // (You can remove these checks if you want to allow submit anytime.)
-        if (empty($project->company_name) || empty($project->contract_type)) {
+       if (empty($project->company_name) || empty($project->contract_type)) {
             return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
         }
 
-        $project->update([
-            'status' => 'submitted',
-            'last_saved_at' => now(),
-        ]);
+        // Start Transaction
+        return DB::transaction(function () use ($project) {
+            
+            // --- STEP A: Copy Main Project ---
+            $projectData = $project->toArray();
+            unset($projectData['id']); 
+            
+            $projectData['status'] = 'submitted';
+            $projectData['last_saved_at'] = now();
 
-        // for now: stay on the same page
-        // later: redirect to /roi/current
-        return back()->with('success', 'Submitted! (Current module not implemented yet)');
+            $newProject = RoiCurrentProject::create($projectData);
+
+            // --- STEP B: Copy Items ---
+            foreach ($project->items as $item) {
+                $itemData = $item->toArray();
+                unset($itemData['id']); 
+                $itemData['roi_current_project_id'] = $newProject->id; 
+                unset($itemData['roi_entry_project_id']); 
+                
+                RoiCurrentItem::create($itemData);
+            }
+
+            // --- STEP C: Copy Fees ---
+            foreach ($project->fees as $fee) {
+                $feeData = $fee->toArray();
+                unset($feeData['id']);
+                $feeData['roi_current_project_id'] = $newProject->id;
+                unset($feeData['roi_entry_project_id']);
+
+                RoiCurrentFee::create($feeData);
+            }
+
+            // --- STEP D: Cleanup ---
+            $project->items()->delete();
+            $project->fees()->delete();
+            $project->delete();
+
+            return redirect()->route('roi.current')->with('success', 'Project submitted successfully!');
+        });   // <--- THIS WAS MISSING: The closing parenthesis and semicolon for DB::transaction
     }
 
     /**

@@ -45,4 +45,9 @@ class RoiCurrentProject extends Model
     {
         return $this->hasMany(RoiCurrentFee::class, 'roi_current_project_id');
     }
+    public function user()
+    {
+        // This looks for a 'user_id' column on your roi_current_projects table
+        return $this->belongsTo(User::class);
+    }
 }
