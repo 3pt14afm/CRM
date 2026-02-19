@@ -84,6 +84,8 @@ export const succeedingYears = (projectData) => {
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
+   const succeedingYearsTotalCost = totalMachineCost + totalConsumableCost;
+  const succeedingYearsTotalSales = totalMachineSales + totalConsumableSales;
   // 5. RETURN ALL VALUES
   return {
     totalMachineQty,
@@ -104,6 +106,8 @@ export const succeedingYears = (projectData) => {
     consumables: processedConsumables, 
     addFeesObj,
     companyFees,
-    customerFees
+    customerFees,
+    succeedingYearsTotalCost,
+    succeedingYearsTotalSales
   };
 };

@@ -21,7 +21,9 @@ function SucceedingYearsPotential({ title = "2nd Year Potential", yearNumber = 2
     machines = [],
     consumables = [],
     companyFees = [],
-    customerFees = []
+    customerFees = [],
+    succeedingYearsTotalCost,
+    succeedingYearsTotalSales
   } = yearData;
 
   const format = (val) => (Number(val) || 0).toLocaleString(undefined, {
@@ -98,8 +100,8 @@ function SucceedingYearsPotential({ title = "2nd Year Potential", yearNumber = 2
 
             <tr className="bg-[#E2F4D8] border-b font-semibold print:font-normal border-gray-100 last:border-b-0">
               <td className="px-1 py-3 text-[12px] text-center font-bold "></td>
-              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineCost + totalConsumableCost)}</td>
-              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(totalMachineSales + totalConsumableSales)}</td>
+              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(succeedingYearsTotalCost)}</td>
+              <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold ">{format(succeedingYearsTotalSales)}</td>
             </tr>
           </tbody>
         </table>

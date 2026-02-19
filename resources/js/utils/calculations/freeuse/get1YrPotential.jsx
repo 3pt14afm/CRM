@@ -88,6 +88,9 @@ export const get1YrPotential = (projectData) => {
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
+  const firstYearTotalCost = totalMachineCost + totalConsumableCost;
+  const fistYearTotalSell = totalMachineSales + totalConsumableSales;
+
   // 5. RETURN ALL VALUES
   return {
     totalMachineQty,
@@ -109,6 +112,8 @@ export const get1YrPotential = (projectData) => {
     addFeesObj,
     companyFees,
     customerFees,
-    bundleDeduction
+    bundleDeduction,
+    firstYearTotalCost,
+    fistYearTotalSell
   };
 };
