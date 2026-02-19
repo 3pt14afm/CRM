@@ -70,7 +70,7 @@ function mapEntryProjectToContext(entryProject) {
       contractYears: Number(entryProject.contract_years ?? 0),
       contractType: entryProject.contract_type ?? "",
       reference: entryProject.reference ?? "",
-      purpose: "", // you dropped this; keep safe default
+      purpose: "",
     },
 
     interest: {
@@ -120,7 +120,6 @@ function mapEntryProjectToContext(entryProject) {
       grandROIPercentage: Number(entryProject.grand_roi_percentage ?? 0),
     },
 
-    // not used in your new design
     contractDetails: {
       machine: [],
       consumable: [],
@@ -144,13 +143,33 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     `PRJ-${Math.random().toString(36).slice(2, 9).toUpperCase()}`
   );
 
-  // reference priority: server entryProject -> context -> generated
-  const projectRef =
-    entryProject?.reference ||
-    projectData?.companyInfo?.reference ||
-    generatedRef;
+  // ✅ reference: DB when editing, generated when creating
+  const projectRef = entryProject?.reference || generatedRef;
 
-  // hydrate context when opening /entry/projects/{id}
+  // ✅ tab state: init safely, then sync with activeTab prop
+  const [tab, setTab] = useState("Machine");
+  const [buttonClicked, setButtonClicked] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+
+  // ✅ keep tab in sync with server prop (works for edit + create)
+  useEffect(() => {
+    const next =
+      activeTab === 'Summary' ? 'Summary' :
+      activeTab === 'Succeeding' ? 'Succeeding' :
+      'Machine';
+    setTab(next);
+  }, [activeTab]);
+
+  // ✅ When opening /entry/create (no entryProject), ensure fresh form
+  useEffect(() => {
+    if (entryProject) return;
+
+    resetProject();               // wipe any previous draft data from context
+    setResetKey((k) => k + 1);    // force tab content remount
+    setTab('Machine');            // show Machine tab by default
+  }, [entryProject]);
+
+  // ✅ hydrate context when opening /entry/projects/{id}
   useEffect(() => {
     if (!entryProject) return;
 
@@ -159,28 +178,14 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
     const mapped = mapEntryProjectToContext(entryProject);
 
-    // set context immediately (in-memory)
     setProjectData(mapped);
-
-    // also persist to localStorage (optional but matches your setup)
     saveDraft(mapped);
   }, [entryProject?.id]); // keep dependency tight
-
-  // initial tab
-  const initialTab =
-    activeTab === 'Summary' ? 'Summary' :
-    activeTab === 'Succeeding' ? 'Succeeding' :
-    'Machine';
-
-  const [tab, setTab] = useState(initialTab);
-  const [buttonClicked, setButtonClicked] = useState(false);
-  const [resetKey, setResetKey] = useState(0);
 
   const buildPayload = () => ({
     ...projectData,
     metadata: {
       ...projectData.metadata,
-      // keep existing id if it exists
       projectId: entryProject?.id ?? projectData?.metadata?.projectId ?? null,
       lastSaved: formattedDate,
     },
@@ -195,19 +200,12 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     setTimeout(() => setButtonClicked(false), 100);
   };
 
-  // ✅ Save Draft = create/update draft in DB (controller redirects to /entry/projects/{id})
   const handleSaveDraft = () => {
     const payload = buildPayload();
-
-    // keep local draft consistent (optional, ok to keep)
     saveDraft(payload);
 
     router.post(route("roi.entry.draft.save"), payload, {
-     // preserveScroll: true,
-      onSuccess: () => {
-        // ✅ let the redirect happen; blink after success
-        triggerBlink();
-      },
+      onSuccess: () => triggerBlink(),
       onError: (errors) => {
         console.log("Save draft failed:", errors);
         alert("Save draft failed. Check required fields / console.");
@@ -215,8 +213,6 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     });
   };
 
-
-  // ✅ Submit = PATCH /entry/projects/{id}/submit (must exist first)
   const handleSubmit = () => {
     const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 

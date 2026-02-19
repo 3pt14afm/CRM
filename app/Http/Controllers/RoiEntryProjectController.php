@@ -211,7 +211,7 @@ class RoiEntryProjectController extends Controller
         });
 
         // ✅ Go to project page after saving draft
-        return redirect()->route('roi.entry.projects.show', $project->id);
+        return redirect()->route('roi.entry.list');
     }
 
     /**
@@ -237,6 +237,29 @@ class RoiEntryProjectController extends Controller
         // later: redirect to /roi/current
         return back()->with('success', 'Submitted! (Current module not implemented yet)');
     }
+
+    /**
+     * Delete a draft project (Entry only).
+     * DELETE /customer-management/roi/entry/projects/{project}
+     */
+    public function destroy(RoiEntryProject $project)
+    {
+        abort_unless($project->user_id === Auth::id(), 403);
+
+        // Only allow deleting drafts from Entry list
+        if ($project->status !== 'draft') {
+            return back()->with('error', 'Only drafts can be deleted.');
+        }
+
+        DB::transaction(function () use ($project) {
+            RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
+            RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
+            $project->delete();
+        });
+
+        return redirect()->route('roi.entry.list')->with('success', 'Draft deleted.');
+    }
+
 
     private function mapItemRow(int $projectId, array $row, string $kind): array
     {

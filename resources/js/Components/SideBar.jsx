@@ -265,7 +265,7 @@ export default function Sidebar() {
                                     <div className="relative ml-8 pb-2 mt-2">
                                     <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>Current</NavSubLink>
                                     <NavSubLink href={route('roi.archive')} active={route().current('roi.archive')}>Archive</NavSubLink>
-                                    <NavSubLink href={route('roi.entry')} active={route().current('roi.entry')}>Entry</NavSubLink>
+                                    <NavSubLink href={route('roi.entry.list')} active={route().current('roi.entry.list')}>Entry</NavSubLink>
                                     </div>
                                 )}
                             </div>

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\RoiController;
-use App\Http\Controllers\RoiEntryProjectController; // ✅ ADD THIS
+use App\Http\Controllers\RoiEntryProjectController; 
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -35,29 +35,58 @@ Route::middleware(['auth', 'verified'])
 
             // Entry Sub-menus
             Route::prefix('entry')->group(function () {
-                Route::get('/', [RoiController::class, 'entry'])->name('roi.entry');
-                Route::get('/machine-config', [RoiController::class, 'entryMachine'])->name('roi.entry.machine');
-                Route::get('/summary-first-year', [RoiController::class, 'entrySummary'])->name('roi.entry.summary');
-                Route::get('/succeeding-years', [RoiController::class, 'entrySucceeding'])->name('roi.entry.succeeding');
 
-                Route::get('/print', function () {
+                /**
+                 * ✅ Entry landing page (LIST)
+                 * Sidebar "Entry" should point here.
+                 */
+                Route::get('/', [RoiController::class, 'entryList'])->name('roi.entry.list');
+
+                /**
+                 * ✅ Create New Draft opens the editor (Entry.jsx)
+                 */
+                Route::get('/create', [RoiController::class, 'entryCreate'])->name('roi.entry.create');
+
+                /**
+                 * ✅ Open an existing draft in the editor (Entry.jsx)
+                 */
+                Route::get('/projects/{project}', [RoiEntryProjectController::class, 'show'])
+                    ->name('roi.entry.projects.show');
+
+                /**
+                 * ✅ Save Draft (create/update)
+                 */
+                Route::post('/draft', [RoiEntryProjectController::class, 'saveDraft'])
+                    ->name('roi.entry.draft.save');
+
+                /**
+                 * ✅ Submit (draft -> submitted)
+                 */
+                Route::patch('/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
+                    ->name('roi.entry.projects.submit');
+
+                /**
+                 * ✅ Print (recommend project-based so Entry.jsx pathname + "/print" works when editing)
+                 * This supports printing from the editor at /projects/{project}
+                 */
+                Route::get('/projects/{project}/print', function ($project) {
                     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
                         'tab' => request('tab', 'summary'),
                         'storageKey' => request('storageKey'),
                         'autoprint' => (bool) request('autoprint', false),
+                        'project' => $project,
                     ]);
-                })->name('roi.entry.print');
+                })->name('roi.entry.projects.print');
 
-                //  Create/update on Save Draft ROUTES
-                Route::post('/draft', [RoiEntryProjectController::class, 'saveDraft'])
-                    ->name('roi.entry.draft.save');
+                Route::delete('/projects/{project}', [RoiEntryProjectController::class, 'destroy'])
+                    ->name('roi.entry.projects.destroy');
 
-                Route::get('/projects/{project}', [RoiEntryProjectController::class, 'show'])
-                    ->name('roi.entry.projects.show');
-
-                Route::patch('/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
-                    ->name('roi.entry.projects.submit');
+                /**
+                 * (Optional) If you still want tab URLs, we can add them later.
+                 * For now, Entry.jsx handles tabs internally, so you don't need extra routes.
+                 */
             });
+
 
             Route::get('/current', [RoiController::class, 'current'])->name('roi.current');
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');

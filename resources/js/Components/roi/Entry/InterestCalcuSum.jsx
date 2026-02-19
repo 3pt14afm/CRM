@@ -6,7 +6,7 @@ const InterestCalcuSum = () => {
   const { projectData } = useProjectData();
 
   // Use your util to get derived interest values
-  const { monthlyInterest, monthlyMarginForContract, annualMargin } = calculateInterest(projectData);
+  const { monthlyInterest, monthlyMarginForContract, annualMargin, percentMargin } = calculateInterest(projectData);
 
   // Helper for formatting
   const formatNum = (val) =>
@@ -29,7 +29,7 @@ const InterestCalcuSum = () => {
                 Annual Interest
               </td>
               <td className="w-[50%] py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
-                {(projectData.interest?.annualInterest || 0)}%
+                {projectData.interest?.annualInterest}%
               </td>
             </tr>
             <tr>
@@ -37,7 +37,7 @@ const InterestCalcuSum = () => {
                 Percent Margin
               </td>
               <td className="w-[50%] py-3 px-3 text-center border-l bg-white border-slate-300 text-sm text-gray-700">
-                {(projectData.interest?.percentMargin || 0)}%
+                {percentMargin}%
               </td>
             </tr>
           </tbody>

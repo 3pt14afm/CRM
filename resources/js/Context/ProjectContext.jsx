@@ -18,7 +18,7 @@ const defaultInitialState = {
     purpose: "",
   },
   interest: {
-    annualInterest: 0,
+    annualInterest: 12,
     percentMargin: 0,
   },
   yield: {
