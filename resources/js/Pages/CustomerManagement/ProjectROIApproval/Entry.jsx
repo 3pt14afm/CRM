@@ -301,7 +301,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
           </div>
 
           {/* TABS */}
-          <div className="mx-10">
+          <div className="mx-5">
             <div className="flex gap-[2px]">
               <button
                 onClick={() => setTab('Machine')}
