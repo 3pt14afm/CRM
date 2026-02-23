@@ -22,7 +22,7 @@ function CompanyInfoSum() {
     const purpose = companyInfo.purpose || "No purpose provided for this contract.";
 
     return (
-        <div className='grid grid-cols-[60%_40%] items-stretch shadow-lg ml-4 rounded-xl overflow-hidden border border-white/60 print:ml-0 print:border-gray-300 print:grid-cols-[70%_30%] print:shadow-md'>
+        <div className='grid grid-cols-[70%_30%] items-stretch shadow-md rounded-md overflow-hidden border border-white/60 print:ml-0 print:border-gray-300 print:grid-cols-[70%_30%] print:shadow-md'>
             
             {/* Left Side: White Card Content */}
             <div className='flex flex-col bg-white px-9 pr-10 py-6 gap-2 print:px-5 print:pr-5 print:py-4'>

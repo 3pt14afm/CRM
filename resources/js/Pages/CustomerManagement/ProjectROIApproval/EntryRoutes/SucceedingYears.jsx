@@ -7,6 +7,8 @@ import InterestCalcuSum from '@/Components/roi/Entry/InterestCalcuSum';
 import Names from '@/Components/roi/Entry/Names';
 import SucceedingYearsPotential from '@/Components/roi/Entry/SucceedingYear/SuccedingYearsPotential';
 import { useProjectData } from '@/Context/ProjectContext';
+import MachCon1stY from '@/Components/roi/Entry/Summary1stYear/MachCon1stY';
+import Totals from '@/Components/roi/Entry/Summary1stYear/Totals'; // ✅ added
 
 const SucceedingYears = forwardRef(function SucceedingYears(_props, ref) {
   const { projectData } = useProjectData();
@@ -47,12 +49,12 @@ const SucceedingYears = forwardRef(function SucceedingYears(_props, ref) {
   }));
 
   return (
-    <div className="mx-10 print:mx-0 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0  border-b-[#B5EBA2] border-x-[#B5EBA2]">
+    <div className="mx-5 print:mx-0 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0 border-b-[#B5EBA2] border-x-[#B5EBA2]">
       <div className="mx-10 print:mx-0 print:pt-0 pt-8">
         <CompanyInfoSum />
 
-        <div className="grid grid-cols-2 gap-3 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-1 print:gap-0">
-          <div className="max-w-4xl w-full ml-4 mt-3 print:ml-0 print:mt-0 print:mr-0">
+        <div className="grid grid-cols-[40%_60%] gap-4 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-1 print:gap-0">
+          <div className="max-w-4xl w-full mt-3 print:ml-0 print:mt-0 print:mr-0">
             <TotalMVP />
           </div>
 
@@ -61,13 +63,17 @@ const SucceedingYears = forwardRef(function SucceedingYears(_props, ref) {
           </div>
         </div>
 
-        <div className="my-6 mb-10 print:mx-0 mx-auto flex flex-wrap justify-center gap-y-12">
-          {potentialYears.map((year) => (
-            <div key={year} className="flex-[0_0_400px] print:flex-[0_0_260px]">
-              <SucceedingYearsPotential title={`${year}${getOrdinalSuffix(year)} Year Potential`} />
-            </div>
-          ))}
+        <div className='grid grid-cols-[70%_30%] items-start gap-4 mt-0 print:mx-0 print:gap-0'>
+          <div className='flex flex-col gap-2 pt-8 print:pt-7 print:gap-0'>
+            {/* MACHINE & CONSUMABLES */}
+            <MachCon1stY />
+          </div>
+          <div>
+            <SucceedingYearsPotential />
+          </div>
         </div>
+
+        <Totals />
 
         <div className="grid grid-cols-2 items-center gap-4">
           {/* ✅ Make keys consistent */}

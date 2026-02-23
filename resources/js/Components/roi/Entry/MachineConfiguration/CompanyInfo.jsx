@@ -45,7 +45,7 @@ function CompanyInfo() {
   const showBundledInk = contractType === "Monthly Rental";
 
   return (
-    <div className="flex flex-col bg-lightgreen/5 shadow-md border border-slate-300 rounded-md p-8 gap-1 w-[60%]">
+    <div className="flex flex-col bg-lightgreen/5 shadow-md border border-slate-300 rounded-md p-8 gap-1 w-[60%] min-w-96">
       <div className="flex justify-between items-center">
         <div className="flex flex-col gap-1 w-[70%]">
           <p className="font-bold text-[11px] uppercase">Company Name</p>
