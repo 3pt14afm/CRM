@@ -26,6 +26,7 @@ return new class extends Migration {
             $table->string('company_name');
             $table->unsignedInteger('contract_years')->default(0);
             $table->string('contract_type');
+            $table->string('purpose')->nullable(); // or ->string('purpose')->nullable()
             $table->boolean('bundled_std_ink')->default(false);
 
             // inputs: interest
