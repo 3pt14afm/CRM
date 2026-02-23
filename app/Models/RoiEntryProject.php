@@ -11,7 +11,7 @@ class RoiEntryProject extends Model
 
     protected $fillable = [
         'user_id','project_uid','reference','version','last_saved_at','status',
-        'company_name','contract_years','contract_type','bundled_std_ink',
+        'company_name','contract_years','contract_type', 'purpose', 'bundled_std_ink',
         'annual_interest','percent_margin',
         'mono_yield_monthly','mono_yield_annual','color_yield_monthly','color_yield_annual',
         'mc_unit_cost','mc_qty','mc_total_cost','mc_yields','mc_cost_cpp',
@@ -38,4 +38,6 @@ class RoiEntryProject extends Model
     {
         return $this->hasMany(RoiEntryFee::class, 'roi_entry_project_id');
     }
+
+
 }

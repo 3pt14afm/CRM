@@ -6,6 +6,8 @@ import { route } from "ziggy-js";
 
 function formatDateTime(date) {
   const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+
   const datePart = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "2-digit",
@@ -22,7 +24,9 @@ function formatDateTime(date) {
 }
 
 export default function AddNotes({ scopeKey = "default" }) {
-  const { auth, project } = usePage().props;
+  // ✅ Entry page sends entryProject (not project)
+  const { auth, entryProject } = usePage().props;
+  const project = entryProject;
 
   const projectId = project?.id;
   const userId = auth?.user?.id ?? "guest";
@@ -35,7 +39,7 @@ export default function AddNotes({ scopeKey = "default" }) {
   const [open, setOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
 
-  // ✅ DB-backed notes from Inertia props
+  // ✅ DB-backed notes from JSON column on roi_entry_projects.notes
   const serverNotes = useMemo(() => {
     const rows = project?.notes ?? [];
     return Array.isArray(rows) ? rows : [];
@@ -87,20 +91,21 @@ export default function AddNotes({ scopeKey = "default" }) {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
+  // ✅ Can only submit after draft exists (projectId available)
   const canSubmit = noteDraft.trim().length > 0 && !!projectId;
 
   const handleAddNote = () => {
     if (!canSubmit) return;
 
     router.post(
-      route("roi.projects.notes.store", projectId),
+      route("roi.entry.projects.notes.store", projectId),
       { body: noteDraft.trim() },
       {
         preserveScroll: true,
         onSuccess: () => {
           setNoteDraft("");
-          // keep UI in sync with DB list
-          router.reload({ only: ["project"] });
+          // ✅ reload correct page prop
+          router.reload({ only: ["entryProject"] });
           closeModal();
         },
         onError: (errs) => {
@@ -137,9 +142,9 @@ export default function AddNotes({ scopeKey = "default" }) {
         <div className="mt-2 print:mt-1">
           <span className="font-medium text-[11px] text-gray-400 pl-2">NOTES</span>
 
-          {serverNotes.map((n) => (
+          {serverNotes.map((n, idx) => (
             <div
-              key={n.id}
+              key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
               className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
             >
               <div className="flex items-start justify-between">
