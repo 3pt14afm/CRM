@@ -91,6 +91,7 @@ Route::middleware(['auth', 'verified'])
 
                Route::prefix('current')->group(function (){
                 Route::get('/', [RoiCurrentProjectController::class, 'current'])->name('roi.current');
+                Route::get('/{id}', [RoiCurrentProjectController::class, 'show'])->name('roi.current.show');
             });
 
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');

@@ -79,7 +79,7 @@ console.log({ currentProjects, stats });
                     <div className="flex  items-center gap-2">
                         <button
                             className="px-4 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
-                            onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
+                            onClick={() => router.visit(route("roi.current.show", r.id))}
                         >
                            <IoEyeOutline /> View
                         </button>
