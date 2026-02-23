@@ -71,7 +71,7 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
               <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium border-l print:text-xs print:font-semibold border-gray-300 uppercase">
                 Total Cost
               </th>
-              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium border-l print:text-xs print:font-semibold border-gray-300 uppercase">
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium border-l print:text-[10px] print:font-semibold border-gray-300 uppercase">
                 Gross Sales
               </th>
             </tr>

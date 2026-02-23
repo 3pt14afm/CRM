@@ -370,7 +370,7 @@ function MachineConfig() {
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
-                      <div className={readonlyClass}>{formatNum(calcs.totalCost)}</div>
+                      <div className={readonlyClass}>{formatNum(calcs.totalCost * row.qty)}</div>
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
