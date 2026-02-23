@@ -15,8 +15,9 @@ export const getRowCalculations = (row, projectData) => {
             // EXTRACT DATA FROM PROJECT DATA CONTEXT
 
             const annualInterestRate = (Number(projectData?.interest?.annualInterest) || 0) / 100; 
+            const annualInterest = Number(projectData?.interest?.annualInterest);
             const contractYears = Number(projectData?.companyInfo?.contractYears) || 1; 
-            const percentMargin = (Number(projectData?.interest?.percentMargin) || 0) / 100;
+            const percentMargin = (annualInterest * contractYears)/100;
 
             let finalComputedCost = rawCost; 
             let basePerYear = 0;
@@ -27,7 +28,7 @@ export const getRowCalculations = (row, projectData) => {
             if (row?.type === 'machine') {
                 basePerYear = rawCost / contractYears; 
                 const interestAmount = basePerYear * annualInterestRate;
-                finalComputedCost = basePerYear + interestAmount;
+                finalComputedCost = (basePerYear + interestAmount) * contractYears;
                 machineMargin = basePerYear * percentMargin;
                 machineMarginTotal = rawCost * percentMargin;
 
@@ -35,7 +36,7 @@ export const getRowCalculations = (row, projectData) => {
             // THIS IS FOR THE DEBUGGING PURPOSES
             console.log({
                 type: row?.type,
-                machineMargin: machineMargin,
+                finalComputedCost: finalComputedCost,
                 marginPercent: percentMargin,
                 machineMarginTotal: machineMarginTotal
                 });
@@ -47,7 +48,7 @@ export const getRowCalculations = (row, projectData) => {
                 inputtedCost: rawCost,
                 computedCost: finalComputedCost,
                 basePerYear,
-                totalCost: (finalComputedCost + machineMargin),
+                totalCost: (finalComputedCost + machineMarginTotal),
                 costCpp: yields > 0 ? rawCost / yields : 0,
                 totalSell: price * qty,
                 sellCpp: yields > 0 ? price / yields : 0,
