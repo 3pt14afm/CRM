@@ -59,7 +59,7 @@ const customerTotal = customerFees.reduce(
   }, [lifetime, updateSection]);
 
   return (
-    <div className="my-2 font-sans font-medium w-full tracking-tight text-[10px]">
+    <div className="my-2 w-full tracking-tight text-[10px]">
       <div className="items-start text-[12px]">
         <div>
           <div className="w-full ">
@@ -77,8 +77,8 @@ const customerTotal = customerFees.reduce(
 
                   <thead className="bg-[#E2F4D8]/70 border border-gray-300 text-[11px]">
                     <tr>
-                      <th className="px-3 py-1 text-center uppercase border border-gray-300">OTHERS</th>
-                      <th className="px-3 py-1 text-center border border-gray-300 uppercase">Amount</th>
+                      <th className="px-3 py-1 text-center uppercase font-semibold border border-gray-300">OTHERS</th>
+                      <th className="px-3 py-1 text-center font-semibold border border-gray-300 uppercase print:text-[10px]">Amount</th>
                       <th className="px-3 py-1 text-center border border-gray-300"></th>
                       <th className="px-3 py-1 text-center border border-gray-300"></th>
                       <th className="px-3 py-1 text-center border border-gray-300"></th>

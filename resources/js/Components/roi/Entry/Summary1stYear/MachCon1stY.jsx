@@ -55,14 +55,14 @@ function MachCon1stY() {
                         {filteredMachine.length > 0 ? filteredMachine.map((m, index) => (
                             <tr key={m.id || `m-${index}`} className="border-b border-gray-100 last:border-b-0">
                                 <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:px-3 break-words uppercase">{m.sku}</td>
-                                <td className="text-center py-2 flex flex-col gap-1 text-[12px] ">
+                                <td className="text-center py-4 flex flex-col gap-1 text-[12px] ">
                                     <p>{formatNum(m.inputtedCost)}</p>
-                                    <p className='text-[11px] text-blue-700 italic'>{formatNum(m.machineMarginTotal)}</p>
+                                    <p className='text-[11px] text-blue-700 italic'></p>
                                 </td>
                                 <td className="text-center text-[12px] border-l border-gray-100">{Number(m.yields || 0).toLocaleString()}</td>
                                 <td className="text-center text-[12px] border-l border-gray-100">{formatNum(m.costCpp)}</td>
                                 <td className="text-center text-[12px] border-l border-gray-300">{formatNum(m.price)}</td>
-                                <td className="text-center text-[12px] border-l border-gray-100">{formatNum(m.yields > 0 ? m.price / m.yields : 0, 4)}</td>
+                                <td className="text-center text-[12px] border-l border-gray-100">{formatNum(m.yields > 0 ? m.price / m.yields : 0, 2)}</td>
                             </tr>
                         )) : (
                             <tr className="border-b border-gray-100 last:border-b-0">

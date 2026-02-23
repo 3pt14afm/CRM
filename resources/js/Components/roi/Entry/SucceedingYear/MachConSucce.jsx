@@ -47,13 +47,13 @@ function MachConSucce() {
 
             {filteredMachine.length > 0 ? (
               filteredMachine.map((m, index) => (
-                <tr key={m.id || `m-${index}`} className="border-b py-5 border-gray-100 last:border-b-0">
+                <tr key={m.id || `m-${index}`} className="border-b py-5 border-gray-100 last:border-b-0 print:py-2">
                   <td className="px-7 text-[12px] break-words uppercase border-r border-gray-300">
                     {m.sku}
                   </td>
-                  <td className="px-3 py-3 text-[12px] text-center">
+                  <td className="px-3 py-5 text-[12px] text-center">
                     <p>{formatNum(0)}</p>
-                    <p className='text-[11px] text-blue-700 italic'>{formatNum(0)}</p>
+                    <p className='text-[11px] text-blue-700 italic'></p>
                   </td>
                 </tr>
               ))
