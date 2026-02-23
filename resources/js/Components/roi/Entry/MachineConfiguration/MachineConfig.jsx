@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculations';
 import { get1YrPotential } from '@/utils/calculations/freeuse/get1YrPotential';
@@ -10,6 +10,9 @@ function MachineConfig() {
   // ✅ Track which numeric cell is currently focused (so we can show raw while editing)
   const [focusedField, setFocusedField] = useState(null);
   const keyOf = (rowId, field) => `${rowId}:${field}`;
+
+  // ✅ prevent re-hydrating rows over and over (can overwrite edits)
+  const hydratedFromContextRef = useRef(false);
 
   // ✅ Helpers for sanitizing + formatting (only what we discussed)
   const sanitizeInt = (v) => String(v ?? '').replace(/\D/g, ''); // digits only
@@ -61,9 +64,6 @@ function MachineConfig() {
     e.preventDefault();
   };
 
-
-
-  
   // Initialize rows from context or default
   const [rows, setRows] = useState(() => {
     const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
@@ -87,6 +87,28 @@ function MachineConfig() {
           mode: '', // ✅ default for new rows
         }];
   });
+
+  // ✅ One-time hydration when opening an existing draft (prevents empty local rows on re-open)
+  useEffect(() => {
+    if (hydratedFromContextRef.current) return;
+
+    const mc = projectData.machineConfiguration || {};
+    const machine = Array.isArray(mc.machine) ? mc.machine : [];
+    const consumable = Array.isArray(mc.consumable) ? mc.consumable : [];
+    const combined = [...machine, ...consumable];
+
+    if (combined.length === 0) return;
+
+    setRows(
+      combined.map(r => ({
+        ...r,
+        cost: r.inputtedCost ?? r.cost ?? '',
+        mode: r.mode || '',
+      }))
+    );
+
+    hydratedFromContextRef.current = true;
+  }, [projectData.machineConfiguration]);
 
   // Totals for table footer
   const computeTotals = (rows) => rows.reduce((acc, r) => {
@@ -144,7 +166,7 @@ function MachineConfig() {
   const formatNum = (num) => (Number(num) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Live update context whenever rows change
-useEffect(() => {
+  useEffect(() => {
     // 1. Check conditions for bundling
     const isMonthlyRental = projectData.companyInfo?.contractType === "Monthly Rental";
     const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
@@ -192,37 +214,39 @@ useEffect(() => {
       acc.totalSell += r.totalSell;
       acc.sellCpp += r.sellCpp;
       return acc;
-    }, { 
-      unitCost: 0, 
-      qty: 0, 
-      totalCost: 0, 
-      yields: 0, 
-      costCpp: 0, 
-      sellingPrice: 0, 
-      totalSell: 0, 
+    }, {
+      unitCost: 0,
+      qty: 0,
+      totalCost: 0,
+      yields: 0,
+      costCpp: 0,
+      sellingPrice: 0,
+      totalSell: 0,
       sellCpp: 0,
       totalBundledPrice: calculatedBundledPrice // ✅ Stored here in Context
     });
 
     setProjectData(prev => ({
       ...prev,
-      machineConfiguration: { 
-        machine: machines, 
-        consumable: consumables, 
-        totals: totalsObj 
+      machineConfiguration: {
+        machine: machines,
+        consumable: consumables,
+        totals: totalsObj
       }
     }));
-    
+
   }, [
-    rows, 
-    projectData.interest.annualInterest, 
+    rows,
+    projectData.interest.annualInterest,
     projectData.companyInfo.contractYears,
     projectData.companyInfo.contractType,
     projectData.companyInfo.bundledStdInk
   ]);
+
   const inputClass = "w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const readonlyClass = "w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center";
   const footerCellClass ="bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ";
+  const disabledInputClass = "bg-slate-100 text-slate-500 cursor-not-allowed";
 
   return (
     <div className="mx-10 mb-5">
@@ -239,14 +263,13 @@ useEffect(() => {
               <col style={{ width: "10%" }} />
               <col style={{ width: "5%" }} />
               <col style={{ width: "11%" }} />
-              {/* remaining columns can share what's left */}
               <col style={{ width: "8%" }} />
               <col style={{ width: "7%" }} />
               <col style={{ width: "9%" }} />
               <col style={{ width: "10%" }} />
               <col style={{ width: "7%" }} />
               <col style={{ width: "6%" }} />
-              <col style={{ width: "16%" }} /> {/* remarks */}
+              <col style={{ width: "16%" }} />
             </colgroup>
             <thead>
               <tr className="bg-lightgreen/15 text-[11px] uppercase text-black">
@@ -268,6 +291,8 @@ useEffect(() => {
             <tbody>
               {rows.map(row => {
                 const calcs = getRowCalculations(row);
+                const isMachineRow = row.type === 'machine';
+
                 return (
                   <tr key={row.id} className='border-b'>
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
@@ -287,7 +312,6 @@ useEffect(() => {
                           className={`w-[90%] min-w-0 h-6 text-[11px] sm:text-xs px-2 py-0 rounded-sm accent-green-600 border border-darkgreen/20 bg-white outline-none focus:outline-none focus:ring-0 focus:border-darkgreen/20  ${row.type === "machine" ? "opacity-50 cursor-not-allowed bg-slate-100" : "cursor-pointer"}`}
                           aria-label="Select mode: Mono / Color / Others"
                         >
-                          {/* blank display for machine */}
                           <option className="text-gray-400" value="">Select</option>
                           <option value="mono">Mono</option>
                           <option value="color">Color</option>
@@ -305,7 +329,6 @@ useEffect(() => {
                       />
                     </td>
 
-                    {/* ✅ Unit Cost (2 decimals, commas when not focused) */}
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <input
                         type="text"
@@ -327,7 +350,6 @@ useEffect(() => {
                       />
                     </td>
 
-                    {/* ✅ Qty (whole number, commas when not focused) */}
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <input
                         type="text"
@@ -341,7 +363,8 @@ useEffect(() => {
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={e => handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
-                        className={inputClass}
+                        disabled={isMachineRow}
+                        className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0"
                       />
                     </td>
@@ -350,7 +373,6 @@ useEffect(() => {
                       <div className={readonlyClass}>{formatNum(calcs.totalCost)}</div>
                     </td>
 
-                    {/* ✅ Yields (whole number, commas when not focused) */}
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <input
                         type="text"
@@ -364,7 +386,8 @@ useEffect(() => {
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={e => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
-                        className={inputClass}
+                        disabled={isMachineRow}
+                        className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0"
                       />
                     </td>
@@ -373,7 +396,6 @@ useEffect(() => {
                       <div className={readonlyClass}>{formatNum(calcs.costCpp)}</div>
                     </td>
 
-                    {/* ✅ Selling Price (2 decimals, commas when not focused) */}
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <input
                         type="text"
@@ -390,7 +412,8 @@ useEffect(() => {
                         }}
                         onKeyDown={onlyNumericKeys(true)}
                         onChange={e => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
-                        className={inputClass}
+                        disabled={isMachineRow}
+                        className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0.00"
                       />
                     </td>
