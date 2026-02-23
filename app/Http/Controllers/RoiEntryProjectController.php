@@ -62,8 +62,7 @@ class RoiEntryProjectController extends Controller
 
             // machine config
             'machineConfiguration.machine' => ['nullable', 'array'],
-            // ✅ important: your frontend uses machineConfiguration.consumable (not consumables)
-            'machineConfiguration.consumable' => ['nullable', 'array'],
+            'machineConfiguration.consumable' => ['nullable', 'array'], // ✅ singular (matches frontend)
             'machineConfiguration.totals' => ['nullable', 'array'],
 
             // fees
@@ -81,7 +80,7 @@ class RoiEntryProjectController extends Controller
         $userId = Auth::id();
         $reference = $data['companyInfo']['reference'];
 
-        $project = DB::transaction(function () use ($data, $userId, $reference) {
+        $project = DB::transaction(function () use ($data, $userId, $reference, $request) {
 
             // ✅ 1 draft per reference per user
             $project = RoiEntryProject::where('user_id', $userId)
@@ -173,41 +172,52 @@ class RoiEntryProjectController extends Controller
                 'last_saved_at' => now(),
             ]);
 
-            // ✅ Replace items
-            RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
+            // ✅ SAFETY: only replace items if machine arrays were actually included in payload
+            $hasMachinePayload =
+                $request->exists('machineConfiguration.machine') ||
+                $request->exists('machineConfiguration.consumable');
 
-            $machines    = $data['machineConfiguration']['machine'] ?? [];
-            // ✅ critical: your key is "consumable"
-            $consumables = $data['machineConfiguration']['consumable'] ?? [];
+            if ($hasMachinePayload) {
+                RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
 
-            $itemRows = [];
-            foreach ($machines as $row) {
-                $itemRows[] = $this->mapItemRow($project->id, $row, 'machine');
-            }
-            foreach ($consumables as $row) {
-                $itemRows[] = $this->mapItemRow($project->id, $row, 'consumable');
-            }
+                $machines    = $data['machineConfiguration']['machine'] ?? [];
+                $consumables = $data['machineConfiguration']['consumable'] ?? [];
 
-            if (!empty($itemRows)) {
-                RoiEntryItem::insert($itemRows);
-            }
+                $itemRows = [];
+                foreach ($machines as $row) {
+                    $itemRows[] = $this->mapItemRow($project->id, $row, 'machine');
+                }
+                foreach ($consumables as $row) {
+                    $itemRows[] = $this->mapItemRow($project->id, $row, 'consumable');
+                }
 
-            // ✅ Replace fees
-            RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
-
-            $feeCompany  = $data['additionalFees']['company'] ?? [];
-            $feeCustomer = $data['additionalFees']['customer'] ?? [];
-
-            $feeRows = [];
-            foreach ($feeCompany as $row) {
-                $feeRows[] = $this->mapFeeRow($project->id, $row, 'company');
-            }
-            foreach ($feeCustomer as $row) {
-                $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer');
+                if (!empty($itemRows)) {
+                    RoiEntryItem::insert($itemRows);
+                }
             }
 
-            if (!empty($feeRows)) {
-                RoiEntryFee::insert($feeRows);
+            // ✅ SAFETY: only replace fees if fee arrays were actually included in payload
+            $hasFeePayload =
+                $request->exists('additionalFees.company') ||
+                $request->exists('additionalFees.customer');
+
+            if ($hasFeePayload) {
+                RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
+
+                $feeCompany  = $data['additionalFees']['company'] ?? [];
+                $feeCustomer = $data['additionalFees']['customer'] ?? [];
+
+                $feeRows = [];
+                foreach ($feeCompany as $row) {
+                    $feeRows[] = $this->mapFeeRow($project->id, $row, 'company');
+                }
+                foreach ($feeCustomer as $row) {
+                    $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer');
+                }
+
+                if (!empty($feeRows)) {
+                    RoiEntryFee::insert($feeRows);
+                }
             }
 
             return $project;

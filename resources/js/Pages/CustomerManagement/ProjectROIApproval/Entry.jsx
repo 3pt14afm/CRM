@@ -18,6 +18,10 @@ function mapEntryProjectToContext(entryProject) {
 
   const mapItem = (r) => ({
     id: r.client_row_id || String(r.id),
+
+    // ✅ CRITICAL FIX: keep row type so MachineConfig can re-split rows correctly
+    type: r.kind === "machine" ? "machine" : "consumable",
+
     sku: r.sku ?? "",
     qty: Number(r.qty ?? 0),
     yields: Number(r.yields ?? 0),
@@ -71,6 +75,8 @@ function mapEntryProjectToContext(entryProject) {
       contractType: entryProject.contract_type ?? "",
       reference: entryProject.reference ?? "",
       purpose: "",
+      // ✅ include saved value so monthly rental + bundled logic stays consistent
+      bundledStdInk: Boolean(entryProject.bundled_std_ink ?? false),
     },
 
     interest: {
@@ -151,6 +157,9 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
   const [buttonClicked, setButtonClicked] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
+  // ✅ prevent duplicate hydration overwriting edits
+  const hydratedEntryIdRef = useRef(null);
+
   // ✅ keep tab in sync with server prop (works for edit + create)
   useEffect(() => {
     const next =
@@ -164,23 +173,26 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
   useEffect(() => {
     if (entryProject) return;
 
+    hydratedEntryIdRef.current = null; // reset hydration tracker
     resetProject();               // wipe any previous draft data from context
     setResetKey((k) => k + 1);    // force tab content remount
     setTab('Machine');            // show Machine tab by default
-  }, [entryProject]);
+  }, [entryProject, resetProject]);
 
   // ✅ hydrate context when opening /entry/projects/{id}
   useEffect(() => {
-    if (!entryProject) return;
+    if (!entryProject?.id) return;
 
-    // avoid re-hydrating if already on same project
-    if (projectData?.metadata?.projectId === entryProject.id) return;
+    // avoid re-hydrating same project on rerenders
+    if (hydratedEntryIdRef.current === entryProject.id) return;
 
     const mapped = mapEntryProjectToContext(entryProject);
 
     setProjectData(mapped);
-    saveDraft(mapped);
-  }, [entryProject?.id]); // keep dependency tight
+    saveDraft(mapped); // keep local draft/cache in sync if your context uses it
+
+    hydratedEntryIdRef.current = entryProject.id;
+  }, [entryProject, setProjectData, saveDraft]);
 
   const buildPayload = () => ({
     ...projectData,
@@ -202,6 +214,10 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
   const handleSaveDraft = () => {
     const payload = buildPayload();
+
+    // Optional debug: verify rows exist before posting
+    // console.log("SAVE DRAFT machineConfiguration:", payload.machineConfiguration);
+
     saveDraft(payload);
 
     router.post(route("roi.entry.draft.save"), payload, {

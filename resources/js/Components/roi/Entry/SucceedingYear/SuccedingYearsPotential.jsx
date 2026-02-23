@@ -171,7 +171,7 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
         })}
 
         {renderTable({
-          title: 'Total Overall Succeeding Years',
+          title: 'Total Succeeding Years',
           multiplier: succeedingYearCount,
         })}
       </div>
