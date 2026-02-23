@@ -11,6 +11,7 @@ import { FaArrowLeft, FaArrowRight, FaCheckSquare } from 'react-icons/fa';
 import { LuScanEye } from "react-icons/lu";
 import { useProjectData } from '@/Context/ProjectContext';
 import { route } from "ziggy-js";
+import toast, { Toaster } from 'react-hot-toast';
 
 function mapEntryProjectToContext(entryProject) {
   const items = entryProject?.items ?? [];
@@ -220,11 +221,16 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
     saveDraft(payload);
 
-    router.post(route("roi.entry.draft.save"), payload, {
-      onSuccess: () => triggerBlink(),
-      onError: (errors) => {
-        console.log("Save draft failed:", errors);
-        alert("Save draft failed. Check required fields / console.");
+        router.post(route("roi.entry.draft.save"), payload, {
+      onStart: () => {
+        toast.loading("Saving Draft...", { id: "saveDraft" });
+      },
+      onSuccess: () => {
+        triggerBlink();
+        toast.success("Draft saved!", { id: "saveDraft" });
+      },
+      onError: () => {
+        toast.error("Could not save.", { id: "saveDraft" });
       },
     });
   };
@@ -352,6 +358,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                 Succeeding Years
               </button>
             </div>
+            <Toaster/>
           </div>
 
           {/* CONTENT */}

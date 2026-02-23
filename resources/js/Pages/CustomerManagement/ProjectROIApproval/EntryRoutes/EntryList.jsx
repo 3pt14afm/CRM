@@ -7,6 +7,7 @@ import ProjectListSection from "@/Components/roi/ProjectListSection";
 // icons (match your style — swap if you prefer different ones)
 import { FaFolderOpen } from "react-icons/fa";
 import { IoTimeOutline, IoAddCircleOutline } from "react-icons/io5";
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function EntryList({
   drafts = null, // expected: { data, current_page, per_page, total }
@@ -48,21 +49,31 @@ export default function EntryList({
     ];
   }, [stats, drafts]);
 
-    const handleDelete = (row) => {
-        const ref = row.reference ?? row.id;
+const handleDelete = (row) => {
+    const ref = row.reference ?? row.id;
 
-        if (!confirm(`Delete draft ${ref}? This cannot be undone.`)) return;
+    if (!confirm(`Delete draft ${ref}? This cannot be undone.`)) return;
 
-        router.delete(route("roi.entry.projects.destroy", row.id), {
-            preserveScroll: true,
-            onSuccess: () => {
-            // optional toast later
-            },
-            onError: () => {
-            alert("Delete failed.");
-            },
-        });
-    };
+    router.delete(route("roi.entry.projects.destroy", row.id), {
+        preserveScroll: true,
+
+        onStart: () => {
+            toast.loading("Deleting draft...", { id: "deleteDraft" });
+        },
+
+        onSuccess: () => {
+            toast.success("Draft deleted successfully!", {
+                id: "deleteDraft",
+            });
+        },
+
+        onError: () => {
+            toast.error("Delete failed. Please try again.", {
+                id: "deleteDraft",
+            });
+        },
+    });
+};
 
 
   // --- Table columns ---
@@ -170,7 +181,7 @@ export default function EntryList({
             pagination={pagination}
           />
         </div>
-
+          <Toaster />
         {/* Keep footer spacing consistent with your pages if needed */}
         <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
           <div className="px-10 py-3 flex items-center justify-end">
