@@ -347,7 +347,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                 Summary/1st Year
               </button>
 
-              <button
+              {/* <button
                 onClick={() => setTab('Succeeding')}
                 className={`px-7 text-sm py-2 ${
                   tab === 'Succeeding'
@@ -356,7 +356,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                 }`}
               >
                 Succeeding Years
-              </button>
+              </button> */}
             </div>
             <Toaster/>
           </div>

@@ -50,15 +50,25 @@ export default function EntryList({
     ];
   }, [stats, drafts]);
 
-  const handleDelete = (row) => {
-    const ref = row.reference ?? row.id;
+const handleDelete = (row) => {
+  const ref = row.reference ?? row.id;
 
-    toast((t) => (
-      <span className="flex items-center gap-3">
+  toast((t) => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('[data-toast]')) {
+        toast.dismiss(t.id);
+        document.removeEventListener('mousedown', handleOutsideClick);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+
+    return (
+      <span data-toast className="flex items-center gap-3">
         <span>Delete draft <b>{ref}</b>? This cannot be undone.</span>
         <button
           onClick={() => {
             toast.dismiss(t.id);
+            document.removeEventListener('mousedown', handleOutsideClick);
             router.delete(route("roi.entry.projects.destroy", row.id), {
               preserveScroll: true,
               onStart: () => {
@@ -77,21 +87,25 @@ export default function EntryList({
           Delete
         </button>
         <button
-          onClick={() => toast.dismiss(t.id)}
+          onClick={() => {
+            toast.dismiss(t.id);
+            document.removeEventListener('mousedown', handleOutsideClick);
+          }}
           className="bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm"
         >
           Cancel
         </button>
       </span>
-    ), { 
-      duration: Infinity,
-      style: {
-        maxWidth: '500px',    // 👈 wider
-        padding: '16px 20px', // 👈 more padding
-        fontSize: '15px',     // 👈 bigger text
-      }
-    });
-  };
+    );
+  }, { 
+    duration: Infinity,
+    style: {
+      maxWidth: '500px',
+      padding: '16px 20px',
+      fontSize: '15px',
+    }
+  });
+};
 
   // --- Table columns ---
     const columns = useMemo(
