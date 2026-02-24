@@ -24,6 +24,8 @@ public function current()
             $last = $p->last_saved_at;
             $display = null;
 
+     
+
             if ($last) {
                 $now = now();
 
@@ -47,17 +49,23 @@ public function current()
             $p->last_saved_display = $display ?? '—';
             return $p;
         });
+        
 
-    $stats = [
+             $recentlyAddedToday = RoiCurrentProject::query()
+            ->whereDate('last_saved_at', now()->toDateString())
+            ->count();
+       $stats = [
         'totalCurrentProjects' => RoiCurrentProject::count(),
         'recentlyModifiedText' => optional(
             RoiCurrentProject::orderBy('last_saved_at', 'desc')->first()
         )->last_saved_at?->diffForHumans() ?? '—',
-    ];
-
+         'recentlyAddedToday' => $recentlyAddedToday . ' Today',
+      ];
+  
     return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
         'currentProjects' => $currentProjects,
         'stats'           => $stats,
+       
     ]);
 }
 

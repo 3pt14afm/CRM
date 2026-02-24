@@ -19,7 +19,7 @@ console.log({ currentProjects, stats });
 
   const tiles = useMemo(() => {
     const totalCurrentProjects = stats?.totalCurrentProjects ?? currentProjects?.total ?? 0;
-    const recentlyModified = stats?.recentlyModifiedText ?? "—";
+    const recentlyAddedToday = stats?.recentlyAddedToday ?? "—";
 
     return [
       {
@@ -30,7 +30,7 @@ console.log({ currentProjects, stats });
       },
       {
         label: "Recently Added",
-        value: recentlyModified,
+        value: recentlyAddedToday,
         icon: <IoTimeOutline />,
         variant: "normal",
       },
