@@ -18,7 +18,7 @@ function mapEntryProjectToContext(entryProject) {
   const mapItem = (r) => ({
     id: r.client_row_id || String(r.id),
 
-    // ✅ CRITICAL FIX: keep row type so MachineConfig can re-split rows correctly
+    // ✅ keep row type so MachineConfig can re-split rows correctly
     type: r.kind === "machine" ? "machine" : "consumable",
 
     sku: r.sku ?? "",
@@ -66,7 +66,7 @@ function mapEntryProjectToContext(entryProject) {
       projectId: entryProject.id,
       lastSaved: entryProject.last_saved_at ?? null,
       version: entryProject.version ?? 1,
-      status: entryProject.status ?? "draft", // ✅ for print watermark / draft logic
+      status: entryProject.status ?? "draft",
     },
 
     companyInfo: {
@@ -75,7 +75,6 @@ function mapEntryProjectToContext(entryProject) {
       contractType: entryProject.contract_type ?? "",
       reference: entryProject.reference ?? "",
       purpose: entryProject.purpose ?? "",
-      // ✅ include saved value so monthly rental + bundled logic stays consistent
       bundledStdInk: Boolean(entryProject.bundled_std_ink ?? false),
     },
 
@@ -144,15 +143,12 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
   const { setProjectData, projectData, resetProject, saveDraft } = useProjectData();
 
-  // stable generated ref only once per page load
   const [generatedRef] = useState(() =>
     `PRJ-${Math.random().toString(36).slice(2, 9).toUpperCase()}`
   );
 
-  // ✅ reference: DB when editing, generated when creating
   const projectRef = entryProject?.reference || generatedRef;
 
-  // ✅ tab state: init safely, then sync with activeTab prop
   const [tab, setTab] = useState("Machine");
   const [buttonClicked, setButtonClicked] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -160,11 +156,9 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
   // ✅ prevent duplicate hydration overwriting edits
   const hydratedEntryIdRef = useRef(null);
 
-  // refs kept (useful later if you re-enable approval footer methods)
   const summaryRef = useRef(null);
   const succeedingRef = useRef(null);
 
-  // ✅ keep tab in sync with server prop (works for edit + create)
   useEffect(() => {
     const next =
       activeTab === 'Summary' ? 'Summary' :
@@ -177,10 +171,10 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
   useEffect(() => {
     if (entryProject) return;
 
-    hydratedEntryIdRef.current = null; // reset hydration tracker
-    resetProject();                    // wipe any previous draft data from context
-    setResetKey((k) => k + 1);         // force tab content remount
-    setTab('Machine');                 // show Machine tab by default
+    hydratedEntryIdRef.current = null;
+    resetProject();
+    setResetKey((k) => k + 1); // force remount of tab content
+    setTab('Machine');
   }, [entryProject, resetProject]);
 
   // ✅ hydrate context when opening /entry/projects/{id}
@@ -193,9 +187,12 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     const mapped = mapEntryProjectToContext(entryProject);
 
     setProjectData(mapped);
-    saveDraft(mapped); // keep local draft/cache in sync if your context uses it
+    saveDraft(mapped);
 
     hydratedEntryIdRef.current = entryProject.id;
+
+    // ✅ CRITICAL FIX: remount tab components so local state (rows) resets per draft
+    setResetKey((k) => k + 1);
   }, [entryProject, setProjectData, saveDraft]);
 
   const buildPayload = () => ({
@@ -222,9 +219,6 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
   const handleSaveDraft = () => {
     const payload = buildPayload();
-
-    // Optional debug: verify rows exist before posting
-    // console.log("SAVE DRAFT machineConfiguration:", payload.machineConfiguration);
 
     saveDraft(payload);
 
@@ -356,11 +350,20 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
           {/* CONTENT */}
           {tab === 'Machine' ? (
-            <MachineConfigTab key={`machine-${resetKey}`} buttonClicked={buttonClicked} />
+            <MachineConfigTab
+              key={`machine-${entryProject?.id ?? 'new'}-${resetKey}`}
+              buttonClicked={buttonClicked}
+            />
           ) : tab === 'Summary' ? (
-            <Summary1stYear key={`summary-${resetKey}`} ref={summaryRef} />
+            <Summary1stYear
+              key={`summary-${entryProject?.id ?? 'new'}-${resetKey}`}
+              ref={summaryRef}
+            />
           ) : tab === 'Succeeding' ? (
-            <SucceedingYears key={`succeeding-${resetKey}`} ref={succeedingRef} />
+            <SucceedingYears
+              key={`succeeding-${entryProject?.id ?? 'new'}-${resetKey}`}
+              ref={succeedingRef}
+            />
           ) : null}
         </div>
 
@@ -400,28 +403,6 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
             {/* SUMMARY + SUCCEEDING (active for now: print only) */}
             {showPrintFooter && (
               <>
-                {/* FUTURE LEFT ACTIONS (keep for approval flow in another file) */}
-                {/*
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleReject}
-                    className="px-5 py-1 gap-2 items-center flex rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-medium"
-                  >
-                    <MdDisabledByDefault /> Disapprove/Reject
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleBackToSender}
-                    className="px-5 py-1 gap-2 items-center flex rounded-xl border bg-[#CD4E00] text-white hover:shadow-innerOrange font-medium"
-                  >
-                    <FaArrowLeft /> Back to Sender
-                  </button>
-                </div>
-                */}
-
-                {/* ACTIVE NOW: PRINT ACTIONS */}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -439,29 +420,6 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                     <IoPrintSharp /> Print
                   </button>
                 </div>
-
-                {/* FUTURE RIGHT ACTIONS (keep for approval flow in another file) */}
-                {/*
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleSubmitToNextLevel}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
-                    >
-                      Submit to Next Level <FaArrowRight />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleApprove}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow"
-                    >
-                      <FaCheckSquare /> Approve
-                    </button>
-                  </div>
-                </div>
-                */}
               </>
             )}
           </div>

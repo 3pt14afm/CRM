@@ -11,8 +11,8 @@ function MachineConfig() {
   const [focusedField, setFocusedField] = useState(null);
   const keyOf = (rowId, field) => `${rowId}:${field}`;
 
-  // ✅ prevent re-hydrating rows over and over (can overwrite edits)
-  const hydratedFromContextRef = useRef(false);
+  // ✅ Track which project rows were hydrated from (prevents stale rows across draft switch)
+  const hydratedProjectKeyRef = useRef(null);
 
   // ✅ Helpers for sanitizing + formatting (only what we discussed)
   const sanitizeInt = (v) => String(v ?? '').replace(/\D/g, ''); // digits only
@@ -64,6 +64,18 @@ function MachineConfig() {
     e.preventDefault();
   };
 
+  const makeBlankRow = () => ({
+    id: Date.now(),
+    sku: '',
+    cost: '',
+    qty: '',
+    yields: '',
+    price: '',
+    remarks: '',
+    type: 'consumable',
+    mode: '',
+  });
+
   // Initialize rows from context or default
   const [rows, setRows] = useState(() => {
     const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
@@ -73,42 +85,38 @@ function MachineConfig() {
       ? combined.map(r => ({
           ...r,
           cost: r.inputtedCost || r.cost,
-          mode: r.mode || "", // ✅ default for old saved rows
+          mode: r.mode || "",
         }))
-      : [{
-          id: Date.now(),
-          sku: '',
-          cost: '',
-          qty: '',
-          yields: '',
-          price: '',
-          remarks: '',
-          type: 'consumable',
-          mode: '', // ✅ default for new rows
-        }];
+      : [makeBlankRow()];
   });
 
-  // ✅ One-time hydration when opening an existing draft (prevents empty local rows on re-open)
+  // ✅ Hydrate rows per project (handles switching to a draft with NO items too)
   useEffect(() => {
-    if (hydratedFromContextRef.current) return;
+    const projectKey = projectData?.metadata?.projectId ?? 'new';
+
+    if (hydratedProjectKeyRef.current === projectKey) return;
 
     const mc = projectData.machineConfiguration || {};
     const machine = Array.isArray(mc.machine) ? mc.machine : [];
     const consumable = Array.isArray(mc.consumable) ? mc.consumable : [];
     const combined = [...machine, ...consumable];
 
-    if (combined.length === 0) return;
+    if (combined.length > 0) {
+      setRows(
+        combined.map(r => ({
+          ...r,
+          cost: r.inputtedCost ?? r.cost ?? '',
+          mode: r.mode || '',
+        }))
+      );
+    } else {
+      // ✅ important: reset to a clean blank row when draft has no items
+      setRows([makeBlankRow()]);
+    }
 
-    setRows(
-      combined.map(r => ({
-        ...r,
-        cost: r.inputtedCost ?? r.cost ?? '',
-        mode: r.mode || '',
-      }))
-    );
-
-    hydratedFromContextRef.current = true;
-  }, [projectData.machineConfiguration]);
+    setFocusedField(null);
+    hydratedProjectKeyRef.current = projectKey;
+  }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
   // Totals for table footer
   const computeTotals = (rows) => rows.reduce((acc, r) => {
@@ -136,17 +144,15 @@ function MachineConfig() {
       prev.map(r => {
         if (r.id !== id) return r;
 
-        // going to MACHINE: store current mode, clear mode (blank)
         if (isMachine) {
           return {
             ...r,
             type: "machine",
             prevMode: r.mode || "",
-            mode: "", // ✅ blank while machine
+            mode: "",
           };
         }
 
-        // going back to CONSUMABLE: restore previous mode
         return {
           ...r,
           type: "consumable",
@@ -161,8 +167,14 @@ function MachineConfig() {
   };
 
   // Add / Remove row
-  const addRow = () => setRows([...rows, { id: Date.now(), sku: '', cost: '', qty: '', yields: '', price: '', remarks: '', type: 'consumable', mode: '', }]);
+  const addRow = () =>
+    setRows(prev => [
+      ...prev,
+      { id: Date.now(), sku: '', cost: '', qty: '', yields: '', price: '', remarks: '', type: 'consumable', mode: '' }
+    ]);
+
   const removeRow = (id) => rows.length > 1 && setRows(rows.filter(r => r.id !== id));
+
   const formatNum = (num) => (Number(num) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Live update context whenever rows change
@@ -195,7 +207,6 @@ function MachineConfig() {
     if (isMonthlyRental && isBundleChecked) {
       calculatedBundledPrice = consumables.reduce((sum, r) => {
         const mode = r.mode?.toLowerCase();
-        // If the item is set to Mono or Color, add its total cost to the bundle
         if (mode === 'mono' || mode === 'color') {
           return sum + (Number(r.totalCost) || 0);
         }
@@ -223,7 +234,7 @@ function MachineConfig() {
       sellingPrice: 0,
       totalSell: 0,
       sellCpp: 0,
-      totalBundledPrice: calculatedBundledPrice // ✅ Stored here in Context
+      totalBundledPrice: calculatedBundledPrice
     });
 
     setProjectData(prev => ({
@@ -370,6 +381,7 @@ function MachineConfig() {
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
+                      {/* unchanged calc display from your current file */}
                       <div className={readonlyClass}>{formatNum(calcs.totalCost * row.qty)}</div>
                     </td>
 
