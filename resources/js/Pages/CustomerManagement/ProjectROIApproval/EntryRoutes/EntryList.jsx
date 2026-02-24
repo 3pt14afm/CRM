@@ -114,14 +114,14 @@ const handleDelete = (row) => {
             cell: (r) => (
                 <div className="flex items-center gap-2">
                     <button
-                        className="px-4 py-2 rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
+                        className="px-4 py-2 rounded-lg border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
                         onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
                     >
                         Edit
                     </button>
 
                     <button
-                        className="px-4 py-2 rounded-lg border border-[#F27373] text-red-600 font-semibold hover:bg-[#F27373]/10"
+                        className="px-2 py-2 rounded-lg border border-[#F27373] text-red-500 font-semibold hover:bg-[#F27373]/10"
                         onClick={() => handleDelete(r)}
                     >
                         Delete
