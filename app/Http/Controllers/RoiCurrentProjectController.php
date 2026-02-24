@@ -64,7 +64,7 @@ public function current()
 public function show($id){
     $project = RoiCurrentProject::findOrFail($id);
     
-    return Inertia::render('CustomerManagement/ProjectROIApproval/Entry', [
+    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
         'entryProject' => $project,
         'readOnly' => true
     ]);
