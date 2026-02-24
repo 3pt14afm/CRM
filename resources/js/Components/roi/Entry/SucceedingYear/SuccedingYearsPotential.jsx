@@ -104,10 +104,10 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
             ) : (
               <tr className="border-b border-gray-100">
                 <td className="px-1 py-3 text-[12px] text-center print:py-2">0</td>
-                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1 print:py-2">
-                  <p>{format(0)}</p>
-                  <p className="text-[11px] text-blue-700 italic">{format(0)}</p>
-                </td>
+                <td className="border-l text-[12px] border-gray-100 text-center px-1 py-5 flex flex-col gap-1 print:py-2">
+                    <p>{format(0)}</p>
+                    
+                  </td>
                 <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
                   {format(0)}
                 </td>
