@@ -3,7 +3,7 @@ import React from "react";
 export default function PrintLayout({ children }) {
   return (
     <div className="print-shell">
-      <div className="paper print-root">
+      <div className="paper">
         {/* Watermark */}
         <div className="print-watermark" aria-hidden="true">
           DRAFT
@@ -20,16 +20,16 @@ export default function PrintLayout({ children }) {
           .print-shell {
             min-height: 100vh;
             background: #e5e7eb;
-            padding: 24px;
+            padding: 12px;
           }
 
           .paper {
             position: relative;
-            width: 400mm;
+            width: 300mm;
             min-height: 297mm;
             margin: 0 auto;
             background: #fff;
-            padding: 12mm;
+            padding: 10mm;
             box-sizing: border-box;
             overflow: hidden;
           }

@@ -33,19 +33,19 @@ useEffect(() => {
 }, [machine, contractToners, totalInitial, setContractDetails]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-full mx-2 ml-5 mb-6">
+    <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-full mx-20 my-6">
       <div className="bg-[#E2F4D8] py-2 text-center border-b border-gray-300">
-        <h2 className="text-xs font-extrabold tracking-widest text-gray-800 uppercase">Contract Details</h2>
+        <h2 className="text-xs font-bold tracking-widest text-gray-800 uppercase">Contract Details</h2>
       </div>
 
       <table className="w-full text-center border-collapse">
         <thead>
           <tr className="text-[10px] font-bold border-b uppercase text-gray-700 bg-[#E2F4D8]/10">
             <th className="px-4 py-2 border-r border-gray-300 w-1/3 text-left">Particulars</th>
-            <th className="px-4 py-2 border-r border-gray-300 text-center w-16">Qty</th>
-            <th className="px-4 py-2 border-r border-gray-300 text-center">Unit Price</th>
-            <th className="px-4 py-2 border-r border-gray-300 text-center">Amount</th>
-            <th className="px-4 py-2 text-left">Remarks</th>
+            <th className="px-3 py-2 border-r border-gray-300 text-center w-16">Qty</th>
+            <th className="px-3 py-2 border-r border-gray-300 text-center">Unit Price</th>
+            <th className="px-3 py-2 border-r border-gray-300 text-center">Amount</th>
+            <th className="px-3 py-2 text-left w-[30%]">Remarks</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
@@ -55,7 +55,7 @@ useEffect(() => {
           </tr>
           {machine.map((item, idx) => (
             <tr key={`m-${idx}`} className="h-10 bg-white">
-              <td className="px-4 py-2 border-r border-gray-300 text-left text-gray-700 text-xs font-semibold">{item.sku?.toUpperCase()}</td>
+              <td className="px-4 py-2 border-r border-gray-300 text-left text-gray-600 text-xs ">{item.sku?.toUpperCase()}</td>
               <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-600 text-xs">
                 {item.qty} {/* Qty based on machine configuration */}
               </td>

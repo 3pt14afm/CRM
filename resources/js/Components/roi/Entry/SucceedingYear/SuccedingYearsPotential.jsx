@@ -164,7 +164,7 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
 
   return (
     <div className="pt-0 print:px-1">
-      <div className="flex flex-row gap-4 items-start">
+      <div className="flex flex-row gap-4 items-start print:gap-2.5">
         {renderTable({
           title: rangeTitle,
           multiplier: 1,

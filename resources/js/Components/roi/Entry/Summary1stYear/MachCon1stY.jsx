@@ -86,7 +86,7 @@ function MachCon1stY() {
                         </tr>
                         {filteredConsumable.length > 0 ? filteredConsumable.map((c, index) => (
                             <tr key={c.id || `c-${index}`} className="border-b border-gray-100 last:border-b-0">
-                                <td className="px-7 py-3 text-[12px]">{c.sku}</td>
+                                <td className="px-7 py-3 text-[12px] print:px-3">{c.sku}</td>
                                 <td className="border-l text-[12px] border-gray-300 text-center px-2 py-1">{formatNum(c.cost)}</td>
                                 <td className="border-l text-[12px] border-gray-100 text-center px-2 py-1">{Number(c.yields || 0).toLocaleString()}</td>
                                 <td className="border-l text-[12px] border-gray-100 text-center px-2 py-1">{formatNum(c.yields > 0 ? c.cost / c.yields : 0, 2)}</td>

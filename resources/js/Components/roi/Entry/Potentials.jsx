@@ -38,7 +38,7 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
     <div className="pr-4 pt-0 print:px-2">
       {/* TITLE SECTION */}
       <div className="text-center mb-2 pr-1">
-        <span className="text-[17px] font-bold uppercase tracking-tight text-gray-700">
+        <span className="text-[17px] font-bold print:font-medium print:text-sm uppercase tracking-tight text-gray-700">
           {title}
         </span>
       </div>
@@ -50,7 +50,7 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
             <tr>
               <th className="w-1/4 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold uppercase">Qty</th>
               <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold border-l border-gray-300 uppercase">Total Cost</th>
-              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold border-l border-gray-300 uppercase">Gross Sales</th>
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold border-l border-gray-300 uppercase ">Gross Sales</th>
             </tr>
           </thead>
           <tbody>
@@ -62,7 +62,7 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
               machines.map((m, index) => (
                 <tr key={`m-${index}`} className="border-b  border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center print:py-2">{m.qty}</td>
-                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1 print:py-2">
+                  <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1 print:py-2.5">
                     <p>{format(m.totalCost)}</p>
                     <p className='text-[11px] text-blue-700 italic'>{format(m.machineMarginTotal || 0)}</p>
                   </td>

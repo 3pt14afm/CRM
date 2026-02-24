@@ -48,19 +48,19 @@ function MachConSucce() {
             {filteredMachine.length > 0 ? (
               filteredMachine.map((m, index) => (
                 <tr key={m.id || `m-${index}`} className="border-b py-5 border-gray-100 last:border-b-0 print:py-2">
-                  <td className="px-7 text-[12px] break-words uppercase border-r border-gray-300">
+                  <td className="px-7 text-[12px] break-words uppercase border-r border-gray-300 print:py-2">
                     {m.sku}
                   </td>
-                  <td className="px-3 py-5 text-[12px] text-center">
+                  <td className="px-3 py-5 text-[12px] text-center print:py-2">
                     <p>{formatNum(0)}</p>
                     <p className='text-[11px] text-blue-700 italic'></p>
                   </td>
                 </tr>
               ))
             ) : (
-              <tr className="border-b border-gray-100 last:border-b-0">
-                <td className="px-7 py-3 text-[12px] border-r border-gray-300">x</td>
-                <td className="px-3 py-3 text-[12px] text-center">{formatNum(0)}</td>
+              <tr className="border-b border-gray-100 last:border-b-0 print:py-2">
+                <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">x</td>
+                <td className="px-3 py-3 text-[12px] text-center print:py-2">{formatNum(0)}</td>
               </tr>
             )}
 
@@ -74,19 +74,19 @@ function MachConSucce() {
 
             {filteredConsumable.length > 0 ? (
               filteredConsumable.map((c, index) => (
-                <tr key={c.id || `c-${index}`} className="border-b border-gray-100 last:border-b-0">
-                  <td className="px-7 py-3 text-[12px] break-words border-r border-gray-300">
+                <tr key={c.id || `c-${index}`} className="border-b border-gray-100 last:border-b-0 print:py-2">
+                  <td className="px-7 py-3 text-[12px] break-words border-r border-gray-300 print:py-2">
                     {c.sku}
                   </td>
-                  <td className="px-3 py-3 text-[12px] text-center">
+                  <td className="px-3 py-3 text-[12px] text-center print:py-2">
                     {formatNum(c.cost)}
                   </td>
                 </tr>
               ))
             ) : (
-              <tr className="border-b border-gray-100 last:border-b-0">
-                <td className="px-7 py-3 text-[12px] border-r border-gray-300">x</td>
-                <td className="px-3 py-3 text-[12px] text-center">{formatNum(0)}</td>
+              <tr className="border-b border-gray-100 last:border-b-0 print:py-2">
+                <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">x</td>
+                <td className="px-3 py-3 text-[12px] text-center print:py-2">{formatNum(0)}</td>
               </tr>
             )}
           </tbody>
