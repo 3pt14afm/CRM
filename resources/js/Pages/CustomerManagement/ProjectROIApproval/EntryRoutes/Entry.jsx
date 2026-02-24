@@ -1,9 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Summary1stYear from './EntryRoutes/Summary1stYear';
-import MachineConfigTab from './EntryRoutes/MachineConfigTab';
-import SucceedingYears from './EntryRoutes/SucceedingYears';
+import Summary1stYear from './Summary1stYear';
+import MachineConfigTab from './MachineConfigTab';
+import SucceedingYears from './SucceedingYears';
 import { FaRegFloppyDisk } from "react-icons/fa6";
 import { IoPrintSharp, IoSend, IoTrashSharp } from "react-icons/io5";
 import { MdDisabledByDefault } from "react-icons/md";
@@ -230,7 +230,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
         toast.success("Draft saved!", { id: "saveDraft" });
       },
       onError: () => {
-        toast.error("Could not save.", { id: "saveDraft" });
+        toast.error("Cannot save draft.", { id: "saveDraft" });
       },
     });
   };

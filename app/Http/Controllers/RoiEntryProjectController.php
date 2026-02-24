@@ -29,7 +29,7 @@ class RoiEntryProjectController extends Controller
             'fees'  => fn ($q) => $q->orderBy('id'),
         ]);
 
-        return Inertia::render('CustomerManagement/ProjectROIApproval/Entry', [
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'activeTab'    => 'Machine Configuration',
             'entryProject' => $project,
         ]);
