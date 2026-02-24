@@ -135,7 +135,7 @@ function CompanyInfo() {
                     onChange={(e) =>
                       handleChange("bundledStdInk", e.target.checked)
                     }
-                    className="h-4 w-4 accent-[#289800] cursor-pointer focus:outline-none focus:ring-0 focus:border-darkgreen/20"
+                    className="h-4 w-4 checkboxes cursor-pointer border-darkgreen/15 focus:outline-none focus:ring-0 focus:border-darkgreen/35"
                   />
                   <span className="text-[11px] font-bold uppercase text-slate-700 leading-tight">
                     With bundled std ink bottles

@@ -29,7 +29,7 @@ function Yields() {
 
   // responsive input width: full on xs, fixed on sm+
   const numberInputClass =
-    "w-full sm:w-28 h-7 text-[12px] rounded-sm border border-slate-200 text-center outline-none focus:ring-1 focus:ring-green-400 bg-white mx-auto block" +
+    "w-full sm:w-28 h-7 text-[12px] rounded-sm border border-slate-200 text-center outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white mx-auto block" +
     " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (

@@ -18,7 +18,7 @@ class RoiController extends Controller
         $userId = Auth::id();
 
         // 5 matches your UI mock; can be overridden by ?per_page=
-        $perPage = (int) $request->input('per_page', 5);
+        $perPage = (int) $request->input('per_page', 10);
 
         $draftsQuery = RoiEntryProject::query()
             ->where('user_id', $userId)
