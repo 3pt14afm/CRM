@@ -33,7 +33,7 @@ useEffect(() => {
 }, [machine, contractToners, totalInitial, setContractDetails]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-full mx-20 my-6">
+    <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-full mx-20 my-6 print:mx-1">
       <div className="bg-[#E2F4D8] py-2 text-center border-b border-gray-300">
         <h2 className="text-xs font-bold tracking-widest text-gray-800 uppercase">Contract Details</h2>
       </div>
@@ -54,7 +54,7 @@ useEffect(() => {
             <td colSpan="5" className="px-4 py-1 text-left text-[9px] font-bold uppercase text-gray-500">Hardware</td>
           </tr>
           {machine.map((item, idx) => (
-            <tr key={`m-${idx}`} className="h-10 bg-white">
+            <tr key={`m-${idx}`} className="bg-white">
               <td className="px-4 py-2 border-r border-gray-300 text-left text-gray-600 text-xs ">{item.sku?.toUpperCase()}</td>
               <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-600 text-xs">
                 {item.qty} {/* Qty based on machine configuration */}
@@ -75,7 +75,7 @@ useEffect(() => {
             const amount = qty * price;
 
             return (
-              <tr key={`c-${idx}`} className="h-10 bg-white">
+              <tr key={`c-${idx}`} className="bg-white">
                 <td className="px-4 py-2 border-r border-gray-300 text-left text-gray-600 text-xs uppercase">{item.sku.toUpperCase()}</td>
                 <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-600 text-xs">
                   {qty} {/* Qty based on consumable configuration */}
@@ -90,7 +90,7 @@ useEffect(() => {
           })}
         </tbody>
         <tfoot>
-          <tr className="bg-[#E2F4D8]/20 border-t border-gray-300 font-bold">
+          <tr className="bg-[#E2F4D8]/20 border-t border-gray-300 font-semibold">
             <td colSpan="3" className="px-4 py-2 text-right text-[12px] uppercase border-r border-gray-300">Total Initial</td>
             <td className="px-4 py-2 border-r border-gray-300 text-right text-xs font-mono">{formatCurrency(totalInitial)}</td>
             <td className="px-4 py-2"></td>
