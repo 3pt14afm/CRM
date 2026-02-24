@@ -44,17 +44,39 @@ const blankRow = () => ({
   __fixed: false, // local-only flag
 });
 
+// ✅ fixed qty rules (all contract types)
+const normalize = (s) => (s || '').trim().toLowerCase();
+const getFixedQtyForLabel = (label) => {
+  const l = normalize(label);
+  if (l === "one time charge") return 1;
+  if (l === "shipping") return 1;
+  if (l === "rebate") return 1;
+  if (l === "support services") return 12;
+  return null;
+};
+const applyFixedQtyIfNeeded = (row) => {
+  const fixedQty = getFixedQtyForLabel(row.label);
+  if (fixedQty == null) return row;
+  const nextCost = Number(row.cost) || 0;
+  return {
+    ...row,
+    qty: fixedQty,
+    total: nextCost * fixedQty,
+  };
+};
+
 const ensureFixedRows = (rows, fixedLabels) => {
-  const normalize = (s) => (s || '').trim().toLowerCase();
   const remaining = [...rows];
 
   const fixedRows = fixedLabels.map((fixedLabel) => {
     const idx = remaining.findIndex(r => normalize(r.label) === normalize(fixedLabel));
     if (idx >= 0) {
       const existing = remaining.splice(idx, 1)[0];
-      return { ...existing, label: fixedLabel, __fixed: true };
+      // ✅ enforce fixed qty (if applicable) even for existing rows
+      return applyFixedQtyIfNeeded({ ...existing, label: fixedLabel, __fixed: true });
     }
-    return {
+    // ✅ seed fixed row with fixed qty (if applicable)
+    return applyFixedQtyIfNeeded({
       id: makeId(),
       label: fixedLabel,
       cost: 0,
@@ -63,7 +85,7 @@ const ensureFixedRows = (rows, fixedLabels) => {
       remarks: '',
       isMachine: false,
       __fixed: true,
-    };
+    });
   });
 
   const nonFixed = remaining.map(r => ({ ...r, __fixed: false }));
@@ -102,16 +124,23 @@ const Fees = () => {
 
     const seeded = initialRows.length > 0 ? initialRows : [blankRow()];
 
-    return hasFixedRows
+    const withFixed = hasFixedRows
       ? ensureFixedRows(seeded, activeFixedLabels)
       : seeded.map(r => ({ ...r, __fixed: false }));
+
+    // ✅ enforce fixed qty rules on init for any matching labels
+    return withFixed.map(applyFixedQtyIfNeeded);
   });
 
   // 1.5️⃣ When contract type changes (apply fixed rows for Free Use / Rental+Click / Monthly Rental)
   useEffect(() => {
     setRows(prev => {
-      if (hasFixedRows) return ensureFixedRows(prev, activeFixedLabels);
-      return prev.map(r => ({ ...r, __fixed: false }));
+      const next = hasFixedRows
+        ? ensureFixedRows(prev, activeFixedLabels)
+        : prev.map(r => ({ ...r, __fixed: false }));
+
+      // ✅ enforce fixed qty rules after mode switch too
+      return next.map(applyFixedQtyIfNeeded);
     });
   }, [hasFixedRows, contractType]); // contractType included so it re-runs when switching between fixed modes
 
@@ -162,6 +191,10 @@ const Fees = () => {
         // lock label editing for fixed rows (Free Use / Rental+Click / Monthly Rental)
         if (hasFixedRows && row.__fixed && field === 'label') return row;
 
+        // ✅ lock qty editing for specific labels (all contract types)
+        const fixedQty = getFixedQtyForLabel(row.label);
+        if (field === 'qty' && fixedQty != null) return row;
+
         const updatedRow = { ...row, [field]: value };
         if (field === 'isMachine') updatedRow.type = value ? 'Customer' : 'Company';
 
@@ -171,15 +204,21 @@ const Fees = () => {
               ? (value === '' ? 0 : parseFloat(value))
               : (parseFloat(row.cost) || 0);
 
-          const nextQty =
+          // ✅ if label has fixed qty, always use that qty (even when cost changes)
+          const nextQtyFromInput =
             field === 'qty'
               ? (value === '' ? 0 : parseFloat(value))
               : (parseFloat(row.qty) || 0);
 
+          const nextQty = fixedQty != null ? fixedQty : nextQtyFromInput;
+
+          updatedRow.cost = nextCost;
+          updatedRow.qty = nextQty;
           updatedRow.total = nextCost * nextQty;
         }
 
-        return updatedRow;
+        // ✅ if label becomes one of the fixed-qty labels (for non-fixed rows), enforce it
+        return applyFixedQtyIfNeeded(updatedRow);
       })
     );
   };
@@ -232,93 +271,100 @@ const Fees = () => {
           </thead>
 
           <tbody>
-            {rows.map(row => (
-              <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="border-b border-r border-darkgreen/15 text-center px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={row.isMachine}
-                    onChange={e => handleUpdate(row.id, 'isMachine', e.target.checked)}
-                    className="w-4 h-4 accent-green-600"
-                  />
-                </td>
+            {rows.map(row => {
+              const fixedQty = getFixedQtyForLabel(row.label);
+              const qtyLocked = fixedQty != null;
 
-                <td className="border-b border-r border-darkgreen/15 p-1 bg-[#F6FDF5]/30">
-                  {hasFixedRows && row.__fixed ? (
-                    <div className="h-8 flex items-center text-[12px] font-semibold text-slate-800 px-2 text-left">
-                      {row.label}
+              return (
+                <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="border-b border-r border-darkgreen/15 text-center px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={row.isMachine}
+                      onChange={e => handleUpdate(row.id, 'isMachine', e.target.checked)}
+                      className="w-4 h-4 accent-green-600"
+                    />
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-1 bg-[#F6FDF5]/30">
+                    {hasFixedRows && row.__fixed ? (
+                      <div className="h-8 flex items-center text-[12px] font-semibold text-slate-800 px-2 text-left">
+                        {row.label}
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={row.label}
+                        onChange={e => handleUpdate(row.id, 'label', e.target.value)}
+                        placeholder="Shipping, Insurance, etc."
+                        className={`${inputClass} !text-left bg-white w-full px-2 ${!row.label ? 'border-orange-100' : ''}`}
+                      />
+                    )}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <input
+                      type="number"
+                      value={row.cost === 0 || row.cost === "" ? "" : row.cost}
+                      placeholder="0"
+                      onChange={e => handleUpdate(row.id, 'cost', e.target.value)}
+                      className={`${inputClass} h-6 text-[10px] px-1 mx-auto block`}
+                    />
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <input
+                      type="number"
+                      value={row.qty === 0 || row.qty === "" ? "" : row.qty}
+                      placeholder="0"
+                      onChange={e => handleUpdate(row.id, 'qty', e.target.value)}
+                      disabled={qtyLocked}
+                      className={`${inputClass} h-6 text-[10px] px-1 border-none mx-auto block ${qtyLocked ? ' text-slate-700 cursor-not-allowed' : ''}`}
+                      title={qtyLocked ? `Fixed Qty: ${fixedQty}` : undefined}
+                    />
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <div className={`${readonlyClass} flex items-center justify-center min-h-[28px]`}>
+                      {(row.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                  ) : (
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <div className="flex gap-1 justify-center items-center h-8">
+                      <button
+                        onClick={addRow}
+                        className="w-6 h-6 flex items-center justify-center rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={() => removeRow(row.id)}
+                        disabled={(hasFixedRows && row.__fixed) || rows.length <= 1}
+                        className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${
+                          (hasFixedRows && row.__fixed) || rows.length <= 1
+                            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                        }`}
+                        title={(hasFixedRows && row.__fixed) ? "Fixed row" : "Remove row"}
+                      >
+                        -
+                      </button>
+                    </div>
+                  </td>
+
+                  <td className="border-b border-darkgreen/15 p-1">
                     <input
                       type="text"
-                      value={row.label}
-                      onChange={e => handleUpdate(row.id, 'label', e.target.value)}
-                      placeholder="Shipping, Insurance, etc."
-                      className={`${inputClass} !text-left bg-white w-full px-2 ${!row.label ? 'border-orange-100' : ''}`}
+                      value={row.remarks}
+                      onChange={e => handleUpdate(row.id, 'remarks', e.target.value)}
+                      placeholder="Notes..."
+                      className={`${inputClass} !text-left px-2 w-full`}
                     />
-                  )}
-                </td>
-
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="number"
-                    value={row.cost === 0 || row.cost === "" ? "" : row.cost}
-                    placeholder="0"
-                    onChange={e => handleUpdate(row.id, 'cost', e.target.value)}
-                    className={`${inputClass} h-6 text-[10px] px-1 mx-auto block`}
-                  />
-                </td>
-
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="number"
-                    value={row.qty === 0 || row.qty === "" ? "" : row.qty}
-                    placeholder="0"
-                    onChange={e => handleUpdate(row.id, 'qty', e.target.value)}
-                    className={`${inputClass} h-6 text-[10px] px-1 mx-auto block`}
-                  />
-                </td>
-
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={`${readonlyClass} flex items-center justify-center min-h-[28px]`}>
-                    {(row.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </td>
-
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className="flex gap-1 justify-center items-center h-8">
-                    <button
-                      onClick={addRow}
-                      className="w-6 h-6 flex items-center justify-center rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
-                    >
-                      +
-                    </button>
-                    <button
-                      onClick={() => removeRow(row.id)}
-                      disabled={(hasFixedRows && row.__fixed) || rows.length <= 1}
-                      className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${
-                        (hasFixedRows && row.__fixed) || rows.length <= 1
-                          ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
-                      }`}
-                      title={(hasFixedRows && row.__fixed) ? "Fixed row" : "Remove row"}
-                    >
-                      -
-                    </button>
-                  </div>
-                </td>
-
-                <td className="border-b border-darkgreen/15 p-1">
-                  <input
-                    type="text"
-                    value={row.remarks}
-                    onChange={e => handleUpdate(row.id, 'remarks', e.target.value)}
-                    placeholder="Notes..."
-                    className={`${inputClass} !text-left px-2 w-full`}
-                  />
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
 
           <tfoot>
