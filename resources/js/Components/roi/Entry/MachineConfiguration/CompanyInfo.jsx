@@ -149,7 +149,7 @@ function CompanyInfo() {
         <div className="flex flex-col">
           <p className="font-bold text-[11px] uppercase ">Purpose</p>
           <input
-            className="rounded-sm border px-2 text-sm capitalize border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800]"
+            className="rounded-sm border px-2 text-sm border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800]"
             type="text"
             value={projectData.companyInfo.purpose}
             onChange={(e) => handleChange("purpose", e.target.value)}
