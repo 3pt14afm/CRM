@@ -50,32 +50,48 @@ export default function EntryList({
     ];
   }, [stats, drafts]);
 
-const handleDelete = (row) => {
+  const handleDelete = (row) => {
     const ref = row.reference ?? row.id;
 
-    if (!confirm(`Delete draft ${ref}? This cannot be undone.`)) return;
-
-    router.delete(route("roi.entry.projects.destroy", row.id), {
-        preserveScroll: true,
-
-        onStart: () => {
-            toast.loading("Deleting draft...", { id: "deleteDraft" });
-        },
-
-        onSuccess: () => {
-            toast.success("Draft deleted successfully!", {
-                id: "deleteDraft",
+    toast((t) => (
+      <span className="flex items-center gap-3">
+        <span>Delete draft <b>{ref}</b>? This cannot be undone.</span>
+        <button
+          onClick={() => {
+            toast.dismiss(t.id);
+            router.delete(route("roi.entry.projects.destroy", row.id), {
+              preserveScroll: true,
+              onStart: () => {
+                toast.loading("Deleting draft...", { id: "deleteDraft" });
+              },
+              onSuccess: () => {
+                toast.success("Draft deleted successfully!", { id: "deleteDraft" });
+              },
+              onError: () => {
+                toast.error("Delete failed. Please try again.", { id: "deleteDraft" });
+              },
             });
-        },
-
-        onError: () => {
-            toast.error("Delete failed. Please try again.", {
-                id: "deleteDraft",
-            });
-        },
+          }}
+          className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+        >
+          Delete
+        </button>
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          className="bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm"
+        >
+          Cancel
+        </button>
+      </span>
+    ), { 
+      duration: Infinity,
+      style: {
+        maxWidth: '500px',    // 👈 wider
+        padding: '16px 20px', // 👈 more padding
+        fontSize: '15px',     // 👈 bigger text
+      }
     });
-};
-
+  };
 
   // --- Table columns ---
     const columns = useMemo(
