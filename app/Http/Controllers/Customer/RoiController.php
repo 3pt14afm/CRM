@@ -93,7 +93,7 @@ class RoiController extends Controller
      */
     public function entryCreate()
     {
-        return Inertia::render('CustomerManagement/ProjectROIApproval/Entry', [
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'activeTab' => 'Machine Configuration',
             'entryProject' => null,
         ]);

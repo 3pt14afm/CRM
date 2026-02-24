@@ -42,7 +42,20 @@ class RoiEntryProjectController extends Controller
 
         $project->notes = array_values($notes);
 
-        return Inertia::render('CustomerManagement/ProjectROIApproval/Entry', [
+        // notes is a JSON attribute (array), not a relationship
+        $notes = $project->notes ?? [];
+        if (!is_array($notes)) {
+            $notes = [];
+        }
+
+        // sort newest first (safe for JSON notes)
+        usort($notes, function ($a, $b) {
+            return strcmp($b['created_at'] ?? '', $a['created_at'] ?? '');
+        });
+
+        $project->notes = array_values($notes);
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'activeTab'    => 'Machine Configuration',
             'entryProject' => $project,
         ]);

@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout'; // Adjust path if needed
 import { Head } from '@inertiajs/react';
-import CurrentList from './CurrentRoutes/CurrentList';
+import CurrentList from './CurrentList';
 
 export default function Current() {
       const today = new Date();
