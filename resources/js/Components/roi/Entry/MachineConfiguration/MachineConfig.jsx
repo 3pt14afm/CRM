@@ -243,7 +243,7 @@ function MachineConfig() {
     projectData.companyInfo.bundledStdInk
   ]);
 
-  const inputClass = "w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  const inputClass = "w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const readonlyClass = "w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center";
   const footerCellClass ="bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ";
   const disabledInputClass = "border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed";
@@ -298,7 +298,7 @@ function MachineConfig() {
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 border border-darkgreen/30 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
+                        className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
                         checked={row.type === 'machine'}
                         onChange={e => toggleMachine(row.id, e.target.checked)}
                       />
@@ -435,7 +435,8 @@ function MachineConfig() {
                         type="text"
                         value={row.remarks}
                         onChange={e => handleInputChange(row.id, 'remarks', e.target.value)}
-                        className={`${inputClass} text-start`}
+                        placeholder="Enter remarks"
+                        className={`${inputClass} normal-case text-start`}
                       />
                     </td>
                   </tr>

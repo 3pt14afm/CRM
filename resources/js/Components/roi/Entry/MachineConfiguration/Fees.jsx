@@ -238,9 +238,9 @@ const Fees = () => {
 
   // 5️⃣ Classes
   const inputClass =
-    "w-full capitalize min-w-0 h-8 text-[12px] text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+    "w-full capitalize min-w-0 h-8 text-[12px] text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const readonlyClass =
-    "w-full h-8 text-[12px] text-center rounded-sm border border-slate-100 text-slate-900 font-medium flex items-center justify-center";
+    "w-full h-8 text-[12px] text-center rounded-sm text-slate-900 font-medium flex items-center justify-center";
 
   const currentGrandTotal = rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
@@ -282,7 +282,7 @@ const Fees = () => {
                       type="checkbox"
                       checked={row.isMachine}
                       onChange={e => handleUpdate(row.id, 'isMachine', e.target.checked)}
-                      className="w-4 h-4 accent-green-600"
+                      className="w-4 h-4 checkboxes accent-green-600 border border-darkgreen/35 focus:ring-0 focus:outline-none cursor-pointer"
                     />
                   </td>
 
@@ -319,7 +319,7 @@ const Fees = () => {
                       placeholder="0"
                       onChange={e => handleUpdate(row.id, 'qty', e.target.value)}
                       disabled={qtyLocked}
-                      className={`${inputClass} h-6 text-[10px] px-1 border-none mx-auto block ${qtyLocked ? ' text-slate-700 cursor-not-allowed' : ''}`}
+                      className={`${inputClass} h-6 text-[10px] px-1 mx-auto block ${qtyLocked ? 'disabled:bg-lightgreen/5 border-none text-slate-700 cursor-not-allowed' : ''}`}
                       title={qtyLocked ? `Fixed Qty: ${fixedQty}` : undefined}
                     />
                   </td>
@@ -358,8 +358,8 @@ const Fees = () => {
                       type="text"
                       value={row.remarks}
                       onChange={e => handleUpdate(row.id, 'remarks', e.target.value)}
-                      placeholder="Notes..."
-                      className={`${inputClass} !text-left px-2 w-full`}
+                      placeholder="Enter remarks"
+                      className={`${inputClass} !text-left px-2 w-full normal-case`}
                     />
                   </td>
                 </tr>

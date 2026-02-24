@@ -1,4 +1,5 @@
 import React from "react";
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 
 function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
   const clickable = typeof onClick === "function";
@@ -74,7 +75,7 @@ export default function ProjectListSection({
   })();
 
   return (
-    <div className="mx-14">
+    <div className="mx-16">
       {/* Tiles */}
       <div className="grid grid-cols-12 gap-6">
         {tiles.map((t) => (
@@ -108,7 +109,7 @@ export default function ProjectListSection({
                 rows.map((r) => (
                   <tr key={rowKey(r)} className="border-t border-black/5">
                     {columns.map((c) => (
-                      <td key={c.key} className="px-8 py-3">
+                      <td key={c.key} className="px-8 py-2">
                         {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
                       </td>
                     ))}
@@ -131,23 +132,23 @@ export default function ProjectListSection({
 
             <div className="flex items-center gap-2">
               <button
-                className="px-3 py-1 rounded-lg border border-black/10 disabled:opacity-50"
+                className="px-1 py-1 rounded-md border border-black/20 disabled:opacity-50"
                 disabled={pagination.page <= 1}
                 onClick={() => pagination.onPageChange(pagination.page - 1)}
               >
-                Previous
+                <MdKeyboardArrowLeft className="text-[18px]" />
               </button>
 
-              <div className="px-3 py-1 rounded-lg bg-[#4FA34E] text-white">
+              <div className="px-2 py-1">
                 {pagination.page}
               </div>
 
               <button
-                className="px-3 py-1 rounded-lg border border-black/10 disabled:opacity-50"
+                className="px-1 py-1 rounded-md border border-black/20 disabled:opacity-50"
                 disabled={pagination.page * pagination.perPage >= pagination.total}
                 onClick={() => pagination.onPageChange(pagination.page + 1)}
               >
-                Next
+                <MdKeyboardArrowRight className="text-[18px]" />
               </button>
             </div>
           </div>

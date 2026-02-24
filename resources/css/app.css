@@ -44,3 +44,11 @@
   --col-total: 96px;   /* Total Cost / Total */
 }
 
+.checkboxes {
+  color: darkgreen !important;
+}
+
+.checkboxes:checked {
+  background-color: currentColor !important;
+  border-color: currentColor !important;
+}
