@@ -126,7 +126,7 @@ function CompanyInfo() {
             </div>
 
             {/* right column (matches contract years width) */}
-            <div className="w-32 flex justify-start pt-2">
+            {/* <div className="w-32 flex justify-start pt-2">
               {showBundledInk && (
                 <label className="flex items-center gap-3 select-none">
                   <input
@@ -142,7 +142,7 @@ function CompanyInfo() {
                   </span>
                 </label>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
 

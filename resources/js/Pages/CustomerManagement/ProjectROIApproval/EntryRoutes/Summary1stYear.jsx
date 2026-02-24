@@ -63,6 +63,8 @@ function Summary1stYear() {
 
           <SucceTotals />
 
+          <div className="print-page-break" />
+          
           {/* CONTRACT DETAILS */}
           <ContractDetails />
 
