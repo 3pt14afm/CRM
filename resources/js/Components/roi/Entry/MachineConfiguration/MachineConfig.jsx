@@ -246,7 +246,7 @@ function MachineConfig() {
   const inputClass = "w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:border-green-400 bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const readonlyClass = "w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center";
   const footerCellClass ="bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ";
-  const disabledInputClass = "bg-slate-100 text-slate-500 cursor-not-allowed";
+  const disabledInputClass = "border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed";
 
   return (
     <div className="mx-10 mb-5">
