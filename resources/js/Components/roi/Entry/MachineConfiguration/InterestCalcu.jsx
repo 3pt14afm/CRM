@@ -13,6 +13,18 @@ const InterestCalculator = () => {
     projectData?.interest?.percentMargin,
     projectData?.companyInfo?.contractYears
   ]);
+
+  useEffect(() => {
+    setProjectData(prev => ({
+      ...prev,
+      interest: {
+        ...prev.interest,
+        percentMargin,
+      }
+    }));
+  }, [projectData?.companyInfo?.contractYears]);
+
+
   const handleChange = (field, value) => {
     setProjectData(prev => ({
       ...prev,
