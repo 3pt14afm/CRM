@@ -50,7 +50,7 @@ console.log({ currentProjects, stats });
       key: "reference",
       header: "REFERENCE",
       cell: (r) => (
-        <span className="text-[#289800] font-semibold">{r.reference}</span>
+        <span className=" font-semibold">{r.reference}</span>
       ),
     },
     {
@@ -78,10 +78,10 @@ console.log({ currentProjects, stats });
                 cell: (r) => (
                     <div className="flex  items-center gap-2">
                         <button
-                            className="px-4 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
+                            className="px-3 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
                             onClick={() => router.visit(route("roi.current.show", r.id))}
                         >
-                           <IoEyeOutline /> View
+                           <IoEyeOutline className='text-[18px]'/>
                         </button>
                     </div>
                 ),
@@ -90,7 +90,7 @@ console.log({ currentProjects, stats });
   ], []);
 
   const goToPage = (p) => {
-    router.get(route("roi.entry.current"), { page: p }, { preserveScroll: true, preserveState: true });
+    router.get(route("roi.current"), { page: p }, { preserveScroll: true, preserveState: true });
   };
 
   const rows = currentProjects?.data ?? [];
