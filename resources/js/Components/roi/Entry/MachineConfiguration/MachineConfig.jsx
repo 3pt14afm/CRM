@@ -64,11 +64,19 @@ function MachineConfig() {
     e.preventDefault();
   };
 
+  const isConsumableModeMissing = (row) => row?.type === 'consumable' && !String(row?.mode || '').trim();
+
+  // ✅ Enforce fixed qty for consumables
+  const enforceConsumableQty = (row) => {
+    if (row?.type !== 'consumable') return row;
+    return { ...row, qty: 1 };
+  };
+
   const makeBlankRow = () => ({
     id: Date.now(),
     sku: '',
     cost: '',
-    qty: '',
+    qty: 1, // ✅ fixed qty for consumables
     yields: '',
     price: '',
     remarks: '',
@@ -82,11 +90,13 @@ function MachineConfig() {
     const combined = [...machine, ...consumable];
 
     return combined.length > 0
-      ? combined.map(r => ({
-          ...r,
-          cost: r.inputtedCost || r.cost,
-          mode: r.mode || "",
-        }))
+      ? combined
+          .map(r => ({
+            ...r,
+            cost: r.inputtedCost || r.cost,
+            mode: r.mode || "",
+          }))
+          .map(enforceConsumableQty) // ✅ consumables always qty=1
       : [makeBlankRow()];
   });
 
@@ -103,11 +113,13 @@ function MachineConfig() {
 
     if (combined.length > 0) {
       setRows(
-        combined.map(r => ({
-          ...r,
-          cost: r.inputtedCost ?? r.cost ?? '',
-          mode: r.mode || '',
-        }))
+        combined
+          .map(r => ({
+            ...r,
+            cost: r.inputtedCost ?? r.cost ?? '',
+            mode: r.mode || '',
+          }))
+          .map(enforceConsumableQty) // ✅ consumables always qty=1
       );
     } else {
       // ✅ important: reset to a clean blank row when draft has no items
@@ -120,7 +132,7 @@ function MachineConfig() {
 
   // Totals for table footer
   const computeTotals = (rows) => rows.reduce((acc, r) => {
-    const calcs = getRowCalculations(r);
+    const calcs = getRowCalculations(r, projectData);
     acc.unitCost += parseFloat(r.cost) || 0;
     acc.qty += parseFloat(r.qty) || 0;
     acc.totalCost += calcs.totalCost;
@@ -136,7 +148,21 @@ function MachineConfig() {
 
   // Handle input changes (update local rows only)
   const handleInputChange = (id, field, value) => {
-    setRows(prevRows => prevRows.map(row => (row.id === id ? { ...row, [field]: value } : row)));
+    setRows(prevRows =>
+      prevRows.map(row => {
+        if (row.id !== id) return row;
+
+        // ✅ consumable qty is fixed to 1 (ignore user input)
+        if (row.type === 'consumable' && field === 'qty') {
+          return { ...row, qty: 1 };
+        }
+
+        const updated = { ...row, [field]: value };
+
+        // ✅ keep consumables locked to qty=1 no matter what field changes
+        return enforceConsumableQty(updated);
+      })
+    );
   };
 
   const toggleMachine = (id, isMachine) => {
@@ -157,6 +183,7 @@ function MachineConfig() {
           ...r,
           type: "consumable",
           mode: r.prevMode || "",
+          qty: 1, // ✅ fixed qty for consumables
         };
       })
     );
@@ -166,11 +193,26 @@ function MachineConfig() {
     setRows(prev => prev.map(r => (r.id === id ? { ...r, mode } : r)));
   };
 
+  const isRowStarted = (row) => {
+    return Boolean(
+      String(row?.sku || '').trim() ||
+      String(row?.cost || '').trim() ||
+      String(row?.yields || '').trim() ||
+      String(row?.price || '').trim() ||
+      String(row?.remarks || '').trim() ||
+      (row?.type === 'machine' && String(row?.qty || '').trim()) // qty matters for machine rows
+    );
+  };
+
+  const shouldHighlightModeError = (row) => {
+    return row?.type === 'consumable' && isRowStarted(row) && !String(row?.mode || '').trim();
+  };
+
   // Add / Remove row
   const addRow = () =>
     setRows(prev => [
       ...prev,
-      { id: Date.now(), sku: '', cost: '', qty: '', yields: '', price: '', remarks: '', type: 'consumable', mode: '' }
+      { id: Date.now(), sku: '', cost: '', qty: 1, yields: '', price: '', remarks: '', type: 'consumable', mode: '' } // ✅ qty fixed for new consumable row
     ]);
 
   const removeRow = (id) => rows.length > 1 && setRows(rows.filter(r => r.id !== id));
@@ -301,7 +343,7 @@ function MachineConfig() {
             </thead>
             <tbody>
               {rows.map(row => {
-                const calcs = getRowCalculations(row);
+                const calcs = getRowCalculations(row, projectData);
                 const isMachineRow = row.type === 'machine';
 
                 return (
@@ -319,8 +361,16 @@ function MachineConfig() {
                         <select
                           value={row.type === "machine" ? "" : (row.mode || "")}
                           onChange={(e) => setMode(row.id, e.target.value)}
+                          
                           disabled={row.type === "machine"}
-                          className={`w-[90%] min-w-0 h-6 text-[11px] sm:text-xs px-2 py-0 rounded-sm accent-green-600 border border-darkgreen/20 bg-white outline-none focus:outline-none focus:ring-0 focus:border-darkgreen/20  ${row.type === "machine" ? "opacity-50 cursor-not-allowed bg-slate-100" : "cursor-pointer"}`}
+                          className={`w-[90%] min-w-0 h-6 text-[11px] sm:text-xs px-2 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0 
+                            ${
+                              row.type === "machine"
+                                ? "border-darkgreen/20 opacity-50 cursor-not-allowed bg-slate-100"
+                                : shouldHighlightModeError(row)
+                                  ? "border-red-400 focus:border-red-400 bg-red-50 text-red-700 cursor-pointer"
+                                  : "border-darkgreen/20 focus:border-[#289800] cursor-pointer"
+                            }`}
                           aria-label="Select mode: Mono / Color / Others"
                         >
                           <option className="text-gray-400" value="">Select</option>
@@ -374,15 +424,20 @@ function MachineConfig() {
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={e => handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
-                        disabled={isMachineRow}
-                        className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
+                        disabled={!isMachineRow}
+                        className={`${inputClass} ${!isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0"
                       />
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
-                      {/* unchanged calc display from your current file */}
-                      <div className={readonlyClass}>{formatNum(calcs.totalCost * row.qty)}</div>
+                      <div className={readonlyClass}>
+                        {formatNum(
+                          isMachineRow
+                            ? (Number(row.cost) || 0) * (Number(row.qty) || 0) // ✅ display only: unit cost × qty
+                            : (Number(calcs.totalCost) || 0) * (Number(row.qty) || 0)
+                        )}
+                      </div>
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">

@@ -47,7 +47,7 @@ export default function PrintLayout({ children }) {
             font-weight: 800;
             font-size: 100px;
             letter-spacing: 0.25em;
-            color: rgba(100, 100, 100, 0.1); 
+            color: rgba(100, 100, 100, 0.2); 
             transform: rotate(-32deg);
             text-transform: uppercase;
             white-space: nowrap;
@@ -85,7 +85,7 @@ export default function PrintLayout({ children }) {
             font-weight: 800;
             font-size: 44mm;       /* scale with paper size */
             letter-spacing: 4mm;
-            color: rgba(100, 100, 100, 0.1);
+            color: rgba(45, 120, 19, 0.2);
             transform: rotate(-32deg);
             text-transform: uppercase;
             white-space: nowrap;

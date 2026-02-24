@@ -11,9 +11,9 @@ const FIXED_FEE_LABELS_FREE_USE = [
 const FIXED_FEE_LABELS_RENTAL_CLICK = [
   "One Time Charge",
   "Shipping",
-  "Monthly Rental",
-  "Support Services",
   "Rebate",
+  "Support Services",
+  "Monthly Rental",
   "A4/A3 MONO CLICK",
   "A4/LGL COLOR CLICK",
   "A3 COLOR CLICK",
@@ -25,6 +25,14 @@ const FIXED_FEE_LABELS_MONTHLY_RENTAL = [
   "Rebate",
   "Support Services",
   "Monthly Rental",
+];
+
+// ✅ rows that should exist only in specific contract types
+const CONTRACT_SPECIFIC_LABELS = [
+  "Monthly Rental",
+  "A4/A3 MONO CLICK",
+  "A4/LGL COLOR CLICK",
+  "A3 COLOR CLICK",
 ];
 
 // a safer id generator than Date.now() alone
@@ -44,19 +52,23 @@ const blankRow = () => ({
   __fixed: false, // local-only flag
 });
 
-// ✅ fixed qty rules (all contract types)
+// ✅ fixed qty rules
 const normalize = (s) => (s || '').trim().toLowerCase();
+
 const getFixedQtyForLabel = (label) => {
   const l = normalize(label);
   if (l === "one time charge") return 1;
   if (l === "shipping") return 1;
   if (l === "rebate") return 1;
   if (l === "support services") return 12;
+  if (l === "monthly rental") return 12; // ✅ always fixed to 12
   return null;
 };
+
 const applyFixedQtyIfNeeded = (row) => {
   const fixedQty = getFixedQtyForLabel(row.label);
   if (fixedQty == null) return row;
+
   const nextCost = Number(row.cost) || 0;
   return {
     ...row,
@@ -65,17 +77,38 @@ const applyFixedQtyIfNeeded = (row) => {
   };
 };
 
+// ✅ remove contract-specific rows when they are not part of the active contract type
+const removeInactiveContractSpecificRows = (rows, activeFixedLabels) => {
+  const activeSet = new Set((activeFixedLabels || []).map(normalize));
+  const contractSpecificSet = new Set(CONTRACT_SPECIFIC_LABELS.map(normalize));
+
+  return rows.filter((r) => {
+    const label = normalize(r.label);
+
+    // keep blank/new rows
+    if (!label) return true;
+
+    // contract-specific rows only stay if active in current contract type
+    if (contractSpecificSet.has(label)) {
+      return activeSet.has(label);
+    }
+
+    return true;
+  });
+};
+
 const ensureFixedRows = (rows, fixedLabels) => {
-  const remaining = [...rows];
+  const cleanedRows = removeInactiveContractSpecificRows(rows, fixedLabels);
+  const remaining = [...cleanedRows];
 
   const fixedRows = fixedLabels.map((fixedLabel) => {
     const idx = remaining.findIndex(r => normalize(r.label) === normalize(fixedLabel));
+
     if (idx >= 0) {
       const existing = remaining.splice(idx, 1)[0];
-      // ✅ enforce fixed qty (if applicable) even for existing rows
       return applyFixedQtyIfNeeded({ ...existing, label: fixedLabel, __fixed: true });
     }
-    // ✅ seed fixed row with fixed qty (if applicable)
+
     return applyFixedQtyIfNeeded({
       id: makeId(),
       label: fixedLabel,
@@ -123,26 +156,27 @@ const Fees = () => {
     const initialRows = [...companyRows, ...customerRows];
 
     const seeded = initialRows.length > 0 ? initialRows : [blankRow()];
+    const cleanedSeeded = removeInactiveContractSpecificRows(seeded, activeFixedLabels);
 
     const withFixed = hasFixedRows
-      ? ensureFixedRows(seeded, activeFixedLabels)
-      : seeded.map(r => ({ ...r, __fixed: false }));
+      ? ensureFixedRows(cleanedSeeded, activeFixedLabels)
+      : cleanedSeeded.map(r => ({ ...r, __fixed: false }));
 
-    // ✅ enforce fixed qty rules on init for any matching labels
     return withFixed.map(applyFixedQtyIfNeeded);
   });
 
-  // 1.5️⃣ When contract type changes (apply fixed rows for Free Use / Rental+Click / Monthly Rental)
+  // 1.5️⃣ When contract type changes (apply/remove contract-specific fixed rows)
   useEffect(() => {
     setRows(prev => {
-      const next = hasFixedRows
-        ? ensureFixedRows(prev, activeFixedLabels)
-        : prev.map(r => ({ ...r, __fixed: false }));
+      const cleanedPrev = removeInactiveContractSpecificRows(prev, activeFixedLabels);
 
-      // ✅ enforce fixed qty rules after mode switch too
+      const next = hasFixedRows
+        ? ensureFixedRows(cleanedPrev, activeFixedLabels)
+        : cleanedPrev.map(r => ({ ...r, __fixed: false }));
+
       return next.map(applyFixedQtyIfNeeded);
     });
-  }, [hasFixedRows, contractType]); // contractType included so it re-runs when switching between fixed modes
+  }, [hasFixedRows, contractType]);
 
   // 2️⃣ Sync rows with context (logic updated for categories)
   useEffect(() => {
@@ -188,10 +222,10 @@ const Fees = () => {
       prev.map(row => {
         if (row.id !== id) return row;
 
-        // lock label editing for fixed rows (Free Use / Rental+Click / Monthly Rental)
+        // lock label editing for fixed rows
         if (hasFixedRows && row.__fixed && field === 'label') return row;
 
-        // ✅ lock qty editing for specific labels (all contract types)
+        // ✅ lock qty editing for specific labels
         const fixedQty = getFixedQtyForLabel(row.label);
         if (field === 'qty' && fixedQty != null) return row;
 
@@ -204,7 +238,6 @@ const Fees = () => {
               ? (value === '' ? 0 : parseFloat(value))
               : (parseFloat(row.cost) || 0);
 
-          // ✅ if label has fixed qty, always use that qty (even when cost changes)
           const nextQtyFromInput =
             field === 'qty'
               ? (value === '' ? 0 : parseFloat(value))
