@@ -100,7 +100,7 @@ const customerTotal = customerFees.reduce(
                   <thead className="bg-[#E2F4D8]/70 text-[11px]">
                     <tr>
                       <th className="px-3 py-1 text-center uppercase border border-gray-300">OTHERS</th>
-                      <th className="px-3 py-1 text-center border border-gray-300 uppercase">Amount</th>
+                      <th className="px-3 py-1 text-center border border-gray-300 uppercase print:text-[10px]">Amount</th>
                       <th className="px-3 py-1 text-center bg-white"></th>
                       <th className="px-3 py-1 text-center border border-gray-300"></th>
                       <th className="px-3 py-1 text-center border border-gray-300"></th>

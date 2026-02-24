@@ -24,7 +24,7 @@ function Summary1stYear() {
           <CompanyInfoSum />
 
           {/* TOTAL MVP AND ANNUAL INTERESTS */}
-          <div className='grid grid-cols-[40%_60%] gap-4 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-1 print:gap-0'>
+          <div className='grid grid-cols-[40%_60%] gap-4 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-0 print:gap-0'>
             <div className="max-w-4xl w-full mt-3 print:ml-0 print:mt-0 print:mr-0">
               <TotalMVP />
             </div>
@@ -34,7 +34,7 @@ function Summary1stYear() {
             </div>
           </div>
 
-          <div className='grid grid-cols-[70%_30%] items-start gap-4 mt-2 print:mx-0 print:gap-0'>
+          <div className='grid grid-cols-[70%_30%] items-start gap-4 mt-2 print:mx-0 print:-mt-2 print:gap-0'>
             <div className='flex flex-col gap-2 pt-8 print:pt-7 print:gap-0'>
               <MachCon1stY />
             </div>
@@ -46,13 +46,13 @@ function Summary1stYear() {
           <Totals />
         </div>
 
-        {/* ✅ FORCE NEXT CONTENT TO NEW PAGE */}
+        {/* FORCE NEXT CONTENT TO NEW PAGE */}
         <div className="print-page-break" />
 
         {/* ================= PAGE 2 ================= */}
         <div>
           {/* SUCCEEDING YEARS */}
-          <div className='grid grid-cols-[40%_60%] items-start gap-4 mt-8 print:mt-0 print:mx-0 print:gap-0'>
+          <div className='grid grid-cols-[40%_60%] items-start gap-4 mt-8 print:mt-0 print:mx-0 print:gap-2'>
             <div className='flex flex-col gap-2 pt-8 print:pt-7 print:gap-0'>
               <MachConSucce />
             </div>
@@ -67,7 +67,7 @@ function Summary1stYear() {
           <ContractDetails />
 
           {/* ADD NOTES AND ADD COMMENTS */}
-          <div className='grid grid-cols-2 items-start mx-56 gap-1 print:mx-0 print:gap-0'>
+          <div className='grid grid-cols-2 items-start lg:mx-10 xl:mx-56 gap-1 print:mx-0 print:gap-0'>
             <AddNotes />
             <AddComments />
           </div>
