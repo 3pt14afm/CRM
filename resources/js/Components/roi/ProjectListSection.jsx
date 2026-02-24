@@ -5,7 +5,7 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
 
   // normal = white tile, highlight = green tile, action = green clickable tile
   const base =
-    "rounded-2xl border shadow-sm flex items-center gap-4 px-6 py-5";
+    "rounded-xl border shadow-sm flex items-center gap-4 px-8 py-5";
   const styles =
     variant === "highlight" || variant === "action"
       ? "bg-[#4FA34E] border-[#4FA34E] text-white"
@@ -23,22 +23,22 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
       }}
     >
       <div
-        className={`h-11 w-11 rounded-full flex items-center justify-center ${
+        className={`h-11 w-11 mr-2 text-xl rounded-full flex items-center justify-center ${
           variant === "highlight" || variant === "action"
             ? "bg-white/20"
-            : "bg-[#B5EBA2]/25"
+            : "bg-[#B5EBA2]/50"
         }`}
       >
         {icon}
       </div>
 
       <div className="flex-1">
-        <div className={`${variant === "highlight" || variant === "action" ? "text-white/90" : "text-slate-500"} text-sm`}>
+        <div className={`${variant === "highlight" || variant === "action" ? "text-white/90 font-semibold text-lg" : "text-slate-500 text-sm"}`}>
           {label}
         </div>
 
         {value != null && (
-          <div className="text-2xl font-semibold leading-tight">
+          <div className="text-xl font-semibold leading-tight">
             {value}
           </div>
         )}
@@ -74,7 +74,7 @@ export default function ProjectListSection({
   })();
 
   return (
-    <div className="mx-10">
+    <div className="mx-14">
       {/* Tiles */}
       <div className="grid grid-cols-12 gap-6">
         {tiles.map((t) => (
@@ -85,18 +85,18 @@ export default function ProjectListSection({
       </div>
 
       {/* Table */}
-      <div className="mt-6 bg-white rounded-2xl border border-black/10 shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-black/10">
-          <h2 className="font-semibold">{tableTitle}</h2>
+      <div className="mt-6 bg-white rounded-xl border border-black/10 shadow-sm">
+        <div className="flex items-center justify-between px-8 py-4 border-b border-black/10">
+          <h2 className="font-semibold text-lg">{tableTitle}</h2>
           <div className="flex items-center gap-2">{rightControls}</div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-[#FBFFFA]">
+            <thead className="bg-gray-50">
               <tr className="text-left text-slate-500">
                 {columns.map((c) => (
-                  <th key={c.key} className="px-6 py-4 font-semibold tracking-wide">
+                  <th key={c.key} className="px-8 py-2.5 text-xs font-semibold tracking-wide">
                     {c.header}
                   </th>
                 ))}
@@ -108,7 +108,7 @@ export default function ProjectListSection({
                 rows.map((r) => (
                   <tr key={rowKey(r)} className="border-t border-black/5">
                     {columns.map((c) => (
-                      <td key={c.key} className="px-6 py-5">
+                      <td key={c.key} className="px-8 py-3">
                         {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
                       </td>
                     ))}
@@ -126,7 +126,7 @@ export default function ProjectListSection({
         </div>
 
         {pagination && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-black/10">
+          <div className="flex items-center text-sm justify-between px-6 py-2 border-t border-black/10">
             <div className="text-slate-500">{rangeText}</div>
 
             <div className="flex items-center gap-2">
