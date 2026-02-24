@@ -1,13 +1,11 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Summary1stYear from './Summary1stYear';
 import MachineConfigTab from './MachineConfigTab';
 import SucceedingYears from './SucceedingYears';
 import { FaRegFloppyDisk } from "react-icons/fa6";
 import { IoPrintSharp, IoSend, IoTrashSharp } from "react-icons/io5";
-import { MdDisabledByDefault } from "react-icons/md";
-import { FaArrowLeft, FaArrowRight, FaCheckSquare } from 'react-icons/fa';
 import { LuScanEye } from "react-icons/lu";
 import { useProjectData } from '@/Context/ProjectContext';
 import { route } from "ziggy-js";
@@ -68,6 +66,7 @@ function mapEntryProjectToContext(entryProject) {
       projectId: entryProject.id,
       lastSaved: entryProject.last_saved_at ?? null,
       version: entryProject.version ?? 1,
+      status: entryProject.status ?? "draft", // ✅ for print watermark / draft logic
     },
 
     companyInfo: {
@@ -161,6 +160,10 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
   // ✅ prevent duplicate hydration overwriting edits
   const hydratedEntryIdRef = useRef(null);
 
+  // refs kept (useful later if you re-enable approval footer methods)
+  const summaryRef = useRef(null);
+  const succeedingRef = useRef(null);
+
   // ✅ keep tab in sync with server prop (works for edit + create)
   useEffect(() => {
     const next =
@@ -175,9 +178,9 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     if (entryProject) return;
 
     hydratedEntryIdRef.current = null; // reset hydration tracker
-    resetProject();               // wipe any previous draft data from context
-    setResetKey((k) => k + 1);    // force tab content remount
-    setTab('Machine');            // show Machine tab by default
+    resetProject();                    // wipe any previous draft data from context
+    setResetKey((k) => k + 1);         // force tab content remount
+    setTab('Machine');                 // show Machine tab by default
   }, [entryProject, resetProject]);
 
   // ✅ hydrate context when opening /entry/projects/{id}
@@ -201,6 +204,10 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
       ...projectData.metadata,
       projectId: entryProject?.id ?? projectData?.metadata?.projectId ?? null,
       lastSaved: formattedDate,
+      status:
+        projectData?.metadata?.status ??
+        entryProject?.status ??
+        "draft",
     },
     companyInfo: {
       ...projectData.companyInfo,
@@ -221,7 +228,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
     saveDraft(payload);
 
-        router.post(route("roi.entry.draft.save"), payload, {
+    router.post(route("roi.entry.draft.save"), payload, {
       onStart: () => {
         toast.loading("Saving Draft...", { id: "saveDraft" });
       },
@@ -256,21 +263,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     }
   };
 
-  const summaryRef = useRef(null);
-  const succeedingRef = useRef(null);
-
-  const currentTabRef = useMemo(() => {
-    if (tab === 'Summary') return summaryRef;
-    if (tab === 'Succeeding') return succeedingRef;
-    return null;
-  }, [tab]);
-
-  const handleReject = () => currentTabRef?.current?.reject?.();
-  const handleBackToSender = () => currentTabRef?.current?.backToSender?.();
-  const handleSubmitToNextLevel = () => currentTabRef?.current?.submitToNextLevel?.();
-  const handleApprove = () => currentTabRef?.current?.approve?.();
-
-  const showApprovalFooter = tab === 'Summary' || tab === 'Succeeding';
+  const showPrintFooter = tab === 'Summary' || tab === 'Succeeding';
 
   const openPrintPage = (autoPrint = false) => {
     if (!(tab === "Summary" || tab === "Succeeding")) return;
@@ -358,7 +351,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                 Succeeding Years
               </button> */}
             </div>
-            <Toaster/>
+            <Toaster />
           </div>
 
           {/* CONTENT */}
@@ -373,7 +366,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
         {/* STICKY FOOTER */}
         <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className="px-10 py-3 flex items-center justify-between">
+          <div className={`px-10 py-3 flex items-center ${tab === 'Machine' ? 'justify-between' : 'justify-end'}`}>
             {tab === 'Machine' && (
               <>
                 <button
@@ -404,9 +397,11 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
               </>
             )}
 
-            {/* FOOTER FOR SUMMARY + SUCCEEDING */}
-            {showApprovalFooter && (
+            {/* SUMMARY + SUCCEEDING (active for now: print only) */}
+            {showPrintFooter && (
               <>
+                {/* FUTURE LEFT ACTIONS (keep for approval flow in another file) */}
+                {/*
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -424,7 +419,9 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                     <FaArrowLeft /> Back to Sender
                   </button>
                 </div>
+                */}
 
+                {/* ACTIVE NOW: PRINT ACTIONS */}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -443,6 +440,8 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                   </button>
                 </div>
 
+                {/* FUTURE RIGHT ACTIONS (keep for approval flow in another file) */}
+                {/*
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex items-center gap-3">
                     <button
@@ -462,6 +461,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                     </button>
                   </div>
                 </div>
+                */}
               </>
             )}
           </div>

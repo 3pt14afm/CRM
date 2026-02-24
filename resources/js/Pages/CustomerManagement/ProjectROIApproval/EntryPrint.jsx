@@ -5,7 +5,7 @@ import SucceedingYears from "./EntryRoutes/SucceedingYears";
 import { useProjectData } from "@/Context/ProjectContext";
 
 export default function EntryPrint({ tab = "summary", storageKey = null, autoprint = false }) {
-  const { setProjectData } = useProjectData();
+  const { setProjectData, projectData } = useProjectData();
   const [loaded, setLoaded] = useState(false);
 
   // Load snapshot from sessionStorage
@@ -60,11 +60,13 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
     }, 50);
   };
 
+  const isDraft = (projectData?.metadata?.status ?? "draft") === "draft";
+
   const title =
     tab === "succeeding"
       ? "Succeeding Years — Print Preview"
       : "Summary / 1st Year — Print Preview";
-
+  
   return (
     <div className="preview-mode">
       {/* Not printed (and not shown in preview print-mode if your CSS hides .no-print) */}
@@ -91,6 +93,12 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
       </div>
 
       {/* Printable content only */}
+      {loaded && isDraft && (
+        <div className="print-watermark" aria-hidden="true">
+          DRAFT
+        </div>
+      )}
+      
       <div className="print-root">
         {tab === "succeeding" ? <SucceedingYears /> : <Summary1stYear />}
       </div>

@@ -9,7 +9,12 @@ const ProjectContext = createContext();
 const STORAGE_KEY = "roi_draft";
 
 const defaultInitialState = {
-  metadata: { projectId: null, lastSaved: null, version: 1 },
+  metadata: {
+    projectId: null,
+    lastSaved: null,
+    version: 1,
+    status: "draft", 
+  },
   companyInfo: {
     companyName: "",
     contractYears: 0,
