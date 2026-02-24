@@ -66,7 +66,8 @@ public function show($id){
     
     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
         'entryProject' => $project,
-        'readOnly' => true
+        'readOnly' => true,
+        'createdBy'    => $project->user->name, 
     ]);
 }
 }

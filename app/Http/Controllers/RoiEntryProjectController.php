@@ -27,6 +27,7 @@ class RoiEntryProjectController extends Controller
         $project->load([
             'items' => fn ($q) => $q->orderBy('id'),
             'fees'  => fn ($q) => $q->orderBy('id'),
+            'user'
         ]);
 
         // notes is a JSON attribute (array), not a relationship
@@ -58,6 +59,7 @@ class RoiEntryProjectController extends Controller
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'activeTab'    => 'Machine Configuration',
             'entryProject' => $project,
+            'createdBy'    => $project->user->name,
         ]);
     }
 
