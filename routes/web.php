@@ -8,6 +8,7 @@ use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\RoiController;
 use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController; 
+use App\Http\Controllers\RoiEntryProjectNoteController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -86,6 +87,10 @@ Route::middleware(['auth', 'verified'])
                  * (Optional) If you still want tab URLs, we can add them later.
                  * For now, Entry.jsx handles tabs internally, so you don't need extra routes.
                  */
+
+                Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])
+                    ->name('roi.entry.projects.notes.store');
+                    
             });
 
 

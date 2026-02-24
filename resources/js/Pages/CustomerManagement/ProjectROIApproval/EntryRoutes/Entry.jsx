@@ -75,7 +75,7 @@ function mapEntryProjectToContext(entryProject) {
       contractYears: Number(entryProject.contract_years ?? 0),
       contractType: entryProject.contract_type ?? "",
       reference: entryProject.reference ?? "",
-      purpose: "",
+      purpose: entryProject.purpose ?? "",
       // ✅ include saved value so monthly rental + bundled logic stays consistent
       bundledStdInk: Boolean(entryProject.bundled_std_ink ?? false),
     },

@@ -29,6 +29,32 @@ class RoiEntryProjectController extends Controller
             'fees'  => fn ($q) => $q->orderBy('id'),
         ]);
 
+        // notes is a JSON attribute (array), not a relationship
+        $notes = $project->notes ?? [];
+        if (!is_array($notes)) {
+            $notes = [];
+        }
+
+        // sort newest first (safe for JSON notes)
+        usort($notes, function ($a, $b) {
+            return strcmp($b['created_at'] ?? '', $a['created_at'] ?? '');
+        });
+
+        $project->notes = array_values($notes);
+
+        // notes is a JSON attribute (array), not a relationship
+        $notes = $project->notes ?? [];
+        if (!is_array($notes)) {
+            $notes = [];
+        }
+
+        // sort newest first (safe for JSON notes)
+        usort($notes, function ($a, $b) {
+            return strcmp($b['created_at'] ?? '', $a['created_at'] ?? '');
+        });
+
+        $project->notes = array_values($notes);
+
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'activeTab'    => 'Machine Configuration',
             'entryProject' => $project,
@@ -47,9 +73,10 @@ class RoiEntryProjectController extends Controller
             'companyInfo.reference' => ['required', 'string', 'max:255'],
 
             // header (nullable for partial draft)
-            'companyInfo.companyName' => ['nullable', 'string', 'max:255'],
-            'companyInfo.contractYears' => ['nullable', 'integer', 'min:0'],
-            'companyInfo.contractType' => ['nullable', 'string', 'max:255'],
+            'companyInfo.companyName' => ['required', 'string', 'max:255'],
+            'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
+            'companyInfo.contractType' => ['required', 'string', 'max:255'],
+            'companyInfo.purpose' => ['nullable', 'string', 'max:5000'],
             'companyInfo.bundledStdInk' => ['nullable', 'boolean'],
 
             // interest
@@ -106,6 +133,7 @@ class RoiEntryProjectController extends Controller
                     'company_name' => (string) ($company['companyName'] ?? ''),
                     'contract_years' => (int) ($company['contractYears'] ?? 0),
                     'contract_type' => (string) ($company['contractType'] ?? ''),
+                    'purpose' => (string) ($company['purpose'] ?? ''),
                     'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
 
                     // ✅ safe defaults
@@ -140,6 +168,7 @@ class RoiEntryProjectController extends Controller
                 'company_name'    => (string) ($company['companyName'] ?? ''),
                 'contract_years'  => (int) ($company['contractYears'] ?? 0),
                 'contract_type'   => (string) ($company['contractType'] ?? ''),
+                'purpose' => (string) ($company['purpose'] ?? ''),
                 'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
 
                 'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
@@ -355,5 +384,37 @@ class RoiEntryProjectController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ];
+    }
+
+    public function storeNote(Request $request, RoiEntryProject $project)
+    {
+        abort_unless($project->user_id === Auth::id(), 403);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $notes = $project->notes ?? [];
+        if (!is_array($notes)) {
+            $notes = [];
+        }
+
+        // Store newest first so it appears on top in UI
+        array_unshift($notes, [
+            'id' => (string) Str::ulid(),
+            'body' => trim($validated['body']),
+            'created_at' => now()->toISOString(),
+            'author' => [
+                'id' => Auth::id(),
+                'name' => Auth::user()?->name ?? 'Unknown',
+            ],
+        ]);
+
+        $project->update([
+            'notes' => $notes,
+            'last_saved_at' => now(),
+        ]);
+
+        return back()->with('success', 'Note added.');
     }
 }
