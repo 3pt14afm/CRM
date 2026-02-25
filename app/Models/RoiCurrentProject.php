@@ -12,7 +12,7 @@ class RoiCurrentProject extends Model
     protected $fillable = [
         'user_id','project_uid','reference','version','last_saved_at','status',
 
-        'company_name','contract_years','contract_type','bundled_std_ink',
+        'company_name','contract_years','contract_type','bundled_std_ink', 'purpose',
 
         'annual_interest','percent_margin',
 

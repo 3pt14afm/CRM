@@ -30,7 +30,8 @@ return new class extends Migration {
             $table->unsignedInteger('contract_years')->default(0);
             $table->string('contract_type')->default('');
             $table->boolean('bundled_std_ink')->default(false);
-
+             $table->string('purpose')->nullable(); // or ->string('purpose')->nullable()
+             
             // inputs: interest
             $table->decimal('annual_interest', 10, 4)->default(0);
             $table->decimal('percent_margin', 10, 4)->default(0);
