@@ -5,12 +5,17 @@ export const get1YrPotential = (projectData) => {
   const config = projectData?.machineConfiguration || {};
   const rawMachines = config.machine || [];
   const rawConsumables = config.consumable || [];
-  
-  const isMonthlyRental = projectData?.companyInfo?.contractType === "Monthly Rental";
-  const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
-  const bundleDeduction = (isMonthlyRental && isBundleChecked) ? (Number(config.totals.totalBundledPrice) || 0) : 0;
 
-  // Get BOTH Annual Yields FROM PROJECT DATA CONTEXT 
+  const contractType = projectData?.companyInfo?.contractType || "";
+  const isMonthlyRental = contractType === "Monthly Rental";
+  const isRentalClick = contractType === "Rental + Click";
+
+  const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
+  const bundleDeduction = (isMonthlyRental && isBundleChecked)
+    ? (Number(config.totals?.totalBundledPrice) || 0)
+    : 0;
+
+  // Get BOTH Annual Yields FROM PROJECT DATA CONTEXT
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
@@ -32,51 +37,54 @@ export const get1YrPotential = (projectData) => {
     };
   });
 
+  // Helper: for Rental + Click use exact qty, otherwise round up
+  const getQtyFromYields = (annualYields, itemYields) => {
+    const exactQty = annualYields / itemYields;
+    return isRentalClick ? exactQty : Math.ceil(exactQty);
+  };
 
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
-  // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP 
+  // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP
   const processedConsumables = rawConsumables.map(c => {
-    const itemYields = Number(c.yields) || 1; 
+    const itemYields = Number(c.yields) || 1;
     let dynamicQty = 0;
 
     // Logic based on the new 'mode' selection
     switch (c.mode?.toLowerCase()) {
       case 'mono':
-        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+        dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
         break;
       case 'color':
-        dynamicQty = Math.ceil(annualColorYields / itemYields);
+        dynamicQty = getQtyFromYields(annualColorYields, itemYields);
         break;
       case 'others':
-        // For 'others', we usually keep the manually entered qty 
-        // or default to 1 if it's a fixed-count item
+        // For 'others', keep the manually entered qty
         dynamicQty = Number(c.qty) || 1;
         break;
       default:
         // Fallback to mono if no mode is selected
-        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+        dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
     }
-    
+
     const unitCost = Number(c.cost) || 0;
     const unitSell = Number(c.price) || 0;
 
     return {
       ...c,
-      qty: dynamicQty,
+      qty: dynamicQty, // exact value for Rental + Click (no round up)
       totalCost: dynamicQty * unitCost,
       totalSell: dynamicQty * unitSell
     };
   });
 
-
   // 4. CALCULATION LOGIC
-  const totalMachineQty = processedMachines.reduce((sum, m) => sum + m.qty, 0);
-  const totalMachineCost = rawMachines.reduce((sum, m) => sum + (m.totalCost || 0), 0);
-  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (m.totalSell || 0), 0);
+  const totalMachineQty = processedMachines.reduce((sum, m) => sum + (Number(m.qty) || 0), 0);
+  const totalMachineCost = rawMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
+  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
 
-  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (item.qty || 0), 0);
-  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (c.totalCost || 0), 0);
-  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (c.totalSell || 0), 0);
+  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
+  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (Number(c.totalSell) || 0), 0);
 
   const totalFeesQty = [...companyFees, ...customerFees].reduce((sum, f) => sum + (Number(f.qty) || 0), 0);
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
