@@ -135,7 +135,7 @@ function mapEntryProjectToContext(entryProject) {
   };
 }
 
-export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly = false, route = '' }) {
+export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly = false, route:routeName= '' }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -168,7 +168,34 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
   };
 
   const handleReject = () => getCurrentTabRef()?.current?.reject?.();
-  const handleBackToSender = () => getCurrentTabRef()?.current?.backToSender?.();
+const handleBackToSender = () => {
+    toast((t) => (
+        <div className="flex flex-col gap-2">
+            <p className="font-medium text-sm">Send this project back to the sender?</p>
+            <div className="flex gap-2 justify-end">
+                <button
+                    onClick={() => toast.dismiss(t.id)}
+                    className="px-3 py-1 text-sm rounded border border-slate-300 hover:bg-slate-100"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={() => {
+                        toast.dismiss(t.id);
+                        router.patch(route('roi.current.send-back', entryProject.id), {}, {
+                            onStart: () => toast.loading('Sending back...', { id: 'sendBack' }),
+                            onSuccess: () => toast.success('Project sent back to sender.', { id: 'sendBack' }),
+                            onError: () => toast.error('Failed to send back.', { id: 'sendBack' }),
+                        });
+                    }}
+                    className="px-3 py-1 text-sm rounded bg-orange-500 text-white hover:bg-orange-600"
+                >
+                    Yes, Send Back
+                </button>
+            </div>
+        </div>
+    ), { duration: Infinity });
+};
   const handleSubmitToNextLevel = () => getCurrentTabRef()?.current?.submitToNextLevel?.();
 
   useEffect(() => {
@@ -269,7 +296,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     }
   };
 
-  const isCurrentRecord = route === 'current';
+  const isCurrentRecord = routeName === 'current';
   const isSummaryLikeTab = tab === 'Summary' || tab === 'Succeeding';
 
   // entry DB (draft/edit)
@@ -301,9 +328,9 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     let printPath = "";
 
     // ✅ hide watermark for current/submitted pages
-    const showDraftWatermark = route !== "current";
+    const showDraftWatermark = routeName !== "current";
 
-    if (route === "current" && projectId) {
+    if (routeName === "current" && projectId) {
       printPath = ziggyRoute("roi.current.print", projectId);
     } else if (projectId) {
       printPath = ziggyRoute("roi.entry.projects.print", projectId);
@@ -330,14 +357,14 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
   return (
     <>
-      <Head title="ROI Entry" />
+      <Head title={routeName === 'current' ? `${entryProject?.company_name ?? 'Project'}` : 'ROI Entry'} />
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
           <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
             <div className="flex gap-1">
               <h1 className="font-semibold mt-3">Project ROI Approval</h1>
               <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">{route === 'current' ? `${entryProject?.company_name}` : 'Entry'}</p>
+              <p className="text-3xl font-semibold">{routeName === 'current' ? `${entryProject?.company_name}` : 'Entry'}</p>
             </div>
 
             <div className="flex flex-col gap-1 items-end">
@@ -368,7 +395,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                     : 'bg-[#B5EBA2]/80 rounded-t-xl'
                 }`}
               >
-                Summary/1st Year
+                Summary
               </button>
 
               {/* <button

@@ -24,8 +24,6 @@ public function current()
             $last = $p->last_saved_at;
             $display = null;
 
-     
-
             if ($last) {
                 $now = now();
 
@@ -49,37 +47,79 @@ public function current()
             $p->last_saved_display = $display ?? '—';
             return $p;
         });
-        
 
-             $recentlyAddedToday = RoiCurrentProject::query()
-            ->whereDate('last_saved_at', now()->toDateString())
-            ->count();
-       $stats = [
+    $recentlyAddedToday = RoiCurrentProject::query()
+        ->whereDate('last_saved_at', now()->toDateString())
+        ->count();
+
+    $stats = [
         'totalCurrentProjects' => RoiCurrentProject::count(),
         'recentlyModifiedText' => optional(
             RoiCurrentProject::orderBy('last_saved_at', 'desc')->first()
         )->last_saved_at?->diffForHumans() ?? '—',
-         'recentlyAddedToday' => $recentlyAddedToday . ' Today',
-      ];
-  
+        'recentlyAddedToday' => $recentlyAddedToday . ' Today',
+    ];
+
     return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
         'currentProjects' => $currentProjects,
         'stats'           => $stats,
-       
     ]);
 }
 
-public function show($id){
+public function show($id)
+{
     $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
-    
+
     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
         'entryProject' => $project,
-        'readOnly' => true,
-        'route' => 'current',
-        'createdBy' => $project->user->name, 
+        'readOnly'     => true,
+        'route'        => 'current',
+        'createdBy'    => $project->user->name,
     ]);
 }
 
+public function sendBack($id)
+{
+    return DB::transaction(function () use ($id) {
+        // 1. SELECT: Get the 'Current' project with all its sub-data
+        $current = RoiCurrentProject::with(['items', 'fees'])->findOrFail($id);
+
+        // 2. COPY: Prepare the data for the 'Entry' (Drafts) table
+        $data = $current->toArray();
+        
+        // Change the status to draft and set the timestamp
+        $data['status'] = 'draft';
+        $data['last_saved_at'] = now();
+
+        // 3. SEND TO DRAFT: Create the record in RoiEntryProject
+        // updateOrCreate ensures we don't get 'duplicate entry' errors
+        $draft = RoiEntryProject::updateOrCreate(
+            ['reference' => $current->reference], 
+            $data
+        );
+
+        // 4. COPY & MOVE CHILDREN (Items and Fees)
+        // We clear existing draft items/fees and replace them with the current ones
+        $draft->items()->delete();
+        foreach ($current->items as $item) {
+            $itemData = $item->toArray();
+            unset($itemData['id'], $itemData['roi_current_project_id']); 
+            $draft->items()->create($itemData);
+        }
+
+        $draft->fees()->delete();
+        foreach ($current->fees as $fee) {
+            $feeData = $fee->toArray();
+            unset($feeData['id'], $feeData['roi_current_project_id']);
+            $draft->fees()->create($feeData);
+        }
+
+        // 5. DELETE: Now that the draft is safe, remove the current project
+        $current->delete();
+
+        // Redirect back with a success message
+        return to_route('roi.current')->with('success', 'Project successfully moved back to drafts.');
+    });
 }
 
-
+}
