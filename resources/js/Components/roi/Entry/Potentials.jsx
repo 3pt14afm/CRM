@@ -31,22 +31,29 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
 
   const contractType = projectData?.companyInfo?.contractType || "";
   const normalizedContractType = String(contractType).trim().toLowerCase();
+
   const isRentalClick =
     normalizedContractType === "rental + click" ||
     normalizedContractType === "rental+click";
+  const isFixClick =
+    normalizedContractType === "fix click" ||
+    normalizedContractType === "fixed click";
+
+  // ✅ Rental + Click and Fix Click share the same display formatting for qty
+  const usesExactClickQtyDisplay = isRentalClick || isFixClick;
 
   const format = (val) => (Number(val) || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
 
-  // ✅ For Rental + Click:
+  // ✅ For Rental + Click / Fix Click:
   // keep exact qty in calculations, but DISPLAY with 2 decimals only
   const formatConsumableQty = (val) => {
     const num = Number(val);
-    if (!Number.isFinite(num)) return isRentalClick ? "0.00" : 0;
+    if (!Number.isFinite(num)) return usesExactClickQtyDisplay ? "0.00" : 0;
 
-    if (isRentalClick) {
+    if (usesExactClickQtyDisplay) {
       return num.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,

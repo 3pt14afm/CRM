@@ -7,8 +7,18 @@ export const get1YrPotential = (projectData) => {
   const rawConsumables = config.consumable || [];
 
   const contractType = projectData?.companyInfo?.contractType || "";
-  const isMonthlyRental = contractType === "Monthly Rental";
-  const isRentalClick = contractType === "Rental + Click";
+  const normalizedContractType = String(contractType).trim().toLowerCase();
+
+  const isMonthlyRental = normalizedContractType === "monthly rental";
+  const isRentalClick =
+    normalizedContractType === "rental + click" ||
+    normalizedContractType === "rental+click";
+  const isFixClick =
+    normalizedContractType === "fix click" ||
+    normalizedContractType === "fixed click";
+
+  // ✅ Rental + Click and Fix Click share the same exact-qty behavior
+  const usesExactClickQty = isRentalClick || isFixClick;
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
   const bundleDeduction = (isMonthlyRental && isBundleChecked)
@@ -37,10 +47,11 @@ export const get1YrPotential = (projectData) => {
     };
   });
 
-  // Helper: for Rental + Click use exact qty, otherwise round up
+  // Helper: Rental + Click / Fix Click use exact qty, otherwise round up
   const getQtyFromYields = (annualYields, itemYields) => {
-    const exactQty = annualYields / itemYields;
-    return isRentalClick ? exactQty : Math.ceil(exactQty);
+    const safeItemYields = Number(itemYields) || 1;
+    const exactQty = annualYields / safeItemYields;
+    return usesExactClickQty ? exactQty : Math.ceil(exactQty);
   };
 
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
@@ -71,7 +82,7 @@ export const get1YrPotential = (projectData) => {
 
     return {
       ...c,
-      qty: dynamicQty, // exact value for Rental + Click (no round up)
+      qty: dynamicQty, // exact value for Rental + Click / Fix Click (no round up)
       totalCost: dynamicQty * unitCost,
       totalSell: dynamicQty * unitSell
     };

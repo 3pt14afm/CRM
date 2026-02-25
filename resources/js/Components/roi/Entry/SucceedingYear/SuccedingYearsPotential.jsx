@@ -14,9 +14,16 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
 
   const contractType = projectData?.companyInfo?.contractType || "";
   const normalizedContractType = String(contractType).trim().toLowerCase();
+
   const isRentalClick =
     normalizedContractType === "rental + click" ||
     normalizedContractType === "rental+click";
+  const isFixClick =
+    normalizedContractType === "fix click" ||
+    normalizedContractType === "fixed click";
+
+  // ✅ Rental + Click and Fix Click share the same display formatting for qty
+  const usesExactClickQtyDisplay = isRentalClick || isFixClick;
 
   const contractYears = parseInt(projectData?.companyInfo?.contractYears, 10) || 0;
   const succeedingYearCount = Math.max(contractYears - 1, 0); // starts at 2nd year
@@ -29,12 +36,12 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
 
   const formatQty = (val) => (Number(val) || 0).toLocaleString();
 
-  // ✅ For Rental + Click consumables: display qty with 2 decimals (display only)
+  // ✅ For Rental + Click / Fix Click consumables: display qty with 2 decimals (display only)
   const formatConsumableQty = (val) => {
     const num = Number(val);
-    if (!Number.isFinite(num)) return isRentalClick ? "0.00" : 0;
+    if (!Number.isFinite(num)) return usesExactClickQtyDisplay ? "0.00" : 0;
 
-    if (isRentalClick) {
+    if (usesExactClickQtyDisplay) {
       return num.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,

@@ -19,6 +19,16 @@ const FIXED_FEE_LABELS_RENTAL_CLICK = [
   "A3 COLOR CLICK",
 ];
 
+const FIXED_FEE_LABELS_FIX_CLICK = [
+  "One Time Charge",
+  "Shipping",
+  "Rebate",
+  "Support Services",
+  "A4/A3 MONO CLICK",
+  "A4/LGL COLOR CLICK",
+  "A3 COLOR CLICK",
+];
+
 const FIXED_FEE_LABELS_MONTHLY_RENTAL = [
   "One Time Charge",
   "Shipping",
@@ -151,6 +161,7 @@ const Fees = ({readOnly}) => {
   const contractType = projectData?.companyInfo?.contractType || "";
   const isFreeUse = contractType === "Free Use";
   const isRentalClick = contractType === "Rental + Click";
+  const isFixClick = contractType === "Fix Click";
   const isMonthlyRental = contractType === "Monthly Rental";
 
   const activeFixedLabels =
@@ -158,9 +169,11 @@ const Fees = ({readOnly}) => {
       ? FIXED_FEE_LABELS_FREE_USE
       : isRentalClick
         ? FIXED_FEE_LABELS_RENTAL_CLICK
-        : isMonthlyRental
-          ? FIXED_FEE_LABELS_MONTHLY_RENTAL
-          : null;
+        : isFixClick
+          ? FIXED_FEE_LABELS_FIX_CLICK
+          : isMonthlyRental
+            ? FIXED_FEE_LABELS_MONTHLY_RENTAL
+            : null;
 
   const hasFixedRows = Array.isArray(activeFixedLabels);
 

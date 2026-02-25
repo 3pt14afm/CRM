@@ -9,22 +9,30 @@ function ContractDetails() {
 
   const contractType = projectData?.companyInfo?.contractType || "";
   const normalizedContractType = String(contractType).trim().toLowerCase();
+
   const isRentalClick =
     normalizedContractType === "rental + click" ||
     normalizedContractType === "rental+click";
 
-  // ✅ Show Contract Type column only for Rental + Click
-  const showContractTypeColumn = isRentalClick;
+  const isFixClick =
+    normalizedContractType === "fix click" ||
+    normalizedContractType === "fixed click";
 
-  // ✅ Contract duration (for machine amount in Rental + Click)
+  // ✅ Rental + Click and Fix Click share the same contract-details behavior
+  const isClickBasedContract = isRentalClick || isFixClick;
+
+  // ✅ Show Contract Type column only for click-based contracts
+  const showContractTypeColumn = isClickBasedContract;
+
+  // ✅ Contract duration (for machine amount in click-based contracts)
   const contractYears = parseInt(projectData?.companyInfo?.contractYears, 10) || 0;
   const contractMonths = contractYears > 0 ? contractYears * 12 : 0;
 
-  // ✅ MONTHLY yields (used for Rental + Click click-charge qty)
+  // ✅ MONTHLY yields (used for click-charge qty)
   const monoMonthlyYields = Number(projectData?.yield?.monoAmvpYields?.monthly) || 0;
   const colorMonthlyYields = Number(projectData?.yield?.colorAmvpYields?.monthly) || 0;
 
-  // Fees (source of click-charge unit price + monthly rental price for Rental + Click)
+  // Fees (source of click-charge unit price + monthly rental price for click-based contracts)
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
@@ -38,15 +46,21 @@ function ContractDetails() {
 
   const normalize = (s) => String(s || '').trim().toLowerCase();
 
-  // ✅ Monthly Rental fee cost (used as machine unit price for Rental + Click)
+  // ✅ Monthly Rental fee cost (used as machine unit price for click-based contracts)
   const monthlyRentalFee = useMemo(() => {
     return allFees.find(f => normalize(f.label) === "monthly rental");
   }, [allFees]);
 
   const monthlyRentalUnitPrice = Number(monthlyRentalFee?.cost) || 0;
 
+  const machineContractTypeLabel = isRentalClick
+    ? 'RENTAL + CLICK'
+    : isFixClick
+      ? 'FIX CLICK'
+      : '';
+
   // ✅ Build hardware rows for Contract Details
-  // Rental + Click only:
+  // Click-based contracts (Rental + Click / Fix Click):
   // - qty is always 1
   // - unit price is monthly rental fee cost
   // - amount = monthly rental x total contract months
@@ -55,7 +69,11 @@ function ContractDetails() {
   // - hardware unit price/amount stays 0 (same as your original behavior)
   const contractMachines = useMemo(() => {
     return (machine || []).map((m) => {
-      const qty = isRentalClick ? 1 : (Number(m.qty) || 0);
+      // For both Rental + Click and Fix Click, display qty as 1
+      const qty = isClickBasedContract ? 1 : (Number(m.qty) || 0);
+
+      // ✅ Only Rental + Click uses Monthly Rental fee as machine unit price
+      // ✅ Fix Click has no monthly rental, so machine unit price/amount must be 0
       const unitPrice = isRentalClick ? monthlyRentalUnitPrice : 0;
       const amount = isRentalClick ? (unitPrice * contractMonths) : 0;
 
@@ -64,18 +82,25 @@ function ContractDetails() {
         qty,
         unitPrice,
         amount,
-        contractTypeLabel: isRentalClick ? 'RENTAL + CLICK' : '',
+        contractTypeLabel: isClickBasedContract ? machineContractTypeLabel : '',
       };
     });
-  }, [machine, isRentalClick, monthlyRentalUnitPrice, contractMonths]);
+  }, [
+    machine,
+    isClickBasedContract,
+    isRentalClick,
+    monthlyRentalUnitPrice,
+    contractMonths,
+    machineContractTypeLabel
+  ]);
 
   // ✅ Build consumables for Contract Details
-  // Rental + Click only:
+  // Click-based contracts:
   // - derive from FEES fixed click rows
   // Other contract types:
   // - use machineConfiguration consumables with selling price > 0 (original behavior)
   const contractToners = useMemo(() => {
-    if (isRentalClick) {
+    if (isClickBasedContract) {
       const CLICK_ROWS = [
         {
           feeLabel: "A4/A3 MONO CLICK",
@@ -90,7 +115,7 @@ function ContractDetails() {
         {
           feeLabel: "A3 COLOR CLICK",
           displayName: "Click Charge - COLOR (A3)",
-          qty: colorMonthlyYields,
+          qty: 0,
         },
       ];
 
@@ -102,8 +127,8 @@ function ContractDetails() {
           ...matchedFee,
           sku: row.displayName,
           displayName: row.displayName,
-          qty: Number(row.qty) || 0,    // monthly yields
-          price: unitPriceFromFees,      // fee cost
+          qty: Number(row.qty) || 0, // monthly yields
+          price: unitPriceFromFees,   // fee cost
           remarks: matchedFee?.remarks || '',
           contractTypeLabel: 'CLICK CHARGE',
           __fromClickFee: true,
@@ -111,17 +136,17 @@ function ContractDetails() {
       });
     }
 
-    // ✅ Original behavior for non-Rental+Click
+    // ✅ Original behavior for non-click-based contracts
     return (consumable || [])
       .filter(item => Number(item.price) > 0)
       .map(item => ({
         ...item,
         contractTypeLabel: '',
       }));
-  }, [isRentalClick, monoMonthlyYields, colorMonthlyYields, allFees, consumable]);
+  }, [isClickBasedContract, monoMonthlyYields, colorMonthlyYields, allFees, consumable]);
 
   // ✅ Total Initial includes:
-  // - Rental+Click hardware amount (monthly rental x months) + click charges
+  // - click-based machine amount (monthly rental x months) + click charges
   // - Other contract types: consumables only (hardware amount remains 0)
   const totalInitial = useMemo(() => {
     const machineTotal = contractMachines.reduce((sum, item) => {
