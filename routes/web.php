@@ -76,6 +76,7 @@ Route::middleware(['auth', 'verified'])
                         'tab' => request('tab', 'summary'),
                         'storageKey' => request('storageKey'),
                         'autoprint' => (bool) request('autoprint', false),
+                        'showDraftWatermark' => (bool) request('draftWatermark', true),
                         'project' => $project,
                     ]);
                 })->name('roi.entry.projects.print');
@@ -94,9 +95,19 @@ Route::middleware(['auth', 'verified'])
             });
 
 
-               Route::prefix('current')->group(function (){
+            Route::prefix('current')->group(function (){
                 Route::get('/', [RoiCurrentProjectController::class, 'current'])->name('roi.current');
                 Route::get('/{id}', [RoiCurrentProjectController::class, 'show'])->name('roi.current.show');
+
+                Route::get('/{id}/print', function ($id) {
+                    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
+                        'tab' => request('tab', 'summary'),
+                        'storageKey' => request('storageKey'),
+                        'autoprint' => (bool) request('autoprint', false),
+                        'showDraftWatermark' => false,
+                        'project' => $id,
+                    ]);
+                })->name('roi.current.print');
             });
 
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
