@@ -1,18 +1,20 @@
 export const succeedingYears = (projectData) => {
   // CALCULATES THE SUCCEEDING YEARS AFTER 1ST YEAR POTENTIAL
 
-
   // 1. DATA DESTRUCTURING with defaults
   const config = projectData?.machineConfiguration || {};
   const rawMachines = config.machine || [];
   const rawConsumables = config.consumable || [];
-  
+
+  const contractType = projectData?.companyInfo?.contractType || "";
+  const isRentalClick = contractType === "Rental + Click";
+
   // Get BOTH Annual Yields (Mono and Color)
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
-  
+
   // 1.5 FILTER OUT ONE-TIME FEES (Recurring years only)
   const companyFees = (addFeesObj.company || []).filter(f => f.category !== "one-time-fee");
   const customerFees = (addFeesObj.customer || []).filter(f => f.category !== "one-time-fee");
@@ -26,24 +28,30 @@ export const succeedingYears = (projectData) => {
     return {
       ...m,
       qty: fixedQty,
-      totalCost: 0 * 0,  //this should be zero in succeeding years (NO MACHINE COST DISTRIBUTIONS)
+      totalCost: 0 * 0, // this should be zero in succeeding years (NO MACHINE COST DISTRIBUTIONS)
       totalSell: fixedQty * unitSell
     };
   });
 
+  // Helper: Rental + Click uses exact qty, others use rounded-up qty
+  const getQtyFromYields = (annualYields, itemYields) => {
+    const exactQty = annualYields / itemYields;
+    return isRentalClick ? exactQty : Math.ceil(exactQty);
+  };
+
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
-    // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP 
+  // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP
   const processedConsumables = rawConsumables.map(c => {
-    const itemYields = Number(c.yields) || 1; 
+    const itemYields = Number(c.yields) || 1;
     let dynamicQty = 0;
 
     // Apply the same Mode logic as Year 1
     switch (c.mode?.toLowerCase()) {
       case 'mono':
-        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+        dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
         break;
       case 'color':
-        dynamicQty = Math.ceil(annualColorYields / itemYields);
+        dynamicQty = getQtyFromYields(annualColorYields, itemYields);
         break;
       case 'others':
         // Respect manual qty for non-toner items
@@ -51,28 +59,28 @@ export const succeedingYears = (projectData) => {
         break;
       default:
         // Default fallback to Mono
-        dynamicQty = Math.ceil(annualMonoYields / itemYields);
+        dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
     }
-    
+
     const unitCost = Number(c.cost) || 0;
     const unitSell = Number(c.price) || 0;
 
     return {
       ...c,
-      qty: dynamicQty,
+      qty: dynamicQty, // exact for Rental + Click
       totalCost: dynamicQty * unitCost,
       totalSell: dynamicQty * unitSell
     };
   });
 
   // 4. CALCULATION LOGIC
-  const totalMachineQty = processedMachines.reduce((sum, item) => sum + item.qty, 0);
-  const totalMachineCost = processedMachines.reduce((sum, m) => sum + (m.totalCost || 0), 0);
-  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (m.totalSell || 0), 0);
+  const totalMachineQty = processedMachines.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  const totalMachineCost = processedMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
+  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
 
-  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (item.qty || 0), 0);
-  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (c.totalCost || 0), 0);
-  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (c.totalSell || 0), 0);
+  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
+  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (Number(c.totalSell) || 0), 0);
 
   const totalFeesQty = [...companyFees, ...customerFees].reduce((sum, f) => sum + (Number(f.qty) || 0), 0);
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
@@ -84,8 +92,9 @@ export const succeedingYears = (projectData) => {
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-   const succeedingYearsTotalCost = totalMachineCost + totalConsumableCost;
+  const succeedingYearsTotalCost = totalMachineCost + totalConsumableCost;
   const succeedingYearsTotalSales = totalMachineSales + totalConsumableSales;
+
   // 5. RETURN ALL VALUES
   return {
     totalMachineQty,
@@ -103,7 +112,7 @@ export const succeedingYears = (projectData) => {
     roiPercentage,
     config,
     machines: processedMachines,
-    consumables: processedConsumables, 
+    consumables: processedConsumables,
     addFeesObj,
     companyFees,
     customerFees,

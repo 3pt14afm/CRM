@@ -12,6 +12,12 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
     consumables = [],
   } = yearData;
 
+  const contractType = projectData?.companyInfo?.contractType || "";
+  const normalizedContractType = String(contractType).trim().toLowerCase();
+  const isRentalClick =
+    normalizedContractType === "rental + click" ||
+    normalizedContractType === "rental+click";
+
   const contractYears = parseInt(projectData?.companyInfo?.contractYears, 10) || 0;
   const succeedingYearCount = Math.max(contractYears - 1, 0); // starts at 2nd year
 
@@ -22,6 +28,21 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
     });
 
   const formatQty = (val) => (Number(val) || 0).toLocaleString();
+
+  // ✅ For Rental + Click consumables: display qty with 2 decimals (display only)
+  const formatConsumableQty = (val) => {
+    const num = Number(val);
+    if (!Number.isFinite(num)) return isRentalClick ? "0.00" : 0;
+
+    if (isRentalClick) {
+      return num.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    return (Number(val) || 0).toLocaleString();
+  };
 
   const n = (val) => Number(val) || 0;
 
@@ -94,7 +115,6 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
                   </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-5 flex flex-col gap-1 print:py-2">
                     <p>{format(0)}</p>
-                    
                   </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
                     {format(0)}
@@ -105,9 +125,8 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
               <tr className="border-b border-gray-100">
                 <td className="px-1 py-3 text-[12px] text-center print:py-2">0</td>
                 <td className="border-l text-[12px] border-gray-100 text-center px-1 py-5 flex flex-col gap-1 print:py-2">
-                    <p>{format(0)}</p>
-                    
-                  </td>
+                  <p>{format(0)}</p>
+                </td>
                 <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
                   {format(0)}
                 </td>
@@ -125,7 +144,7 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
               consumables.map((c, index) => (
                 <tr key={`c-${index}`} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center print:py-2">
-                    {formatQty(n(c.qty) * multiplier)}
+                    {formatConsumableQty(n(c.qty) * multiplier)}
                   </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
                     {format(n(c.totalCost) * multiplier)}
@@ -137,7 +156,9 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
               ))
             ) : (
               <tr className="border-b border-gray-100">
-                <td className="px-1 py-3 text-[12px] text-center print:py-2">0</td>
+                <td className="px-1 py-3 text-[12px] text-center print:py-2">
+                  {formatConsumableQty(0)}
+                </td>
                 <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
                   {format(0)}
                 </td>

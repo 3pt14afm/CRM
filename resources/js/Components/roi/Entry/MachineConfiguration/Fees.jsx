@@ -52,21 +52,25 @@ const blankRow = () => ({
   __fixed: false, // local-only flag
 });
 
-// ✅ fixed qty rules
+// ✅ helpers
 const normalize = (s) => (s || '').trim().toLowerCase();
 
-const getFixedQtyForLabel = (label) => {
+// ✅ fixed qty rules (now accepts annual values)
+const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0) => {
   const l = normalize(label);
   if (l === "one time charge") return 1;
   if (l === "shipping") return 1;
   if (l === "rebate") return 1;
   if (l === "support services") return 12;
-  if (l === "monthly rental") return 12; // ✅ always fixed to 12
+  if (l === "monthly rental") return 12;
+  if (l === "a4/a3 mono click") return monoAnnual;      // ✅ fixed to monoAnnual
+  if (l === "a4/lgl color click") return colorAnnual;   // ✅ fixed to colorAnnual
+  if (l === "a3 color click") return 0;
   return null;
 };
 
-const applyFixedQtyIfNeeded = (row) => {
-  const fixedQty = getFixedQtyForLabel(row.label);
+const applyFixedQtyIfNeeded = (row, monoAnnual = 0, colorAnnual = 0) => {
+  const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
   if (fixedQty == null) return row;
 
   const nextCost = Number(row.cost) || 0;
@@ -97,7 +101,7 @@ const removeInactiveContractSpecificRows = (rows, activeFixedLabels) => {
   });
 };
 
-const ensureFixedRows = (rows, fixedLabels) => {
+const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => {
   const cleanedRows = removeInactiveContractSpecificRows(rows, fixedLabels);
   const remaining = [...cleanedRows];
 
@@ -106,7 +110,7 @@ const ensureFixedRows = (rows, fixedLabels) => {
 
     if (idx >= 0) {
       const existing = remaining.splice(idx, 1)[0];
-      return applyFixedQtyIfNeeded({ ...existing, label: fixedLabel, __fixed: true });
+      return applyFixedQtyIfNeeded({ ...existing, label: fixedLabel, __fixed: true }, monoAnnual, colorAnnual);
     }
 
     return applyFixedQtyIfNeeded({
@@ -118,7 +122,7 @@ const ensureFixedRows = (rows, fixedLabels) => {
       remarks: '',
       isMachine: false,
       __fixed: true,
-    });
+    }, monoAnnual, colorAnnual);
   });
 
   const nonFixed = remaining.map(r => ({ ...r, __fixed: false }));
@@ -132,6 +136,17 @@ const stripLocalFields = (row) => {
 
 const Fees = () => {
   const { projectData, setProjectData } = useProjectData();
+
+  // keep raw values (can be "" or number/string)
+  const monoRaw = projectData?.yield?.monoAmvpYields?.monthly ?? "";
+  const colorRaw = projectData?.yield?.colorAmvpYields?.monthly ?? "";
+
+  // compute numbers safely for annual display
+  const monoMonthlyNum = Number(monoRaw || 0);
+  const colorMonthlyNum = Number(colorRaw || 0);
+
+  const monoAnnual = monoMonthlyNum * 12;
+  const colorAnnual = colorMonthlyNum * 12;
 
   const contractType = projectData?.companyInfo?.contractType || "";
   const isFreeUse = contractType === "Free Use";
@@ -159,24 +174,24 @@ const Fees = () => {
     const cleanedSeeded = removeInactiveContractSpecificRows(seeded, activeFixedLabels);
 
     const withFixed = hasFixedRows
-      ? ensureFixedRows(cleanedSeeded, activeFixedLabels)
+      ? ensureFixedRows(cleanedSeeded, activeFixedLabels, monoAnnual, colorAnnual)
       : cleanedSeeded.map(r => ({ ...r, __fixed: false }));
 
-    return withFixed.map(applyFixedQtyIfNeeded);
+    return withFixed.map(r => applyFixedQtyIfNeeded(r, monoAnnual, colorAnnual));
   });
 
-  // 1.5️⃣ When contract type changes (apply/remove contract-specific fixed rows)
+  // 1.5️⃣ When contract type OR annual yields change (apply/remove contract-specific fixed rows)
   useEffect(() => {
     setRows(prev => {
       const cleanedPrev = removeInactiveContractSpecificRows(prev, activeFixedLabels);
 
       const next = hasFixedRows
-        ? ensureFixedRows(cleanedPrev, activeFixedLabels)
+        ? ensureFixedRows(cleanedPrev, activeFixedLabels, monoAnnual, colorAnnual)
         : cleanedPrev.map(r => ({ ...r, __fixed: false }));
 
-      return next.map(applyFixedQtyIfNeeded);
+      return next.map(r => applyFixedQtyIfNeeded(r, monoAnnual, colorAnnual));
     });
-  }, [hasFixedRows, contractType]);
+  }, [hasFixedRows, contractType, monoAnnual, colorAnnual]);
 
   // 2️⃣ Sync rows with context (logic updated for categories)
   useEffect(() => {
@@ -226,7 +241,7 @@ const Fees = () => {
         if (hasFixedRows && row.__fixed && field === 'label') return row;
 
         // ✅ lock qty editing for specific labels
-        const fixedQty = getFixedQtyForLabel(row.label);
+        const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
         if (field === 'qty' && fixedQty != null) return row;
 
         const updatedRow = { ...row, [field]: value };
@@ -251,7 +266,7 @@ const Fees = () => {
         }
 
         // ✅ if label becomes one of the fixed-qty labels (for non-fixed rows), enforce it
-        return applyFixedQtyIfNeeded(updatedRow);
+        return applyFixedQtyIfNeeded(updatedRow, monoAnnual, colorAnnual);
       })
     );
   };
@@ -305,7 +320,7 @@ const Fees = () => {
 
           <tbody>
             {rows.map(row => {
-              const fixedQty = getFixedQtyForLabel(row.label);
+              const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
               const qtyLocked = fixedQty != null;
 
               return (
