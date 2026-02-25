@@ -7,8 +7,10 @@ import SucceedingYears from './SucceedingYears';
 import { FaRegFloppyDisk } from "react-icons/fa6";
 import { IoPrintSharp, IoSend, IoTrashSharp } from "react-icons/io5";
 import { LuScanEye } from "react-icons/lu";
+import { MdDisabledByDefault } from "react-icons/md";
+import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { useProjectData } from '@/Context/ProjectContext';
-import { route } from "ziggy-js";
+import { route as ziggyRoute } from "ziggy-js";
 import toast, { Toaster } from 'react-hot-toast';
 
 function mapEntryProjectToContext(entryProject) {
@@ -133,7 +135,7 @@ function mapEntryProjectToContext(entryProject) {
   };
 }
 
-export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly=false, route = '' }) {
+export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly = false, route = '' }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -158,6 +160,16 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
   const summaryRef = useRef(null);
   const succeedingRef = useRef(null);
+
+  const getCurrentTabRef = () => {
+    if (tab === 'Summary') return summaryRef;
+    if (tab === 'Succeeding') return succeedingRef;
+    return null;
+  };
+
+  const handleReject = () => getCurrentTabRef()?.current?.reject?.();
+  const handleBackToSender = () => getCurrentTabRef()?.current?.backToSender?.();
+  const handleSubmitToNextLevel = () => getCurrentTabRef()?.current?.submitToNextLevel?.();
 
   useEffect(() => {
     const next =
@@ -222,7 +234,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
     saveDraft(payload);
 
-    router.post(route("roi.entry.draft.save"), payload, {
+    router.post(ziggyRoute("roi.entry.draft.save"), payload, {
       onStart: () => {
         toast.loading("Saving Draft...", { id: "saveDraft" });
       },
@@ -244,7 +256,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
       return;
     }
 
-    router.patch(route("roi.entry.projects.submit", projectId), {}, {
+    router.patch(ziggyRoute("roi.entry.projects.submit", projectId), {}, {
       preserveScroll: true,
     });
   };
@@ -257,7 +269,18 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     }
   };
 
-  const showPrintFooter = tab === 'Summary' || tab === 'Succeeding';
+  const isCurrentRecord = route === 'current';
+  const isSummaryLikeTab = tab === 'Summary' || tab === 'Succeeding';
+
+  // entry DB (draft/edit)
+  const showMachineDraftActions = tab === 'Machine' && !readOnly && !isCurrentRecord;
+  const showEntrySummaryDraftActions = isSummaryLikeTab && !readOnly && !isCurrentRecord;
+
+  // current DB (submitted)
+  const showCurrentSummaryApprovalActions = isSummaryLikeTab && isCurrentRecord;
+
+  // fallback print-only (safety)
+  const showPrintFooter = isSummaryLikeTab;
 
   const openPrintPage = (autoPrint = false) => {
     if (!(tab === "Summary" || tab === "Succeeding")) return;
@@ -273,14 +296,28 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
       return;
     }
 
-    const current = window.location.pathname.replace(/\/$/, "");
-    const printPath = `${current}/print`;
+    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
+
+    let printPath = "";
+
+    // ✅ hide watermark for current/submitted pages
+    const showDraftWatermark = route !== "current";
+
+    if (route === "current" && projectId) {
+      printPath = ziggyRoute("roi.current.print", projectId);
+    } else if (projectId) {
+      printPath = ziggyRoute("roi.entry.projects.print", projectId);
+    } else {
+      const current = window.location.pathname.replace(/\/$/, "");
+      printPath = `${current}/print`;
+    }
 
     const href =
       `${printPath}` +
       `?tab=${encodeURIComponent(tabParam)}` +
       `&storageKey=${encodeURIComponent(storageKey)}` +
-      `&autoprint=${autoPrint ? 1 : 0}`;
+      `&autoprint=${autoPrint ? 1 : 0}` +
+      `&draftWatermark=${showDraftWatermark ? 1 : 0}`;
 
     const a = document.createElement("a");
     a.href = href;
@@ -370,43 +407,52 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
         {/* STICKY FOOTER */}
         <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className={`px-10 py-3  flex items-center ${tab === 'Machine' ? 'justify-between' : 'justify-end'}`}>
-        {tab === 'Machine' && !readOnly && (
-          <>
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
-            >
-              <IoTrashSharp /> Clear All
-            </button>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleSaveDraft}
-                className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
-              >
-                <FaRegFloppyDisk /> Save Draft
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
-              >
-                Submit <IoSend />
-              </button>
-            </div>
-          </>
-          )}
-   
-          
-
-            {/* SUMMARY + SUCCEEDING (active for now: print only) */}
-            {showPrintFooter && (
+          <div className="px-10 py-3 flex items-center justify-between relative">
+            {/* MACHINE TAB (entry DB only) */}
+            {showMachineDraftActions && (
               <>
-                <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+                >
+                  <IoTrashSharp /> Clear All
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
+                  >
+                    <FaRegFloppyDisk /> Save Draft
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
+                  >
+                    Submit <IoSend />
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* SUMMARY/SUCCEEDING - ENTRY DB (draft/edit): Clear All + Save Draft + Submit + center Print */}
+            {showEntrySummaryDraftActions && (
+              <>
+                {/* left */}
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+                >
+                  <IoTrashSharp /> Clear All
+                </button>
+
+                {/* center print */}
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => openPrintPage(false)}
@@ -423,7 +469,112 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
                     <IoPrintSharp /> Print
                   </button>
                 </div>
+
+                {/* right */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
+                  >
+                    <FaRegFloppyDisk /> Save Draft
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
+                  >
+                    Submit <IoSend />
+                  </button>
+                </div>
               </>
+            )}
+
+            {/* SUMMARY/SUCCEEDING - CURRENT DB (submitted): approval actions + center Print */}
+            {showCurrentSummaryApprovalActions && (
+              <>
+                {/* left approval actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleReject}
+                    className="px-5 py-1 gap-2 items-center flex rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-medium"
+                  >
+                    <MdDisabledByDefault /> Disapprove/Reject
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBackToSender}
+                    className="px-5 py-1 gap-2 items-center flex rounded-xl border bg-[#CD4E00] text-white hover:shadow-innerOrange font-medium"
+                  >
+                    <FaArrowLeft /> Back to Sender
+                  </button>
+                </div>
+
+                {/* center print */}
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openPrintPage(false)}
+                    className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                  >
+                    <LuScanEye /> Print Preview
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openPrintPage(true)}
+                    className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                  >
+                    <IoPrintSharp /> Print
+                  </button>
+                </div>
+
+                {/* right approval action */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSubmitToNextLevel}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
+                  >
+                    Submit to Next Level <FaArrowRight />
+                  </button>
+
+                  {/* SAVE APPROVE FOR FUTURE */}
+                  {/*
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow"
+                  >
+                    <FaCheckSquare /> Approve
+                  </button>
+                  */}
+                </div>
+              </>
+            )}
+
+            {/* Fallback: print only */}
+            {showPrintFooter && !showEntrySummaryDraftActions && !showCurrentSummaryApprovalActions && (
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(false)}
+                  className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                >
+                  <LuScanEye /> Print Preview
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(true)}
+                  className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                >
+                  <IoPrintSharp /> Print
+                </button>
+              </div>
             )}
           </div>
         </div>
