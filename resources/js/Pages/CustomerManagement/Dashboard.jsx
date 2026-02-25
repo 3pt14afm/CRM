@@ -18,7 +18,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <Head title="Customer Management Dashboard" />
+      <Head title="Customer Account Management Dashboard" />
 
       <h1 className="text-3xl mt-2 font-semibold text-gray-800 pt-5 px-8">
         Customer Management Dashboard

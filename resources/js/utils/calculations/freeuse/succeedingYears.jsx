@@ -7,7 +7,17 @@ export const succeedingYears = (projectData) => {
   const rawConsumables = config.consumable || [];
 
   const contractType = projectData?.companyInfo?.contractType || "";
-  const isRentalClick = contractType === "Rental + Click";
+  const normalizedContractType = String(contractType).trim().toLowerCase();
+
+  const isRentalClick =
+    normalizedContractType === "rental + click" ||
+    normalizedContractType === "rental+click";
+  const isFixClick =
+    normalizedContractType === "fix click" ||
+    normalizedContractType === "fixed click";
+
+  // ✅ Rental + Click and Fix Click share the same exact-qty behavior
+  const usesExactClickQty = isRentalClick || isFixClick;
 
   // Get BOTH Annual Yields (Mono and Color)
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
@@ -33,10 +43,11 @@ export const succeedingYears = (projectData) => {
     };
   });
 
-  // Helper: Rental + Click uses exact qty, others use rounded-up qty
+  // Helper: Rental + Click / Fix Click use exact qty, others use rounded-up qty
   const getQtyFromYields = (annualYields, itemYields) => {
-    const exactQty = annualYields / itemYields;
-    return isRentalClick ? exactQty : Math.ceil(exactQty);
+    const safeItemYields = Number(itemYields) || 1;
+    const exactQty = annualYields / safeItemYields;
+    return usesExactClickQty ? exactQty : Math.ceil(exactQty);
   };
 
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
@@ -67,7 +78,7 @@ export const succeedingYears = (projectData) => {
 
     return {
       ...c,
-      qty: dynamicQty, // exact for Rental + Click
+      qty: dynamicQty, // exact for Rental + Click / Fix Click
       totalCost: dynamicQty * unitCost,
       totalSell: dynamicQty * unitSell
     };
