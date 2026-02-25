@@ -1,13 +1,20 @@
 import React from "react";
 
-export default function PrintLayout({ children }) {
+export default function PrintLayout({ children, showDraftWatermark = false }) {
+  const shouldShowDraftWatermark =
+    showDraftWatermark === true ||
+    showDraftWatermark === 1 ||
+    showDraftWatermark === "1";
+
   return (
     <div className="print-shell">
       <div className="paper">
         {/* Watermark */}
-        <div className="print-watermark" aria-hidden="true">
-          DRAFT
-        </div>
+        {shouldShowDraftWatermark && (
+          <div className="print-watermark" aria-hidden="true">
+            DRAFT
+          </div>
+        )}
 
         {children}
       </div>
@@ -25,6 +32,7 @@ export default function PrintLayout({ children }) {
 
           .paper {
             position: relative;
+            isolation: isolate;
             width: 300mm;
             min-height: 297mm;
             margin: 0 auto;
@@ -34,7 +42,6 @@ export default function PrintLayout({ children }) {
             overflow: hidden;
           }
 
-          /* Watermark in screen preview */
           .print-watermark {
             position: absolute;
             inset: 0;
@@ -43,24 +50,22 @@ export default function PrintLayout({ children }) {
             justify-content: center;
             pointer-events: none;
             user-select: none;
-            z-index: 0;
+            z-index: 9999;
             font-weight: 800;
             font-size: 100px;
             letter-spacing: 0.25em;
-            color: rgba(100, 100, 100, 0.2); 
+            color: rgba(100, 100, 100, 0.2);
             transform: rotate(-32deg);
             text-transform: uppercase;
             white-space: nowrap;
           }
 
-          /* Content above watermark */
           .paper > *:not(.print-watermark) {
             position: relative;
             z-index: 1;
           }
         }
 
-        /* Print: prevent shrink-to-fit */
         @media print {
           html, body { width: 210mm; }
           .print-shell { padding: 0; background: transparent; }
@@ -72,18 +77,17 @@ export default function PrintLayout({ children }) {
             position: relative;
           }
 
-          /* ✅ Watermark for every printed page */
           .print-watermark {
-            position: fixed; /* repeats on printed pages in Chrome/Edge */
+            position: fixed;
             inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             pointer-events: none;
             user-select: none;
-            z-index: 0;
+            z-index: 9999;
             font-weight: 800;
-            font-size: 44mm;       /* scale with paper size */
+            font-size: 44mm;
             letter-spacing: 4mm;
             color: rgba(45, 120, 19, 0.2);
             transform: rotate(-32deg);
@@ -91,19 +95,16 @@ export default function PrintLayout({ children }) {
             white-space: nowrap;
           }
 
-          /* Keep content above watermark */
           .paper > *:not(.print-watermark) {
             position: relative;
             z-index: 1;
           }
 
-          /* ✅ This stops Chrome from scaling because of overflow */
           .print-root, .print-root * {
             max-width: 100% !important;
             box-sizing: border-box !important;
           }
 
-          /* ✅ If any component uses zoom/transform, undo it for print */
           .print-root {
             width: 100%;
             transform: none !important;
@@ -112,7 +113,6 @@ export default function PrintLayout({ children }) {
             line-height: 1.25;
           }
 
-          /* ✅ Tables often cause overflow → force them to fit */
           table {
             width: 100% !important;
             table-layout: fixed !important;
@@ -125,7 +125,6 @@ export default function PrintLayout({ children }) {
 
           .no-print { display: none !important; }
 
-          /* Page-break helpers */
           .print-page-break {
             break-before: page;
             page-break-before: always;

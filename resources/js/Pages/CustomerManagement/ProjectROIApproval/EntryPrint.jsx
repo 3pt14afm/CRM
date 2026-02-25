@@ -106,4 +106,8 @@ export default function EntryPrint({ tab = "summary", storageKey = null, autopri
   );
 }
 
-EntryPrint.layout = (page) => <PrintLayout>{page}</PrintLayout>;
+EntryPrint.layout = (page) => (
+  <PrintLayout showDraftWatermark={page.props.showDraftWatermark}>
+    {page}
+  </PrintLayout>
+);
