@@ -4,7 +4,7 @@ import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculati
 import { get1YrPotential } from '@/utils/calculations/freeuse/get1YrPotential';
 import { succeedingYears } from '@/utils/calculations/freeuse/succeedingYears';
 
-function MachineConfig() {
+function MachineConfig({readOnly}) {
   const { setProjectData, projectData, setYearlyData } = useProjectData();
 
   // ✅ Track which numeric cell is currently focused (so we can show raw while editing)
@@ -350,6 +350,7 @@ function MachineConfig() {
                   <tr key={row.id} className='border-b'>
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
                       <input
+                      disabled={readOnly}
                         type="checkbox"
                         className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
                         checked={row.type === 'machine'}
@@ -362,7 +363,7 @@ function MachineConfig() {
                           value={row.type === "machine" ? "" : (row.mode || "")}
                           onChange={(e) => setMode(row.id, e.target.value)}
                           
-                          disabled={row.type === "machine"}
+                          disabled={row.type === "machine" || readOnly}
                           className={`w-[90%] min-w-0 h-6 text-[11px] sm:text-xs px-2 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0 
                             ${
                               row.type === "machine"
@@ -384,6 +385,7 @@ function MachineConfig() {
                       <input
                         type="text"
                         value={row.sku}
+                        disabled={readOnly}
                         onChange={e => handleInputChange(row.id, 'sku', e.target.value)}
                         className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''}`}
                         placeholder="SKU-XXX"
@@ -394,6 +396,7 @@ function MachineConfig() {
                       <input
                         type="text"
                         inputMode="decimal"
+                        disabled={readOnly}
                         value={
                           focusedField === keyOf(row.id, 'cost')
                             ? (row.cost || '')
@@ -424,7 +427,7 @@ function MachineConfig() {
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={e => handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
-                        disabled={!isMachineRow}
+                        disabled={!isMachineRow || readOnly}
                         className={`${inputClass} ${!isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0"
                       />
@@ -453,7 +456,7 @@ function MachineConfig() {
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={e => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
-                        disabled={isMachineRow}
+                        disabled={isMachineRow || readOnly}
                         className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0"
                       />
@@ -479,7 +482,7 @@ function MachineConfig() {
                         }}
                         onKeyDown={onlyNumericKeys(true)}
                         onChange={e => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
-                        disabled={isMachineRow}
+                        disabled={isMachineRow || readOnly}
                         className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0.00"
                       />
@@ -491,12 +494,20 @@ function MachineConfig() {
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className={readonlyClass}>{formatNum(calcs.sellCpp)}</div>
                     </td>
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <div className="flex gap-1 justify-center">
-                        <button onClick={addRow} className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100">+</button>
-                        <button onClick={() => removeRow(row.id)} className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">-</button>
-                      </div>
-                    </td>
+                <td className="border-b border-r border-darkgreen/15 p-1">
+                  <div className="flex gap-1 justify-center">
+                    <button 
+                      onClick={addRow} 
+                      disabled={readOnly}
+                      className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${readOnly ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    >+</button>
+                    <button 
+                      onClick={() => removeRow(row.id)} 
+                      disabled={readOnly}
+                      className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    >-</button>
+                  </div>
+                </td>
                     <td className="border-b border-darkgreen/15 p-1">
                       <input
                         type="text"
@@ -504,6 +515,7 @@ function MachineConfig() {
                         onChange={e => handleInputChange(row.id, 'remarks', e.target.value)}
                         placeholder="Enter remarks"
                         className={`${inputClass} normal-case text-start`}
+                        // disabled={readOnly}
                       />
                     </td>
                   </tr>

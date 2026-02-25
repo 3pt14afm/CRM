@@ -134,7 +134,7 @@ const stripLocalFields = (row) => {
   return clean;
 };
 
-const Fees = () => {
+const Fees = ({readOnly}) => {
   const { projectData, setProjectData } = useProjectData();
 
   // keep raw values (can be "" or number/string)
@@ -326,7 +326,7 @@ const Fees = () => {
               return (
                 <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="border-b border-r border-darkgreen/15 text-center px-3 py-2">
-                    <input
+                    <input disabled={readOnly}
                       type="checkbox"
                       checked={row.isMachine}
                       onChange={e => handleUpdate(row.id, 'isMachine', e.target.checked)}
@@ -340,7 +340,7 @@ const Fees = () => {
                         {row.label}
                       </div>
                     ) : (
-                      <input
+                      <input disabled={readOnly}
                         type="text"
                         value={row.label}
                         onChange={e => handleUpdate(row.id, 'label', e.target.value)}
@@ -351,7 +351,7 @@ const Fees = () => {
                   </td>
 
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    <input
+                    <input disabled={readOnly}
                       type="number"
                       value={row.cost === 0 || row.cost === "" ? "" : row.cost}
                       placeholder="0"
@@ -361,12 +361,12 @@ const Fees = () => {
                   </td>
 
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    <input
+                    <input 
                       type="number"
                       value={row.qty === 0 || row.qty === "" ? "" : row.qty}
                       placeholder="0"
                       onChange={e => handleUpdate(row.id, 'qty', e.target.value)}
-                      disabled={qtyLocked}
+                      disabled={qtyLocked || readOnly}
                       className={`${inputClass} h-6 text-[10px] px-1 mx-auto block ${qtyLocked ? 'disabled:bg-lightgreen/5 border-none text-slate-700 cursor-not-allowed' : ''}`}
                       title={qtyLocked ? `Fixed Qty: ${fixedQty}` : undefined}
                     />
@@ -378,31 +378,33 @@ const Fees = () => {
                     </div>
                   </td>
 
-                  <td className="border-b border-r border-darkgreen/15 p-1">
-                    <div className="flex gap-1 justify-center items-center h-8">
-                      <button
-                        onClick={addRow}
-                        className="w-6 h-6 flex items-center justify-center rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => removeRow(row.id)}
-                        disabled={(hasFixedRows && row.__fixed) || rows.length <= 1}
-                        className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${
-                          (hasFixedRows && row.__fixed) || rows.length <= 1
+               <td className="border-b border-r border-darkgreen/15 p-1">
+                  <div className="flex gap-1 justify-center items-center h-8">
+                    <button
+                      onClick={addRow}
+                      disabled={readOnly}
+                      className={`w-6 h-6 flex items-center justify-center rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${readOnly ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    >
+                      +
+                    </button>
+                    <button
+                      onClick={() => removeRow(row.id)}
+                      disabled={readOnly || (hasFixedRows && row.__fixed) || rows.length <= 1}
+                      className={`w-6 h-6 flex items-center justify-center rounded border transition-colors ${
+                        readOnly
+                          ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-30'
+                          : (hasFixedRows && row.__fixed) || rows.length <= 1
                             ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
                             : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
-                        }`}
-                        title={(hasFixedRows && row.__fixed) ? "Fixed row" : "Remove row"}
-                      >
-                        -
-                      </button>
-                    </div>
-                  </td>
-
+                      }`}
+                      title={readOnly ? "View only" : (hasFixedRows && row.__fixed) ? "Fixed row" : "Remove row"}
+                    >
+                      -
+                    </button>
+                  </div>
+                </td>
                   <td className="border-b border-darkgreen/15 p-1">
-                    <input
+                    <input 
                       type="text"
                       value={row.remarks}
                       onChange={e => handleUpdate(row.id, 'remarks', e.target.value)}

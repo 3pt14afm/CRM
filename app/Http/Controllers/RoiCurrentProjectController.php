@@ -70,14 +70,16 @@ public function current()
 }
 
 public function show($id){
-    $project = RoiCurrentProject::findOrFail($id);
+    $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
     
     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
         'entryProject' => $project,
         'readOnly' => true,
-        'createdBy'    => $project->user->name, 
+        'route' => 'current',
+        'createdBy' => $project->user->name, 
     ]);
 }
+
 }
 
 

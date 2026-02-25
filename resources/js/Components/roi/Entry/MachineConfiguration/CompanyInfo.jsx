@@ -3,7 +3,7 @@ import { get1YrPotential } from "@/utils/calculations/freeuse/get1YrPotential";
 import { succeedingYears } from "@/utils/calculations/freeuse/succeedingYears";
 import React, { useEffect } from "react";
 
-function CompanyInfo() {
+function CompanyInfo({readOnly}) {
   const { projectData, setProjectData, syncYearlyBreakdown } = useProjectData();
 
 
@@ -54,6 +54,7 @@ function CompanyInfo() {
             type="text"
             value={projectData.companyInfo.companyName}
             onChange={(e) => handleChange("companyName", e.target.value)}
+            disabled={readOnly}
           />
         </div>
 
@@ -63,6 +64,7 @@ function CompanyInfo() {
           <input
             type="number"
             placeholder="0"
+            disabled={readOnly}
             value={
               projectData?.companyInfo?.contractYears === 0
                 ? ""
@@ -89,12 +91,14 @@ function CompanyInfo() {
           <div className="flex justify-between items-start">
             {/* left column (same width as company name input) */}
             <div className="w-[70%]">
-              <select
+              <select 
                 className={`w-full rounded-sm border px-2 text-sm border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white ${
                   !projectData.companyInfo.contractType
                     ? "text-slate-400"
                     : "text-black"
                 }`}
+
+                disabled={readOnly}
                 value={projectData.companyInfo.contractType}
                 onChange={(e) => {
                   const nextType = e.target.value;
@@ -152,6 +156,7 @@ function CompanyInfo() {
             className="rounded-sm border px-2 text-sm border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800]"
             type="text"
             value={projectData.companyInfo.purpose}
+            disabled={readOnly}
             onChange={(e) => handleChange("purpose", e.target.value)}
           />
         </div>

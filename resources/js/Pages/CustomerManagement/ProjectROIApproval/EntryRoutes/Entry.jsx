@@ -133,7 +133,7 @@ function mapEntryProjectToContext(entryProject) {
   };
 }
 
-export default function Entry({ activeTab = 'Machine Configuration', entryProject = null }) {
+export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly=false, route = '' }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -300,7 +300,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
             <div className="flex gap-1">
               <h1 className="font-semibold mt-3">Project ROI Approval</h1>
               <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">Entry</p>
+              <p className="text-3xl font-semibold">{route === 'current' ? `${entryProject?.company_name}` : 'Entry'}</p>
             </div>
 
             <div className="flex flex-col gap-1 items-end">
@@ -352,6 +352,7 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
           {tab === 'Machine' ? (
             <MachineConfigTab
               key={`machine-${entryProject?.id ?? 'new'}-${resetKey}`}
+              readOnly={readOnly}
               buttonClicked={buttonClicked}
             />
           ) : tab === 'Summary' ? (
@@ -369,36 +370,38 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
 
         {/* STICKY FOOTER */}
         <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className={`px-10 py-3 flex items-center ${tab === 'Machine' ? 'justify-between' : 'justify-end'}`}>
-            {tab === 'Machine' && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleClearAll}
-                  className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
-                >
-                  <IoTrashSharp /> Clear All
-                </button>
+          <div className={`px-10 py-3  flex items-center ${tab === 'Machine' ? 'justify-between' : 'justify-end'}`}>
+        {tab === 'Machine' && !readOnly && (
+          <>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+            >
+              <IoTrashSharp /> Clear All
+            </button>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSaveDraft}
-                    className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
-                  >
-                    <FaRegFloppyDisk /> Save Draft
-                  </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
+              >
+                <FaRegFloppyDisk /> Save Draft
+              </button>
 
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
-                  >
-                    Submit <IoSend />
-                  </button>
-                </div>
-              </>
-            )}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
+              >
+                Submit <IoSend />
+              </button>
+            </div>
+          </>
+          )}
+   
+          
 
             {/* SUMMARY + SUCCEEDING (active for now: print only) */}
             {showPrintFooter && (
