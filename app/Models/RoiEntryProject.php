@@ -10,7 +10,11 @@ class RoiEntryProject extends Model
     protected $table = 'roi_entry_projects';
 
     protected $fillable = [
-        'user_id','project_uid','reference','version','last_saved_at','status',
+        'user_id','project_uid','reference','version','last_saved_at','status' ,'reviewed_by', 'checked_by',
+            'endorsed_by',
+            'confirmed_by',
+            'approved_by',
+            'last_saved_at',
         'company_name','contract_years','contract_type', 'purpose', 'bundled_std_ink',
         'annual_interest','percent_margin',
         'mono_yield_monthly','mono_yield_annual','color_yield_monthly','color_yield_annual',

@@ -139,6 +139,32 @@ const handleDelete = (row) => {
             header: "LAST SAVED",
             cell: (r) => r.last_saved_display ?? "—",
             },
+           {
+              header: "STATUS",
+              key: "status",
+              cell: (row) => {
+                // Define colors based on status value
+                const isDraft = row.status?.toLowerCase() === 'draft';
+                const isReturned = row.status?.toLowerCase() === 'returned';
+                
+                return (
+                  <span className={`
+                    px-2 py-1           /* Padding for the background */
+                    rounded-full        /* High radius (capsule shape) */
+                    text-[9px]         /* Smaller font size */
+                    font-bold           /* Bold text */
+                    uppercase           /* Clean look */
+                    tracking-wider      /* Spacing */
+                    ${isReturned 
+                      ? "bg-red-100 text-red-700 border border-red-200" : isDraft
+                      ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]" : ""
+                    }
+                  `}>
+                    {row.status}
+                  </span>
+                );
+              }
+            },
             {
             key: "actions",
             header: "ACTIONS",

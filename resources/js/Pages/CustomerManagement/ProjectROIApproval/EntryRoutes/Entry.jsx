@@ -135,7 +135,7 @@ function mapEntryProjectToContext(entryProject) {
   };
 }
 
-export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly = false, route:routeName= '' }) {
+export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly = false, route:routeName= '', role='' }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -188,7 +188,7 @@ const handleBackToSender = () => {
                             onError: () => toast.error('Failed to send back.', { id: 'sendBack' }),
                         });
                     }}
-                    className="px-3 py-1 text-sm rounded bg-orange-500 text-white hover:bg-orange-600"
+                    className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-orange-600"
                 >
                     Yes, Send Back
                 </button>
@@ -288,6 +288,34 @@ const handleBackToSender = () => {
     });
   };
 
+const handleAdvance = (projectId) => {
+    if (!projectId) {
+        toast.error("Invalid Project ID");
+        return;
+    }
+
+    if (confirm("Are you sure you want to approve and advance this project?")) {
+        // Create a unique ID for this specific action's toast
+        const toastId = toast.loading("Advancing project...");
+
+        router.post(route('roi.projects.advance', projectId), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                toast.success("Project advanced successfully!", { id: toastId });
+            },
+            onError: (errors) => {
+                // If there are validation errors from Laravel
+                const message = Object.values(errors)[0] || "Failed to advance project.";
+                toast.error(message, { id: toastId });
+            },
+            onFinish: () => {
+                // Final safety cleanup
+                setTimeout(() => toast.dismiss(toastId), 3000);
+            }
+        });
+    }
+};
+  
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
       resetProject();
@@ -519,7 +547,7 @@ const handleBackToSender = () => {
             )}
 
             {/* SUMMARY/SUCCEEDING - CURRENT DB (submitted): approval actions + center Print */}
-            {showCurrentSummaryApprovalActions && (
+            {showCurrentSummaryApprovalActions && role === 'reviewer' && (
               <>
                 {/* left approval actions */}
                 <div className="flex items-center gap-3">
@@ -563,7 +591,7 @@ const handleBackToSender = () => {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={handleSubmitToNextLevel}
+                    onClick={handleAdvance}
                     className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
                   >
                     Submit to Next Level <FaArrowRight />

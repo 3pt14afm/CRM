@@ -69,6 +69,31 @@ console.log({ currentProjects, stats });
       cell: (r) => r.contract_type ?? "—",
     },
     {
+    header: "STATUS",
+    key: "status",
+    cell: (row) => {
+      // Define colors based on status value
+      const ForReview = row.status === 'For Review';
+      
+      return (
+        <span className={`
+          px-2 py-1           /* Padding for the background */
+          rounded-full        /* High radius (capsule shape) */
+          text-[9px]         /* Smaller font size */
+          font-bold           /* Bold text */
+          uppercase           /* Clean look */
+          tracking-wider      /* Spacing */
+        ${ForReview 
+            ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20" 
+            : "bg-blue-100 text-blue-700 border border-blue-200"
+          }
+        `}>
+          {row.status}
+        </span>
+      );
+    }
+  },
+    {
       key: "last_saved_at",
       header: "LAST SAVED",
       cell: (r) => r.last_saved_display ?? "—",

@@ -20,12 +20,13 @@ class RoiController extends Controller
         // 5 matches your UI mock; can be overridden by ?per_page=
         $perPage = (int) $request->input('per_page', 10);
 
-        $draftsQuery = RoiEntryProject::query()
+            $draftsQuery = RoiEntryProject::query()
             ->where('user_id', $userId)
-            ->where('status', 'draft')
+            // Change 'where' to 'whereIn' to accept an array of statuses
+            ->whereIn('status', ['draft', 'returned']) 
             ->orderByDesc('last_saved_at')
             ->orderByDesc('updated_at');
-
+            
         $drafts = (clone $draftsQuery)
             ->paginate($perPage)
             ->withQueryString();
@@ -71,6 +72,7 @@ class RoiController extends Controller
                     'contract_years' => $p->contract_years,
                     'contract_type'  => $p->contract_type,
                     'last_saved_display' => $display,
+                    'status' => $p->status
                 ];
             }),
             'stats' => [

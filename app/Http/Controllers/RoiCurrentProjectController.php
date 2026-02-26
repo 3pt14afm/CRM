@@ -17,9 +17,17 @@ class RoiCurrentProjectController extends Controller {
 
 public function current()
 {
-    $currentProjects = RoiCurrentProject::with(['items', 'fees', 'user'])
-        ->orderBy('last_saved_at', 'desc')
-        ->paginate(10)
+    $user = Auth::user();
+    $isReviewer = $user->role === 'reviewer';
+
+    $query = RoiCurrentProject::with(['items', 'fees', 'user'])
+        ->orderBy('last_saved_at', 'desc');
+
+    if (!$isReviewer) {
+        $query->where('user_id', $user->id);
+    }
+
+    $currentProjects = $query->paginate(10)
         ->through(function ($p) {
             $last = $p->last_saved_at;
             $display = null;
@@ -49,13 +57,19 @@ public function current()
         });
 
     $recentlyAddedToday = RoiCurrentProject::query()
+        ->when(!$isReviewer, fn($q) => $q->where('user_id', $user->id))
         ->whereDate('last_saved_at', now()->toDateString())
         ->count();
 
     $stats = [
-        'totalCurrentProjects' => RoiCurrentProject::count(),
+        'totalCurrentProjects' => RoiCurrentProject::query()
+            ->when(!$isReviewer, fn($q) => $q->where('user_id', $user->id))
+            ->count(),
         'recentlyModifiedText' => optional(
-            RoiCurrentProject::orderBy('last_saved_at', 'desc')->first()
+            RoiCurrentProject::query()
+                ->when(!$isReviewer, fn($q) => $q->where('user_id', $user->id))
+                ->orderBy('last_saved_at', 'desc')
+                ->first()
         )->last_saved_at?->diffForHumans() ?? '—',
         'recentlyAddedToday' => $recentlyAddedToday . ' Today',
     ];
@@ -65,16 +79,17 @@ public function current()
         'stats'           => $stats,
     ]);
 }
-
 public function show($id)
 {
     $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+        'project' => $project,
         'entryProject' => $project,
         'readOnly'     => true,
         'route'        => 'current',
         'createdBy'    => $project->user->name,
+        'role'         => Auth::user()->role,
     ]);
 }
 
@@ -88,8 +103,9 @@ public function sendBack($id)
         $data = $current->toArray();
         
         // Change the status to draft and set the timestamp
-        $data['status'] = 'draft';
+        $data['status'] = 'returned';
         $data['last_saved_at'] = now();
+        $data['reviewed_by'] = Auth::user()->name;
 
         // 3. SEND TO DRAFT: Create the record in RoiEntryProject
         // updateOrCreate ensures we don't get 'duplicate entry' errors
@@ -121,5 +137,38 @@ public function sendBack($id)
         return to_route('roi.current')->with('success', 'Project successfully moved back to drafts.');
     });
 }
+
+public function advanceProject($id)
+{
+    return DB::transaction(function () use ($id) {
+        $project = RoiCurrentProject::with(['items', 'fees'])->findOrFail($id);
+        $user = Auth::user();
+        $role = strtolower($user->role);
+
+        $workflow = [
+            'reviewer'  => ['status' => 'For Checking',    'column' => 'reviewed_by'],
+            'checker'   => ['status' => 'For Endorsement', 'column' => 'checked_by'],
+            'endorser'  => ['status' => 'For Confirmation','column' => 'endorsed_by'],
+            'confirmer' => ['status' => 'For Approval',    'column' => 'confirmed_by'],
+            'approver'  => ['status' => 'Approved',        'column' => 'approved_by'],
+        ];
+
+        if (!isset($workflow[$role])) {
+            return back()->withErrors(['role' => 'Unauthorized role: ' . $role]);
+        }
+
+        $step = $workflow[$role];
+
+        // FIX: Changed $step['next_status'] to $step['status']
+        $project->update([
+            'status'        => $step['status'], 
+            $step['column'] => $user->name,
+            'last_saved_at' => now(),
+        ]);
+
+        return to_route('roi.current')->with('success', "Project moved to: " . $step['status']);
+    });
+}
+
 
 }

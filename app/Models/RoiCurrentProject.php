@@ -10,7 +10,12 @@ class RoiCurrentProject extends Model
     protected $table = 'roi_current_projects';
 
     protected $fillable = [
-        'user_id','project_uid','reference','version','last_saved_at','status',
+        'user_id','project_uid','reference','version','last_saved_at','status' ,'reviewed_by',
+    'checked_by',
+    'endorsed_by',
+    'confirmed_by',
+    'approved_by',
+    'last_saved_at',
 
         'company_name','contract_years','contract_type','bundled_std_ink', 'purpose',
 

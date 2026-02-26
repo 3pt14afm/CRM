@@ -23,9 +23,14 @@ function formatDateTime(date) {
 
 export default function AddComments({ scopeKey = "default" }) {
   const { auth, project } = usePage().props;
-
+  
   const projectId = project?.id;
   const userId = auth?.user?.id ?? "guest";
+  const isNotUser = auth?.user?.role ?? "reviewer";
+  const isForReview = project?.status === 'For Review';
+  // Logic to determine if interaction is allowed
+  const isCurrent = project?.status === 'submitted';
+  const isLocked = !projectId || isCurrent || isForReview;
 
   const DRAFT_KEY = useMemo(() => {
     return projectId ? `roi-comment-draft:${userId}:${projectId}:${scopeKey}` : null;
@@ -42,7 +47,11 @@ export default function AddComments({ scopeKey = "default" }) {
   const modalRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const openModal = () => setOpen(true);
+  const openModal = () => {
+    if (isLocked) return; 
+    setOpen(true);
+  };
+  
   const closeModal = () => setOpen(false);
 
   useEffect(() => {
@@ -80,7 +89,7 @@ export default function AddComments({ scopeKey = "default" }) {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
-  const canSubmit = commentDraft.trim().length > 0 && !!projectId;
+  const canSubmit = commentDraft.trim().length > 0 && !!projectId && !isCurrent;
 
   const handleAddComment = () => {
     if (!canSubmit) return;
@@ -106,18 +115,32 @@ export default function AddComments({ scopeKey = "default" }) {
   return (
     <>
       <div className="w-full mx-auto mb-6 px-4">
+        {/* Only show the 'Save as Draft' note if project is missing an ID */}
+        {!projectId && (
+          <div className="mb-2 pl-2 text-[12px] font-bold text-red-600 print:hidden uppercase tracking-wider">
+            Note: You can only add comments once the project is saved as a draft.
+          </div>
+        )}
+
         <div
-          onClick={openModal}
-          className="flex items-center print:hidden hover:cursor-pointer bg-white border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+          onClick={!isLocked ? openModal : undefined}
+          className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
+            !isLocked ? "bg-white hover:cursor-pointer" : "bg-gray-50 cursor-not-allowed opacity-70"
+          }`}
         >
           <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
-            Write your comments here.....
+             Write your comments here.....
           </div>
 
           <button
             type="button"
-            onClick={openModal}
-            className="flex items-center gap-1 bg-[#2DA300] hover:bg-[#268a00] text-white px-3 py-2 rounded-full font-medium text-xs transition-all shadow-[0px_4px_10px_rgba(45,163,0,0.3)] shrink-0"
+            onClick={!isLocked ? openModal : (e) => e.stopPropagation()}
+            disabled={isLocked}
+            className={`flex items-center gap-1 px-3 py-2 rounded-full font-medium text-xs transition-all shrink-0 ${
+              !isLocked 
+                ? "bg-[#2DA300] hover:bg-[#268a00] text-white shadow-[0px_4px_10px_rgba(45,163,0,0.3)]" 
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
           >
             <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
               <IoMdSend />

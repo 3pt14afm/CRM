@@ -21,7 +21,13 @@ return new class extends Migration {
 
             // entry scope
             $table->string('status')->default('draft'); // draft | submitted (optional)
+            $table->string('reviewed_by')->nullable();
+            $table->string('checked_by')->nullable();
+            $table->string('endorsed_by')->nullable();
+            $table->string('confirmed_by')->nullable();
+            $table->string('approved_by')->nullable();
 
+            
             // inputs: companyInfo
             $table->string('company_name');
             $table->unsignedInteger('contract_years')->default(0);

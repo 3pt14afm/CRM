@@ -91,7 +91,8 @@ Route::middleware(['auth', 'verified'])
 
                 Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])
                     ->name('roi.entry.projects.notes.store');
-                    
+              Route::post('/{project}/comments', [RoiEntryProjectController::class, 'storeComment'])->name('roi.projects.comments.store');
+    
             });
 
 
@@ -100,6 +101,7 @@ Route::middleware(['auth', 'verified'])
         Route::patch('/{id}/send-back', [RoiCurrentProjectController::class, 'sendBack'])->name('roi.current.send-back');
 
         Route::get('/{id}', [RoiCurrentProjectController::class, 'show'])->name('roi.current.show');
+        Route::post('/{id}/advance', [RoiCurrentProjectController::class, 'advanceProject'])->name('roi.projects.advance');
 
         Route::get('/{id}/print', function ($id) {
             return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [

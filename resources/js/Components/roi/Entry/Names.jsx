@@ -2,17 +2,17 @@ import React from 'react';
 import { usePage } from '@inertiajs/react';
 
 function Names() {
-  const { createdBy } = usePage().props;
+  const { createdBy, project } = usePage().props;
   return (
-    <div className="w-[90%] mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-12">
+    <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-12">
 
       {/* 2. Signatories Grid */}
       <div className="grid grid-cols-4 gap-y-12 gap-x-8 px-2 print:px-1">
         {/* Top Row */}
-        <Signatory label="PREPARED BY:" name={createdBy} title="Account Manager" />
-        <Signatory label="REVIEWED BY:" name="Lincy Leah Flores" title="Sales Manager" />
-        <Signatory label="CHECKED BY:" name="Robert Sandro Tagle" title="Sales Director" />
-        <Signatory label="ENDORSED BY:" name="Patrick Khristoper Ay-ad" title="VP - Sales & Marketing" />
+        <Signatory label="PREPARED BY:" name={createdBy || "Andre Jarl Aniana"} title="Account Manager" />
+        <Signatory label="REVIEWED BY:" name={project?.reviewed_by || "Lincy Leah Flores"} title="Sales Manager" />
+        <Signatory label="CHECKED BY:" name={project?.checked_by || "Robert Sandro Tagle"} title="Sales Director" />
+        <Signatory label="ENDORSED BY:" nname={project?.endorsed_by || "Patrick Khristoper Ay-ad"} title="VP - Sales & Marketing" />
 
         {/* Bottom Row (Offset) */}
         <div className="col-start-3">

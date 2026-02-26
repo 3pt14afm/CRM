@@ -12,23 +12,24 @@ import Potentials from '@/Components/roi/Entry/Potentials';
 import SucceedingYearsPotential from '@/Components/roi/Entry/SucceedingYear/SuccedingYearsPotential';
 import MachConSucce from '@/Components/roi/Entry/SucceedingYear/MachConSucce';
 import SucceTotals from '@/Components/roi/Entry/SucceedingYear/succeTotals';
+import { usePage } from '@inertiajs/react';
 
 function Summary1stYear() {
+  const { auth } = usePage().props;
+  const role = auth.role;
+
   return (
     <div className='mx-5 print:mx-0 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0 border-b-[#B5EBA2] border-x-[#B5EBA2] print:border-none print:bg-transparent'>
       <div className='mx-10 print:mx-0 print:pt-0 pt-8'>
 
         {/* ================= PAGE 1 ================= */}
         <div className="print-avoid-break">
-          {/* HEADER */}
           <CompanyInfoSum />
 
-          {/* TOTAL MVP AND ANNUAL INTERESTS */}
           <div className='grid grid-cols-[40%_60%] gap-4 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-0 print:gap-0'>
             <div className="max-w-4xl w-full mt-3 print:ml-0 print:mt-0 print:mr-0">
               <TotalMVP />
             </div>
-
             <div className='mt-1 print:mt-0'>
               <InterestCalcuSum />
             </div>
@@ -46,12 +47,10 @@ function Summary1stYear() {
           <Totals />
         </div>
 
-        {/* FORCE NEXT CONTENT TO NEW PAGE */}
         <div className="print-page-break" />
 
         {/* ================= PAGE 2 ================= */}
         <div>
-          {/* SUCCEEDING YEARS */}
           <div className='grid grid-cols-[40%_60%] items-start gap-4 mt-8 print:mt-0 print:mx-0 print:gap-2'>
             <div className='flex flex-col gap-2 pt-8 print:pt-7 print:gap-0'>
               <MachConSucce />
@@ -64,19 +63,24 @@ function Summary1stYear() {
           <SucceTotals />
 
           <div className="print-page-break" />
-          
-          {/* CONTRACT DETAILS */}
+
           <ContractDetails />
 
-          {/* ADD NOTES AND ADD COMMENTS */}
-          <div className='grid grid-cols-2 items-start lg:mx-10 xl:mx-56 gap-1 print:mx-0 print:gap-0'>
-            <AddNotes />
-            <AddComments />
+          {/* ADD NOTES / COMMENTS */}
+       <div className='lg:mx-10 xl:mx-56 print:mx-0'>
+          {/* Logic to show the input section based on role */}
+          <div className='mb-4'>
+              {/* 'user' sees the Comment UI (linked to project.comments) */}
+              {role === 'user' && <AddComments type="comments" />}
+              
+              {/* 'reviewer' (confirm/approve) sees the Note UI (linked to project.notes) */}
+              {role === 'reviewer' && <AddComments type="notes" />}
           </div>
-
+          
           <Names />
-        </div>
+      </div>
 
+        </div>
       </div>
     </div>
   );

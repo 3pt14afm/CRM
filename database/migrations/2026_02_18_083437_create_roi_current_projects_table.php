@@ -21,6 +21,11 @@ return new class extends Migration {
 
             // current scope
             $table->string('status')->default('pending'); // pending | rejected | back_to_sender
+            $table->string('reviewed_by')->nullable();
+            $table->string('checked_by')->nullable();
+            $table->string('endorsed_by')->nullable();
+            $table->string('confirmed_by')->nullable();
+            $table->string('approved_by')->nullable();
             $table->text('status_reason')->nullable();
             $table->timestamp('status_updated_at')->nullable();
             $table->unsignedBigInteger('status_updated_by')->nullable();

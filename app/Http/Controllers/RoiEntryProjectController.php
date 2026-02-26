@@ -59,6 +59,7 @@ class RoiEntryProjectController extends Controller
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'activeTab'    => 'Machine Configuration',
             'entryProject' => $project,
+            'project'      => $project,  // ✅ add this
             'createdBy'    => $project->user->name,
         ]);
     }
@@ -279,7 +280,7 @@ class RoiEntryProjectController extends Controller
             $projectData = $project->toArray();
             unset($projectData['id']); 
             
-            $projectData['status'] = 'submitted';
+            $projectData['status'] = 'For Review';
             $projectData['last_saved_at'] = now();
 
             $newProject = RoiCurrentProject::create($projectData);
@@ -317,23 +318,25 @@ class RoiEntryProjectController extends Controller
      * Delete a draft project (Entry only).
      * DELETE /customer-management/roi/entry/projects/{project}
      */
-    public function destroy(RoiEntryProject $project)
-    {
-        abort_unless($project->user_id === Auth::id(), 403);
+public function destroy(RoiEntryProject $project)
+{
+    abort_unless($project->user_id === Auth::id(), 403);
 
-        // Only allow deleting drafts from Entry list
-        if ($project->status !== 'draft') {
-            return back()->with('error', 'Only drafts can be deleted.');
-        }
-
-        DB::transaction(function () use ($project) {
-            RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
-            RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
-            $project->delete();
-        });
-
-        return redirect()->route('roi.entry.list')->with('success', 'Draft deleted.');
+    // UPDATED: Allow both draft and returned to be deleted
+    $allowedStatuses = ['draft', 'returned'];
+    
+    if (!in_array($project->status, $allowedStatuses)) {
+        return back()->with('error', 'Only drafts or returned projects can be deleted.');
     }
+
+    DB::transaction(function () use ($project) {
+        RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
+        RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
+        $project->delete();
+    });
+
+    return redirect()->route('roi.entry.list')->with('success', 'Project deleted.');
+}
 
 
     private function mapItemRow(int $projectId, array $row, string $kind): array
@@ -418,5 +421,44 @@ class RoiEntryProjectController extends Controller
         ]);
 
         return back()->with('success', 'Note added.');
+    }
+
+    /**
+ * Store a comment in the CURRENT project's comments field.
+ * This is separate from the 'notes' field.
+ * POST /customer-management/roi/current/{project}/comments
+ */
+    public function storeComment(Request $request, RoiEntryProject $project)
+    {
+        // Check if the project actually belongs to the logged-in user
+        if ($project->user_id !== Auth::id()) {
+            abort(403, 'You do not have permission to comment on this project.');
+        }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $comments = $project->comments ?? [];
+        if (!is_array($comments)) {
+            $comments = [];
+        }
+
+        array_unshift($comments, [
+            'id' => (string) Str::ulid(),
+            'body' => trim($validated['body']),
+            'created_at' => now()->toISOString(),
+            'author' => [
+                'id' => Auth::id(),
+                'name' => Auth::user()?->name ?? 'Unknown',
+            ],
+        ]);
+
+        $project->update([
+            'comments' => $comments,
+            'last_saved_at' => now(),
+        ]);
+
+        return back()->with('success', 'Comment added.');
     }
 }
