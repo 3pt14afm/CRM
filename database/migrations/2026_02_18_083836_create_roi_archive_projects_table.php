@@ -10,6 +10,7 @@ return new class extends Migration {
         Schema::create('roi_archive_projects', function (Blueprint $table) {
             $table->id();
 
+            // This should represent the Level 1 owner (Prepared By)
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
 
             $table->ulid('project_uid')->unique();
@@ -18,9 +19,21 @@ return new class extends Migration {
             $table->unsignedInteger('version')->default(1);
             $table->timestamp('last_saved_at')->nullable();
 
-            $table->string('status')->default('approved'); // approved
+            // ✅ final status of archived record
+            $table->string('status')->default('approved'); // approved | rejected
+            $table->string('reviewed_by')->nullable();
+            $table->string('checked_by')->nullable();
+            $table->string('endorsed_by')->nullable();
+            $table->string('confirmed_by')->nullable();
+
+            // approved metadata
             $table->timestamp('approved_at')->nullable();
             $table->unsignedBigInteger('approved_by')->nullable();
+
+            // ✅ rejected metadata
+            $table->timestamp('rejected_at')->nullable();
+            $table->unsignedBigInteger('rejected_by')->nullable();
+            $table->unsignedTinyInteger('rejected_by_level')->nullable();
 
             // inputs: companyInfo
             $table->string('company_name')->default('');
@@ -70,7 +83,15 @@ return new class extends Migration {
             $table->index(['contract_years']);
             $table->index(['updated_at']);
 
+            // helpful for archive filtering/search
+            $table->index(['status', 'approved_at']);
+            $table->index(['status', 'rejected_at']);
+
             $table->foreign('approved_by')
+                ->references('id')->on('users')
+                ->nullOnDelete();
+
+            $table->foreign('rejected_by')
                 ->references('id')->on('users')
                 ->nullOnDelete();
         });

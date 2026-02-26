@@ -10,6 +10,7 @@ return new class extends Migration {
         Schema::create('roi_current_projects', function (Blueprint $table) {
             $table->id();
 
+            // This should represent the Level 1 owner (Prepared By)
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
 
             // stable ID across stages
@@ -35,8 +36,8 @@ return new class extends Migration {
             $table->unsignedInteger('contract_years')->default(0);
             $table->string('contract_type')->default('');
             $table->boolean('bundled_std_ink')->default(false);
-             $table->string('purpose')->nullable(); // or ->string('purpose')->nullable()
-             
+            $table->string('purpose')->nullable();
+
             // inputs: interest
             $table->decimal('annual_interest', 10, 4)->default(0);
             $table->decimal('percent_margin', 10, 4)->default(0);
@@ -76,12 +77,18 @@ return new class extends Migration {
 
             $table->timestamp('submitted_at')->nullable();
 
+            // ✅ WORKFLOW OWNER (2..6)
+            $table->unsignedTinyInteger('current_level')->default(2);
+
             $table->timestamps();
 
             $table->index(['user_id', 'status']);
             $table->index(['contract_type']);
             $table->index(['contract_years']);
             $table->index(['updated_at']);
+
+            // ✅ for filtering inbox by level
+            $table->index(['current_level']);
 
             $table->foreign('status_updated_by')
                 ->references('id')->on('users')
