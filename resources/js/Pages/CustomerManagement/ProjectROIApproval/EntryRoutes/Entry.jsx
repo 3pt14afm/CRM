@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import Summary1stYear from './Summary1stYear';
 import MachineConfigTab from './MachineConfigTab';
@@ -135,7 +135,18 @@ function mapEntryProjectToContext(entryProject) {
   };
 }
 
-export default function Entry({ activeTab = 'Machine Configuration', entryProject = null, readOnly = false, route:routeName= '', role='' }) {
+// ✅ UPDATED: added viewerLevel
+export default function Entry({
+  activeTab = 'Machine Configuration',
+  entryProject = null,
+  readOnly = false,
+  route: routeName = '',
+  role = '',
+  viewerLevel = null,
+}) {
+  const { auth } = usePage().props;
+  const createdBy = auth?.user?.name ?? null;
+
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -167,42 +178,112 @@ export default function Entry({ activeTab = 'Machine Configuration', entryProjec
     return null;
   };
 
-  const handleReject = () => getCurrentTabRef()?.current?.reject?.();
-const handleBackToSender = () => {
+  const handleReject = () => {
     toast((t) => (
-        <div className="flex flex-col gap-2">
-            <p className="font-medium text-sm">Send this project back to the sender?</p>
-            <div className="flex gap-2 justify-end">
-                <button
-                    onClick={() => toast.dismiss(t.id)}
-                    className="px-3 py-1 text-sm rounded border border-slate-300 hover:bg-slate-100"
-                >
-                    Cancel
-                </button>
-                <button
-                    onClick={() => {
-                        toast.dismiss(t.id);
-                        router.patch(route('roi.current.send-back', entryProject.id), {}, {
-                            onStart: () => toast.loading('Sending back...', { id: 'sendBack' }),
-                            onSuccess: () => toast.success('Project sent back to sender.', { id: 'sendBack' }),
-                            onError: () => toast.error('Failed to send back.', { id: 'sendBack' }),
-                        });
-                    }}
-                    className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-orange-600"
-                >
-                    Yes, Send Back
-                </button>
-            </div>
+      <div className="flex flex-col gap-2">
+        <p className="font-medium text-sm">Reject this project?</p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1 text-sm rounded border border-slate-300 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              router.post(ziggyRoute('roi.current.reject', entryProject.id), {}, {
+                onStart: () => toast.loading('Rejecting...', { id: 'reject' }),
+                onSuccess: () => toast.success('Project rejected.', { id: 'reject' }),
+                onError: () => toast.error('Failed to reject.', { id: 'reject' }),
+              });
+            }}
+            className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
+          >
+            Yes, Reject
+          </button>
         </div>
+      </div>
     ), { duration: Infinity });
-};
-  const handleSubmitToNextLevel = () => getCurrentTabRef()?.current?.submitToNextLevel?.();
+  };
+
+  const handleBackToSender = () => {
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <p className="font-medium text-sm">Send this project back to the sender?</p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1 text-sm rounded border border-slate-300 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              router.patch(ziggyRoute('roi.current.send-back', entryProject.id), {}, {
+                onStart: () => toast.loading('Sending back...', { id: 'sendBack' }),
+                onSuccess: () => toast.success('Project sent back to sender.', { id: 'sendBack' }),
+                onError: () => toast.error('Failed to send back.', { id: 'sendBack' }),
+              });
+            }}
+            className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-orange-600"
+          >
+            Yes, Send Back
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
+  };
+
+  const handleAdvance = (projectId) => {
+    if (!projectId) {
+      toast.error("Invalid Project ID");
+      return;
+    }
+
+    if (confirm("Are you sure you want to submit this project to the next level?")) {
+      const toastId = toast.loading("Submitting to next level...");
+
+      router.post(ziggyRoute('roi.current.advance', projectId), {}, {
+        preserveScroll: true,
+        onSuccess: () => toast.success("Project advanced successfully!", { id: toastId }),
+        onError: (errors) => {
+          const message = Object.values(errors)[0] || "Failed to advance project.";
+          toast.error(message, { id: toastId });
+        },
+        onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
+      });
+    }
+  };
+
+  // ✅ approve (level 6 only)
+  const handleApprove = (projectId) => {
+    if (!projectId) {
+      toast.error("Invalid Project ID");
+      return;
+    }
+
+    if (confirm("Approve this project? This will move it to Archive.")) {
+      const toastId = toast.loading("Approving...");
+
+      router.post(ziggyRoute('roi.current.approve', projectId), {}, {
+        preserveScroll: true,
+        onSuccess: () => toast.success("Project approved.", { id: toastId }),
+        onError: (errors) => {
+          const message = Object.values(errors)[0] || "Failed to approve project.";
+          toast.error(message, { id: toastId });
+        },
+        onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
+      });
+    }
+  };
 
   useEffect(() => {
     const next =
       activeTab === 'Summary' ? 'Summary' :
-      activeTab === 'Succeeding' ? 'Succeeding' :
-      'Machine';
+        activeTab === 'Succeeding' ? 'Succeeding' :
+          'Machine';
     setTab(next);
   }, [activeTab]);
 
@@ -288,34 +369,6 @@ const handleBackToSender = () => {
     });
   };
 
-const handleAdvance = (projectId) => {
-    if (!projectId) {
-        toast.error("Invalid Project ID");
-        return;
-    }
-
-    if (confirm("Are you sure you want to approve and advance this project?")) {
-        // Create a unique ID for this specific action's toast
-        const toastId = toast.loading("Advancing project...");
-
-        router.post(route('roi.projects.advance', projectId), {}, {
-            preserveScroll: true,
-            onSuccess: (page) => {
-                toast.success("Project advanced successfully!", { id: toastId });
-            },
-            onError: (errors) => {
-                // If there are validation errors from Laravel
-                const message = Object.values(errors)[0] || "Failed to advance project.";
-                toast.error(message, { id: toastId });
-            },
-            onFinish: () => {
-                // Final safety cleanup
-                setTimeout(() => toast.dismiss(toastId), 3000);
-            }
-        });
-    }
-};
-  
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
       resetProject();
@@ -327,6 +380,13 @@ const handleAdvance = (projectId) => {
   const isCurrentRecord = routeName === 'current';
   const isSummaryLikeTab = tab === 'Summary' || tab === 'Succeeding';
 
+  // ✅ define watermark flag safely (prevents ReferenceError)
+  const statusText = String(
+    projectData?.metadata?.status ?? entryProject?.status ?? "draft"
+  ).toLowerCase();
+
+  const showDraftWatermark = !isCurrentRecord && statusText === "draft";
+
   // entry DB (draft/edit)
   const showMachineDraftActions = tab === 'Machine' && !readOnly && !isCurrentRecord;
   const showEntrySummaryDraftActions = isSummaryLikeTab && !readOnly && !isCurrentRecord;
@@ -337,42 +397,69 @@ const handleAdvance = (projectId) => {
   // fallback print-only (safety)
   const showPrintFooter = isSummaryLikeTab;
 
+  const buildSignatoriesForPrint = (preparedByName) => ({
+    preparedBy: preparedByName ?? entryProject?.user?.name ?? null,
+    reviewedBy: entryProject?.reviewed_by ?? null,
+    checkedBy: entryProject?.checked_by ?? null,
+    endorsedBy: entryProject?.endorsed_by ?? null,
+    confirmedBy: entryProject?.confirmed_by ?? null,
+    approvedBy: entryProject?.approved_by_name ?? entryProject?.approved_by ?? null,
+  });
+
   const openPrintPage = (autoPrint = false) => {
     if (!(tab === "Summary" || tab === "Succeeding")) return;
 
     const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
-    const storageKey = `roi-print:${projectRef}:${Date.now()}`;
+
+    // We'll only use storageKey if snapshot save succeeds
+    let storageKey = null;
 
     try {
-      sessionStorage.setItem(storageKey, JSON.stringify(projectData));
+      storageKey = `roi-print:${projectRef}:${Date.now()}`;
+
+      const snapshot = {
+        ...projectData,
+        metadata: {
+          ...(projectData?.metadata ?? {}),
+          signatories: buildSignatoriesForPrint(createdBy),
+        },
+      };
+
+      sessionStorage.setItem(storageKey, JSON.stringify(snapshot));
     } catch (e) {
-      console.error("Failed to save print snapshot:", e);
-      alert("Print failed: snapshot too large.");
-      return;
+      // ✅ IMPORTANT: don't block printing
+      console.warn("Print snapshot too large; continuing without sessionStorage snapshot.", e);
+      storageKey = null;
     }
 
     const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
     let printPath = "";
 
-    // ✅ hide watermark for current/submitted pages
-    const showDraftWatermark = routeName !== "current";
-
-    if (routeName === "current" && projectId) {
-      printPath = ziggyRoute("roi.current.print", projectId);
-    } else if (projectId) {
-      printPath = ziggyRoute("roi.entry.projects.print", projectId);
+    if (projectId) {
+      if (routeName === "current") {
+        printPath = ziggyRoute("roi.current.print", projectId);
+      } else if (routeName === "archive") {
+        // NOTE: if you add archive.print later, handle it here
+        printPath = ziggyRoute("roi.archive.print", projectId);
+      } else {
+        printPath = ziggyRoute("roi.entry.projects.print", projectId);
+      }
     } else {
       const current = window.location.pathname.replace(/\/$/, "");
       printPath = `${current}/print`;
     }
 
-    const href =
-      `${printPath}` +
-      `?tab=${encodeURIComponent(tabParam)}` +
-      `&storageKey=${encodeURIComponent(storageKey)}` +
-      `&autoprint=${autoPrint ? 1 : 0}` +
-      `&draftWatermark=${showDraftWatermark ? 1 : 0}`;
+    // Build query params safely
+    const params = new URLSearchParams();
+    params.set("tab", tabParam);
+    params.set("autoprint", autoPrint ? "1" : "0");
+    params.set("draftWatermark", showDraftWatermark ? "1" : "0");
+
+    // Only include storageKey if we actually saved it
+    if (storageKey) params.set("storageKey", storageKey);
+
+    const href = `${printPath}?${params.toString()}`;
 
     const a = document.createElement("a");
     a.href = href;
@@ -383,16 +470,24 @@ const handleAdvance = (projectId) => {
     a.remove();
   };
 
+  // ✅ enforce: only assigned level (2..6) can act
+  const levelNum = Number(viewerLevel ?? 0);
+  const projectLevel = Number(entryProject?.current_level ?? 0);
+  const isAssignedApproverLevel =
+    levelNum >= 2 && levelNum <= 6 && levelNum === projectLevel;
+
+  const canApprove = isAssignedApproverLevel && levelNum === 6;
+
   return (
     <>
-      <Head title={routeName === 'current' ? `${entryProject?.company_name ?? 'Project'}` : 'ROI Entry'} />
+      <Head title={ routeName === 'current' || routeName === 'archive' ? `${entryProject?.company_name ?? 'Project'}` : 'ROI Entry'}/>
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
           <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
             <div className="flex gap-1">
               <h1 className="font-semibold mt-3">Project ROI Approval</h1>
               <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">{routeName === 'current' ? `${entryProject?.company_name}` : 'Entry'}</p>
+              <p className="text-3xl font-semibold">{routeName === 'current' || routeName === 'archive'  ? `${entryProject?.company_name}` : 'Entry'}</p>
             </div>
 
             <div className="flex flex-col gap-1 items-end">
@@ -410,7 +505,7 @@ const handleAdvance = (projectId) => {
                   tab === 'Machine'
                     ? 'bg-[#B5EBA2]/10 border border-t-[#B5EBA2]/80 font-medium border-b-0 border-x-[#B5EBA2]/80 rounded-t-xl'
                     : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                }`}
+                  }`}
               >
                 Machine Configuration
               </button>
@@ -421,21 +516,10 @@ const handleAdvance = (projectId) => {
                   tab === 'Summary'
                     ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0 border-x-[#B5EBA2] rounded-t-xl'
                     : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                }`}
+                  }`}
               >
                 Summary
               </button>
-
-              {/* <button
-                onClick={() => setTab('Succeeding')}
-                className={`px-7 text-sm py-2 ${
-                  tab === 'Succeeding'
-                    ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0 border-x-[#B5EBA2] rounded-t-xl'
-                    : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                }`}
-              >
-                Succeeding Years
-              </button> */}
             </div>
             <Toaster />
           </div>
@@ -494,10 +578,9 @@ const handleAdvance = (projectId) => {
               </>
             )}
 
-            {/* SUMMARY/SUCCEEDING - ENTRY DB (draft/edit): Clear All + Save Draft + Submit + center Print */}
+            {/* SUMMARY - ENTRY DB */}
             {showEntrySummaryDraftActions && (
               <>
-                {/* left */}
                 <button
                   type="button"
                   onClick={handleClearAll}
@@ -506,7 +589,6 @@ const handleAdvance = (projectId) => {
                   <IoTrashSharp /> Clear All
                 </button>
 
-                {/* center print */}
                 <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                   <button
                     type="button"
@@ -525,7 +607,6 @@ const handleAdvance = (projectId) => {
                   </button>
                 </div>
 
-                {/* right */}
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -546,10 +627,9 @@ const handleAdvance = (projectId) => {
               </>
             )}
 
-            {/* SUMMARY/SUCCEEDING - CURRENT DB (submitted): approval actions + center Print */}
-            {showCurrentSummaryApprovalActions && role === 'reviewer' && (
+            {/* SUMMARY - CURRENT DB (assigned level only) */}
+            {showCurrentSummaryApprovalActions && isAssignedApproverLevel && (
               <>
-                {/* left approval actions */}
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -568,7 +648,6 @@ const handleAdvance = (projectId) => {
                   </button>
                 </div>
 
-                {/* center print */}
                 <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                   <button
                     type="button"
@@ -587,26 +666,24 @@ const handleAdvance = (projectId) => {
                   </button>
                 </div>
 
-                {/* right approval action */}
                 <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleAdvance}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
-                  >
-                    Submit to Next Level <FaArrowRight />
-                  </button>
-
-                  {/* SAVE APPROVE FOR FUTURE */}
-                  {/*
-                  <button
-                    type="button"
-                    onClick={handleApprove}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow"
-                  >
-                    <FaCheckSquare /> Approve
-                  </button>
-                  */}
+                  {!canApprove ? (
+                    <button
+                      type="button"
+                      onClick={() => handleAdvance(entryProject?.id)}
+                      className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
+                    >
+                      Submit to Next Level <FaArrowRight />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleApprove(entryProject?.id)}
+                      className="flex items-center gap-2 px-5 py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow"
+                    >
+                      Approve
+                    </button>
+                  )}
                 </div>
               </>
             )}

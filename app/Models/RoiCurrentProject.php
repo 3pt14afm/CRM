@@ -4,41 +4,87 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RoiCurrentProject extends Model
 {
     protected $table = 'roi_current_projects';
 
     protected $fillable = [
-        'user_id','project_uid','reference','version','last_saved_at','status' ,'reviewed_by',
-    'checked_by',
-    'endorsed_by',
-    'confirmed_by',
-    'approved_by',
-    'last_saved_at',
+        'user_id',
+        'project_uid',
+        'reference',
+        'version',
+        'last_saved_at',
 
-        'company_name','contract_years','contract_type','bundled_std_ink', 'purpose',
+        // workflow/status
+        'status',
+        'status_reason',
+        'status_updated_at',
+        'status_updated_by',
+        'submitted_at',
+        'current_level',
 
-        'annual_interest','percent_margin',
+        // audit names (optional - you already have these columns)
+        'reviewed_by',
+        'checked_by',
+        'endorsed_by',
+        'confirmed_by',
+        'approved_by',
 
-        'mono_yield_monthly','mono_yield_annual','color_yield_monthly','color_yield_annual',
+        // company info
+        'company_name',
+        'contract_years',
+        'contract_type',
+        'bundled_std_ink',
+        'purpose',
 
-        'mc_unit_cost','mc_qty','mc_total_cost','mc_yields','mc_cost_cpp',
-        'mc_selling_price','mc_total_sell','mc_sell_cpp','mc_total_bundled_price',
+        // interest
+        'annual_interest',
+        'percent_margin',
 
+        // yield
+        'mono_yield_monthly',
+        'mono_yield_annual',
+        'color_yield_monthly',
+        'color_yield_annual',
+
+        // machine totals
+        'mc_unit_cost',
+        'mc_qty',
+        'mc_total_cost',
+        'mc_yields',
+        'mc_cost_cpp',
+        'mc_selling_price',
+        'mc_total_sell',
+        'mc_sell_cpp',
+        'mc_total_bundled_price',
+
+        // fees + grand totals
         'fees_total',
+        'grand_total_cost',
+        'grand_total_revenue',
+        'grand_roi',
+        'grand_roi_percentage',
 
-        'grand_total_cost','grand_total_revenue','grand_roi','grand_roi_percentage',
-
-        'yearly_breakdown','notes','comments',
+        // snapshots / json
+        'yearly_breakdown',
+        'notes',
+        'comments',
     ];
 
     protected $casts = [
         'last_saved_at' => 'datetime',
+        'submitted_at' => 'datetime',
+        'status_updated_at' => 'datetime',
+
         'bundled_std_ink' => 'boolean',
         'yearly_breakdown' => 'array',
         'notes' => 'array',
         'comments' => 'array',
+
+        'current_level' => 'integer',
+        'status_updated_by' => 'integer',
     ];
 
     public function items(): HasMany
@@ -50,9 +96,9 @@ class RoiCurrentProject extends Model
     {
         return $this->hasMany(RoiCurrentFee::class, 'roi_current_project_id');
     }
-    public function user()
+
+    public function user(): BelongsTo
     {
-        // This looks for a 'user_id' column on your roi_current_projects table
         return $this->belongsTo(User::class);
     }
 }
