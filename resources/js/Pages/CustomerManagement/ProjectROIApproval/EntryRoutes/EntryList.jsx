@@ -150,11 +150,14 @@ const handleDelete = (row) => {
                 return (
                   <span className={`
                     px-2 py-1           /* Padding for the background */
-                    rounded-full        /* High radius (capsule shape) */
+                    rounded-md        /* High radius (capsule shape) */
                     text-[9px]         /* Smaller font size */
                     font-bold           /* Bold text */
                     uppercase           /* Clean look */
                     tracking-wider      /* Spacing */
+                    md:text-[8px] md:px-1 md:py-1
+                    lg:text-[9px] lg:px-[6px] lg:py-1
+                    xl:text-[10px] xl:px-2 xl:py-1
                     ${isReturned 
                       ? "bg-red-100 text-red-700 border border-red-200" : isDraft
                       ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]" : ""
@@ -169,19 +172,19 @@ const handleDelete = (row) => {
             key: "actions",
             header: "ACTIONS",
             cell: (r) => (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 md:gap-1">
                     <button
-                        className="px-2 py-2 rounded-lg border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
+                        className="px-2 py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
                         onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
                     >
-                        <MdEdit className="text-[16px]" />
+                        <MdEdit className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
                     </button>
 
                     <button
-                        className="px-2 py-2 rounded-lg border border-[#F27373] text-red-500 font-semibold hover:bg-[#F27373]/10"
+                        className="px-2 py-2  md:px-1 md:py-1 rounded-md border border-[#F27373] text-red-500 font-semibold hover:bg-[#F27373]/10"
                         onClick={() => handleDelete(r)}
                     >
-                        <MdDelete className="text-[16px]" />
+                        <MdDelete className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
                     </button>
                 </div>
             ),
@@ -216,7 +219,7 @@ const handleDelete = (row) => {
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
           {/* HEADER (same as your Entry.jsx layout) */}
-          <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
+          <div className="px-2 pt-8 pb-3 flex justify-between mx-10 md:mx-4 lg:mx-5 xl:mx-10">
             <div className="flex gap-1">
               <h1 className="font-semibold mt-3">Project ROI Approval</h1>
               <p className="mt-3">/</p>
