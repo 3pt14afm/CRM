@@ -6,7 +6,7 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
 
   // normal = white tile, highlight = green tile, action = green clickable tile
   const base =
-    "rounded-xl border shadow-sm flex items-center gap-4 px-8 py-5";
+    "rounded-xl border shadow-sm flex items-center gap-4 px-8 py-5 md:px-4 md:py-4 lg:px-6 lg:py-5 lg:gap-2 xl:gap-4 xl:px-8";
   const styles =
     variant === "highlight" || variant === "action"
       ? "bg-[#4FA34E] border-[#4FA34E] text-white"
@@ -24,7 +24,7 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
       }}
     >
       <div
-        className={`h-11 w-11 mr-2 text-xl rounded-full flex items-center justify-center ${
+        className={`h-11 w-11 mr-2 text-xl rounded-full flex items-center justify-center md:m-0 md:h-10 md:w-10 lg:mr-2 lg:h-11 lg:w-11 ${
           variant === "highlight" || variant === "action"
             ? "bg-white/20"
             : "bg-[#B5EBA2]/50"
@@ -34,12 +34,12 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
       </div>
 
       <div className="flex-1">
-        <div className={`${variant === "highlight" || variant === "action" ? "text-white/90 font-semibold text-lg" : "text-slate-500 text-sm"}`}>
+        <div className={`${variant === "highlight" || variant === "action" ? "text-white/90 font-semibold text-xs md:text-xs lg:text-lg" : "text-slate-500 text-sm md:text-xs lg:text-sm"}`}>
           {label}
         </div>
 
         {value != null && (
-          <div className="text-xl font-semibold leading-tight">
+          <div className="text-xl font-semibold leading-tight md:text-base lg:text-xl">
             {value}
           </div>
         )}
@@ -75,11 +75,11 @@ export default function ProjectListSection({
   })();
 
   return (
-    <div className="mx-16">
+    <div className="mx-16 md:mx-8 lg:mx-10 xl:mx-14">
       {/* Tiles */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-6 md:gap-4 xl:gap-6">
         {tiles.map((t) => (
-          <div key={t.label} className="col-span-12 md:col-span-4">
+          <div key={t.label} className=" md:col-span-4">
             <Tile {...t} />
           </div>
         ))}
@@ -87,8 +87,8 @@ export default function ProjectListSection({
 
       {/* Table */}
       <div className="mt-6 bg-white rounded-xl border border-black/10 shadow-sm">
-        <div className="flex items-center justify-between px-8 py-4 border-b border-black/10">
-          <h2 className="font-semibold text-lg">{tableTitle}</h2>
+        <div className="flex items-center justify-between px-8 py-4 border-b border-black/10 md:px-3 md:py-3 lg:px-4 xl:px-6">
+          <h2 className="font-semibold text-xs md:text-sm lg:text-base xl:text-lg">{tableTitle}</h2>
           <div className="flex items-center gap-2">{rightControls}</div>
         </div>
 
@@ -97,7 +97,7 @@ export default function ProjectListSection({
             <thead className="bg-gray-50">
               <tr className="text-left text-slate-500">
                 {columns.map((c) => (
-                  <th key={c.key} className="px-8 py-2.5 text-xs font-semibold tracking-wide">
+                  <th key={c.key} className="px-8 py-2.5 text-xs font-semibold tracking-wide md:px-3 md:py-2 md:text-[8px] lg:px-4 lg:text-[10px] xl:px-6 xl:text-xs ">
                     {c.header}
                   </th>
                 ))}
@@ -109,7 +109,7 @@ export default function ProjectListSection({
                 rows.map((r) => (
                   <tr key={rowKey(r)} className="border-t border-black/5">
                     {columns.map((c) => (
-                      <td key={c.key} className="px-8 py-2">
+                      <td key={c.key} className="px-8 py-2 md:px-3 md:text-xs lg:text-sm lg:px-4 lg:py-3 xl:px-6 xl:text-base">
                         {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
                       </td>
                     ))}
@@ -127,16 +127,16 @@ export default function ProjectListSection({
         </div>
 
         {pagination && (
-          <div className="flex items-center text-sm justify-between px-6 py-2 border-t border-black/10">
+          <div className="flex items-center text-sm justify-between px-6 py-2 border-t border-black/10 md:px-3 md:py-1 md:text-[10px] lg:text-xs lg:px-4 xl:px-6 xl:text-sm">
             <div className="text-slate-500">{rangeText}</div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 md:gap-0">
               <button
                 className="px-1 py-1 rounded-md border border-black/20 disabled:opacity-50"
                 disabled={pagination.page <= 1}
                 onClick={() => pagination.onPageChange(pagination.page - 1)}
               >
-                <MdKeyboardArrowLeft className="text-[18px]" />
+                <MdKeyboardArrowLeft className="text-[18px] md:text-xs lg:text-sm xl:text-base" />
               </button>
 
               <div className="px-2 py-1">
@@ -148,7 +148,7 @@ export default function ProjectListSection({
                 disabled={pagination.page * pagination.perPage >= pagination.total}
                 onClick={() => pagination.onPageChange(pagination.page + 1)}
               >
-                <MdKeyboardArrowRight className="text-[18px]" />
+                <MdKeyboardArrowRight className="text-[18px] md:text-xs lg:text-sm xl:text-base" />
               </button>
             </div>
           </div>
