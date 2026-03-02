@@ -143,7 +143,7 @@ export default function Sidebar() {
   const NavSubLink = ({ href, active, children }) => (
     <Link
       href={href}
-      className={`block pl-6 py-1.5 text-sm ${
+      className={`block pl-4 py-1 text-xs lg:pl-6 lg:py-1.5 lg:text-sm ${
         active
           ? 'text-darkgreen font-semibold ml-2 border-darkgreen/70 border-l bg-[#B5EBA2] w-[85%]'
           : 'text-darkgreen/70 ml-2 border-l border-[#90E274]'
@@ -192,14 +192,14 @@ export default function Sidebar() {
       onMouseEnter={() => setIsSidebarHovered(true)}
       onMouseLeave={() => setIsSidebarHovered(false)}
       className={`h-screen flex flex-col bg-[#FBFFFA] shadow-xl border-r overflow-hidden transition-[width] duration-300 ease-in-out ${
-        isOpen ? "w-80" : "w-20"
+        isOpen ? "w-60 lg:w-80" : "w-16 lg:w-20"
       }`}
     >
       {/* HEADER (stable: grid prevents shifting) */}
       <div className={`p-4 flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
         {/* Center logo area */}
         {isOpen ? (
-          <img src="/images/logo.webp" alt="CRM Logo" className="pl-1 h-16 w-auto" />
+          <img src="/images/logo.webp" alt="CRM Logo" className="pl-1 h-12 w-auto lg:h-16" />
         ) : (
           <button
             onClick={toggleSidebar}
@@ -211,12 +211,12 @@ export default function Sidebar() {
               src="/images/logoSmall.webp"
               alt="CRM Logo"
               className={`absolute object-contain transition-opacity duration-200 ${
-                isSidebarHovered ? "opacity-0" : "opacity-100"
+                isSidebarHovered ? "opacity-0" : "opacity-100 h-8 w-auto lg:h-10"
               }`}
             />
             <GoSidebarExpand
               title="Expand sidebar"
-              className={`absolute w-6 h-6 text-darkgreen transition-opacity duration-200 ${
+              className={`absolute w-4 h-4 lg:w-5 lg:h-5 text-darkgreen transition-opacity duration-200 ${
                 isSidebarHovered ? "opacity-100" : "opacity-0"
               }`}
               aria-hidden="true"
@@ -233,24 +233,24 @@ export default function Sidebar() {
               aria-label="Collapse sidebar"
               type="button"
             >
-              <GoSidebarCollapse className="w-5 h-5 text-darkgreen" />
+              <GoSidebarCollapse className="w-4 h-4 lg:w-5 lg:h-5 text-darkgreen" />
             </button>
           ) : (
-            <div className="w-10 h-16" />
+            <div className="w-10 h-12 lg:h-16" />
           )}
         </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto no-scrollbar">
         {/* CUSTOMER MANAGEMENT */}
-        <div className="space-y-3 mx-2">
+        <div className="space-y-1 mx-2">
           <div>
             <div
               className={`group ${
                 isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'
               } ${customerExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
             >
-              <div className={`flex items-center px-3 py-2`}>
+              <div className={`flex items-center px-2 py-2 lg:px-3`}>
                 <Link
                   
                   onClick={() => openSidebarAndToggleModule('customer')}
@@ -261,7 +261,7 @@ export default function Sidebar() {
                   {/* ICON (fixed slot) */}
                   <div
                     title="Customer Account Management"
-                    className={`flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors ${
+                    className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors lg:w-9 lg:h-9 ${
                       activeModule === 'customer' ? 'bg-white/0' : 'group-hover:bg-green-100'
                     }`}
                   >
@@ -269,7 +269,7 @@ export default function Sidebar() {
                   </div>
 
                   {/* LABEL (reveal/hide only) */}
-                  <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
                     Customer Account <br /> Management
                   </span>
                 </Link>
@@ -296,11 +296,11 @@ export default function Sidebar() {
 
             {/* CUSTOMER SUB-ITEMS */}
             {isOpen && activeModule === 'customer' && (
-              <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-8 shadow-lg mb-7">
+              <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-lg mb-7 lg:pl-8">
                 {!activeSubMenu && (
                   <Link
                     href="#"
-                    className="block px-8 py-2 text-sm text-darkgreen/70 hover:text-darkgreen hover:font-medium opacity-80"
+                    className="block px-8 py-2 text-[11px] text-darkgreen/70 hover:text-darkgreen hover:font-medium opacity-80 lg:text-sm"
                   >
                     Customer Information Details
                   </Link>
@@ -308,11 +308,11 @@ export default function Sidebar() {
 
                 {(activeSubMenu === null || activeSubMenu === 'roi') && (
                   <div className="relative">
-                    <div className="flex items-center -mt-3 -mb-3 py-2">
+                    <div className="flex items-center -mt-3 -mb-3 py-2 ">
                       <Link
                         href={route('roi.current')}
                         onClick={() => handleSubToggle('roi')}
-                        className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
                           activeSubMenu === 'roi'
                             ? 'text-darkgreen/85 font-semibold pt-3 mb-2'
                             : 'text-darkgreen/70 opacity-80'
@@ -335,7 +335,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeSubMenu === 'roi' && (
-                      <div className="relative ml-8 pb-2 mt-2">
+                      <div className="relative ml-6 lg:ml-8 pb-2 mt-2">
                         <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>
                           Current
                         </NavSubLink>
@@ -352,22 +352,22 @@ export default function Sidebar() {
 
                 {!activeSubMenu && (
                   <>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Proposal Generation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Sales Activities Log
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Contract Generation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Client Leads & Alerts
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Machine Reservation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Machine Request
                     </Link>
                   </>
@@ -379,7 +379,7 @@ export default function Sidebar() {
                       <Link
                         href={route('roi.current')}
                         onClick={() => handleSubToggle('reports')}
-                        className={`flex-1 px-8 py-2 text-sm tracking-tight transition-opacity hover:text-darkgreen hover:font-medium ${
+                        className={`flex-1 pl-8 py-2 text-[11px] tracking-tight transition-opacity hover:text-darkgreen hover:font-medium lg:text-sm ${
                           activeSubMenu === 'reports'
                             ? 'text-darkgreen/85 font-semibold'
                             : 'text-darkgreen/70 opacity-80'
@@ -432,7 +432,7 @@ export default function Sidebar() {
                 activeModule === 'machine' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg'
               }`}
             >
-              <div className="flex items-center px-3 py-2">
+              <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href="#"
                   onClick={(e) => {
@@ -445,11 +445,11 @@ export default function Sidebar() {
                 >
                   <div
                     title="Machine Inventory Management"
-                    className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors group-hover:bg-green-100">
+                    className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9">
                     <img src="/icons/mim.webp" alt="Machine Inventory Management" />
                   </div>
 
-                  <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
                     Machine Inventory <br /> Management
                   </span>
                 </Link>
@@ -470,7 +470,7 @@ export default function Sidebar() {
 
             {/* MACHINE INVENTORY SUB-ITEMS */}
             {isOpen && activeModule === 'machine' && (
-              <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
+              <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-4 shadow-lg mb-3 lg:pl-8">
                 {/* 1) Machine In-Field Inventory (with sublinks) */}
                 {(activeMachineSubMenu === null || activeMachineSubMenu === 'infield') && (
                   <div className="relative">
@@ -478,7 +478,7 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleMachineSubToggle('infield')}
-                        className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
                           activeMachineSubMenu === 'infield'
                             ? 'text-darkgreen/85 font-semibold '
                             : 'text-darkgreen/70 opacity-80'
@@ -502,7 +502,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeMachineSubMenu === 'infield' && (
-                      <div className="relative ml-8 pb-2">
+                      <div className="relative ml-6 lg:ml-8 pb-2">
                         <NavSubLink href="#" active={false}>
                           per Company/AM/Branch
                         </NavSubLink>
@@ -514,22 +514,22 @@ export default function Sidebar() {
                 {/* 2-8) Normal links (ONLY show when no submenu is open) */}
                 {!activeMachineSubMenu && (
                   <>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Preventive Maintenance
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Machine Pull Out
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Meter Reading
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Parts Requisition
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Machine Reservation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Machine Request
                     </Link>
                   </>
@@ -542,7 +542,7 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleMachineSubToggle('inventory_view')}
-                        className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
                           activeMachineSubMenu === 'inventory_view'
                             ? 'text-darkgreen/85 font-semibold pb-2 pt-1'
                             : 'text-darkgreen/70 opacity-80'
@@ -566,7 +566,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeMachineSubMenu === 'inventory_view' && (
-                      <div className="relative ml-8 pb-1">
+                      <div className="relative ml-6 lg:ml-8 pb-1">
                         <NavSubLink href="#" active={false}>
                           Brand New Machine
                         </NavSubLink>
@@ -585,7 +585,7 @@ export default function Sidebar() {
                 {!activeMachineSubMenu && (
                   <Link
                     href="#"
-                    className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium"
+                    className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm"
                   >
                     Reports
                   </Link>
@@ -601,7 +601,7 @@ export default function Sidebar() {
                 activeModule === 'service' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg'
               }`}
             >
-              <div className="flex items-center px-3 py-2">
+              <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href="#"
                   onClick={(e) => {
@@ -613,12 +613,12 @@ export default function Sidebar() {
                   }`}
                 >
                   <div 
-                    className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors group-hover:bg-green-100"
+                    className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
                     title="Service Support Management">
                     <img src="/icons/ssm.webp" alt="Service Support Management" />
                   </div>
 
-                  <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4  ${labelClass}`}>
                     Service Support <br /> Management
                   </span>
                 </Link>
@@ -638,7 +638,7 @@ export default function Sidebar() {
             </div>
 
             {isOpen && activeModule === 'service' && (
-              <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-8 shadow-lg mb-3">
+              <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-4 shadow-lg mb-3 lg:pl-8">
                 {/* 1) Service Ticketing (with sublinks) */}
                 {(activeServiceSubMenu === null || activeServiceSubMenu === 'ticketing') && (
                   <div className="relative">
@@ -646,7 +646,7 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleServiceSubToggle('ticketing')}
-                        className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                        className={`flex-1 px-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
                           activeServiceSubMenu === 'ticketing'
                             ? 'text-darkgreen/85 font-semibold pt-1 mb-1'
                             : 'text-darkgreen/70 opacity-80'
@@ -670,7 +670,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeServiceSubMenu === 'ticketing' && (
-                      <div className="relative ml-8 pb-1">
+                      <div className="relative ml-6 lg:ml-8 pb-1">
                         <NavSubLink href="#" active={false}>
                           Service Dispatch Web Portal
                         </NavSubLink>
@@ -691,10 +691,10 @@ export default function Sidebar() {
                 {/* Rest of the normal links (ONLY show when no submenu is open) */}
                 {!activeServiceSubMenu && (
                   <>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Parts Requisition (BN/RF)
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Reports
                     </Link>
                   </>
@@ -712,7 +712,7 @@ export default function Sidebar() {
                   : 'hover:bg-lightgreen/40 rounded-lg'
               }`}
             >
-              <div className="flex items-center px-3 py-2">
+              <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href="#"
                   onClick={(e) => {
@@ -724,12 +724,12 @@ export default function Sidebar() {
                   }`}
                 >
                   <div 
-                    className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors group-hover:bg-green-100"
+                    className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
                     title="Delivery Logistics Management">
                     <img src="/icons/dlm.webp" alt="Delivery Logistics Management" />
                   </div>
 
-                  <span className={`ml-4 text-base tracking-wide font-semibold ${labelClass}`}>
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
                     Delivery Logistics <br /> Management
                   </span>
                 </Link>
@@ -749,7 +749,7 @@ export default function Sidebar() {
             </div>
 
             {isOpen && activeModule === 'delivery' && (
-              <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-4 pb-2 pl-8 shadow-lg mb-3">
+              <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-4 pb-2 pl-4 shadow-lg mb-3 lg:pl-8">
                 {/* 1) Order & Delivery Management (with sublinks) */}
                 {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'order_delivery') && (
                   <div className="relative">
@@ -757,7 +757,7 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleDeliverySubToggle('order_delivery')}
-                        className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                        className={`flex-1 px-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
                           activeDeliverySubMenu === 'order_delivery'
                             ? 'text-darkgreen/85 font-semibold'
                             : 'text-darkgreen/70 opacity-80'
@@ -781,7 +781,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeDeliverySubMenu === 'order_delivery' && (
-                      <div className="relative ml-8 pb-1 mt-2">
+                      <div className="relative ml-6 lg:ml-8 pb-1 mt-2">
                         <NavSubLink href="#" active={false}>
                           Auto Email Status <br /> Notification
                         </NavSubLink>
@@ -800,7 +800,7 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleDeliverySubToggle('vehicle_tracking')}
-                        className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                        className={`flex-1 px-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
                           activeDeliverySubMenu === 'vehicle_tracking'
                             ? 'text-darkgreen/85 font-semibold mb-2'
                             : 'text-darkgreen/70 opacity-80'
@@ -824,7 +824,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeDeliverySubMenu === 'vehicle_tracking' && (
-                      <div className="relative ml-8 pb-1 mt-1">
+                      <div className="relative ml-6 lg:ml-8 pb-1 mt-1">
                         <NavSubLink href="#" active={false}>
                           GPS Monitoring <br />(Manila GPS)
                         </NavSubLink>
@@ -846,7 +846,7 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleDeliverySubToggle('driver_tracking')}
-                        className={`flex-1 px-8 text-sm tracking-tight hover:text-darkgreen hover:font-medium transition-opacity ${
+                        className={`flex-1 px-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
                           activeDeliverySubMenu === 'driver_tracking'
                             ? 'text-darkgreen/85 font-semibold mb-1'
                             : 'text-darkgreen/70 opacity-80'
@@ -870,7 +870,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeDeliverySubMenu === 'driver_tracking' && (
-                      <div className="relative ml-8">
+                      <div className="relative ml-6 lg:ml-8">
                         <NavSubLink href="#" active={false}>
                           Tab/Phone Delivery Receipt
                         </NavSubLink>
@@ -885,10 +885,10 @@ export default function Sidebar() {
                 {/* then the rest of the normal links (ONLY show when no submenu is open) */}
                 {!activeDeliverySubMenu && (
                   <>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Vehicle Maintenance
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-sm text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Reports
                     </Link>
                   </>
@@ -900,7 +900,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer (fixed position, no shifting) */}
-      <div className="relative p-4 ml-2 flex flex-col gap-4 items-start">
+      <div className="relative p-2.5 lg:p-4 ml-2 flex flex-col gap-4 items-start">
         <div className="relative">
           <button
             ref={profileBtnRef}
@@ -911,9 +911,9 @@ export default function Sidebar() {
             type="button"
           >
             {activeItem === "profile" ? (
-              <FaUserCircle className="w-7 h-7" />
+              <FaUserCircle className="w-6 h-6 lg:w-7 lg:h-7" />
             ) : (
-              <FaRegUserCircle className="w-7 h-7" />
+              <FaRegUserCircle className="w-6 h-6 lg:w-7 lg:h-7" />
             )}
           </button>
 
@@ -958,9 +958,9 @@ export default function Sidebar() {
           type="button"
         >
           {activeItem === "settings" ? (
-            <RiSettingsFill className="w-8 h-8" />
+            <RiSettingsFill className="w-7 h-7 lg:w-8 lg:h-8" />
           ) : (
-            <RiSettingsLine className="w-8 h-8" />
+            <RiSettingsLine className="w-7 h-7 lg:w-8 lg:h-8" />
           )}
         </button>
       </div>
