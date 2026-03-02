@@ -3,6 +3,7 @@ import { IoMdSend } from "react-icons/io";
 import { FaRegUserCircle } from "react-icons/fa";
 import { router, usePage } from "@inertiajs/react";
 import { route } from "ziggy-js";
+import { useProjectData } from "@/Context/ProjectContext";
 
 function formatDateTime(date) {
   const d = new Date(date);
@@ -21,39 +22,54 @@ function formatDateTime(date) {
   return `${datePart} - ${timePart}`;
 }
 
-export default function AddComments({ scopeKey = "default" }) {
-  const { auth, project } = usePage().props;
-  
-  const projectId = project?.id;
-  const userId = auth?.user?.id ?? "guest";
-  const isNotUser = auth?.user?.role ?? "reviewer";
-  const isForReview = project?.status === 'For Review';
-  // Logic to determine if interaction is allowed
-  const isCurrent = project?.status === 'submitted';
-  const isLocked = !projectId || isCurrent || isForReview;
+const CAN_COMMENT_ROLES = ['confirmer', 'approver']; // levels 5 and 6
 
+export default function AddComments({ scopeKey = "default" }) {
+const { projectData } = useProjectData();
+  const { auth, project: inertiaProject, projectComments: inertiaComments } = usePage().props;
+
+  // ── derived identifiers ────────────────────────────────────────────────────
+  const projectId  = inertiaProject?.id;
+  const userId     = auth?.user?.id ?? "guest";
+  const role       = auth?.user?.role;
+  const canComment = CAN_COMMENT_ROLES.includes(role);
+
+  // ── lock logic ─────────────────────────────────────────────────────────────
+  const isCurrent   = inertiaProject?.status === "submitted";
+  const isForReview = inertiaProject?.status === "For Review";
+  const isStatusLocked = isCurrent || isForReview;
+  const isLocked    = !projectId || !canComment || isStatusLocked;
+
+  // ── draft key ──────────────────────────────────────────────────────────────
   const DRAFT_KEY = useMemo(() => {
     return projectId ? `roi-comment-draft:${userId}:${projectId}:${scopeKey}` : null;
   }, [userId, projectId, scopeKey]);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]                 = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
 
-  const serverComments = useMemo(() => {
-    const rows = project?.comments ?? [];
+  // ── comments: prefer project.comments if non-empty, else fall back to projectComments prop ──
+const serverComments = useMemo(() => {
+    // Check the context data you mapped in EntryPrint first
+    const fromContext = projectData?.metadata?.comments;
+    const fromProject = inertiaProject?.comments;
+    
+    const rows = (Array.isArray(fromContext) && fromContext.length > 0)
+      ? fromContext
+      : (Array.isArray(fromProject) && fromProject.length > 0)
+        ? fromProject
+        : (inertiaComments ?? []);
+        
     return Array.isArray(rows) ? rows : [];
-  }, [project]);
+  }, [projectData, inertiaProject, inertiaComments]);
 
-  const modalRef = useRef(null);
+  const modalRef    = useRef(null);
   const textareaRef = useRef(null);
 
-  const openModal = () => {
-    if (isLocked) return; 
-    setOpen(true);
-  };
-  
+  const openModal  = () => { if (!isLocked) setOpen(true); };
   const closeModal = () => setOpen(false);
 
+  // ── persist draft ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!DRAFT_KEY) return;
     try {
@@ -64,11 +80,10 @@ export default function AddComments({ scopeKey = "default" }) {
 
   useEffect(() => {
     if (!DRAFT_KEY) return;
-    try {
-      localStorage.setItem(DRAFT_KEY, commentDraft);
-    } catch {}
+    try { localStorage.setItem(DRAFT_KEY, commentDraft); } catch {}
   }, [DRAFT_KEY, commentDraft]);
 
+  // ── modal UX ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open]);
@@ -89,7 +104,12 @@ export default function AddComments({ scopeKey = "default" }) {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
-  const canSubmit = commentDraft.trim().length > 0 && !!projectId && !isCurrent;
+  // ── submit ─────────────────────────────────────────────────────────────────
+  const canSubmit =
+    commentDraft.trim().length > 0 &&
+    !!projectId &&
+    canComment &&
+    !isStatusLocked;
 
   const handleAddComment = () => {
     if (!canSubmit) return;
@@ -101,7 +121,8 @@ export default function AddComments({ scopeKey = "default" }) {
         preserveScroll: true,
         onSuccess: () => {
           setCommentDraft("");
-          router.reload({ only: ["project"] });
+          if (DRAFT_KEY) { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+          router.reload({ only: ["project", "projectComments"] });
           closeModal();
         },
         onError: (errs) => {
@@ -112,70 +133,76 @@ export default function AddComments({ scopeKey = "default" }) {
     );
   };
 
+  // ── render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="w-full mx-auto mb-6 px-4">
-        {/* Only show the 'Save as Draft' note if project is missing an ID */}
-        {!projectId && (
+
+        {/* Warning: no project saved yet — only relevant to commenters */}
+        {!projectId && canComment && (
           <div className="mb-2 pl-2 text-[12px] font-bold text-red-600 print:hidden uppercase tracking-wider">
             Note: You can only add comments once the project is saved as a draft.
           </div>
         )}
 
-        <div
-          onClick={!isLocked ? openModal : undefined}
-          className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
-            !isLocked ? "bg-white hover:cursor-pointer" : "bg-gray-50 cursor-not-allowed opacity-70"
-          }`}
-        >
-          <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
-             Write your comments here.....
-          </div>
-
-          <button
-            type="button"
-            onClick={!isLocked ? openModal : (e) => e.stopPropagation()}
-            disabled={isLocked}
-            className={`flex items-center gap-1 px-3 py-2 rounded-full font-medium text-xs transition-all shrink-0 ${
-              !isLocked 
-                ? "bg-[#2DA300] hover:bg-[#268a00] text-white shadow-[0px_4px_10px_rgba(45,163,0,0.3)]" 
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+        {/* Input bar — only shown to confirmers/approvers when status is not locked */}
+        { !isStatusLocked && (
+          <div
+            onClick={!isLocked ? openModal : undefined}
+            className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
+              !isLocked ? "bg-white hover:cursor-pointer" : "bg-gray-50 cursor-not-allowed opacity-70"
             }`}
           >
-            <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
-              <IoMdSend />
-            </span>
-            Add Comments
-          </button>
-        </div>
-
-        <div className="mt-2 print:mt-1">
-          <span className="font-medium text-[11px] text-gray-400 pl-2">COMMENTS</span>
-
-          {serverComments.map((c) => (
-            <div
-              key={c.id}
-              className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <FaRegUserCircle className="text-lg text-gray-400 print:text-base" />
-                  <span className="font-semibold text-sm text-gray-900">
-                    {c.author?.name ?? "Unknown"}
-                  </span>
-                </div>
-
-                <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
-                  {formatDateTime(c.created_at)}
-                </div>
-              </div>
-
-              <p className="mt-3 text-gray-900 text-xs leading-relaxed">
-                {c.body}
-              </p>
+            <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
+              Write your comments here.....
             </div>
-          ))}
-        </div>
+
+            <button
+              type="button"
+              onClick={!isLocked ? openModal : (e) => e.stopPropagation()}
+              disabled={isLocked}
+              className={`flex items-center gap-1 px-3 py-2 rounded-full font-medium text-xs transition-all shrink-0 ${
+                !isLocked
+                  ? "bg-[#2DA300] hover:bg-[#268a00] text-white shadow-[0px_4px_10px_rgba(45,163,0,0.3)]"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
+                <IoMdSend />
+              </span>
+              Add Comments
+            </button>
+          </div>
+        )}
+
+        {/* Comments list — always visible to ALL roles */}
+        
+        {/* Comments list — always visible to ALL roles, hidden if empty */}
+        {serverComments.length > 0 && (
+          <div className="mt-2 print:mt-1">
+            <span className="font-medium text-[11px] text-gray-400 pl-2">COMMENTS</span>
+
+            {serverComments.map((c) => (
+              <div
+                key={c.id}
+                className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <FaRegUserCircle className="text-lg text-gray-400 print:text-base" />
+                    <span className="font-semibold text-sm text-gray-900">
+                      {c.author?.name ?? "Unknown"}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
+                    {formatDateTime(c.created_at)}
+                  </div>
+                </div>
+                <p className="mt-3 text-gray-900 text-xs leading-relaxed">{c.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {open && (
@@ -196,7 +223,6 @@ export default function AddComments({ scopeKey = "default" }) {
               <div className="relative bg-white rounded-xl border border-black/10 shadow-sm overflow-hidden">
                 <div className="relative p-6">
                   <FaRegUserCircle className="absolute left-6 top-6 text-2xl text-gray-400" />
-
                   <textarea
                     ref={textareaRef}
                     value={commentDraft}

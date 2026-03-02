@@ -357,17 +357,26 @@ export default function Entry({
   };
 
   const handleSubmit = () => {
-    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
+  const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
-    if (!projectId) {
-      alert("Please click Save Draft first to create the project.");
-      return;
-    }
+  if (!projectId) {
+    alert("Please click Save Draft first to create the project.");
+    return;
+  }
 
-    router.patch(ziggyRoute("roi.entry.projects.submit", projectId), {}, {
-      preserveScroll: true,
-    });
-  };
+  const payload = buildPayload();
+  const toastId = toast.loading("Submitting...");
+
+  router.patch(ziggyRoute("roi.entry.projects.submit", projectId), payload, {
+    preserveScroll: true,
+    onSuccess: () => toast.success("Project submitted!", { id: toastId }),
+    onError: (errors) => {
+      const message = Object.values(errors)[0] || "Failed to submit.";
+      toast.error(message, { id: toastId });
+    },
+    onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
+  });
+};
 
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
@@ -406,12 +415,11 @@ export default function Entry({
     approvedBy: entryProject?.approved_by_name ?? entryProject?.approved_by ?? null,
   });
 
-  const openPrintPage = (autoPrint = false) => {
+const openPrintPage = (autoPrint = false) => {
     if (!(tab === "Summary" || tab === "Succeeding")) return;
 
     const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
 
-    // We'll only use storageKey if snapshot save succeeds
     let storageKey = null;
 
     try {
@@ -423,11 +431,13 @@ export default function Entry({
           ...(projectData?.metadata ?? {}),
           signatories: buildSignatoriesForPrint(createdBy),
         },
+        // ── include notes and comments for print ───────────────────────────
+        projectNotes:    entryProject?.notes    ?? projectData?.projectNotes    ?? [],
+        projectComments: entryProject?.comments ?? projectData?.projectComments ?? [],
       };
 
       sessionStorage.setItem(storageKey, JSON.stringify(snapshot));
     } catch (e) {
-      // ✅ IMPORTANT: don't block printing
       console.warn("Print snapshot too large; continuing without sessionStorage snapshot.", e);
       storageKey = null;
     }
@@ -440,7 +450,6 @@ export default function Entry({
       if (routeName === "current") {
         printPath = ziggyRoute("roi.current.print", projectId);
       } else if (routeName === "archive") {
-        // NOTE: if you add archive.print later, handle it here
         printPath = ziggyRoute("roi.archive.print", projectId);
       } else {
         printPath = ziggyRoute("roi.entry.projects.print", projectId);
@@ -450,13 +459,10 @@ export default function Entry({
       printPath = `${current}/print`;
     }
 
-    // Build query params safely
     const params = new URLSearchParams();
     params.set("tab", tabParam);
     params.set("autoprint", autoPrint ? "1" : "0");
     params.set("draftWatermark", showDraftWatermark ? "1" : "0");
-
-    // Only include storageKey if we actually saved it
     if (storageKey) params.set("storageKey", storageKey);
 
     const href = `${printPath}?${params.toString()}`;
@@ -469,7 +475,7 @@ export default function Entry({
     a.click();
     a.remove();
   };
-
+  
   // ✅ enforce: only assigned level (2..6) can act
   const levelNum = Number(viewerLevel ?? 0);
   const projectLevel = Number(entryProject?.current_level ?? 0);

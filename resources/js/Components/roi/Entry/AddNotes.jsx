@@ -24,34 +24,48 @@ function formatDateTime(date) {
 }
 
 export default function AddNotes({ scopeKey = "default" }) {
-  // ✅ Entry page sends entryProject (not project)
-  const { auth, entryProject } = usePage().props;
+  const { auth, entryProject, projectNotes } = usePage().props;
   const project = entryProject;
 
-  const projectId = project?.id;
-  const userId = auth?.user?.id ?? "guest";
+  // ── derived identifiers ────────────────────────────────────────────────────
+  const projectId  = project?.id;
+  const userId     = auth?.user?.id ?? "guest";
+  const role       = auth?.user?.role;
+  const isPreparer = role === 'preparer';
 
-  // ✅ Keep draft in localStorage so typing isn't lost
+  // ── lock logic ─────────────────────────────────────────────────────────────
+  const isSubmitted    = project?.status === 'submitted';
+  const isForReview    = project?.status === 'For Review';
+  const isReturned     = project?.status === 'returned';
+  const isStatusLocked = isSubmitted || isForReview;
+
+  // input is only usable by preparers when status is not locked
+  const isLocked = !projectId || !isPreparer || isStatusLocked;
+
+  // ── draft key ──────────────────────────────────────────────────────────────
   const DRAFT_KEY = useMemo(() => {
     return projectId ? `roi-note-draft:${userId}:${projectId}:${scopeKey}` : null;
   }, [userId, projectId, scopeKey]);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]           = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
 
-  // ✅ DB-backed notes from JSON column on roi_entry_projects.notes
+  // ── notes: prefer project.notes if non-empty, else fall back to projectNotes prop ──
   const serverNotes = useMemo(() => {
-    const rows = project?.notes ?? [];
+    const fromProject = project?.notes;
+    const rows = (Array.isArray(fromProject) && fromProject.length > 0)
+      ? fromProject
+      : (projectNotes ?? []);
     return Array.isArray(rows) ? rows : [];
-  }, [project]);
+  }, [project, projectNotes]);
 
-  const modalRef = useRef(null);
+  const modalRef    = useRef(null);
   const textareaRef = useRef(null);
 
-  const openModal = () => setOpen(true);
+  const openModal  = () => { if (!isLocked) setOpen(true); };
   const closeModal = () => setOpen(false);
 
-  // load draft once (per project + scope)
+  // ── persist draft ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!DRAFT_KEY) return;
     try {
@@ -60,20 +74,16 @@ export default function AddNotes({ scopeKey = "default" }) {
     } catch {}
   }, [DRAFT_KEY]);
 
-  // save draft as you type
   useEffect(() => {
     if (!DRAFT_KEY) return;
-    try {
-      localStorage.setItem(DRAFT_KEY, noteDraft);
-    } catch {}
+    try { localStorage.setItem(DRAFT_KEY, noteDraft); } catch {}
   }, [DRAFT_KEY, noteDraft]);
 
-  // Focus textarea when modal opens
+  // ── modal UX ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open]);
 
-  // Close on ESC
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && closeModal();
@@ -81,7 +91,6 @@ export default function AddNotes({ scopeKey = "default" }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  // Close on outside click (draft stays)
   useEffect(() => {
     if (!open) return;
     const onMouseDown = (e) => {
@@ -91,8 +100,8 @@ export default function AddNotes({ scopeKey = "default" }) {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
-  // ✅ Can only submit after draft exists (projectId available)
-  const canSubmit = noteDraft.trim().length > 0 && !!projectId;
+  // ── submit ─────────────────────────────────────────────────────────────────
+  const canSubmit = noteDraft.trim().length > 0 && !!projectId && !isLocked;
 
   const handleAddNote = () => {
     if (!canSubmit) return;
@@ -104,8 +113,8 @@ export default function AddNotes({ scopeKey = "default" }) {
         preserveScroll: true,
         onSuccess: () => {
           setNoteDraft("");
-          // ✅ reload correct page prop
-          router.reload({ only: ["entryProject"] });
+          if (DRAFT_KEY) { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+          router.reload({ only: ["entryProject", "projectNotes"] });
           closeModal();
         },
         onError: (errs) => {
@@ -116,56 +125,75 @@ export default function AddNotes({ scopeKey = "default" }) {
     );
   };
 
+  // ── render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="w-full mb-6 px-4">
-        <div
-          onClick={openModal}
-          className="flex items-center print:hidden hover:cursor-pointer bg-white border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
-        >
-          <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
-            Write your notes here.....
+
+        {/* Warning: no project saved yet — only relevant to preparers */}
+        {!projectId && isPreparer && (
+          <div className="mb-2 pl-2 text-[12px] font-bold text-red-600 print:hidden uppercase tracking-wider">
+            Note: Save the project as a draft first before adding notes.
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={openModal}
-            className="flex items-center gap-1 bg-[#2DA300] hover:bg-[#268a00] text-white px-3 py-2 rounded-full font-semibold text-xs transition-all shadow-[0px_4px_10px_rgba(45,163,0,0.3)] shrink-0"
+     
+        {/* Input bar — only shown to preparers when status is not locked */}
+        { !isStatusLocked && (
+          <div
+            onClick={!isLocked ? openModal : undefined}
+            className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
+              !isLocked ? "bg-white hover:cursor-pointer" : "bg-gray-50 cursor-not-allowed opacity-70"
+            }`}
           >
-            <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
-              <IoIosAddCircle />
-            </span>
-            Add Notes
-          </button>
-        </div>
-
-        <div className="mt-2 print:mt-1">
-          <span className="font-medium text-[11px] text-gray-400 pl-2">NOTES</span>
-
-          {serverNotes.map((n, idx) => (
-            <div
-              key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
-              className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <FaRegUserCircle className="text-lg text-gray-400" />
-                  <span className="font-semibold text-sm text-gray-900">
-                    {n.author?.name ?? "Unknown"}
-                  </span>
-                </div>
-
-                <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
-                  {formatDateTime(n.created_at)}
-                </div>
-              </div>
-
-              <p className="mt-3 text-gray-900 text-xs leading-relaxed">
-                {n.body}
-              </p>
+            <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
+              Write your notes here.....
             </div>
-          ))}
-        </div>
+
+            <button
+              type="button"
+              onClick={!isLocked ? openModal : (e) => e.stopPropagation()}
+              disabled={isLocked}
+              className={`flex items-center gap-1 px-3 py-2 rounded-full font-semibold text-xs transition-all shrink-0 ${
+                !isLocked
+                  ? "bg-[#2DA300] hover:bg-[#268a00] text-white shadow-[0px_4px_10px_rgba(45,163,0,0.3)]"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
+                <IoIosAddCircle />
+              </span>
+              Add Notes
+            </button>
+          </div>
+        )}
+
+        {/* Notes list — hidden if empty, visible to ALL roles */}
+        {serverNotes.length > 0 && (
+          <div className="mt-2 print:mt-1">
+            <span className="font-medium text-[11px] text-gray-400 pl-2">NOTES</span>
+
+            {serverNotes.map((n, idx) => (
+              <div
+                key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
+                className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <FaRegUserCircle className="text-lg text-gray-400" />
+                    <span className="font-semibold text-sm text-gray-900">
+                      {n.author?.name ?? "Unknown"}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
+                    {formatDateTime(n.created_at)}
+                  </div>
+                </div>
+                <p className="mt-3 text-gray-900 text-xs leading-relaxed">{n.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {open && (
@@ -186,7 +214,6 @@ export default function AddNotes({ scopeKey = "default" }) {
               <div className="relative bg-white rounded-xl border border-black/10 shadow-sm overflow-hidden">
                 <div className="relative p-6">
                   <FaRegUserCircle className="absolute left-6 top-6 text-2xl text-gray-400" />
-
                   <textarea
                     ref={textareaRef}
                     value={noteDraft}

@@ -17,7 +17,8 @@ import { usePage } from '@inertiajs/react';
 function Summary1stYear() {
   const { auth } = usePage().props;
   const role = auth.role;
-
+  const reviewerRoles = ['reviewer', 'checker', 'endorser', 'confirmer', 'approver'];
+ 
   return (
     <div className='mx-5 print:mx-0 bg-[#B5EBA2]/5 border rounded-r-lg rounded-b-xl border-t-0 border-b-[#B5EBA2] border-x-[#B5EBA2] print:border-none print:bg-transparent'>
       <div className='mx-10 print:mx-0 print:pt-0 pt-8'>
@@ -67,18 +68,20 @@ function Summary1stYear() {
           <ContractDetails />
 
           {/* ADD NOTES / COMMENTS */}
-       <div className='lg:mx-10 xl:mx-56 print:mx-0'>
-          {/* Logic to show the input section based on role */}
-          <div className='mb-4'>
-              {/* 'user' sees the Comment UI (linked to project.comments) */}
-              {role === 'user' && <AddComments type="comments" />}
-              
-              {/* 'reviewer' (confirm/approve) sees the Note UI (linked to project.notes) */}
-              {role === 'reviewer' && <AddComments type="notes" />}
+       {/* ADD NOTES / COMMENTS */}
+              <div className='lg:mx-20 print:mx-0 pt-5'>
+          <div className='mb-4 grid grid-cols-2 gap-4 items-start'>
+           
+            <div>
+              <AddNotes />
+            </div>
+             <div>
+              <AddComments />
+            </div>
           </div>
-          
+
           <Names />
-      </div>
+        </div>
 
         </div>
       </div>
