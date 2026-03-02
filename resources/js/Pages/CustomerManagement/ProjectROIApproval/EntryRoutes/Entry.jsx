@@ -135,7 +135,6 @@ function mapEntryProjectToContext(entryProject) {
   };
 }
 
-// ✅ UPDATED: added viewerLevel
 export default function Entry({
   activeTab = 'Machine Configuration',
   entryProject = null,
@@ -165,6 +164,20 @@ export default function Entry({
   const [tab, setTab] = useState("Machine");
   const [buttonClicked, setButtonClicked] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+
+  // ✅ show required-field red highlights only after Save Draft is clicked
+  const [showCompanyInfoErrors, setShowCompanyInfoErrors] = useState(false);
+
+  const isCompanyInfoValid = () => {
+    const ci = projectData?.companyInfo ?? {};
+    const nameOk = String(ci.companyName ?? "").trim().length > 0;
+    const typeOk = String(ci.contractType ?? "").trim().length > 0;
+
+    const years = Number(ci.contractYears);
+    const yearsOk = Number.isFinite(years) && years > 0;
+
+    return nameOk && typeOk && yearsOk;
+  };
 
   // ✅ prevent duplicate hydration overwriting edits
   const hydratedEntryIdRef = useRef(null);
@@ -292,6 +305,7 @@ export default function Entry({
     if (entryProject) return;
 
     hydratedEntryIdRef.current = null;
+    setShowCompanyInfoErrors(false);
     resetProject();
     setResetKey((k) => k + 1); // force remount of tab content
     setTab('Machine');
@@ -306,6 +320,7 @@ export default function Entry({
 
     const mapped = mapEntryProjectToContext(entryProject);
 
+    setShowCompanyInfoErrors(false);
     setProjectData(mapped);
     saveDraft(mapped);
 
@@ -338,6 +353,15 @@ export default function Entry({
   };
 
   const handleSaveDraft = () => {
+    setShowCompanyInfoErrors(true);
+
+    // ✅ block saving if required fields are missing
+    if (!isCompanyInfoValid()) {
+      toast.error("Please fill in all required fields.");
+      setTab("Machine");
+      return;
+    }
+
     const payload = buildPayload();
 
     saveDraft(payload);
@@ -349,37 +373,42 @@ export default function Entry({
       onSuccess: () => {
         triggerBlink();
         toast.success("Draft saved!", { id: "saveDraft" });
+
+        // reset so it won't keep showing errors while editing later
+        setShowCompanyInfoErrors(false);
       },
       onError: () => {
-        toast.error("Cannot save draft.", { id: "saveDraft" });
+        toast.error("Cannot save draft. All marked fields are required.", { id: "saveDraft" });
+        // keep errors shown so user can see what to fix
       },
     });
   };
 
   const handleSubmit = () => {
-  const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
+    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
-  if (!projectId) {
-    alert("Please click Save Draft first to create the project.");
-    return;
-  }
+    if (!projectId) {
+      alert("Please click Save Draft first to create the project.");
+      return;
+    }
 
-  const payload = buildPayload();
-  const toastId = toast.loading("Submitting...");
+    const payload = buildPayload();
+    const toastId = toast.loading("Submitting...");
 
-  router.patch(ziggyRoute("roi.entry.projects.submit", projectId), payload, {
-    preserveScroll: true,
-    onSuccess: () => toast.success("Project submitted!", { id: toastId }),
-    onError: (errors) => {
-      const message = Object.values(errors)[0] || "Failed to submit.";
-      toast.error(message, { id: toastId });
-    },
-    onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
-  });
-};
+    router.patch(ziggyRoute("roi.entry.projects.submit", projectId), payload, {
+      preserveScroll: true,
+      onSuccess: () => toast.success("Project submitted!", { id: toastId }),
+      onError: (errors) => {
+        const message = Object.values(errors)[0] || "Failed to submit.";
+        toast.error(message, { id: toastId });
+      },
+      onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
+    });
+  };
 
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
+      setShowCompanyInfoErrors(false);
       resetProject();
       setResetKey((k) => k + 1);
       setTab('Machine');
@@ -415,11 +444,12 @@ export default function Entry({
     approvedBy: entryProject?.approved_by_name ?? entryProject?.approved_by ?? null,
   });
 
-const openPrintPage = (autoPrint = false) => {
+  const openPrintPage = (autoPrint = false) => {
     if (!(tab === "Summary" || tab === "Succeeding")) return;
 
     const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
 
+    // We'll only use storageKey if snapshot save succeeds
     let storageKey = null;
 
     try {
@@ -432,7 +462,7 @@ const openPrintPage = (autoPrint = false) => {
           signatories: buildSignatoriesForPrint(createdBy),
         },
         // ── include notes and comments for print ───────────────────────────
-        projectNotes:    entryProject?.notes    ?? projectData?.projectNotes    ?? [],
+        projectNotes: entryProject?.notes ?? projectData?.projectNotes ?? [],
         projectComments: entryProject?.comments ?? projectData?.projectComments ?? [],
       };
 
@@ -459,10 +489,13 @@ const openPrintPage = (autoPrint = false) => {
       printPath = `${current}/print`;
     }
 
+    // Build query params safely
     const params = new URLSearchParams();
     params.set("tab", tabParam);
     params.set("autoprint", autoPrint ? "1" : "0");
     params.set("draftWatermark", showDraftWatermark ? "1" : "0");
+
+    // Only include storageKey if we actually saved it
     if (storageKey) params.set("storageKey", storageKey);
 
     const href = `${printPath}?${params.toString()}`;
@@ -475,7 +508,7 @@ const openPrintPage = (autoPrint = false) => {
     a.click();
     a.remove();
   };
-  
+
   // ✅ enforce: only assigned level (2..6) can act
   const levelNum = Number(viewerLevel ?? 0);
   const projectLevel = Number(entryProject?.current_level ?? 0);
@@ -486,14 +519,24 @@ const openPrintPage = (autoPrint = false) => {
 
   return (
     <>
-      <Head title={ routeName === 'current' || routeName === 'archive' ? `${entryProject?.company_name ?? 'Project'}` : 'ROI Entry'}/>
+      <Head
+        title={
+          routeName === 'current' || routeName === 'archive'
+            ? `${entryProject?.company_name ?? 'Project'}`
+            : 'ROI Entry'
+        }
+      />
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
           <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
             <div className="flex gap-1">
               <h1 className="font-semibold mt-3">Project ROI Approval</h1>
               <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">{routeName === 'current' || routeName === 'archive'  ? `${entryProject?.company_name}` : 'Entry'}</p>
+              <p className="text-3xl font-semibold">
+                {routeName === 'current' || routeName === 'archive'
+                  ? `${entryProject?.company_name}`
+                  : 'Entry'}
+              </p>
             </div>
 
             <div className="flex flex-col gap-1 items-end">
@@ -511,7 +554,7 @@ const openPrintPage = (autoPrint = false) => {
                   tab === 'Machine'
                     ? 'bg-[#B5EBA2]/10 border border-t-[#B5EBA2]/80 font-medium border-b-0 border-x-[#B5EBA2]/80 rounded-t-xl'
                     : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                  }`}
+                }`}
               >
                 Machine Configuration
               </button>
@@ -522,7 +565,7 @@ const openPrintPage = (autoPrint = false) => {
                   tab === 'Summary'
                     ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0 border-x-[#B5EBA2] rounded-t-xl'
                     : 'bg-[#B5EBA2]/80 rounded-t-xl'
-                  }`}
+                }`}
               >
                 Summary
               </button>
@@ -536,6 +579,7 @@ const openPrintPage = (autoPrint = false) => {
               key={`machine-${entryProject?.id ?? 'new'}-${resetKey}`}
               readOnly={readOnly}
               buttonClicked={buttonClicked}
+              showCompanyInfoErrors={showCompanyInfoErrors}
             />
           ) : tab === 'Summary' ? (
             <Summary1stYear
