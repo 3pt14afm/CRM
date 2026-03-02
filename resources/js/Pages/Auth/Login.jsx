@@ -59,12 +59,12 @@ export default function Login({ status, canResetPassword }) {
                     <div className="hidden md:flex w-[55%] bg-[#2D7813] p-8 flex-col justify-between items-center text-white">
                        <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
 
-                            <img src="/images/logo.png" alt="Logo" />
+                            <img src="/images/logo.webp" alt="Logo" />
 
                         </div>
                         
                         <div className="flex justify-center w-full">
-                            <img src="/images/graphics.png" alt="Graphics" className="max-w-full h-auto object-contain" />
+                            <img src="/images/graphics.webp" alt="Graphics" className="max-w-full h-auto object-contain" />
                         </div>
                     </div>
 
