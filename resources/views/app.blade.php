@@ -7,7 +7,7 @@
         <title inertia>{{ config('app.name', 'CRM') }}</title>
 
         <!-- Fonts -->
-        <link rel="icon" type="image.png" href="/icons/logoicon.png">
+        <link rel="icon" type="image.png" href="/images/logoSmall.webp">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
