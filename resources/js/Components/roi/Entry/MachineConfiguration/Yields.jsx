@@ -35,13 +35,13 @@ function Yields() {
   return (
     <div className="w-full">
       {/* stretches to parent; stays readable on big screens */}
-      <div className="w-full sm:max-w-sm md:max-w-md lg:max-w-lg mx-auto overflow-hidden rounded-md border border-slate-300 shadow-md bg-white">
+      <div className="w-full sm:max-w-sm md:max-w-md mx-auto overflow-hidden rounded-md border border-slate-300 shadow-md bg-white">
         <table className="w-full border-separate border-spacing-0 table-fixed">
           {/* responsive column widths */}
           <colgroup>
-            <col className="w-[10%] sm:w-[25%] min-w-28" />
-            <col className="w-[45%] sm:w-[37.5%] min-w-36" />
-            <col className="w-[45%] sm:w-[37.5%] min-w-36" />
+            <col className="w-[10%] sm:w-[25%] min-w-24" />
+            <col className="w-[45%] sm:w-[37.5%] min-w-32" />
+            <col className="w-[45%] sm:w-[37.5%] min-w-32" />
           </colgroup>
 
           <thead>
