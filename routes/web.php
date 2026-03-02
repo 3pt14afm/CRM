@@ -49,7 +49,8 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/draft', [RoiEntryProjectController::class, 'saveDraft'])
                     ->name('roi.entry.draft.save');
 
-                Route::patch('/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
+           // should be PATCH and Laravel will auto-inject Request
+                Route::patch('/entry/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
                     ->name('roi.entry.projects.submit');
 
                 Route::get('/projects/{project}/print', function ($project) {

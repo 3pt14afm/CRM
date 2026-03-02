@@ -50,13 +50,14 @@ function mapProjectToContext(p) {
     customerFees.reduce((s, r) => s + (r.total || 0), 0);
 
   return {
-    metadata: {
-      projectId: p?.id ?? null,
-      lastSaved: p?.last_saved_at ?? null,
-      version: p?.version ?? 1,
-      status: p?.status ?? "draft",
-      // keep any server-provided signatories if you later pass them
-      signatories: p?.signatories ?? undefined,
+          metadata: {
+          projectId: p?.id ?? null,
+        lastSaved: p?.last_saved_at ?? null,
+        version: p?.version ?? 1,
+        status: p?.status ?? "draft",
+        comments: p?.comments ?? [], // Change "" to []
+        notes: p?.notes ?? "",
+        signatories: p?.signatories ?? undefined,
     },
 
     companyInfo: {

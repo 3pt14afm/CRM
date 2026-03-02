@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\RoiArchiveProject;
 use App\Models\RoiCurrentProject;
+use App\Models\RoiEntryFee;
+use App\Models\RoiEntryItem;
+use App\Models\RoiEntryProject;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -356,8 +359,61 @@ class RoiCurrentProjectController extends Controller
         ]);
     }
 
-    public function show($id)
-    {
+  public function show($id)
+{
+    $user = Auth::user();
+    $level = $this->roleToLevel($user->role);
+
+    if ($level === null) {
+        abort(403, 'Your account has no workflow role.');
+    }
+
+    $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+    $this->ensureCanView($project, $user, $level);
+
+    // ── fetch the matching entry project for notes/comments ────────────────
+    $entryProject = RoiEntryProject::where('project_uid', $project->project_uid)->first();
+
+    // ✅ include ALL possible signatory/actor ids
+    $userIds = collect([
+        $project->user_id,
+        $project->status_updated_by,
+        $project->reviewed_by_id ?? null,
+        $project->checked_by_id ?? null,
+        $project->endorsed_by_id ?? null,
+        $project->confirmed_by_id ?? null,
+        $project->approved_by ?? null,
+        $project->rejected_by ?? null,
+    ])->filter()->unique()->values();
+
+    $usersById = User::query()
+        ->whereIn('id', $userIds)
+        ->get(['id','name'])
+        ->keyBy(fn ($u) => (string) $u->id)
+        ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]);
+
+    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+        'project'      => $project,
+        'entryProject' => $project,
+        'readOnly'     => true,
+        'route'        => 'current',
+        'createdBy'    => $project->user?->name ?? '—',
+        'role'         => $user->role,
+        'viewerLevel'  => $level,
+        'usersById'    => $usersById,
+        // ── pass notes/comments from entry project ─────────────────────────
+        'projectNotes'    => $entryProject?->notes    ?? [],
+        'projectComments' => $entryProject?->comments ?? [],
+    ]);
+}
+
+    /**
+     * Back to Sender = go back one level only (never below Level 2).
+     */
+public function sendBack($id)
+{
+    return DB::transaction(function () use ($id) {
         $user = Auth::user();
         $level = $this->roleToLevel($user->role);
 
@@ -367,82 +423,78 @@ class RoiCurrentProjectController extends Controller
 
         $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-        $this->ensureCanView($project, $user, $level);
+        $this->ensureCanAct($project, $user, $level);
 
-        // ✅ include ALL possible signatory/actor ids
-        $userIds = collect([
-            $project->user_id,
-            $project->status_updated_by,
+        $fromLevel = (int) $project->current_level;
 
-            // if you later add *_by_id columns, this will work automatically
-            $project->reviewed_by_id ?? null,
-            $project->checked_by_id ?? null,
-            $project->endorsed_by_id ?? null,
-            $project->confirmed_by_id ?? null,
+        if ($fromLevel < 2) {
+            return back()->withErrors(['level' => 'Cannot send back any further.']);
+        }
 
-            // archive-style id fields (if present)
-            $project->approved_by ?? null,
-            $project->rejected_by ?? null,
-        ])->filter()->unique()->values();
+        $toLevel = $fromLevel - 1;
 
-        $usersById = User::query()
-            ->whereIn('id', $userIds)
-            ->get(['id','name'])
-            ->keyBy(fn ($u) => (string) $u->id)
-            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]);
+        // ── if sending back to preparer, move project back to entry (draft) ───
+        if ($toLevel === 1) {
+            // Step 1: restore to roi_entry_projects as 'returned'
+            $projectData = $project->toArray();
+            unset($projectData['id']);
+            unset($projectData['roi_current_project_id']);
 
-        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-            'project'      => $project,
-            'entryProject' => $project,
-            'readOnly'     => true,
-            'route'        => 'current',
-            'createdBy'    => $project->user?->name ?? '—',
-            'role'         => $user->role,
-            'viewerLevel'  => $level,
-            'usersById'    => $usersById,
-        ]);
-    }
-
-    /**
-     * Back to Sender = go back one level only (never below Level 2).
-     */
-    public function sendBack($id)
-    {
-        return DB::transaction(function () use ($id) {
-            $user = Auth::user();
-            $level = $this->roleToLevel($user->role);
-
-            if ($level === null) {
-                abort(403, 'Your account has no workflow role.');
-            }
-
-            $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
-
-            $this->ensureCanAct($project, $user, $level);
-
-            $fromLevel = (int) $project->current_level;
-
-            if ($fromLevel <= 2) {
-                return back()->withErrors(['level' => 'Cannot send back below Level 2.']);
-            }
-
-            $toLevel = $fromLevel - 1;
-
-            $project->update([
-                'current_level'     => $toLevel,
-                'status'            => 'pending',
-                'status_reason'     => null,
+            $entryProject = RoiEntryProject::create(array_merge($projectData, [
+                'status'            => 'returned',
+                'current_level'     => 1,
                 'status_updated_at' => now(),
                 'status_updated_by' => $user->id,
                 'last_saved_at'     => now(),
-            ]);
+                // ── carry over notes and comments so preparer can see feedback ──
+                'notes'             => $project->notes    ?? [],
+                'comments'          => $project->comments ?? [],
+            ]));
 
-            // emails: receiver + preparer + actor
+            // Step 2: copy items back
+            foreach ($project->items as $item) {
+                $itemData = $item->toArray();
+                unset($itemData['id']);
+                unset($itemData['roi_current_project_id']);
+                $itemData['roi_entry_project_id'] = $entryProject->id;
+                RoiEntryItem::create($itemData);
+            }
+
+            // Step 3: copy fees back
+            foreach ($project->fees as $fee) {
+                $feeData = $fee->toArray();
+                unset($feeData['id']);
+                unset($feeData['roi_current_project_id']);
+                $feeData['roi_entry_project_id'] = $entryProject->id;
+                RoiEntryFee::create($feeData);
+            }
+
+            // Step 4: delete from current
+            $project->items()->delete();
+            $project->fees()->delete();
+            $project->delete();
+
+            // emails: notify preparer
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
 
-            return to_route('roi.current')->with('success', 'Project sent back to Level ' . $toLevel . '.');
-        });
-    }
+            return to_route('roi.entry.list')->with('success', 'Project returned to Preparer for revision.');
+        }
+
+        // ── otherwise just move back one level within current ─────────────────
+        $project->update([
+            'current_level'     => $toLevel,
+            'status'            => 'pending',
+            'status_reason'     => null,
+            'status_updated_at' => now(),
+            'status_updated_by' => $user->id,
+            'last_saved_at'     => now(),
+        ]);
+
+        $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
+
+        return to_route('roi.current')->with('success', 'Project sent back to Level ' . $toLevel . '.');
+    });
+}
 
     /**
      * Submit to next level = increment current_level (2->3->4->5->6).
