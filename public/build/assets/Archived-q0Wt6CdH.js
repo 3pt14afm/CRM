@@ -1,1 +1,0 @@
-import{j as t}from"./app-CR5RCa7W.js";import{A as i}from"./AuthenticatedLayout-CeNH-V-Y.js";import"./index-UpF-hdA7.js";import"./index-pc9LLJLd.js";function o(){return t.jsx("div",{children:"Archived"})}o.layout=r=>t.jsx(i,{children:r});export{o as default};

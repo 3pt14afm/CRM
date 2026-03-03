@@ -96,7 +96,7 @@ console.log({ currentProjects, stats });
     {
       key: "last_saved_at",
       header: "LAST SAVED",
-      cell: (r) => r.last_saved_display ?? "—",
+      cell: (r) => <span className="text-xs">{r.last_saved_display ?? "—"}</span>,
     },  {
                 key: "actions",
                 header: "ACTIONS",
