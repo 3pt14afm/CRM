@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
-import { RiSettingsLine, RiSettingsFill } from "react-icons/ri";
+import { RiSettingsLine, RiSettingsFill, RiAdminFill, RiAdminLine } from "react-icons/ri";
 import { IoMdArrowDropdown } from "react-icons/io";
 
 export default function Sidebar() {
@@ -895,6 +895,34 @@ export default function Sidebar() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* ADMIN PANEL */}
+          <div
+            className={`mx-0 group ${
+              route().current('admin.*') ? 'bg-lightgreen shadow-lg rounded-lg' : 'hover:bg-lightgreen/40 rounded-lg'
+            }`}
+          >
+            <Link
+              href={route('admin.index')}
+              onClick={() => {
+                setActiveItem(null);
+                closeAllMenus(); // ensures no module stays expanded
+              }}
+              className={`flex items-center px-2 py-2 lg:px-3 hover:text-black transition-colors ${
+                route().current('admin.*') ? 'text-black' : 'text-darkgreen'
+              }`}
+            >
+              <div 
+                className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
+                title="Admin Panel">
+                <img src="/images/admin.webp" alt="Admin Panel" />
+              </div>
+
+              <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
+                Admin Panel
+              </span>
+            </Link>
           </div>
         </div>
       </nav>

@@ -25,6 +25,16 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/panel', function () {
+            // Create this Inertia page: resources/js/Pages/Admin/Panel.jsx
+            return Inertia::render('Admin/Panel');
+        })->name('index');
+});
+
+Route::middleware(['auth', 'verified'])
     ->prefix('customer-management')
     ->group(function () {
 
