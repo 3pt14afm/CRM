@@ -265,7 +265,7 @@ export default function Sidebar() {
                       activeModule === 'customer' ? 'bg-white/0' : 'group-hover:bg-green-100'
                     }`}
                   >
-                    <img src="/icons/cam.webp" alt="Customer Account Management" />
+                    <img src="/images/cam.webp" alt="Customer Account Management" />
                   </div>
 
                   {/* LABEL (reveal/hide only) */}
@@ -446,7 +446,7 @@ export default function Sidebar() {
                   <div
                     title="Machine Inventory Management"
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9">
-                    <img src="/icons/mim.webp" alt="Machine Inventory Management" />
+                    <img src="/images/mim.webp" alt="Machine Inventory Management" />
                   </div>
 
                   <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
@@ -615,7 +615,7 @@ export default function Sidebar() {
                   <div 
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
                     title="Service Support Management">
-                    <img src="/icons/ssm.webp" alt="Service Support Management" />
+                    <img src="/images/ssm.webp" alt="Service Support Management" />
                   </div>
 
                   <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4  ${labelClass}`}>
@@ -726,7 +726,7 @@ export default function Sidebar() {
                   <div 
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
                     title="Delivery Logistics Management">
-                    <img src="/icons/dlm.webp" alt="Delivery Logistics Management" />
+                    <img src="/images/dlm.webp" alt="Delivery Logistics Management" />
                   </div>
 
                   <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>

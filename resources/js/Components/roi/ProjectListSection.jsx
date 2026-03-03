@@ -97,7 +97,7 @@ export default function ProjectListSection({
             <thead className="bg-gray-50">
               <tr className="text-left text-slate-500">
                 {columns.map((c) => (
-                  <th key={c.key} className="px-1 py-2.5 text-center text-xs font-semibold tracking-wide md:px-3 md:py-2 md:text-[8px] lg:px-4 lg:text-[10px] xl:px-6 xl:text-xs ">
+                  <th key={c.key} className="px-1 py-2.5 text-xs font-semibold tracking-wide md:px-3 md:py-2 md:text-[8px] lg:px-4 lg:text-[10px] xl:px-6 xl:text-xs ">
                     {c.header}
                   </th>
                 ))}
