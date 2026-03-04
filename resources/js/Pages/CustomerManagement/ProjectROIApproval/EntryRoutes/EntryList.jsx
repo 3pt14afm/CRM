@@ -174,7 +174,7 @@ const handleDelete = (row) => {
             cell: (r) => (
                 <div className="flex items-center gap-2 md:gap-1">
                     <button
-                        className="px-2 py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
+                        className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
                         onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
                     >
                         <MdEdit className="text-[10px] md:text-xs lg:text-sm xl:text-base" />

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('locations', function (Blueprint $table) {
         $table->id();
         $table->string('name')->unique();
-        $table->string('code')->nullable()->unique(); // e.g. "NO-001"
+        $table->string('code')->nullable()->unique();
         $table->timestamps();
     });
     }

@@ -5,6 +5,7 @@ import{r as x,j as e,a as o,H as j}from"./app-GiR3PDYf.js";import{A as v}from"./
                     font-bold           /* Bold text */
                     uppercase           /* Clean look */
                     tracking-wider      /* Spacing */
+                    
                     md:text-[8px] md:px-1 md:py-1
                     lg:text-[9px] lg:px-[6px] lg:py-1
                     xl:text-[10px] xl:px-2 xl:py-1

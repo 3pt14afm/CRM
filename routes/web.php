@@ -1,15 +1,13 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\AdminController; // ✅ add this
-use Illuminate\Foundation\Application;
+use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\RoiController;
 use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController;
-use App\Http\Controllers\RoiEntryProjectNoteController;
 use App\Models\User;
 use Inertia\Inertia;
 
@@ -25,31 +23,34 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// ✅ Admin Panel
-Route::middleware(['auth', 'verified', 'admin']) // ✅ add 'admin'
+// Admin Panel
+Route::middleware(['auth', 'verified', 'admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
 
-        Route::get('/panel', function () {
-            return Inertia::render('Admin/Panel');
-        })->name('index');
+        Route::get('/panel', [AdminController::class, 'panel'])->name('index');
 
         // Locations
-        Route::get   ('locations',                  [AdminController::class, 'locationIndex'])   ->name('locations.index');
-        Route::post  ('locations',                  [AdminController::class, 'locationStore'])   ->name('locations.store');
-        Route::put   ('locations/{location}',       [AdminController::class, 'locationUpdate'])  ->name('locations.update');
-        Route::delete('locations/{location}',       [AdminController::class, 'locationDestroy']) ->name('locations.destroy');
-        Route::get   ('locations/{location}/users', [AdminController::class, 'locationUsers'])   ->name('locations.users');
+        Route::get('locations', [AdminController::class, 'locationIndex'])->name('locations.index');
+        Route::post('locations', [AdminController::class, 'locationStore'])->name('locations.store');
+        Route::put('locations/{location}', [AdminController::class, 'locationUpdate'])->name('locations.update');
+        Route::delete('locations/{location}', [AdminController::class, 'locationDestroy'])->name('locations.destroy');
+        Route::get('locations/{location}/users', [AdminController::class, 'locationUsers'])->name('locations.users');
 
         // Users
-        Route::get   ('users',                      [AdminController::class, 'userIndex'])           ->name('users.index');
-        Route::post  ('users',                      [AdminController::class, 'userStore'])           ->name('users.store');
-        Route::put   ('users/{user}',               [AdminController::class, 'userUpdate'])          ->name('users.update');
-        Route::patch ('users/{user}/locations',     [AdminController::class, 'userAssignLocations']) ->name('users.locations');
-        Route::patch ('users/{user}/ban',           [AdminController::class, 'userBan'])             ->name('users.ban');
-        Route::patch ('users/{user}/unban',         [AdminController::class, 'userUnban'])           ->name('users.unban');
-        Route::delete('users/{user}',               [AdminController::class, 'userDestroy'])         ->name('users.destroy');
+        Route::get('users', [AdminController::class, 'userIndex'])->name('users.index');
+        Route::post('users', [AdminController::class, 'userStore'])->name('users.store');
+        Route::put('users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
+        Route::patch('users/{user}/locations', [AdminController::class, 'userAssignLocations'])->name('users.locations');
+        Route::patch('users/{user}/ban', [AdminController::class, 'userBan'])->name('users.ban');
+        Route::patch('users/{user}/unban', [AdminController::class, 'userUnban'])->name('users.unban');
+        Route::delete('users/{user}', [AdminController::class, 'userDestroy'])->name('users.destroy');
+
+        // Company Directory endpoints
+        Route::get('directory/positions', [AdminController::class, 'positions'])->name('directory.positions');
+        Route::get('directory/employees', [AdminController::class, 'employeesByPosition'])->name('directory.employees');
+        Route::post('users/assign-employee', [AdminController::class, 'assignEmployeeUser'])->name('users.assign-employee');
     });
 
 Route::middleware(['auth', 'verified'])
@@ -64,7 +65,6 @@ Route::middleware(['auth', 'verified'])
 
         Route::prefix('roi')->group(function () {
 
-            // Entry Sub-menus
             Route::prefix('entry')->group(function () {
 
                 Route::get('/', [RoiController::class, 'entryList'])->name('roi.entry.list');
@@ -134,37 +134,7 @@ Route::middleware(['auth', 'verified'])
             });
 
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
-
             Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])->name('roi.archive.show');
-
-            Route::get('/archive/{id}/print', function ($id) {
-                $p = \App\Models\RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
-
-                $ids = collect([
-                    $p->user_id,
-                    $p->reviewed_by_id ?? null,
-                    $p->checked_by_id ?? null,
-                    $p->endorsed_by_id ?? null,
-                    $p->confirmed_by_id ?? null,
-                    $p->approved_by ?? null,
-                    $p->rejected_by ?? null,
-                ])->filter()->unique()->values();
-
-                $usersById = User::whereIn('id', $ids)
-                    ->get(['id', 'name'])
-                    ->keyBy('id')
-                    ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]);
-
-                return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                    'route'             => 'archive',
-                    'tab'               => request('tab', 'summary'),
-                    'storageKey'        => request('storageKey'),
-                    'autoprint'         => (bool) request('autoprint', false),
-                    'showDraftWatermark'=> false,
-                    'entryProject'      => $p,
-                    'usersById'         => $usersById,
-                ]);
-            })->name('roi.archive.print');
         });
     });
 

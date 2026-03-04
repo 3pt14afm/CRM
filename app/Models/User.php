@@ -22,8 +22,11 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+
+        'primary_location_id',
         'location',
-         'is_banned', 
+
+        'is_banned', 
     ];
 
     /**
@@ -47,7 +50,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'location' => 'array',
-            'is_banned'         => 'boolean', // ✅
+            'is_banned'         => 'boolean',
+            'primary_location_id' => 'integer',
         ];
     }
 }

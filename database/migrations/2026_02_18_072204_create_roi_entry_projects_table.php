@@ -12,6 +12,13 @@ return new class extends Migration {
 
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
 
+            $table->foreignId('location_id')
+                ->nullable()
+                ->constrained('locations')
+                ->nullOnDelete();
+
+            $table->index(['location_id', 'status']);
+
             // recommended stable ID across stages (entry/current/archive)
             $table->ulid('project_uid')->unique();
 
