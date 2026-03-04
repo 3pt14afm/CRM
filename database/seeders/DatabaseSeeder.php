@@ -11,54 +11,75 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    public function run(): void
-    {
-        // Common password for all seeded accounts (change if you want)
-        $password = Hash::make('password');
+public function run(): void
+{
+    $this->call(LocationSeeder::class); // ✅ run locations first
 
-        $users = [
-            [
-                'name'  => 'Preparer User',
-                'email' => 'preparer@example.com',
-                'role'  => 'preparer',
-            ],
-            [
-                'name'  => 'Reviewer User',
-                'email' => 'reviewer@example.com',
-                'role'  => 'reviewer',
-            ],
-            [
-                'name'  => 'Checker User',
-                'email' => 'checker@example.com',
-                'role'  => 'checker',
-            ],
-            [
-                'name'  => 'Endorser User',
-                'email' => 'endorser@example.com',
-                'role'  => 'endorser',
-            ],
-            [
-                'name'  => 'Confirmer User',
-                'email' => 'confirmer@example.com',
-                'role'  => 'confirmer',
-            ],
-            [
-                'name'  => 'Approver User',
-                'email' => 'approver@example.com',
-                'role'  => 'approver',
-            ],
-        ];
+    $password = Hash::make('password');
 
-        foreach ($users as $u) {
-            User::updateOrCreate(
-                ['email' => $u['email']],
-                [
-                    'name' => $u['name'],
-                    'role' => $u['role'],
-                    'password' => $password,
-                    'email_verified_at' => now(),
-                ]
-            );
-        }
+    $users = [
+        [
+            'name'     => 'Admin User',
+            'email'    => 'admin@example.com',
+            'role'     => 'admin',
+            'location' => [],
+        ],
+        [
+            'name'     => 'Preparer User',
+            'email'    => 'preparer@example.com',
+            'role'     => 'preparer',
+            'location' => ['Cebu City'],
+        ],
+        [
+            'name'     => 'Reviewer User',
+            'email'    => 'reviewer@example.com',
+            'role'     => 'reviewer',
+            'location' => ['Cebu City'],
+        ],
+        [
+            'name'     => 'Checker User',
+            'email'    => 'checkermanila@example.com',
+            'role'     => 'checker',
+            'location' => ['Manila'],
+        ],
+         [
+            'name'     => 'Checker User',
+            'email'    => 'checkercebu@example.com',
+            'role'     => 'checker',
+            'location' => ['Cebu City'],
+        ],
+        [
+            'name'     => 'Endorser User',
+            'email'    => 'endorser@example.com',
+            'role'     => 'endorser',
+            'location' => ['Manila'],
+        ],
+        [
+            'name'     => 'Confirmer User',
+            'email'    => 'confirmer@example.com',
+            'role'     => 'confirmer',
+            'location' => ['Quezon City'],
+        ],
+        [
+            'name'     => 'Approver User',
+            'email'    => 'approver@example.com',
+            'role'     => 'approver',
+            'location' => ['Quezon City'],
+        ],
+    ];
+
+
+    foreach ($users as $u) {
+        User::updateOrCreate(
+            ['email' => $u['email']],
+            [
+                'name'              => $u['name'],
+                'role'              => $u['role'],
+                'password'          => $password,
+                'email_verified_at' => now(),
+                'location'          => $u['location'],
+            ]
+        );
     }
+}
 }

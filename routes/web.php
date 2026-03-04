@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AdminController; // ✅ add this
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -24,15 +25,32 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware(['auth', 'verified'])
+// ✅ Admin Panel
+Route::middleware(['auth', 'verified', 'admin']) // ✅ add 'admin'
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+
         Route::get('/panel', function () {
-            // Create this Inertia page: resources/js/Pages/Admin/Panel.jsx
             return Inertia::render('Admin/Panel');
         })->name('index');
-});
+
+        // Locations
+        Route::get   ('locations',                  [AdminController::class, 'locationIndex'])   ->name('locations.index');
+        Route::post  ('locations',                  [AdminController::class, 'locationStore'])   ->name('locations.store');
+        Route::put   ('locations/{location}',       [AdminController::class, 'locationUpdate'])  ->name('locations.update');
+        Route::delete('locations/{location}',       [AdminController::class, 'locationDestroy']) ->name('locations.destroy');
+        Route::get   ('locations/{location}/users', [AdminController::class, 'locationUsers'])   ->name('locations.users');
+
+        // Users
+        Route::get   ('users',                      [AdminController::class, 'userIndex'])           ->name('users.index');
+        Route::post  ('users',                      [AdminController::class, 'userStore'])           ->name('users.store');
+        Route::put   ('users/{user}',               [AdminController::class, 'userUpdate'])          ->name('users.update');
+        Route::patch ('users/{user}/locations',     [AdminController::class, 'userAssignLocations']) ->name('users.locations');
+        Route::patch ('users/{user}/ban',           [AdminController::class, 'userBan'])             ->name('users.ban');
+        Route::patch ('users/{user}/unban',         [AdminController::class, 'userUnban'])           ->name('users.unban');
+        Route::delete('users/{user}',               [AdminController::class, 'userDestroy'])         ->name('users.destroy');
+    });
 
 Route::middleware(['auth', 'verified'])
     ->prefix('customer-management')
@@ -59,7 +77,6 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/draft', [RoiEntryProjectController::class, 'saveDraft'])
                     ->name('roi.entry.draft.save');
 
-           // should be PATCH and Laravel will auto-inject Request
                 Route::patch('/entry/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
                     ->name('roi.entry.projects.submit');
 
@@ -67,11 +84,11 @@ Route::middleware(['auth', 'verified'])
                     $p = \App\Models\RoiEntryProject::with(['items','fees','user'])->findOrFail($project);
 
                     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                    'tab' => request('tab', 'summary'),
-                    'storageKey' => request('storageKey'),
-                    'autoprint' => (bool) request('autoprint', false),
-                    'showDraftWatermark' => (bool) request('draftWatermark', true),
-                    'entryProject' => $p,
+                        'tab'               => request('tab', 'summary'),
+                        'storageKey'        => request('storageKey'),
+                        'autoprint'         => (bool) request('autoprint', false),
+                        'showDraftWatermark'=> (bool) request('draftWatermark', true),
+                        'entryProject'      => $p,
                     ]);
                 })->name('roi.entry.projects.print');
 
@@ -107,19 +124,17 @@ Route::middleware(['auth', 'verified'])
                     $p = \App\Models\RoiCurrentProject::with(['items','fees','user'])->findOrFail($id);
 
                     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                    'tab' => request('tab', 'summary'),
-                    'storageKey' => request('storageKey'),
-                    'autoprint' => (bool) request('autoprint', false),
-                    'showDraftWatermark' => false,
-                    'entryProject' => $p,
+                        'tab'               => request('tab', 'summary'),
+                        'storageKey'        => request('storageKey'),
+                        'autoprint'         => (bool) request('autoprint', false),
+                        'showDraftWatermark'=> false,
+                        'entryProject'      => $p,
                     ]);
                 })->name('roi.current.print');
             });
 
-            // ✅ Archive list
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
 
-            // ✅ Archive show (new)
             Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])->name('roi.archive.show');
 
             Route::get('/archive/{id}/print', function ($id) {
@@ -141,16 +156,15 @@ Route::middleware(['auth', 'verified'])
                     ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]);
 
                 return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                    'route' => 'archive',
-                    'tab' => request('tab', 'summary'),
-                    'storageKey' => request('storageKey'),
-                    'autoprint' => (bool) request('autoprint', false),
-                    'showDraftWatermark' => false,
-                    'entryProject' => $p,
-                    'usersById' => $usersById,
+                    'route'             => 'archive',
+                    'tab'               => request('tab', 'summary'),
+                    'storageKey'        => request('storageKey'),
+                    'autoprint'         => (bool) request('autoprint', false),
+                    'showDraftWatermark'=> false,
+                    'entryProject'      => $p,
+                    'usersById'         => $usersById,
                 ]);
             })->name('roi.archive.print');
-
         });
     });
 

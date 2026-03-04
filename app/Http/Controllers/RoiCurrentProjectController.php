@@ -61,50 +61,86 @@ class RoiCurrentProjectController extends Controller
         };
     }
 
+
+    private function userMatchesProjectLocation($user, RoiCurrentProject $project): bool
+{
+    $level = $this->roleToLevel($user->role);
+    if ($level === 1) return true; // preparer always has access to own project
+
+    $preparer = $this->emailUserById((int) $project->user_id);
+    if (!$preparer) return false;
+
+    $preparerLocations = (array) ($preparer->location ?? []);
+    $userLocations     = (array) ($user->location ?? []);
+
+    // at least ONE location must match
+    return count(array_intersect($preparerLocations, $userLocations)) > 0;
+}
+
     /**
      * Current list visibility:
      * - Level 1 (preparer): can see own submitted in Current (user_id = self)
      * - Level 2-6: can see only projects assigned to their level (current_level = level)
      */
-    private function applyCurrentVisibilityScope($query, $user, int $level)
-    {
-        if ($level === 1) {
-            return $query->where('user_id', $user->id);
+        private function applyCurrentVisibilityScope($query, $user, int $level)
+        {
+            if ($level === 1) {
+                return $query->where('user_id', $user->id);
+            }
+
+            $userLocations = (array) ($user->location ?? []);
+
+            return $query
+                ->where('current_level', $level)
+                ->whereHas('user', function ($q) use ($userLocations) {
+                    $q->where(function ($inner) use ($userLocations) {
+                        foreach ($userLocations as $loc) {
+                            $inner->orWhereJsonContains('location', $loc);
+                        }
+                    });
+                });
         }
 
-        return $query->where('current_level', $level);
-    }
 
     /**
      * Only levels 2..6 can act and must be the assigned level.
      */
-    private function ensureCanAct(RoiCurrentProject $project, $user, int $level): void
-    {
-        if ($level < 2 || $level > 6) {
-            abort(403, 'Not allowed to perform actions.');
-        }
+        private function ensureCanAct(RoiCurrentProject $project, $user, int $level): void
+        {
+            if ($level < 2 || $level > 6) {
+                abort(403, 'Not allowed to perform actions.');
+            }
 
-        if ((int) $project->current_level !== (int) $level) {
-            abort(403, 'Project is not assigned to your level.');
+            if ((int) $project->current_level !== (int) $level) {
+                abort(403, 'Project is not assigned to your level.');
+            }
+
+            // ✅ location check
+            if (!$this->userMatchesProjectLocation($user, $project)) {
+                abort(403, 'You are not in the same location as this project.');
+            }
         }
-    }
 
     /**
      * View permission:
      * - Level 1: owner (user_id=self)
      * - Level 2-6: assigned (current_level=level)
      */
-    private function ensureCanView(RoiCurrentProject $project, $user, int $level): void
-    {
-        $canView = ($level === 1)
-            ? ((int) $project->user_id === (int) $user->id)
-            : ((int) $project->current_level === (int) $level);
+            private function ensureCanView(RoiCurrentProject $project, $user, int $level): void
+            {
+                $canView = ($level === 1)
+                    ? ((int) $project->user_id === (int) $user->id)
+                    : ((int) $project->current_level === (int) $level);
 
-        if (!$canView) {
-            abort(403, 'Not allowed to view this project.');
-        }
-    }
+                if (!$canView) {
+                    abort(403, 'Not allowed to view this project.');
+                }
 
+                // ✅ location check
+                if (!$this->userMatchesProjectLocation($user, $project)) {
+                    abort(403, 'You are not in the same location as this project.');
+                }
+            }
     /**
      * Email helpers (simple Mail::raw for now).
      * - Receiver(s): the users at the new assigned level

@@ -14,9 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\CheckBanned::class, // ✅ add this
         ]);
 
-        //
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureAdmin::class, // ✅ add this
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
