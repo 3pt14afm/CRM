@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
@@ -17,9 +14,16 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('role')->default('user');    
-            $table->json('location')->nullable(); 
-            $table->boolean('is_banned')->default(false); // ✅ add this
+
+            $table->string('role')->default('user');
+
+            $table->unsignedBigInteger('employee_id')->nullable()->unique();
+            $table->unsignedBigInteger('primary_location_id')->nullable()->index(); // MAIN LOCATION : no FK here because users migration runs before locations
+
+            // ALLOWED LOCATIONS (many) as JSON of location IDs
+            $table->json('location')->nullable();
+
+            $table->boolean('is_banned')->default(false);
             $table->rememberToken();
             $table->timestamps();
         });
@@ -40,9 +44,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');

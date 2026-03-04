@@ -15,7 +15,7 @@ class RoiWorkflow
         $role = strtolower(trim((string) $user->role));
 
         return match ($role) {
-            // ✅ Choose the exact strings you use in your system
+            // Choose the exact strings to be used
             'prepared', 'prepared_by', 'preparer', 'level1' => 1,
             'reviewed', 'reviewer', 'reviewed_by', 'level2' => 2,
             'checked', 'checker', 'checked_by', 'level3' => 3,

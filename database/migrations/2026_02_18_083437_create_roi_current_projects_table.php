@@ -13,6 +13,14 @@ return new class extends Migration {
             // This should represent the Level 1 owner (Prepared By)
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
 
+            $table->foreignId('location_id')
+                ->nullable()
+                ->constrained('locations')
+                ->nullOnDelete();
+
+            // helpful inbox filtering
+            $table->index(['location_id', 'current_level', 'status']);
+
             // stable ID across stages
             $table->ulid('project_uid')->unique();
 
