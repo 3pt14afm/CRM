@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
+use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
 use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController;
@@ -148,6 +149,13 @@ Route::middleware(['auth', 'verified'])
 
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
             Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])->name('roi.archive.show');
+
+
+   // Change 'proposals' to 'proposals.'
+            Route::prefix('proposals')->name('proposals.')->group(function () {
+                Route::get('/', [ProposalController::class, 'proposalList'])->name('list');
+                Route::get('/{id}', [ProposalController::class, 'show'])->name('show');
+            });
         });
     });
 

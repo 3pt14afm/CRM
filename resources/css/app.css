@@ -52,3 +52,40 @@
   background-color: currentColor !important;
   border-color: currentColor !important;
 }
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(110%) }
+    to   { opacity: 1; transform: translateX(0) }
+}
+@keyframes shrink {
+    from { width: 100% }
+    to   { width: 0% }
+}
+
+
+
+@media print {
+  /* Hide standard UI elements like Navigation and the Sidebar Toggle */
+  nav, .ProposalSideBar, button, .print-hide {
+    display: none !important;
+  }
+
+  /* Force the body to be white and remove margin defaults */
+  body {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Set page size to A4 */
+  @page {
+    size: A4;
+    margin: 0mm; /* We manage margins inside the div for better control */
+  }
+
+  /* Ensure background colors and images print correctly */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
