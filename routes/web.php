@@ -29,16 +29,28 @@ Route::middleware(['auth', 'verified', 'admin'])
     ->name('admin.')
     ->group(function () {
 
-        Route::get('/panel', [AdminController::class, 'panel'])->name('index');
+        // Admin landing redirects to Location Master
+        Route::get('/panel', function () {
+            return redirect()->route('admin.location-master.index');
+        })->name('index');
 
-        // Locations
+        // Sub-items
+        Route::get('/location-master', [AdminController::class, 'locationMaster'])->name('location-master.index');
+        Route::get('/position-master', [AdminController::class, 'positionMaster'])->name('position-master.index');
+        Route::get('/user-management', [AdminController::class, 'userManagement'])->name('user-management.index');
+        Route::get('/approver-matrix', [AdminController::class, 'approverMatrix'])->name('approver-matrix.index');
+        Route::get('/user-group-access-rights', [AdminController::class, 'userGroupAccessRights'])->name('user-group-access-rights.index');
+        Route::get('/user-access-rights', [AdminController::class, 'userAccessRights'])->name('user-access-rights.index');
+        Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit-logs.index');
+
+        // Locations CRUD
         Route::get('locations', [AdminController::class, 'locationIndex'])->name('locations.index');
         Route::post('locations', [AdminController::class, 'locationStore'])->name('locations.store');
         Route::put('locations/{location}', [AdminController::class, 'locationUpdate'])->name('locations.update');
         Route::delete('locations/{location}', [AdminController::class, 'locationDestroy'])->name('locations.destroy');
         Route::get('locations/{location}/users', [AdminController::class, 'locationUsers'])->name('locations.users');
 
-        // Users
+        // Users CRUD
         Route::get('users', [AdminController::class, 'userIndex'])->name('users.index');
         Route::post('users', [AdminController::class, 'userStore'])->name('users.store');
         Route::put('users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
@@ -52,6 +64,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::get('directory/employees', [AdminController::class, 'employeesByPosition'])->name('directory.employees');
         Route::post('users/assign-employee', [AdminController::class, 'assignEmployeeUser'])->name('users.assign-employee');
     });
+
 
 Route::middleware(['auth', 'verified'])
     ->prefix('customer-management')
