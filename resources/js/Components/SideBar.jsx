@@ -5,6 +5,7 @@ import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
 import { RiSettingsLine, RiSettingsFill, RiAdminFill, RiAdminLine } from "react-icons/ri";
 import { IoMdArrowDropdown } from "react-icons/io";
+import { route } from 'ziggy-js';
 
 export default function Sidebar() {
   const { url } = usePage();
@@ -163,17 +164,21 @@ export default function Sidebar() {
       ? 'service'
       : route().current('delivery.*')
       ? 'delivery'
+      : route().current('admin.*')
+      ? 'admin'
       : null;
 
   const isCustomerActive = activeByRoute === 'customer';
   const isMachineActive = activeByRoute === 'machine';
   const isServiceActive = activeByRoute === 'service';
   const isDeliveryActive = activeByRoute === 'delivery';
+  const isAdminActive = activeByRoute === 'admin';
 
   const customerExpanded = isOpen && activeModule === 'customer';
   const machineExpanded = isOpen && activeModule === 'machine';
   const serviceExpanded = isOpen && activeModule === 'service';
   const deliveryExpanded = isOpen && activeModule === 'delivery';
+  const adminExpanded = isOpen && activeModule === 'admin';
 
   // Text reveal/hide WITHOUT moving icons
   const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ease-in-out ${
@@ -188,7 +193,6 @@ export default function Sidebar() {
   return (
     <aside
       ref={sidebarRef}
-      // ✅ NEW: hover anywhere on sidebar triggers expand icon
       onMouseEnter={() => setIsSidebarHovered(true)}
       onMouseLeave={() => setIsSidebarHovered(false)}
       className={`h-screen flex flex-col bg-[#FBFFFA] shadow-xl border-r overflow-hidden transition-[width] duration-300 ease-in-out ${
@@ -245,33 +249,21 @@ export default function Sidebar() {
         {/* CUSTOMER MANAGEMENT */}
         <div className="space-y-1 mx-2">
           <div>
-            <div
-              className={`group ${
-                isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'
-              } ${customerExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
-            >
+            <div className={`group ${ isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50' } ${customerExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
               <div className={`flex items-center px-2 py-2 lg:px-3`}>
                 <Link
-                  
+                  href={route('roi.current')}
                   onClick={() => openSidebarAndToggleModule('customer')}
-                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
-                    isCustomerActive ? 'text-black' : 'text-darkgreen'
-                  }`}
-                >
+                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${ isCustomerActive ? 'text-black' : 'text-darkgreen' }`}>
                   {/* ICON (fixed slot) */}
                   <div
                     title="Customer Account Management"
-                    className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors lg:w-9 lg:h-9 ${
-                      activeModule === 'customer' ? 'bg-white/0' : 'group-hover:bg-green-100'
-                    }`}
-                  >
+                    className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors lg:w-9 lg:h-9 ${ activeModule === 'customer' ? 'bg-white/0' : 'group-hover:bg-green-100'}`}>
                     <img src="/images/cam.webp" alt="Customer Account Management" />
                   </div>
 
                   {/* LABEL (reveal/hide only) */}
-                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
-                    Customer Account <br /> Management
-                  </span>
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}> Customer Account <br /> Management</span>
                 </Link>
 
                 {/* Chevron slot (reserved width so no shifting) */}
@@ -282,11 +274,7 @@ export default function Sidebar() {
                     aria-label="Toggle customer menu"
                     type="button"
                   >
-                    <span
-                      className={`inline-block transition-transform duration-300 ${
-                        activeModule === 'customer' ? 'rotate-180' : ''
-                      }`}
-                    >
+                    <span className={`inline-block transition-transform duration-300 ${ activeModule === 'customer' ? 'rotate-180' : '' }`} >
                       <IoMdArrowDropdown color="black" size={18} />
                     </span>
                   </button>
@@ -313,38 +301,23 @@ export default function Sidebar() {
                         href={route('roi.current')}
                         onClick={() => handleSubToggle('roi')}
                         className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
-                          activeSubMenu === 'roi'
-                            ? 'text-darkgreen/85 font-semibold pt-3 mb-2'
-                            : 'text-darkgreen/70 opacity-80'
+                          activeSubMenu === 'roi' ? 'text-darkgreen/85 font-semibold pt-3 mb-2' : 'text-darkgreen/70 opacity-80'
                         }`}
                       >
                         Project ROI Approval
                       </Link>
                       <button onClick={() => handleSubToggle('roi')} className="px-6 py-2" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeSubMenu === 'roi' ? 'rotate-180' : ''
-                          }`}
-                        >
-                          <IoMdArrowDropdown
-                            size={14}
-                            color={activeSubMenu === 'roi' ? '#15803d' : 'black'}
-                          />
+                        <span className={`inline-block transition-transform duration-300 ${ activeSubMenu === 'roi' ? 'rotate-180' : ''}`} >
+                          <IoMdArrowDropdown size={14} color={activeSubMenu === 'roi' ? '#15803d' : 'black'} />
                         </span>
                       </button>
                     </div>
 
                     {activeSubMenu === 'roi' && (
                       <div className="relative ml-6 lg:ml-8 pb-2 mt-2">
-                        <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>
-                          Current
-                        </NavSubLink>
-                        <NavSubLink href={route('roi.archive')} active={route().current('roi.archive')}>
-                          Archive
-                        </NavSubLink>
-                        <NavSubLink href={route('roi.entry.list')} active={route().current('roi.entry.list')}>
-                          Entry
-                        </NavSubLink>
+                        <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>Current</NavSubLink>
+                        <NavSubLink href={route('roi.archive')} active={route().current('roi.archive')}>Archive</NavSubLink>
+                        <NavSubLink href={route('roi.entry.list')} active={route().current('roi.entry.list')}>Entry</NavSubLink>
                       </div>
                     )}
                   </div>
@@ -380,23 +353,14 @@ export default function Sidebar() {
                         href={route('roi.current')}
                         onClick={() => handleSubToggle('reports')}
                         className={`flex-1 pl-8 py-2 text-[11px] tracking-tight transition-opacity hover:text-darkgreen hover:font-medium lg:text-sm ${
-                          activeSubMenu === 'reports'
-                            ? 'text-darkgreen/85 font-semibold'
-                            : 'text-darkgreen/70 opacity-80'
+                          activeSubMenu === 'reports' ? 'text-darkgreen/85 font-semibold' : 'text-darkgreen/70 opacity-80'
                         }`}
                       >
                         Reports/View Only
                       </Link>
                       <button onClick={() => handleSubToggle('reports')} className="px-6 py-2" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeSubMenu === 'reports' ? 'rotate-180' : ''
-                          }`}
-                        >
-                          <IoMdArrowDropdown
-                            size={14}
-                            color={activeSubMenu === 'reports' ? '#15803d' : 'black'}
-                          />
+                        <span className={`inline-block transition-transform duration-300 ${ activeSubMenu === 'reports' ? 'rotate-180' : '' }`} >
+                          <IoMdArrowDropdown size={14} color={activeSubMenu === 'reports' ? '#15803d' : 'black'} />
                         </span>
                       </button>
                     </div>
@@ -705,13 +669,7 @@ export default function Sidebar() {
 
           {/* DELIVERY LOGISTICS */}
           <div>
-            <div
-              className={`mx-0 group ${
-                activeModule === 'delivery'
-                  ? 'bg-lightgreen shadow-lg rounded-t-lg'
-                  : 'hover:bg-lightgreen/40 rounded-lg'
-              }`}
-            >
+            <div className={`mx-0 group ${ activeModule === 'delivery' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg' }`} >
               <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href="#"
@@ -719,9 +677,7 @@ export default function Sidebar() {
                     e.preventDefault();
                     openSidebarAndToggleModule('delivery');
                   }}
-                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
-                    activeModule === 'delivery' ? 'text-black' : 'text-darkgreen'
-                  }`}
+                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${ activeModule === 'delivery' ? 'text-black' : 'text-darkgreen' }`}
                 >
                   <div 
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
@@ -736,11 +692,7 @@ export default function Sidebar() {
 
                 <div className={chevronSlotClass}>
                   <button onClick={() => handleModuleToggle('delivery')} className="p-2" aria-label="Toggle delivery menu" type="button">
-                    <span
-                      className={`inline-block transition-transform duration-300 ${
-                        activeModule === 'delivery' ? 'rotate-180' : ''
-                      }`}
-                    >
+                    <span className={`inline-block transition-transform duration-300 ${ activeModule === 'delivery' ? 'rotate-180' : '' }`}>
                       <IoMdArrowDropdown color="black" size={18} />
                     </span>
                   </button>
@@ -758,24 +710,14 @@ export default function Sidebar() {
                         href="#"
                         onClick={() => handleDeliverySubToggle('order_delivery')}
                         className={`flex-1 px-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
-                          activeDeliverySubMenu === 'order_delivery'
-                            ? 'text-darkgreen/85 font-semibold'
-                            : 'text-darkgreen/70 opacity-80'
-                        }`}
+                          activeDeliverySubMenu === 'order_delivery' ? 'text-darkgreen/85 font-semibold' : 'text-darkgreen/70 opacity-80' }`}
                       >
                         Order & Delivery Management
                       </Link>
 
                       <button onClick={() => handleDeliverySubToggle('order_delivery')} className="px-6 py-2" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeDeliverySubMenu === 'order_delivery' ? 'rotate-180' : ''
-                          }`}
-                        >
-                          <IoMdArrowDropdown
-                            size={14}
-                            color={activeDeliverySubMenu === 'order_delivery' ? '#15803d' : 'black'}
-                          />
+                        <span className={`inline-block transition-transform duration-300 ${ activeDeliverySubMenu === 'order_delivery' ? 'rotate-180' : '' }`} >
+                          <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'order_delivery' ? '#15803d' : 'black'}/>
                         </span>
                       </button>
                     </div>
@@ -898,31 +840,137 @@ export default function Sidebar() {
           </div>
 
           {/* ADMIN PANEL */}
-          <div
-            className={`mx-0 group ${
-              route().current('admin.*') ? 'bg-lightgreen shadow-lg rounded-lg' : 'hover:bg-lightgreen/40 rounded-lg'
-            }`}
-          >
-            <Link
-              href={route('admin.index')}
-              onClick={() => {
-                setActiveItem(null);
-                closeAllMenus(); // ensures no module stays expanded
-              }}
-              className={`flex items-center px-2 py-2 lg:px-3 hover:text-black transition-colors ${
-                route().current('admin.*') ? 'text-black' : 'text-darkgreen'
-              }`}
+          <div>
+            <div
+              className={`group ${
+                isAdminActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'
+              } ${adminExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
             >
-              <div 
-                className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
-                title="Admin Panel">
-                <img src="/images/admin.webp" alt="Admin Panel" />
-              </div>
+              <div className="flex items-center px-2 py-2 lg:px-3"> 
+                <Link
+                  href={route('admin.location-master.index')}
+                  onClick={() => openSidebarAndToggleModule('admin')}
+                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
+                    isAdminActive ? 'text-black' : 'text-darkgreen'
+                  }`}
+                >
+                  {/* ICON (fixed slot) */}
+                  <div
+                    title="Admin Panel"
+                    className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors lg:w-9 lg:h-9 ${
+                      activeModule === 'admin' ? 'bg-white/0' : 'group-hover:bg-green-100'
+                    }`}
+                  >
+                    <img src="/images/admin.webp" alt="Admin Panel" />
+                  </div>
 
-              <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
-                Admin Panel
-              </span>
-            </Link>
+                  {/* LABEL (reveal/hide only) */}
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
+                    Admin Panel
+                  </span>
+                </Link>
+
+                {/* Chevron slot (reserved width so no shifting) */}
+                <div className={chevronSlotClass}>
+                  <button
+                    onClick={() => openSidebarAndToggleModule('admin')}
+                    className="p-2"
+                    aria-label="Toggle admin menu"
+                    type="button"
+                  >
+                    <span
+                      className={`inline-block transition-transform duration-300 ${
+                        activeModule === 'admin' ? 'rotate-180' : ''
+                      }`}
+                    >
+                      <IoMdArrowDropdown color="black" size={18} />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ADMIN SUB-ITEMS */}
+            {isOpen && activeModule === 'admin' && (
+              <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-lg mb-7 lg:pl-8">
+                <Link
+                  href={route('admin.location-master.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.location-master.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Location Master
+                </Link>
+
+                <Link
+                  href={route('admin.position-master.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.position-master.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Position Master
+                </Link>
+
+                <Link
+                  href={route('admin.user-management.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.user-management.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  User Management
+                </Link>
+
+                <Link
+                  href={route('admin.approver-matrix.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.approver-matrix.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Approver Matrix
+                </Link>
+
+                <Link
+                  href={route('admin.user-group-access-rights.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.user-group-access-rights.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  User Group Access Rights
+                </Link>
+
+                <Link
+                  href={route('admin.user-access-rights.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.user-access-rights.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  User Access Rights Management
+                </Link>
+
+                <Link
+                  href={route('admin.audit-logs.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.audit-logs.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Audit Logs
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </nav>

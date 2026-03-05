@@ -17,13 +17,38 @@ class AdminController extends Controller
      * Admin Panel (Locations + Users in one page)
      * GET /admin/panel
      */
-    public function panel(Request $request)
+    public function locationMaster(Request $request)
     {
-        // map: id => name (one query)
+        $locations = Location::query()
+            ->orderBy('name')
+            ->paginate(10)
+            ->through(function ($location) {
+                $location->users_count = User::whereJsonContains('location', (int) $location->id)->count();
+                $location->approvers_count = User::whereJsonContains('location', (int) $location->id)
+                    ->where('role', 'approver')
+                    ->count();
+                $location->status = 'Active';
+                return $location;
+            })
+            ->withQueryString();
+
+        $stats = [
+            'totalLocations'    => Location::count(),
+            'activeUsers'       => User::where('is_banned', false)->count(),
+            'newLocationsLabel' => '+ new',
+        ];
+
+        return Inertia::render('Admin/LocationMaster', [
+            'locations' => $locations,
+            'stats'     => $stats,
+        ]);
+    }
+
+    public function userManagement(Request $request)
+    {
         $locationNameById = Location::pluck('name', 'id');
         $locationLookup = Location::orderBy('name')->get(['id', 'name']);
 
-        // Users (paginated)
         $users = User::query()
             ->select('id', 'name', 'email', 'role', 'primary_location_id', 'location', 'is_banned', 'created_at')
             ->orderBy('name')
@@ -34,7 +59,6 @@ class AdminController extends Controller
 
                 $ids = is_array($u->location) ? $u->location : (array) $u->location;
 
-                // convert ids -> names for frontend
                 $u->assigned_locations = collect($ids)
                     ->map(fn ($id) => $locationNameById[(int) $id] ?? null)
                     ->filter()
@@ -45,7 +69,7 @@ class AdminController extends Controller
             })
             ->withQueryString();
 
-        // Locations (paginated) with counts via JSON contains
+        // UserManagement.jsx expects locations.data to exist
         $locations = Location::query()
             ->orderBy('name')
             ->paginate(10)
@@ -62,19 +86,41 @@ class AdminController extends Controller
         $stats = [
             'totalUsers'         => User::count(),
             'recentlyAddedToday' => User::whereDate('created_at', now()->toDateString())->count(),
-            'totalLocations'     => Location::count(),
             'activeUsers'        => User::where('is_banned', false)->count(),
             'pendingApprovals'   => User::where('role', 'approver')->count(),
-            'newLocationsLabel'  => '+ new',
         ];
 
-        return Inertia::render('Admin/Panel', [
-            'users'     => $users,
-            'locations' => $locations,
+        return Inertia::render('Admin/UserManagement', [
+            'users'          => $users,
+            'locations'      => $locations,
             'locationLookup' => $locationLookup,
-            'stats'     => $stats,
-            
+            'stats'          => $stats,
         ]);
+    }
+
+    public function positionMaster()
+    {
+        return Inertia::render('Admin/PositionMaster');
+    }
+
+    public function approverMatrix()
+    {
+        return Inertia::render('Admin/ApproverMatrix');
+    }
+
+    public function userGroupAccessRights()
+    {
+        return Inertia::render('Admin/UserGroupAccessRights');
+    }
+
+    public function userAccessRights()
+    {
+        return Inertia::render('Admin/UserAccessRights');
+    }
+
+    public function auditLogs()
+    {
+        return Inertia::render('Admin/AuditLogs');
     }
 
     // ─────────────────────────────────────────
