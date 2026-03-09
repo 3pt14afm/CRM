@@ -905,6 +905,17 @@ export default function Sidebar() {
                 </Link>
 
                 <Link
+                  href={route('admin.department-master.index')}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.department-master.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Department Master
+                </Link>
+
+                <Link
                   href={route('admin.position-master.index')}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.position-master.*')
