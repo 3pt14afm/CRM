@@ -3,94 +3,244 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Proposal;
 use App\Models\RoiArchiveProject;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Added for Auth
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class ProposalController extends Controller
 {
-    /**
-     * List only APPROVED projects for the CURRENT user
-     */
-    public function proposalList(Request $request)
+    // ─── Proposal List ────────────────────────────────────────────
+
+public function proposalList(Request $request)
+{
+    $perPage = (int) $request->input('per_page', 10);
+    $userId  = Auth::id();
+
+    // 1. Get Approved Projects (Excluding those already generated)
+    $archiveQuery = RoiArchiveProject::query()
+        ->where('user_id', $userId)
+        ->where('status', 'approved')
+        // Check if there is NO proposal for this project that is 'generated'
+        ->whereDoesntHave('proposals', function ($query) {
+            $query->where('status', 'generated');
+        })
+        ->with('user')
+        ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
+        ->select(['roi_archive_projects.*', 'approved_user.name as approved_by_name'])
+        ->orderByDesc('updated_at');
+
+    // 2. Get Generated Proposals
+    $generatedQuery = Proposal::query()
+        ->where('user_id', $userId)
+        ->with(['roiArchiveProject'])
+        ->orderByDesc('updated_at');
+
+    return Inertia::render('CustomerManagement/Proposal/ProposalRoute', [
+        'proposals' => $archiveQuery->paginate($perPage)->through(fn($p) => $this->transformProposal($p)),
+        'stats'     => [
+            'totalArchiveProjects' => $archiveQuery->count(),
+            'recentlyArchivedToday' => $archiveQuery->clone()->whereDate('roi_archive_projects.updated_at', now()->toDateString())->count() . ' Today',
+        ],
+        'generatedproposals' => $generatedQuery->paginate($perPage)->through(fn($p) => [
+            'id'             => $p->roi_archive_project_id,
+            'proposal_id'    => $p->id,
+            'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
+            'company_name'   => $p->company_name,
+            'status'         => $p->status,
+            'updated_at'     => $p->updated_at->diffForHumans(),
+            'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
+            'project_ref'    => $p->roiArchiveProject->reference ?? '—',
+        ]),
+        'generatedstats' => [
+            'totalProposals' => Proposal::where('user_id', $userId)->count(),
+            'generatedCount' => Proposal::where('user_id', $userId)->where('status', 'generated')->count(),
+        ],
+    ]);
+}
+
+
+
+    // ─── Show Proposal Page ───────────────────────────────────────
+
+    public function show($id)
     {
-        $perPage = (int) $request->input('per_page', 10);
-        $userId = Auth::id(); // Get the current logged-in user ID
-
-        // 1. Build the base query with specific filters
-        $query = RoiArchiveProject::query()
-            ->where('roi_archive_projects.user_id', $userId) // Only this user's projects
-            ->where('roi_archive_projects.status', 'approved') // Only approved projects
-            ->with('user')
-            ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
-            ->select([
-                'roi_archive_projects.*',
-                'approved_user.name as approved_by_name',
-            ])
-            ->orderByDesc('roi_archive_projects.updated_at');
-
-        // 2. Paginate and transform
-        $proposals = $query->paginate($perPage)
-            ->withQueryString()
-            ->through(fn ($p) => $this->transformProposal($p));
-
-        // 3. Calculate Stats based on the same user context
-        $stats = [
-            'totalArchiveProjects' => RoiArchiveProject::where('user_id', $userId)
-                ->where('status', 'approved')
-                ->count(),
-            'recentlyArchivedToday' => RoiArchiveProject::where('user_id', $userId)
-                ->where('status', 'approved')
-                ->whereDate('updated_at', now()->toDateString())
-                ->count() . ' Today',
-        ];
-
-        return Inertia::render('CustomerManagement/Proposal/ProposalList', [
-            'proposals' => $proposals,
-            'stats' => $stats,
-        ]);
-    }
-
-    /**
-     * Show a single proposal - with security check
-     */
-/**
-     * Show a single proposal with core info for generation:
-     * Company Info, Machine Configs/Items, Fees, and Contract Details
-     */
-  public function show($id)
-    {
-        // Fetch project with only the specific relationships needed
-        $project = RoiArchiveProject::with(['items', 'fees', 'user'])
+      $project = RoiArchiveProject::with(['items', 'fees', 'user'])
             ->where('user_id', Auth::id())
             ->findOrFail($id);
 
-        // We use the existing transformProposal to get the 'decided_at_display' 
-        // and 'decided_by_name' you already logic-ed out.
-        $proposal = $this->transformProposal($project);
+        $document = Proposal::where('roi_archive_project_id', $id)
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->first();
 
         return Inertia::render('CustomerManagement/Proposal/Proposal', [
-            'proposal' => $proposal,
-            // These are included in the 'proposal' object because of with(), 
-            // but we pass them explicitly if your frontend prefers separate props.
-            'items'    => $project->items,
-            'fees'     => $project->fees,
+            'proposal'  => $this->buildProposal($project, $document),
+            'items'     => $project->items,
+            'fees'      => $project->fees,
+            'is_locked' => $document?->isGenerated() ?? false,
         ]);
     }
 
-    /**
-     * Helper to keep logic DRY
-     */
+    // ─── Save Draft ───────────────────────────────────────────────
+
+    public function saveDraft(Request $request, $id)
+    {
+        $project = RoiArchiveProject::where('user_id', Auth::id())->findOrFail($id);
+
+        $existing = Proposal::where('roi_archive_project_id', $id)
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->first();
+
+        if ($existing?->isGenerated()) {
+            return back()->with('error', 'This proposal has already been generated and cannot be edited.');
+        }
+
+        $data = $request->validate($this->rules());
+
+        Proposal::updateOrCreate(
+            [
+                'roi_archive_project_id' => $id,
+                'user_id'                => Auth::id(),
+            ],
+            array_merge($data, ['status' => 'draft'])
+        );
+
+        return redirect()->route('proposals.index')->with('success', 'Draft saved successfully.');
+    }
+
+    // ─── Generate Proposal ────────────────────────────────────────
+
+    public function generate(Request $request, $id)
+    {
+        $project = RoiArchiveProject::where('user_id', Auth::id())->findOrFail($id);
+
+        $existing = Proposal::where('roi_archive_project_id', $id)
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->first();
+
+        if ($existing?->isGenerated()) {
+            return back()->with('error', 'This proposal has already been generated.');
+        }
+
+        $data = $request->validate($this->rules());
+
+        // Build proposal ref using user's location code e.g. QC-2026-00001
+     $year     = now()->format('Y');
+    $sequence = str_pad(
+        Proposal::whereYear('created_at', $year)->count() + 1,
+        5, '0', STR_PAD_LEFT
+    );
+    $ref = "PROP-{$year}-{$sequence}";
+
+        Proposal::updateOrCreate(
+            [
+                'roi_archive_project_id' => $id,
+                'user_id'                => Auth::id(),
+            ],
+            array_merge($data, [
+                'status'       => 'generated',
+                'proposal_ref' => $ref,
+            ])
+        );
+
+        return redirect()->route('proposals.index')->with('success', 'Draft saved successfully.');
+    }
+
+    // ─── Private Helpers ──────────────────────────────────────────
+
     private function transformProposal($p)
     {
-        // Since the list is filtered to 'approved', logic is simplified
-        $p->decision_display = 'Approved';
-        $p->decided_by_name = $p->approved_by_name ?? '—';
-        
-        $decidedAt = $p->approved_at;
-        $p->decided_at_display = $decidedAt ? $decidedAt->diffForHumans() : '—';
+        $p->decision_display    = 'Approved';
+        $p->decided_by_name     = $p->approved_by_name ?? '—';
+        $decidedAt              = $p->approved_at;
+        $p->decided_at_display  = $decidedAt ? $decidedAt->diffForHumans() : '—';
 
         return $p;
     }
+
+  private function buildProposal(RoiArchiveProject $project, ?Proposal $doc): array
+{
+    $base = [
+        'id'             => $project->id,
+        'company_name'   => $project->company_name,
+        'attention'      => null,
+        'designation'    => null,
+        'email'          => null,
+        'mobile'         => null,
+        'contract_type'  => $project->contract_type,
+        'contract_years' => $project->contract_years,
+        'reference'      => $project->reference,
+        'user'           => $project->user ? [
+            'name' => $project->user->name,
+            'role' => $project->user->role,
+        ] : null,
+
+        // Document defaults
+        'proposal_ref'       => null,
+        'status'             => 'draft',
+        'message'            => null,
+        'specs'              => [],
+        'printer_image'      => null,
+        'unit_price'         => 0,
+        'terms_text'         => null,
+        'closing_text'       => null,
+        'user_signature'     => null,
+        'conforme_name'      => null,
+        'conforme_signature' => null,
+    ];
+
+    if (!$doc) {
+        return $base;
+    }
+
+    return array_merge($base, [
+        'proposal_ref'       => $doc->proposal_ref,
+        'status'             => $doc->status,
+        'message'            => $doc->message,
+        'specs'              => $doc->specs ?? [],
+        'printer_image'      => $doc->printer_image,
+        'unit_price'         => $doc->unit_price,
+        'terms_text'         => $doc->terms_text,
+        'closing_text'       => $doc->closing_text,
+        'user_signature'     => $doc->user_signature,
+        'conforme_name'      => $doc->conforme_name,
+        'conforme_signature' => $doc->conforme_signature,
+
+        // Doc overrides base if user edited in sidebar
+        'company_name'  => $doc->company_name  ?? $project->company_name,
+        'attention'     => $doc->attention     ?? null,
+        'designation'   => $doc->designation   ?? null,
+        'email'         => $doc->email         ?? null,
+        'mobile'        => $doc->mobile        ?? null,
+    ]);
+}
+
+    private function rules(): array
+    {
+        return [
+            'company_name'       => ['nullable', 'string', 'max:255'],
+            'attention'          => ['nullable', 'string', 'max:255'],
+            'designation'       => ['nullable', 'string', 'max:255'],
+            'email'              => ['nullable', 'email', 'max:255'],
+            'mobile'             => ['nullable', 'string', 'max:50'],
+            'message'            => ['nullable', 'string'],
+            'specs'              => ['nullable', 'array'],
+            'specs.*.label'      => ['nullable', 'string', 'max:255'],
+            'specs.*.value'      => ['nullable', 'string', 'max:255'],
+            'printer_image'      => ['nullable', 'string'],
+            'unit_price'         => ['nullable', 'numeric', 'min:0'],
+            'terms_text'         => ['nullable', 'string'],
+            'closing_text'       => ['nullable', 'string'],
+            'user_signature'     => ['nullable', 'string'],
+            'conforme_name'      => ['nullable', 'string', 'max:255'],
+            'conforme_signature' => ['nullable', 'string'],
+        ];
+    }
+
+    // ProposalController.php
+
 }

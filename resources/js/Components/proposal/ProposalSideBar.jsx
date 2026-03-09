@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ChevronLeft, ChevronRight, Building2, Plus, Trash2, ImagePlus, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Building2, Plus, Trash2, ImagePlus, FileText, Save } from 'lucide-react';
 import SidebarMessageEditor from './SidebarMessageEditor';
 import SidebarTermsEditor from './SidebarTermsEditor';
 import SignatureUpload from './SignatureUpload';
@@ -7,7 +7,11 @@ export default function ProposalSideBar({
     isOpen, 
     setIsOpen, 
     proposal, 
-    onUpdate 
+    onUpdate,
+    onSaveDraft, 
+    onGenerate, 
+    processing, 
+    isLocked,
 }) {
   const specs = proposal.specs || [];
   const terms = proposal.terms || [];
@@ -337,6 +341,32 @@ export default function ProposalSideBar({
         </div>
       </div>
 
+       {/* --- ACTION BUTTONS --- */}
+       <div className="grid grid-cols-2 gap-3 mt-5 p-4 border-t">
+                <button
+                    onClick={onSaveDraft}
+                    disabled={processing || isLocked}
+                    className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-gray-600 rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-all"
+                >
+                    {processing ? 'Saving...' : 'Save as Draft'}
+                </button>
+
+             <button
+            onClick={onGenerate}
+            disabled={processing || isLocked}
+            // Changed bg-blue-600 to bg-emerald-500 and hover:bg-blue-700 to hover:bg-emerald-600
+            className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 disabled:opacity-50 transition-all"
+        >
+            {processing ? 'Generating...' : 'Generate Proposal'}
+        </button>
+                
+                
+            </div>
+            {isLocked && (
+                    <p className="text-xs text-red-500 italic text-center">
+                        This proposal is locked (Generated).
+                    </p>
+                )}
         </div>
 
 

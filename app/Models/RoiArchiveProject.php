@@ -76,4 +76,12 @@ class RoiArchiveProject extends Model
     {
         return $this->hasMany(RoiArchiveFee::class, 'roi_archive_project_id');
     }
+    /**
+ * Get the proposals for the archive project.
+ */
+public function proposals()
+{
+    // Ensure 'roi_archive_project_id' matches the actual column name in your proposals table
+    return $this->hasMany(Proposal::class, 'roi_archive_project_id');
+}
 }
