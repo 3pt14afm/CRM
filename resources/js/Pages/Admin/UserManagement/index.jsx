@@ -10,6 +10,7 @@ import FilterPill from "./FilterPill";
 import useAssignUserModal from "./hooks/useAssignUserModal";
 import useEditUserModal from "./hooks/useEditUserModal";
 import usePositions from "./hooks/usePositions";
+import useDepartments from "./hooks/useDepartments";
 
 function UserManagement({ users, locations }) {
   const formattedDate = formatShortDate();
@@ -20,6 +21,7 @@ function UserManagement({ users, locations }) {
   }, [locations]);
 
   const { positions, loadingPositions } = usePositions();
+  const { departments, loadingDepartments } = useDepartments();
 
   const assignModal = useAssignUserModal();
   const editModal = useEditUserModal();
@@ -58,6 +60,8 @@ function UserManagement({ users, locations }) {
         processing={assignModal.assignProcessing}
         positions={positions}
         loadingPositions={loadingPositions}
+        departments={departments}
+        loadingDepartments={loadingDepartments}
         locationOptions={locationOptions}
         assignForm={assignModal.assignForm}
         setAssignForm={assignModal.setAssignForm}
@@ -72,6 +76,8 @@ function UserManagement({ users, locations }) {
         editingUser={editModal.editingUser}
         locationOptions={locationOptions}
         positions={positions}
+        departments={departments}
+        loadingDepartments={loadingDepartments}
         editForm={editModal.editForm}
         setEditForm={editModal.setEditForm}
         editErrors={editModal.editErrors}

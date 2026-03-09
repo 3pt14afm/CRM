@@ -21,11 +21,13 @@ class User extends Authenticatable
         'first_name',
         'last_name',
         'employee_id',
+        'department_id',
         'position',
         'email',
         'password',
         'primary_location_id',
         'is_banned',
+        'email_verified_at',
     ];
 
     /**
@@ -56,5 +58,10 @@ class User extends Authenticatable
     public function setEmployeeIdAttribute($value): void
     {
         $this->attributes['employee_id'] = str_pad((string) $value, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(\App\Models\CompanyDepartment::class, 'department_id');
     }
 }

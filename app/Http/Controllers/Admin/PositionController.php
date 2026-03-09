@@ -118,9 +118,19 @@ class PositionController extends Controller
     {
         return response()->json(
             CompanyPosition::query()
+                ->with('department:id,name')
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name'])
+                ->get(['id', 'name', 'department_id'])
+                ->map(function ($position) {
+                    return [
+                        'id' => $position->id,
+                        'name' => $position->name,
+                        'department_id' => $position->department_id,
+                        'department_name' => $position->department?->name,
+                    ];
+                })
+                ->values()
         );
     }
 }

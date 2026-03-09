@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import AdminFormModal from "@/Components/admin/AdminFormModal";
 import { BsToggleOff, BsToggleOn } from "react-icons/bs";
 
@@ -10,6 +11,8 @@ export default function EditUserModal({
   // options
   locationOptions,
   positions,
+  departments,
+  loadingDepartments,
 
   // form
   editForm,
@@ -19,6 +22,13 @@ export default function EditUserModal({
   // actions
   onSubmit,
 }) {
+  const filteredPositions = useMemo(() => {
+    if (!editForm.department_id) return [];
+    return positions.filter(
+      (position) => String(position.department_id) === String(editForm.department_id)
+    );
+  }, [positions, editForm.department_id]);
+
   return (
     <AdminFormModal
       show={show}
@@ -98,17 +108,73 @@ export default function EditUserModal({
 
           <div>
             <label className="mb-1 block text-xs font-semibold text-slate-600">
-              Position
+              Email
+            </label>
+            <input
+              type="email"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+              value={editForm.email ?? ""}
+              onChange={(e) =>
+                setEditForm((p) => ({ ...p, email: e.target.value }))
+              }
+              placeholder="Enter email address"
+            />
+            {editErrors?.email ? (
+              <p className="mt-1 text-xs text-red-600">{editErrors.email}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-600">
+              Department
             </label>
             <select
               className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+              value={editForm.department_id ?? ""}
+              onChange={(e) =>
+                setEditForm((p) => ({
+                  ...p,
+                  department_id: e.target.value,
+                  department:
+                    departments.find((d) => String(d.id) === e.target.value)?.name ?? "",
+                  position: "",
+                }))
+              }
+            >
+              <option value="">
+                {loadingDepartments ? "Loading departments..." : "Select a department"}
+              </option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
+            {editErrors?.department_id ? (
+              <p className="mt-1 text-xs text-red-600">{editErrors.department_id}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-600">
+              Position
+            </label>
+            <select
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800] disabled:bg-slate-100"
               value={editForm.position ?? ""}
               onChange={(e) =>
                 setEditForm((p) => ({ ...p, position: e.target.value }))
               }
+              disabled={!editForm.department_id}
             >
-              <option value="">Select a position</option>
-              {positions.map((position) => (
+              <option value="">
+                {!editForm.department_id
+                  ? "Select a department first"
+                  : "Select a position"}
+              </option>
+              {filteredPositions.map((position) => (
                 <option key={position.id} value={position.name}>
                   {position.name}
                 </option>
@@ -118,24 +184,6 @@ export default function EditUserModal({
               <p className="mt-1 text-xs text-red-600">{editErrors.position}</p>
             ) : null}
           </div>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-600">
-            Email
-          </label>
-          <input
-            type="email"
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
-            value={editForm.email ?? ""}
-            onChange={(e) =>
-              setEditForm((p) => ({ ...p, email: e.target.value }))
-            }
-            placeholder="Enter email address"
-          />
-          {editErrors?.email ? (
-            <p className="mt-1 text-xs text-red-600">{editErrors.email}</p>
-          ) : null}
         </div>
 
         <div>

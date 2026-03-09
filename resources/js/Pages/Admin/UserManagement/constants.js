@@ -13,8 +13,10 @@ export const INITIAL_ASSIGN_FORM = {
   first_name: "",
   last_name: "",
   employee_id: "",
-  position: "",
   email: "",
+  department_id: "",
+  department: "",
+  position: "",
   primary_location_id: "",
 };
 
@@ -22,9 +24,11 @@ export const INITIAL_EDIT_FORM = {
   first_name: "",
   last_name: "",
   employee_id: "",
-  position: "",
   email: "",
-  password: "",
+  department_id: "",
+  department: "",
+  position: "",
   primary_location_id: "",
+  password: "",
   is_banned: false,
 };
