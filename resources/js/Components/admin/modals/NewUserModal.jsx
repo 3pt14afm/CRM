@@ -7,14 +7,8 @@ export default function NewUserModal({
 
   // data
   positions,
-  employees,
   loadingPositions,
-  loadingEmployees,
   locationOptions,
-  roleOptions,
-  selectedEmployee,
-  assignMainLocationName,
-  assignMainLocationId,
 
   // form
   assignForm,
@@ -22,7 +16,6 @@ export default function NewUserModal({
   assignErrors,
 
   // actions
-  toggleAssignLocation,
   onSubmit,
 }) {
   return (
@@ -30,115 +23,145 @@ export default function NewUserModal({
       show={show}
       onClose={onClose}
       processing={processing}
-      title="Assign User"
+      title="New User"
       maxWidth="2xl"
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Position</label>
-          <select
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={assignForm.position_id}
-            onChange={(e) => setAssignForm((p) => ({ ...p, position_id: e.target.value }))}
-          >
-            <option value="">{loadingPositions ? "Loading..." : "Select a position"}</option>
-            {positions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-600">
+              First Name
+            </label>
+            <input
+              type="text"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              value={assignForm.first_name ?? ""}
+              onChange={(e) =>
+                setAssignForm((p) => ({ ...p, first_name: e.target.value }))
+              }
+              placeholder="Enter first name"
+            />
+            {assignErrors.first_name ? (
+              <p className="mt-1 text-xs text-red-600">{assignErrors.first_name}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-600">
+              Last Name
+            </label>
+            <input
+              type="text"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              value={assignForm.last_name ?? ""}
+              onChange={(e) =>
+                setAssignForm((p) => ({ ...p, last_name: e.target.value }))
+              }
+              placeholder="Enter last name"
+            />
+            {assignErrors.last_name ? (
+              <p className="mt-1 text-xs text-red-600">{assignErrors.last_name}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-600">
+              Employee ID
+            </label>
+            <input
+              type="number"
+              min="0"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              value={assignForm.employee_id ?? ""}
+              onChange={(e) =>
+                setAssignForm((p) => ({ ...p, employee_id: e.target.value }))
+              }
+              placeholder="Enter employee ID"
+            />
+            {assignErrors.employee_id ? (
+              <p className="mt-1 text-xs text-red-600">{assignErrors.employee_id}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-600">
+              Position
+            </label>
+            <select
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              value={assignForm.position ?? ""}
+              onChange={(e) =>
+                setAssignForm((p) => ({ ...p, position: e.target.value }))
+              }
+            >
+              <option value="">
+                {loadingPositions ? "Loading positions..." : "Select a position"}
               </option>
-            ))}
-          </select>
-          {assignErrors.position_id ? <p className="mt-1 text-xs text-red-600">{assignErrors.position_id}</p> : null}
+              {positions.map((position) => (
+                <option key={position.id} value={position.name}>
+                  {position.name}
+                </option>
+              ))}
+            </select>
+            {assignErrors.position ? (
+              <p className="mt-1 text-xs text-red-600">{assignErrors.position}</p>
+            ) : null}
+          </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Person</label>
-          <select
+          <label className="mb-1 block text-xs font-semibold text-slate-600">
+            Email
+          </label>
+          <input
+            type="email"
             className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={assignForm.employee_id}
-            onChange={(e) => setAssignForm((p) => ({ ...p, employee_id: e.target.value }))}
-            disabled={!assignForm.position_id || loadingEmployees}
-          >
-            <option value="">
-              {!assignForm.position_id
-                ? "Select a position first"
-                : loadingEmployees
-                ? "Loading employees..."
-                : "Select a person"}
-            </option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-                {e.employee_code ? ` (${e.employee_code})` : ""}
-                {e.primary_location_name ? ` — ${e.primary_location_name}` : ""}
-              </option>
-            ))}
-          </select>
-
-          {assignErrors.employee_id ? <p className="mt-1 text-xs text-red-600">{assignErrors.employee_id}</p> : null}
-
-          {selectedEmployee ? (
-            <div className="mt-2 text-[11px] text-slate-500">
-              Main location: <span className="font-semibold text-slate-700">{assignMainLocationName ?? "—"}</span>
-            </div>
+            value={assignForm.email ?? ""}
+            onChange={(e) =>
+              setAssignForm((p) => ({ ...p, email: e.target.value }))
+            }
+            placeholder="Enter email address"
+          />
+          {assignErrors.email ? (
+            <p className="mt-1 text-xs text-red-600">{assignErrors.email}</p>
           ) : null}
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Role</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-600">
+            Location
+          </label>
           <select
             className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={assignForm.role}
-            onChange={(e) => setAssignForm((p) => ({ ...p, role: e.target.value }))}
-            disabled={!assignForm.employee_id}
+            value={assignForm.primary_location_id ?? ""}
+            onChange={(e) =>
+              setAssignForm((p) => ({
+                ...p,
+                primary_location_id: e.target.value,
+              }))
+            }
           >
-            {roleOptions.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
+            <option value="">Select a location</option>
+            {locationOptions.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
               </option>
             ))}
           </select>
-          {assignErrors.role ? <p className="mt-1 text-xs text-red-600">{assignErrors.role}</p> : null}
+          {assignErrors.primary_location_id ? (
+            <p className="mt-1 text-xs text-red-600">
+              {assignErrors.primary_location_id}
+            </p>
+          ) : null}
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-2">Assigned Locations</label>
-          <div className="rounded-lg border border-black/10 bg-[#FBFFFA] p-2 max-h-44 overflow-auto">
-            {!assignForm.employee_id ? (
-              <p className="text-xs text-slate-500 p-2">Select a person first.</p>
-            ) : locationOptions.length === 0 ? (
-              <p className="text-xs text-slate-500 p-2">No locations found.</p>
-            ) : (
-              <div className="space-y-1">
-                {locationOptions.map((loc) => {
-                  const id = Number(loc.id);
-                  const checked = (assignForm.location ?? []).map(Number).includes(id);
-                  const locked = assignMainLocationId && Number(assignMainLocationId) === id;
-
-                  return (
-                    <label
-                      key={loc.id}
-                      className={`flex items-center gap-2 rounded-md px-2 py-1 ${
-                        locked ? "bg-white/60" : "hover:bg-white cursor-pointer"
-                      }`}
-                    >
-                      <input type="checkbox" checked={checked} disabled={locked} onChange={() => toggleAssignLocation(id)} />
-                      <span className="text-sm text-slate-800">
-                        {loc.name}
-                        {locked ? <span className="text-[11px] text-slate-500"> (Main)</span> : null}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {assignErrors.location ? <p className="mt-1 text-xs text-red-600">{assignErrors.location}</p> : null}
-          {assignErrors["location.0"] ? <p className="mt-1 text-xs text-red-600">{assignErrors["location.0"]}</p> : null}
+        <div className="rounded-lg border border-[#289800]/15 bg-[#F7FFF3] px-3 py-2 text-xs text-slate-600">
+          Default password: <span className="font-semibold text-slate-800">P@ssw0rd</span>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-black/10">
+        <div className="flex items-center justify-end gap-3 border-t border-black/10 pt-4">
           <button
             type="button"
             onClick={onClose}
@@ -150,10 +173,17 @@ export default function NewUserModal({
           <button
             type="submit"
             className="rounded-lg bg-[#289800] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-95 disabled:opacity-60"
-            disabled={processing || !assignForm.employee_id}
-            title={!assignForm.employee_id ? "Select a person first" : undefined}
+            disabled={
+              processing ||
+              !assignForm.first_name ||
+              !assignForm.last_name ||
+              !assignForm.employee_id ||
+              !assignForm.position ||
+              !assignForm.email ||
+              !assignForm.primary_location_id
+            }
           >
-            {processing ? "Saving..." : "Assign User"}
+            {processing ? "Saving..." : "Create User"}
           </button>
         </div>
       </form>

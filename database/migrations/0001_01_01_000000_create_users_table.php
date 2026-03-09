@@ -10,18 +10,18 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+
+            $table->string('first_name');
+            $table->string('last_name');
+
+            $table->unsignedBigInteger('employee_id')->nullable()->unique();
+            $table->string('position')->nullable();
+
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
 
-            $table->string('role')->default('user');
-
-            $table->unsignedBigInteger('employee_id')->nullable()->unique();
-            $table->unsignedBigInteger('primary_location_id')->nullable()->index(); // MAIN LOCATION : no FK here because users migration runs before locations
-
-            // ALLOWED LOCATIONS (many) as JSON of location IDs
-            $table->json('location')->nullable();
+            $table->unsignedBigInteger('primary_location_id')->nullable()->index();
 
             $table->boolean('is_banned')->default(false);
             $table->rememberToken();
