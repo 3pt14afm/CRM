@@ -6,7 +6,7 @@ import NewPositionModal from "@/Components/admin/modals/NewPositionModal";
 import EditPositionModal from "@/Components/admin/modals/EditPositionModal";
 import { MdEdit } from "react-icons/md";
 
-function PositionMaster({ stats, positions }) {
+function PositionMaster({ stats, positions, departments }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createProcessing, setCreateProcessing] = useState(false);
   const [createErrors, setCreateErrors] = useState({});
@@ -14,7 +14,7 @@ function PositionMaster({ stats, positions }) {
   const [createForm, setCreateForm] = useState({
     code: "",
     name: "",
-    department: "",
+    department_id: "",
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -25,7 +25,7 @@ function PositionMaster({ stats, positions }) {
   const [editForm, setEditForm] = useState({
     code: "",
     name: "",
-    department: "",
+    department_id: "",
     is_active: true,
   });
 
@@ -41,6 +41,11 @@ function PositionMaster({ stats, positions }) {
     return Array.isArray(raw) ? raw : [];
   }, [positions, stats]);
 
+  const departmentOptions = useMemo(() => {
+    const raw = departments?.data ?? departments ?? [];
+    return Array.isArray(raw) ? raw : [];
+  }, [departments]);
+
   const isPositionActive = (position) => {
     if (typeof position?.is_active === "boolean") return position.is_active;
     if (typeof position?.status === "string") return position.status === "Active";
@@ -53,7 +58,7 @@ function PositionMaster({ stats, positions }) {
     setCreateForm({
       code: "",
       name: "",
-      department: "",
+      department_id: "",
     });
     setShowCreateModal(true);
   };
@@ -71,7 +76,7 @@ function PositionMaster({ stats, positions }) {
     setEditForm({
       code: position?.code ?? "",
       name: position?.name ?? "",
-      department: position?.department ?? "",
+      department_id: position?.department_id ?? "",
       is_active: isPositionActive(position),
     });
 
@@ -94,7 +99,7 @@ function PositionMaster({ stats, positions }) {
       {
         code: createForm.code,
         name: createForm.name,
-        department: createForm.department,
+        department_id: createForm.department_id,
       },
       {
         preserveScroll: true,
@@ -124,7 +129,7 @@ function PositionMaster({ stats, positions }) {
       {
         code: editForm.code,
         name: editForm.name,
-        department: editForm.department,
+        department_id: editForm.department_id,
       },
       {
         preserveScroll: true,
@@ -165,7 +170,6 @@ function PositionMaster({ stats, positions }) {
           setEditErrors(errs || {});
           setEditProcessing(false);
         },
-        onFinish: () => {},
       }
     );
   };
@@ -187,7 +191,9 @@ function PositionMaster({ stats, positions }) {
         header: <div className="text-center w-full">DEPARTMENT</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">{r.department ?? "—"}</span>
+            <span className="text-[11px] lg:text-sm xl:text-base">
+              {r.department_name ?? "—"}
+            </span>
           </div>
         ),
       },
@@ -267,6 +273,7 @@ function PositionMaster({ stats, positions }) {
         form={createForm}
         setForm={setCreateForm}
         onSubmit={submitCreate}
+        departments={departmentOptions}
       />
 
       <EditPositionModal
@@ -278,6 +285,7 @@ function PositionMaster({ stats, positions }) {
         editForm={editForm}
         setEditForm={setEditForm}
         onSubmit={submitEdit}
+        departments={departmentOptions}
       />
 
       <div className="min-h-screen flex flex-col">

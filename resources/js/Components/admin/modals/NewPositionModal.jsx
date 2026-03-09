@@ -8,6 +8,7 @@ export default function NewPositionModal({
   form,
   setForm,
   onSubmit,
+  departments = [],
 }) {
   return (
     <AdminFormModal
@@ -49,13 +50,19 @@ export default function NewPositionModal({
           <label className="block text-xs font-semibold text-slate-600 mb-1">
             Department
           </label>
-          <input
+          <select
             className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={form.department}
-            onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))}
-            placeholder="e.g. Sales"
-          />
-          {errors.department ? <p className="mt-1 text-xs text-red-600">{errors.department}</p> : null}
+            value={form.department_id}
+            onChange={(e) => setForm((p) => ({ ...p, department_id: e.target.value }))}
+          >
+            <option value="">Select department</option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+          {errors.department_id ? <p className="mt-1 text-xs text-red-600">{errors.department_id}</p> : null}
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-black/10">
@@ -74,7 +81,7 @@ export default function NewPositionModal({
               processing ||
               !form.code.trim() ||
               !form.name.trim() ||
-              !form.department.trim()
+              !String(form.department_id).trim()
             }
           >
             {processing ? "Saving..." : "Create Position"}

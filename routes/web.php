@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\PositionController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,7 @@ Route::middleware(['auth', 'verified', 'admin'])
 
         // Admin pages
         Route::get('/location-master', [LocationController::class, 'locationMaster'])->name('location-master.index');
+        Route::get('/department-master', [DepartmentController::class, 'departmentMaster'])->name('department-master.index');
         Route::get('/position-master', [PositionController::class, 'positionMaster'])->name('position-master.index');
         Route::get('/user-management', [UserController::class, 'userManagement'])->name('user-management.index');
         Route::get('/approver-matrix', [AdminController::class, 'approverMatrix'])->name('approver-matrix.index');
@@ -53,6 +55,13 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::patch('/locations/{location}/deactivate', [LocationController::class, 'locationDeactivate'])->name('locations.deactivate');
         Route::delete('/locations/{location}', [LocationController::class, 'locationDestroy'])->name('locations.destroy');
         Route::get('/locations/{location}/users', [LocationController::class, 'locationUsers'])->name('locations.users');
+
+        //Department CRUD
+        Route::get('/departments', [DepartmentController::class, 'departmentIndex'])->name('departments.index');
+        Route::post('/departments', [DepartmentController::class, 'departmentStore'])->name('departments.store');
+        Route::put('/departments/{department}', [DepartmentController::class, 'departmentUpdate'])->name('departments.update');
+        Route::patch('/departments/{department}/activate', [DepartmentController::class, 'departmentActivate'])->name('departments.activate');
+        Route::patch('/departments/{department}/deactivate', [DepartmentController::class, 'departmentDeactivate'])->name('departments.deactivate');
 
         // Positions CRUD
         Route::get('/positions', [PositionController::class, 'positionIndex'])->name('positions.index');

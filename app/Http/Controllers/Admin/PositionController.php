@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanyDepartment;
 use App\Models\CompanyPosition;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,13 +13,20 @@ class PositionController extends Controller
     public function positionMaster(Request $request)
     {
         $positions = CompanyPosition::query()
+            ->with('department:id,name')
             ->orderBy('name')
             ->paginate(10)
             ->through(function ($position) {
                 $position->status = $position->is_active ? 'Active' : 'Inactive';
+                $position->department_name = $position->department?->name;
                 return $position;
             })
             ->withQueryString();
+
+        $departments = CompanyDepartment::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         $stats = [
             'totalPositions'  => CompanyPosition::count(),
@@ -26,8 +34,9 @@ class PositionController extends Controller
         ];
 
         return Inertia::render('Admin/PositionMaster', [
-            'positions' => $positions,
-            'stats'     => $stats,
+            'positions'   => $positions,
+            'departments' => $departments,
+            'stats'       => $stats,
         ]);
     }
 
@@ -36,15 +45,19 @@ class PositionController extends Controller
         $search = $request->input('search');
 
         $positions = CompanyPosition::query()
-            ->when($search, fn ($q) =>
+            ->with('department:id,name')
+            ->when($search, function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('department', 'like', "%{$search}%")
-            )
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhereHas('department', function ($dq) use ($search) {
+                        $dq->where('name', 'like', "%{$search}%");
+                    });
+            })
             ->orderBy('name')
             ->paginate(10)
             ->through(function ($position) {
                 $position->status = $position->is_active ? 'Active' : 'Inactive';
+                $position->department_name = $position->department?->name;
                 return $position;
             })
             ->withQueryString();
@@ -57,13 +70,13 @@ class PositionController extends Controller
         $request->validate([
             'code' => 'required|string|max:50|unique:company_positions,code',
             'name' => 'required|string|max:255|unique:company_positions,name',
-            'department' => 'required|string|max:255',
+            'department_id' => 'required|exists:company_departments,id',
         ]);
 
         CompanyPosition::create([
             'code' => strtoupper($request->code),
             'name' => $request->name,
-            'department' => $request->department,
+            'department_id' => $request->department_id,
             'is_active' => true,
         ]);
 
@@ -75,13 +88,13 @@ class PositionController extends Controller
         $request->validate([
             'code' => 'required|string|max:50|unique:company_positions,code,' . $position->id,
             'name' => 'required|string|max:255|unique:company_positions,name,' . $position->id,
-            'department' => 'required|string|max:255',
+            'department_id' => 'required|exists:company_departments,id',
         ]);
 
         $position->update([
             'code' => strtoupper($request->code),
             'name' => $request->name,
-            'department' => $request->department,
+            'department_id' => $request->department_id,
         ]);
 
         return back()->with('success', 'Position updated.');
