@@ -1,12 +1,13 @@
 import AdminFormModal from "@/Components/admin/AdminFormModal";
 
-export default function NewLocationModal({
+export default function EditLocationModal({
   show,
   onClose,
   processing,
   errors,
-  form,
-  setForm,
+  editingLocation,
+  editForm,
+  setEditForm,
   onSubmit,
 }) {
   return (
@@ -14,7 +15,7 @@ export default function NewLocationModal({
       show={show}
       onClose={onClose}
       processing={processing}
-      title="New Location"
+      title="Edit Location"
       maxWidth="lg"
     >
       <form onSubmit={onSubmit} className="space-y-4">
@@ -24,8 +25,10 @@ export default function NewLocationModal({
           </label>
           <input
             className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            value={editForm.name}
+            onChange={(e) =>
+              setEditForm((p) => ({ ...p, name: e.target.value }))
+            }
             placeholder="e.g. Manila HQ"
             autoFocus
           />
@@ -40,8 +43,10 @@ export default function NewLocationModal({
           </label>
           <input
             className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={form.code}
-            onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
+            value={editForm.code}
+            onChange={(e) =>
+              setEditForm((p) => ({ ...p, code: e.target.value }))
+            }
             placeholder="e.g. MNL"
           />
           {errors.code ? (
@@ -56,9 +61,9 @@ export default function NewLocationModal({
           <input
             type="text"
             className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={form.phone_number}
+            value={editForm.phone_number}
             onChange={(e) =>
-              setForm((p) => ({ ...p, phone_number: e.target.value }))
+              setEditForm((p) => ({ ...p, phone_number: e.target.value }))
             }
             placeholder="e.g. +63 912 345 6789"
           />
@@ -74,13 +79,54 @@ export default function NewLocationModal({
           <input
             type="text"
             className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={form.address}
-            onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-            placeholder="Start typing an address..."
+            value={editForm.address}
+            onChange={(e) =>
+              setEditForm((p) => ({ ...p, address: e.target.value }))
+            }
+            placeholder="Enter address..."
           />
           {errors.address ? (
             <p className="mt-1 text-xs text-red-600">{errors.address}</p>
           ) : null}
+        </div>
+
+        <div className="rounded-lg border border-black/10 bg-[#FBFFFA] px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-800">Active Status</span>
+              <span className="text-xs text-slate-500">
+                Toggle whether this location is active or inactive.
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setEditForm((p) => ({ ...p, is_active: !Boolean(p.is_active) }))
+              }
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
+                editForm.is_active ? "bg-[#289800]" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                  editForm.is_active ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="mt-2">
+            <span
+              className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                editForm.is_active
+                  ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
+                  : "bg-red-100 text-red-600 border border-red-200"
+              }`}
+            >
+              {editForm.is_active ? "Active" : "Inactive"}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-black/10">
@@ -95,9 +141,9 @@ export default function NewLocationModal({
           <button
             type="submit"
             className="rounded-lg bg-[#289800] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-95 disabled:opacity-60"
-            disabled={processing || !form.name.trim()}
+            disabled={processing || !editForm.name.trim()}
           >
-            {processing ? "Saving..." : "Create Location"}
+            {processing ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </form>

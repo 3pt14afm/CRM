@@ -1,7 +1,11 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\PositionController;
+use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
@@ -9,7 +13,6 @@ use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
 use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController;
-use App\Models\User;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -30,42 +33,57 @@ Route::middleware(['auth', 'verified', 'admin'])
     ->name('admin.')
     ->group(function () {
 
-        // Admin landing redirects to Location Master
         Route::get('/panel', function () {
             return redirect()->route('admin.location-master.index');
         })->name('index');
 
-        // Sub-items
-        Route::get('/location-master', [AdminController::class, 'locationMaster'])->name('location-master.index');
-        Route::get('/position-master', [AdminController::class, 'positionMaster'])->name('position-master.index');
-        Route::get('/user-management', [AdminController::class, 'userManagement'])->name('user-management.index');
+        // Admin pages
+        Route::get('/location-master', [LocationController::class, 'locationMaster'])->name('location-master.index');
+        Route::get('/department-master', [DepartmentController::class, 'departmentMaster'])->name('department-master.index');
+        Route::get('/position-master', [PositionController::class, 'positionMaster'])->name('position-master.index');
+        Route::get('/user-management', [UserController::class, 'userManagement'])->name('user-management.index');
         Route::get('/approver-matrix', [AdminController::class, 'approverMatrix'])->name('approver-matrix.index');
         Route::get('/user-group-access-rights', [AdminController::class, 'userGroupAccessRights'])->name('user-group-access-rights.index');
         Route::get('/user-access-rights', [AdminController::class, 'userAccessRights'])->name('user-access-rights.index');
         Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit-logs.index');
 
         // Locations CRUD
-        Route::get('locations', [AdminController::class, 'locationIndex'])->name('locations.index');
-        Route::post('locations', [AdminController::class, 'locationStore'])->name('locations.store');
-        Route::put('locations/{location}', [AdminController::class, 'locationUpdate'])->name('locations.update');
-        Route::delete('locations/{location}', [AdminController::class, 'locationDestroy'])->name('locations.destroy');
-        Route::get('locations/{location}/users', [AdminController::class, 'locationUsers'])->name('locations.users');
+        Route::get('/locations', [LocationController::class, 'locationIndex'])->name('locations.index');
+        Route::post('/locations', [LocationController::class, 'locationStore'])->name('locations.store');
+        Route::put('/locations/{location}', [LocationController::class, 'locationUpdate'])->name('locations.update');
+        Route::patch('/locations/{location}/activate', [LocationController::class, 'locationActivate'])->name('locations.activate');
+        Route::patch('/locations/{location}/deactivate', [LocationController::class, 'locationDeactivate'])->name('locations.deactivate');
+        Route::delete('/locations/{location}', [LocationController::class, 'locationDestroy'])->name('locations.destroy');
+        Route::get('/locations/{location}/users', [LocationController::class, 'locationUsers'])->name('locations.users');
+
+        //Department CRUD
+        Route::get('/departments', [DepartmentController::class, 'departmentIndex'])->name('departments.index');
+        Route::post('/departments', [DepartmentController::class, 'departmentStore'])->name('departments.store');
+        Route::put('/departments/{department}', [DepartmentController::class, 'departmentUpdate'])->name('departments.update');
+        Route::patch('/departments/{department}/activate', [DepartmentController::class, 'departmentActivate'])->name('departments.activate');
+        Route::patch('/departments/{department}/deactivate', [DepartmentController::class, 'departmentDeactivate'])->name('departments.deactivate');
+
+        // Positions CRUD
+        Route::get('/positions', [PositionController::class, 'positionIndex'])->name('positions.index');
+        Route::post('/positions', [PositionController::class, 'positionStore'])->name('positions.store');
+        Route::put('/positions/{position}', [PositionController::class, 'positionUpdate'])->name('positions.update');
+        Route::patch('/positions/{position}/activate', [PositionController::class, 'positionActivate'])->name('positions.activate');
+        Route::patch('/positions/{position}/deactivate', [PositionController::class, 'positionDeactivate'])->name('positions.deactivate');
 
         // Users CRUD
-        Route::get('users', [AdminController::class, 'userIndex'])->name('users.index');
-        Route::post('users', [AdminController::class, 'userStore'])->name('users.store');
-        Route::put('users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
-        Route::patch('users/{user}/locations', [AdminController::class, 'userAssignLocations'])->name('users.locations');
-        Route::patch('users/{user}/ban', [AdminController::class, 'userBan'])->name('users.ban');
-        Route::patch('users/{user}/unban', [AdminController::class, 'userUnban'])->name('users.unban');
-        Route::delete('users/{user}', [AdminController::class, 'userDestroy'])->name('users.destroy');
+        Route::get('/users', [UserController::class, 'userIndex'])->name('users.index');
+        Route::post('/users', [UserController::class, 'userStore'])->name('users.store');
+        Route::put('/users/{user}', [UserController::class, 'userUpdate'])->name('users.update');
+        Route::patch('/users/{user}/locations', [UserController::class, 'userAssignLocations'])->name('users.locations');
+        Route::patch('/users/{user}/ban', [UserController::class, 'userBan'])->name('users.ban');
+        Route::patch('/users/{user}/unban', [UserController::class, 'userUnban'])->name('users.unban');
+        Route::delete('/users/{user}', [UserController::class, 'userDestroy'])->name('users.destroy');
 
         // Company Directory endpoints
-        Route::get('directory/positions', [AdminController::class, 'positions'])->name('directory.positions');
-        Route::get('directory/employees', [AdminController::class, 'employeesByPosition'])->name('directory.employees');
-        Route::post('users/assign-employee', [AdminController::class, 'assignEmployeeUser'])->name('users.assign-employee');
+        Route::get('/directory/positions', [PositionController::class, 'positions'])->name('directory.positions');
+        Route::get('/directory/employees', [UserController::class, 'employeesByPosition'])->name('directory.employees');
+        Route::post('/users/assign-employee', [UserController::class, 'assignEmployeeUser'])->name('users.assign-employee');
     });
-
 
 Route::middleware(['auth', 'verified'])
     ->prefix('customer-management')
@@ -95,14 +113,14 @@ Route::middleware(['auth', 'verified'])
                     ->name('roi.entry.projects.submit');
 
                 Route::get('/projects/{project}/print', function ($project) {
-                    $p = \App\Models\RoiEntryProject::with(['items','fees','user'])->findOrFail($project);
+                    $p = \App\Models\RoiEntryProject::with(['items', 'fees', 'user'])->findOrFail($project);
 
                     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                        'tab'               => request('tab', 'summary'),
-                        'storageKey'        => request('storageKey'),
-                        'autoprint'         => (bool) request('autoprint', false),
-                        'showDraftWatermark'=> (bool) request('draftWatermark', true),
-                        'entryProject'      => $p,
+                        'tab' => request('tab', 'summary'),
+                        'storageKey' => request('storageKey'),
+                        'autoprint' => (bool) request('autoprint', false),
+                        'showDraftWatermark' => (bool) request('draftWatermark', true),
+                        'entryProject' => $p,
                     ]);
                 })->name('roi.entry.projects.print');
 
@@ -135,14 +153,14 @@ Route::middleware(['auth', 'verified'])
                     ->name('roi.current.approve');
 
                 Route::get('/{id}/print', function ($id) {
-                    $p = \App\Models\RoiCurrentProject::with(['items','fees','user'])->findOrFail($id);
+                    $p = \App\Models\RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
                     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                        'tab'               => request('tab', 'summary'),
-                        'storageKey'        => request('storageKey'),
-                        'autoprint'         => (bool) request('autoprint', false),
-                        'showDraftWatermark'=> false,
-                        'entryProject'      => $p,
+                        'tab' => request('tab', 'summary'),
+                        'storageKey' => request('storageKey'),
+                        'autoprint' => (bool) request('autoprint', false),
+                        'showDraftWatermark' => false,
+                        'entryProject' => $p,
                     ]);
                 })->name('roi.current.print');
             });
@@ -150,8 +168,6 @@ Route::middleware(['auth', 'verified'])
             Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
             Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])->name('roi.archive.show');
 
-
-   // Change 'proposals' to 'proposals.'
             Route::prefix('proposals')->name('proposals.')->group(function () {
                 Route::get('/', [ProposalController::class, 'proposalList'])->name('list');
                 Route::get('/{id}', [ProposalController::class, 'show'])->name('show');

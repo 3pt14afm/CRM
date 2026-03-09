@@ -2,11 +2,11 @@ import React, { useMemo, useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
-import NewPositionModal from "@/Components/admin/modals/NewPositionModal";
-import EditPositionModal from "@/Components/admin/modals/EditPositionModal";
+import NewDepartmentModal from "@/Components/admin/modals/NewDepartmentModal";
+import EditDepartmentModal from "@/Components/admin/modals/EditDepartmentModal";
 import { MdEdit } from "react-icons/md";
 
-function PositionMaster({ stats, positions, departments }) {
+function DepartmentMaster({ stats, departments }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createProcessing, setCreateProcessing] = useState(false);
   const [createErrors, setCreateErrors] = useState({});
@@ -14,18 +14,16 @@ function PositionMaster({ stats, positions, departments }) {
   const [createForm, setCreateForm] = useState({
     code: "",
     name: "",
-    department_id: "",
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editProcessing, setEditProcessing] = useState(false);
   const [editErrors, setEditErrors] = useState({});
-  const [editingPosition, setEditingPosition] = useState(null);
+  const [editingDepartment, setEditingDepartment] = useState(null);
 
   const [editForm, setEditForm] = useState({
     code: "",
     name: "",
-    department_id: "",
     is_active: true,
   });
 
@@ -36,19 +34,14 @@ function PositionMaster({ stats, positions, departments }) {
     year: "2-digit",
   }).format(today);
 
-  const positionRows = useMemo(() => {
-    const raw = positions?.data ?? positions ?? stats?.positions ?? [];
+  const departmentRows = useMemo(() => {
+    const raw = departments?.data ?? departments ?? stats?.departments ?? [];
     return Array.isArray(raw) ? raw : [];
-  }, [positions, stats]);
+  }, [departments, stats]);
 
-  const departmentOptions = useMemo(() => {
-    const raw = departments?.data ?? departments ?? [];
-    return Array.isArray(raw) ? raw : [];
-  }, [departments]);
-
-  const isPositionActive = (position) => {
-    if (typeof position?.is_active === "boolean") return position.is_active;
-    if (typeof position?.status === "string") return position.status === "Active";
+  const isDepartmentActive = (department) => {
+    if (typeof department?.is_active === "boolean") return department.is_active;
+    if (typeof department?.status === "string") return department.status === "Active";
     return true;
   };
 
@@ -58,7 +51,6 @@ function PositionMaster({ stats, positions, departments }) {
     setCreateForm({
       code: "",
       name: "",
-      department_id: "",
     });
     setShowCreateModal(true);
   };
@@ -68,16 +60,15 @@ function PositionMaster({ stats, positions, departments }) {
     setShowCreateModal(false);
   };
 
-  const openEditModal = (position) => {
+  const openEditModal = (department) => {
     setEditErrors({});
     setEditProcessing(false);
-    setEditingPosition(position);
+    setEditingDepartment(department);
 
     setEditForm({
-      code: position?.code ?? "",
-      name: position?.name ?? "",
-      department_id: position?.department_id ?? "",
-      is_active: isPositionActive(position),
+      code: department?.code ?? "",
+      name: department?.name ?? "",
+      is_active: isDepartmentActive(department),
     });
 
     setShowEditModal(true);
@@ -86,7 +77,7 @@ function PositionMaster({ stats, positions, departments }) {
   const closeEditModal = () => {
     if (editProcessing) return;
     setShowEditModal(false);
-    setEditingPosition(null);
+    setEditingDepartment(null);
   };
 
   const submitCreate = (e) => {
@@ -95,18 +86,17 @@ function PositionMaster({ stats, positions, departments }) {
     setCreateErrors({});
 
     router.post(
-      route("admin.positions.store"),
+      route("admin.departments.store"),
       {
         code: createForm.code,
         name: createForm.name,
-        department_id: createForm.department_id,
       },
       {
         preserveScroll: true,
         onSuccess: () => {
           setCreateProcessing(false);
           setShowCreateModal(false);
-          router.reload({ only: ["positions", "stats"] });
+          router.reload({ only: ["departments", "stats"] });
         },
         onError: (errs) => {
           setCreateErrors(errs || {});
@@ -119,28 +109,27 @@ function PositionMaster({ stats, positions, departments }) {
 
   const submitEdit = (e) => {
     e.preventDefault();
-    if (!editingPosition?.id) return;
+    if (!editingDepartment?.id) return;
 
     setEditProcessing(true);
     setEditErrors({});
 
     router.put(
-      route("admin.positions.update", editingPosition.id),
+      route("admin.departments.update", editingDepartment.id),
       {
         code: editForm.code,
         name: editForm.name,
-        department_id: editForm.department_id,
       },
       {
         preserveScroll: true,
         onSuccess: () => {
           const shouldActivate = Boolean(editForm.is_active);
-          const currentlyActive = isPositionActive(editingPosition);
+          const currentlyActive = isDepartmentActive(editingDepartment);
 
           if (shouldActivate !== currentlyActive) {
             const toggleRoute = shouldActivate
-              ? route("admin.positions.activate", editingPosition.id)
-              : route("admin.positions.deactivate", editingPosition.id);
+              ? route("admin.departments.activate", editingDepartment.id)
+              : route("admin.departments.deactivate", editingDepartment.id);
 
             router.patch(
               toggleRoute,
@@ -148,10 +137,10 @@ function PositionMaster({ stats, positions, departments }) {
               {
                 preserveScroll: true,
                 onSuccess: () => {
-                  router.reload({ only: ["positions", "stats"] });
+                  router.reload({ only: ["departments", "stats"] });
                   setEditProcessing(false);
                   setShowEditModal(false);
-                  setEditingPosition(null);
+                  setEditingDepartment(null);
                 },
                 onError: (errs) => {
                   setEditErrors(errs || {});
@@ -160,48 +149,38 @@ function PositionMaster({ stats, positions, departments }) {
               }
             );
           } else {
-            router.reload({ only: ["positions", "stats"] });
+            router.reload({ only: ["departments", "stats"] });
             setEditProcessing(false);
             setShowEditModal(false);
-            setEditingPosition(null);
+            setEditingDepartment(null);
           }
         },
         onError: (errs) => {
           setEditErrors(errs || {});
           setEditProcessing(false);
         },
+        onFinish: () => {},
       }
     );
   };
 
-  const positionColumns = useMemo(
+  const departmentColumns = useMemo(
     () => [
       {
         key: "code",
-        header: "POSITION CODE",
+        header: "DEPARTMENT CODE",
         cell: (r) => r.code ?? "—",
       },
       {
         key: "name",
-        header: "POSITION NAME",
+        header: "DEPARTMENT NAME",
         cell: (r) => r.name ?? "—",
-      },
-      {
-        key: "department",
-        header: <div className="text-center w-full">DEPARTMENT</div>,
-        cell: (r) => (
-          <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
-              {r.department_name ?? "—"}
-            </span>
-          </div>
-        ),
       },
       {
         key: "status",
         header: <div className="text-center w-full">STATUS</div>,
         cell: (r) => {
-          const isActive = isPositionActive(r);
+          const isActive = isDepartmentActive(r);
 
           return (
             <div className="w-full flex justify-center items-center">
@@ -245,27 +224,27 @@ function PositionMaster({ stats, positions, departments }) {
 
   const goToPage = (p) => {
     router.get(
-      route("admin.position-master.index"),
+      route("admin.department-master.index"),
       { page: p },
       { preserveScroll: true, preserveState: true }
     );
   };
 
-  const positionPagination =
-    positions && typeof positions.current_page === "number"
+  const departmentPagination =
+    departments && typeof departments.current_page === "number"
       ? {
-          page: positions.current_page,
-          perPage: positions.per_page ?? 10,
-          total: positions.total ?? positionRows.length,
+          page: departments.current_page,
+          perPage: departments.per_page ?? 10,
+          total: departments.total ?? departmentRows.length,
           onPageChange: goToPage,
         }
       : null;
 
   return (
     <>
-      <Head title="Position Master" />
+      <Head title="Department Master" />
 
-      <NewPositionModal
+      <NewDepartmentModal
         show={showCreateModal}
         onClose={closeCreateModal}
         processing={createProcessing}
@@ -273,19 +252,17 @@ function PositionMaster({ stats, positions, departments }) {
         form={createForm}
         setForm={setCreateForm}
         onSubmit={submitCreate}
-        departments={departmentOptions}
       />
 
-      <EditPositionModal
+      <EditDepartmentModal
         show={showEditModal}
         onClose={closeEditModal}
         processing={editProcessing}
         errors={editErrors}
-        editingPosition={editingPosition}
+        editingDepartment={editingDepartment}
         editForm={editForm}
         setEditForm={setEditForm}
         onSubmit={submitEdit}
-        departments={departmentOptions}
       />
 
       <div className="min-h-screen flex flex-col">
@@ -294,10 +271,10 @@ function PositionMaster({ stats, positions, departments }) {
             <div className="flex items-start justify-between gap-6">
               <div className="flex flex-col gap-1">
                 <h1 className="text-lg font-semibold text-slate-900 md:text-xl lg:text-2xl">
-                  Position Master
+                  Department Master
                 </h1>
                 <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
-                  Manage company positions across the system.
+                  Manage company departments across the system.
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -313,7 +290,7 @@ function PositionMaster({ stats, positions, departments }) {
                     className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
                     onClick={openCreateModal}
                   >
-                    + New Position
+                    + New Department
                   </button>
                 </div>
               </div>
@@ -322,11 +299,11 @@ function PositionMaster({ stats, positions, departments }) {
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10 xl:-mx-14">
               <ProjectListSection
                 tiles={[]}
-                tableTitle="Positions"
-                columns={positionColumns}
-                rows={positionRows}
+                tableTitle="Departments"
+                columns={departmentColumns}
+                rows={departmentRows}
                 rowKey={(r, i) => String(r.id ?? i)}
-                pagination={positionPagination}
+                pagination={departmentPagination}
               />
             </div>
           </div>
@@ -340,5 +317,5 @@ function PositionMaster({ stats, positions, departments }) {
   );
 }
 
-export default PositionMaster;
-PositionMaster.layout = (page) => <AuthenticatedLayout children={page} />;
+export default DepartmentMaster;
+DepartmentMaster.layout = (page) => <AuthenticatedLayout children={page} />;

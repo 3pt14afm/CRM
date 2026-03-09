@@ -16,7 +16,7 @@ class CheckBanned
             $request->session()->regenerateToken();
 
             return redirect()->route('login')
-                ->withErrors(['email' => 'Your account has been banned. Contact your administrator.']);
+                ->withErrors(['email' => 'Your account has been inactivated. Contact your administrator.']);
         }
 
         return $next($request);

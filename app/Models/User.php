@@ -18,15 +18,14 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
+        'employee_id',
+        'position',
         'email',
         'password',
-        'role',
-
         'primary_location_id',
-        'location',
-
-        'is_banned', 
+        'is_banned',
     ];
 
     /**
@@ -47,11 +46,15 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'location' => 'array',
-            'is_banned'         => 'boolean',
+            'email_verified_at'   => 'datetime',
+            'password'            => 'hashed',
+            'is_banned'           => 'boolean',
             'primary_location_id' => 'integer',
         ];
+    }
+
+    public function setEmployeeIdAttribute($value): void
+    {
+        $this->attributes['employee_id'] = str_pad((string) $value, 4, '0', STR_PAD_LEFT);
     }
 }
