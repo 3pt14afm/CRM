@@ -46,11 +46,15 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at'    => 'datetime',
-            'password'             => 'hashed',
-            'is_banned'            => 'boolean',
-            'primary_location_id'  => 'integer',
-            'employee_id'          => 'integer',
+            'email_verified_at'   => 'datetime',
+            'password'            => 'hashed',
+            'is_banned'           => 'boolean',
+            'primary_location_id' => 'integer',
         ];
+    }
+
+    public function setEmployeeIdAttribute($value): void
+    {
+        $this->attributes['employee_id'] = str_pad((string) $value, 4, '0', STR_PAD_LEFT);
     }
 }

@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
             [
                 'first_name'          => 'Admin',
                 'last_name'           => 'User',
-                'employee_id'         => 1000001,
+                'employee_id'         => 0001,
                 'position'            => 'Administrator',
                 'password'            => Hash::make('P@ssw0rd'),
                 'email_verified_at'   => now(),

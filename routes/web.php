@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\PositionController;
+use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
@@ -33,43 +36,44 @@ Route::middleware(['auth', 'verified', 'admin'])
             return redirect()->route('admin.location-master.index');
         })->name('index');
 
-        Route::get('/location-master', [AdminController::class, 'locationMaster'])->name('location-master.index');
-        Route::get('/position-master', [AdminController::class, 'positionMaster'])->name('position-master.index');
-        Route::get('/user-management', [AdminController::class, 'userManagement'])->name('user-management.index');
+        // Admin pages
+        Route::get('/location-master', [LocationController::class, 'locationMaster'])->name('location-master.index');
+        Route::get('/position-master', [PositionController::class, 'positionMaster'])->name('position-master.index');
+        Route::get('/user-management', [UserController::class, 'userManagement'])->name('user-management.index');
         Route::get('/approver-matrix', [AdminController::class, 'approverMatrix'])->name('approver-matrix.index');
         Route::get('/user-group-access-rights', [AdminController::class, 'userGroupAccessRights'])->name('user-group-access-rights.index');
         Route::get('/user-access-rights', [AdminController::class, 'userAccessRights'])->name('user-access-rights.index');
         Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit-logs.index');
 
         // Locations CRUD
-        Route::get('/locations', [AdminController::class, 'locationIndex'])->name('locations.index');
-        Route::post('/locations', [AdminController::class, 'locationStore'])->name('locations.store');
-        Route::put('/locations/{location}', [AdminController::class, 'locationUpdate'])->name('locations.update');
-        Route::patch('/locations/{location}/activate', [AdminController::class, 'locationActivate'])->name('locations.activate');
-        Route::patch('/locations/{location}/deactivate', [AdminController::class, 'locationDeactivate'])->name('locations.deactivate');
-        Route::delete('/locations/{location}', [AdminController::class, 'locationDestroy'])->name('locations.destroy');
-        Route::get('/locations/{location}/users', [AdminController::class, 'locationUsers'])->name('locations.users');
+        Route::get('/locations', [LocationController::class, 'locationIndex'])->name('locations.index');
+        Route::post('/locations', [LocationController::class, 'locationStore'])->name('locations.store');
+        Route::put('/locations/{location}', [LocationController::class, 'locationUpdate'])->name('locations.update');
+        Route::patch('/locations/{location}/activate', [LocationController::class, 'locationActivate'])->name('locations.activate');
+        Route::patch('/locations/{location}/deactivate', [LocationController::class, 'locationDeactivate'])->name('locations.deactivate');
+        Route::delete('/locations/{location}', [LocationController::class, 'locationDestroy'])->name('locations.destroy');
+        Route::get('/locations/{location}/users', [LocationController::class, 'locationUsers'])->name('locations.users');
 
         // Positions CRUD
-        Route::get('/positions', [AdminController::class, 'positionIndex'])->name('positions.index');
-        Route::post('/positions', [AdminController::class, 'positionStore'])->name('positions.store');
-        Route::put('/positions/{position}', [AdminController::class, 'positionUpdate'])->name('positions.update');
-        Route::patch('/positions/{position}/activate', [AdminController::class, 'positionActivate'])->name('positions.activate');
-        Route::patch('/positions/{position}/deactivate', [AdminController::class, 'positionDeactivate'])->name('positions.deactivate');
+        Route::get('/positions', [PositionController::class, 'positionIndex'])->name('positions.index');
+        Route::post('/positions', [PositionController::class, 'positionStore'])->name('positions.store');
+        Route::put('/positions/{position}', [PositionController::class, 'positionUpdate'])->name('positions.update');
+        Route::patch('/positions/{position}/activate', [PositionController::class, 'positionActivate'])->name('positions.activate');
+        Route::patch('/positions/{position}/deactivate', [PositionController::class, 'positionDeactivate'])->name('positions.deactivate');
 
         // Users CRUD
-        Route::get('/users', [AdminController::class, 'userIndex'])->name('users.index');
-        Route::post('/users', [AdminController::class, 'userStore'])->name('users.store');
-        Route::put('/users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
-        Route::patch('/users/{user}/locations', [AdminController::class, 'userAssignLocations'])->name('users.locations');
-        Route::patch('/users/{user}/ban', [AdminController::class, 'userBan'])->name('users.ban');
-        Route::patch('/users/{user}/unban', [AdminController::class, 'userUnban'])->name('users.unban');
-        Route::delete('/users/{user}', [AdminController::class, 'userDestroy'])->name('users.destroy');
+        Route::get('/users', [UserController::class, 'userIndex'])->name('users.index');
+        Route::post('/users', [UserController::class, 'userStore'])->name('users.store');
+        Route::put('/users/{user}', [UserController::class, 'userUpdate'])->name('users.update');
+        Route::patch('/users/{user}/locations', [UserController::class, 'userAssignLocations'])->name('users.locations');
+        Route::patch('/users/{user}/ban', [UserController::class, 'userBan'])->name('users.ban');
+        Route::patch('/users/{user}/unban', [UserController::class, 'userUnban'])->name('users.unban');
+        Route::delete('/users/{user}', [UserController::class, 'userDestroy'])->name('users.destroy');
 
         // Company Directory endpoints
-        Route::get('/directory/positions', [AdminController::class, 'positions'])->name('directory.positions');
-        Route::get('/directory/employees', [AdminController::class, 'employeesByPosition'])->name('directory.employees');
-        Route::post('/users/assign-employee', [AdminController::class, 'assignEmployeeUser'])->name('users.assign-employee');
+        Route::get('/directory/positions', [PositionController::class, 'positions'])->name('directory.positions');
+        Route::get('/directory/employees', [UserController::class, 'employeesByPosition'])->name('directory.employees');
+        Route::post('/users/assign-employee', [UserController::class, 'assignEmployeeUser'])->name('users.assign-employee');
     });
 
 Route::middleware(['auth', 'verified'])

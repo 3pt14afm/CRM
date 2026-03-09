@@ -35,7 +35,7 @@ export function getUserColumns({ onEdit, isUserActive }) {
       header: <div className="text-center w-full">POSITION</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] lg:text-sm">{r.position ?? "—"}</span>
+          <span className="text-[11px] text-center lg:text-sm">{r.position ?? "—"}</span>
         </div>
       ),
     },
@@ -53,7 +53,7 @@ export function getUserColumns({ onEdit, isUserActive }) {
       header: <div className="text-center w-full">LOCATION</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] lg:text-sm">{r.location_name ?? "—"}</span>
+          <span className="text-[11px] text-center lg:text-sm">{r.location_name ?? "—"}</span>
         </div>
       ),
     },
