@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('first_name');
             $table->string('last_name');
 
-            $table->unsignedBigInteger('employee_id')->nullable()->unique();
+            $table->string('employee_id', 4)->unique();
             $table->string('position')->nullable();
 
             $table->string('email')->unique();
