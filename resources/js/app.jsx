@@ -13,10 +13,10 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 createInertiaApp({
   title: (title) => `${title}`,
   resolve: (name) =>
-    resolvePageComponent(
-      `./Pages/${name}.jsx`,
-      import.meta.glob('./Pages/**/*.jsx'),
-    ),
+  resolvePageComponent(
+    [`./Pages/${name}.jsx`, `./Pages/${name}/index.jsx`],
+    import.meta.glob('./Pages/**/*.jsx'),
+  ),
   setup({ el, App, props }) {
     const WrappedApp = (
       <NoWheelNumberInput>

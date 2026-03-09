@@ -13,21 +13,14 @@ use Inertia\Inertia;
 
 class AdminController extends Controller
 {
-    /**
-     * Admin Panel (Locations + Users in one page)
-     * GET /admin/panel
-     */
     public function locationMaster(Request $request)
     {
         $locations = Location::query()
             ->orderBy('name')
             ->paginate(10)
             ->through(function ($location) {
-                $location->users_count = User::whereJsonContains('location', (int) $location->id)->count();
-                $location->approvers_count = User::whereJsonContains('location', (int) $location->id)
-                    ->where('role', 'approver')
-                    ->count();
-                $location->status = 'Active';
+                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
+                $location->status = $location->is_active ? 'Active' : 'Inactive';
                 return $location;
             })
             ->withQueryString();
@@ -46,39 +39,40 @@ class AdminController extends Controller
 
     public function userManagement(Request $request)
     {
-        $locationNameById = Location::pluck('name', 'id');
         $locationLookup = Location::orderBy('name')->get(['id', 'name']);
 
         $users = User::query()
-            ->select('id', 'name', 'email', 'role', 'primary_location_id', 'location', 'is_banned', 'created_at')
-            ->orderBy('name')
+            ->select(
+                'id',
+                'first_name',
+                'last_name',
+                'employee_id',
+                'position',
+                'email',
+                'primary_location_id',
+                'is_banned',
+                'created_at'
+            )
+            ->orderBy('first_name')
+            ->orderBy('last_name')
             ->paginate(10)
-            ->through(function ($u) use ($locationNameById) {
+            ->through(function ($u) use ($locationLookup) {
                 $u->status = $u->is_banned ? 'Inactive' : 'Active';
                 $u->created_display = optional($u->created_at)->format('m/d/y');
-
-                $ids = is_array($u->location) ? $u->location : (array) $u->location;
-
-                $u->assigned_locations = collect($ids)
-                    ->map(fn ($id) => $locationNameById[(int) $id] ?? null)
-                    ->filter()
-                    ->values()
-                    ->all();
+                $u->location_name = optional(
+                    $locationLookup->firstWhere('id', (int) $u->primary_location_id)
+                )->name;
 
                 return $u;
             })
             ->withQueryString();
 
-        // UserManagement.jsx expects locations.data to exist
         $locations = Location::query()
             ->orderBy('name')
             ->paginate(10)
             ->through(function ($location) {
-                $location->users_count = User::whereJsonContains('location', (int) $location->id)->count();
-                $location->approvers_count = User::whereJsonContains('location', (int) $location->id)
-                    ->where('role', 'approver')
-                    ->count();
-                $location->status = 'Active';
+                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
+                $location->status = $location->is_active ? 'Active' : 'Inactive';
                 return $location;
             })
             ->withQueryString();
@@ -87,7 +81,6 @@ class AdminController extends Controller
             'totalUsers'         => User::count(),
             'recentlyAddedToday' => User::whereDate('created_at', now()->toDateString())->count(),
             'activeUsers'        => User::where('is_banned', false)->count(),
-            'pendingApprovals'   => User::where('role', 'approver')->count(),
         ];
 
         return Inertia::render('Admin/UserManagement', [
@@ -98,9 +91,26 @@ class AdminController extends Controller
         ]);
     }
 
-    public function positionMaster()
+    public function positionMaster(Request $request)
     {
-        return Inertia::render('Admin/PositionMaster');
+        $positions = CompanyPosition::query()
+            ->orderBy('name')
+            ->paginate(10)
+            ->through(function ($position) {
+                $position->status = $position->is_active ? 'Active' : 'Inactive';
+                return $position;
+            })
+            ->withQueryString();
+
+        $stats = [
+            'totalPositions'  => CompanyPosition::count(),
+            'activePositions' => CompanyPosition::where('is_active', true)->count(),
+        ];
+
+        return Inertia::render('Admin/PositionMaster', [
+            'positions' => $positions,
+            'stats'     => $stats,
+        ]);
     }
 
     public function approverMatrix()
@@ -123,9 +133,7 @@ class AdminController extends Controller
         return Inertia::render('Admin/AuditLogs');
     }
 
-    // ─────────────────────────────────────────
     // LOCATIONS
-    // ─────────────────────────────────────────
 
     public function locationIndex(Request $request)
     {
@@ -135,23 +143,21 @@ class AdminController extends Controller
             ->when($search, fn ($q) =>
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('code', 'like', "%{$search}%")
+                  ->orWhere('phone_number', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%")
             )
             ->orderBy('name')
             ->paginate(10)
             ->through(function ($location) {
-                $location->users_count = User::whereJsonContains('location', (int) $location->id)->count();
-                $location->approvers_count = User::whereJsonContains('location', (int) $location->id)
-                    ->where('role', 'approver')
-                    ->count();
-                $location->status = 'Active';
+                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
+                $location->status = $location->is_active ? 'Active' : 'Inactive';
                 return $location;
             })
             ->withQueryString();
 
         $stats = [
-            'totalLocations'   => Location::count(),
-            'activeUsers'      => User::where('is_banned', false)->count(),
-            'pendingApprovals' => User::where('role', 'approver')->count(),
+            'totalLocations' => Location::count(),
+            'activeUsers'    => User::where('is_banned', false)->count(),
         ];
 
         return Inertia::render('Admin/Locations/Index', [
@@ -166,11 +172,16 @@ class AdminController extends Controller
         $request->validate([
             'name' => 'required|string|max:255|unique:locations,name',
             'code' => 'nullable|string|max:20|unique:locations,code',
+            'phone_number' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:1000',
         ]);
 
         Location::create([
             'name' => $request->name,
             'code' => $request->code ? strtoupper($request->code) : null,
+            'phone_number' => $request->phone_number,
+            'address' => $request->address,
+            'is_active' => true,
         ]);
 
         return back()->with('success', 'Location created.');
@@ -181,45 +192,48 @@ class AdminController extends Controller
         $request->validate([
             'name' => 'required|string|max:255|unique:locations,name,' . $location->id,
             'code' => 'nullable|string|max:20|unique:locations,code,' . $location->id,
+            'phone_number' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:1000',
         ]);
 
         $location->update([
             'name' => $request->name,
-            'code' => $request->code ? strtoupper($request->code) : $location->code,
+            'code' => $request->code ? strtoupper($request->code) : null,
+            'phone_number' => $request->phone_number,
+            'address' => $request->address,
         ]);
 
-        // no user updates needed (users store ids, not names)
         return back()->with('success', 'Location updated.');
+    }
+
+    public function locationActivate(Location $location)
+    {
+        $location->update(['is_active' => true]);
+
+        return back()->with('success', 'Location activated.');
+    }
+
+    public function locationDeactivate(Location $location)
+    {
+        $location->update(['is_active' => false]);
+
+        return back()->with('success', 'Location deactivated.');
     }
 
     public function locationDestroy(Location $location)
     {
-        // remove this location ID from all users JSON arrays
-        $affected = User::whereJsonContains('location', (int) $location->id)->get();
-        foreach ($affected as $user) {
-            $current = is_array($user->location) ? $user->location : (array) $user->location;
-            $updated = array_values(array_filter(
-                $current,
-                fn ($id) => (int) $id !== (int) $location->id
-            ));
-            $user->update(['location' => $updated]);
-        }
+        User::where('primary_location_id', (int) $location->id)
+            ->update(['primary_location_id' => null]);
 
         $location->delete();
 
-        return back()->with('success', 'Location deleted and removed from all users.');
+        return back()->with('success', 'Location deleted.');
     }
 
     public function locationUsers(Request $request, Location $location)
     {
-        // ✅ map once for UI conversion
-        $locationNameById = Location::pluck('name', 'id');
-
         $users = User::query()
-            ->whereJsonContains('location', (int) $location->id)
-            ->when($request->role && $request->role !== 'all', fn ($q) =>
-                $q->where('role', $request->role)
-            )
+            ->where('primary_location_id', (int) $location->id)
             ->when($request->status === 'active', fn ($q) =>
                 $q->where('is_banned', false)
             )
@@ -227,49 +241,119 @@ class AdminController extends Controller
                 $q->where('is_banned', true)
             )
             ->when($request->search, fn ($q) =>
-                $q->where(fn ($inner) =>
-                    $inner->where('name', 'like', "%{$request->search}%")
+                $q->where(function ($inner) use ($request) {
+                    $inner->where('first_name', 'like', "%{$request->search}%")
+                          ->orWhere('last_name', 'like', "%{$request->search}%")
                           ->orWhere('email', 'like', "%{$request->search}%")
-                )
+                          ->orWhere('position', 'like', "%{$request->search}%");
+                })
             )
-            ->select('id', 'name', 'email', 'role', 'location', 'is_banned')
-            ->orderBy('name')
+            ->select(
+                'id',
+                'first_name',
+                'last_name',
+                'employee_id',
+                'position',
+                'email',
+                'primary_location_id',
+                'is_banned'
+            )
+            ->orderBy('first_name')
+            ->orderBy('last_name')
             ->paginate(10)
-            ->through(function ($u) use ($locationNameById) {
-                $ids = is_array($u->location) ? $u->location : (array) $u->location;
-                $u->assigned_locations = collect($ids)
-                    ->map(fn ($id) => $locationNameById[(int) $id] ?? null)
-                    ->filter()
-                    ->values()
-                    ->all();
-                return $u;
-            })
             ->withQueryString();
 
         return Inertia::render('Admin/Locations/Users', [
             'location' => $location,
             'users'    => $users,
-            'filters'  => $request->only(['search', 'role', 'status']),
+            'filters'  => $request->only(['search', 'status']),
         ]);
     }
 
-    // ─────────────────────────────────────────
+    // POSITIONS
+
+    public function positionIndex(Request $request)
+    {
+        $search = $request->input('search');
+
+        $positions = CompanyPosition::query()
+            ->when($search, fn ($q) =>
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('code', 'like', "%{$search}%")
+                  ->orWhere('department', 'like', "%{$search}%")
+            )
+            ->orderBy('name')
+            ->paginate(10)
+            ->through(function ($position) {
+                $position->status = $position->is_active ? 'Active' : 'Inactive';
+                return $position;
+            })
+            ->withQueryString();
+
+        return response()->json($positions);
+    }
+
+    public function positionStore(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string|max:50|unique:company_positions,code',
+            'name' => 'required|string|max:255|unique:company_positions,name',
+            'department' => 'required|string|max:255',
+        ]);
+
+        CompanyPosition::create([
+            'code' => strtoupper($request->code),
+            'name' => $request->name,
+            'department' => $request->department,
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', 'Position created.');
+    }
+
+    public function positionUpdate(Request $request, CompanyPosition $position)
+    {
+        $request->validate([
+            'code' => 'required|string|max:50|unique:company_positions,code,' . $position->id,
+            'name' => 'required|string|max:255|unique:company_positions,name,' . $position->id,
+            'department' => 'required|string|max:255',
+        ]);
+
+        $position->update([
+            'code' => strtoupper($request->code),
+            'name' => $request->name,
+            'department' => $request->department,
+        ]);
+
+        return back()->with('success', 'Position updated.');
+    }
+
+    public function positionActivate(CompanyPosition $position)
+    {
+        $position->update(['is_active' => true]);
+
+        return back()->with('success', 'Position activated.');
+    }
+
+    public function positionDeactivate(CompanyPosition $position)
+    {
+        $position->update(['is_active' => false]);
+
+        return back()->with('success', 'Position deactivated.');
+    }
+
     // USERS
-    // ─────────────────────────────────────────
 
     public function userIndex(Request $request)
     {
-        $locationNameById = Location::pluck('name', 'id');
-
         $users = User::query()
             ->when($request->search, fn ($q) =>
-                $q->where(fn ($inner) =>
-                    $inner->where('name', 'like', "%{$request->search}%")
+                $q->where(function ($inner) use ($request) {
+                    $inner->where('first_name', 'like', "%{$request->search}%")
+                          ->orWhere('last_name', 'like', "%{$request->search}%")
                           ->orWhere('email', 'like', "%{$request->search}%")
-                )
-            )
-            ->when($request->role && $request->role !== 'all', fn ($q) =>
-                $q->where('role', $request->role)
+                          ->orWhere('position', 'like', "%{$request->search}%");
+                })
             )
             ->when($request->status === 'active', fn ($q) =>
                 $q->where('is_banned', false)
@@ -278,62 +362,52 @@ class AdminController extends Controller
                 $q->where('is_banned', true)
             )
             ->when($request->location, fn ($q) =>
-                $q->whereJsonContains('location', (int) $request->location)
+                $q->where('primary_location_id', (int) $request->location)
             )
-            ->select('id', 'name', 'email', 'role', 'location', 'is_banned', 'created_at')
-            ->orderBy('name')
-            ->paginate(15)
-            ->through(function ($u) use ($locationNameById) {
-                $ids = is_array($u->location) ? $u->location : (array) $u->location;
-                $u->assigned_locations = collect($ids)
-                    ->map(fn ($id) => $locationNameById[(int) $id] ?? null)
-                    ->filter()
-                    ->values()
-                    ->all();
-                return $u;
-            })
+            ->select(
+                'id',
+                'first_name',
+                'last_name',
+                'employee_id',
+                'position',
+                'email',
+                'primary_location_id',
+                'is_banned',
+                'created_at'
+            )
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Users/Index', [
             'users'     => $users,
             'locations' => Location::orderBy('name')->get(['id', 'name']),
-            'filters'   => $request->only(['search', 'role', 'status', 'location']),
+            'filters'   => $request->only(['search', 'status', 'location']),
         ]);
     }
 
     public function userStore(Request $request)
     {
-
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'role' => 'required|in:preparer,reviewer,checker,endorser,confirmer,approver,admin,user',
-            'password' => 'required|string|min:8',
-
+            'first_name'          => 'required|string|max:255',
+            'last_name'           => 'required|string|max:255',
+            'employee_id'         => 'required|integer|unique:users,employee_id',
+            'position'            => 'required|string|max:255',
+            'email'               => 'required|email|unique:users,email',
             'primary_location_id' => 'required|integer|exists:locations,id',
-
-            'location' => 'nullable|array',
-            'location.*' => 'integer|exists:locations,id',
         ]);
 
-        $allowed = $request->location ?? [];
-        $primary = (int) $request->primary_location_id;
-
-        if (!in_array($primary, $allowed, true)) {
-            $allowed[] = $primary;
-        }
-
         User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role' => $request->role,
-            'password' => Hash::make($request->password),
-
-            'primary_location_id' => $primary,
-            'location' => array_values(array_unique($allowed)),
-
-            'is_banned' => false,
-            'email_verified_at' => now(),
+            'first_name'          => $request->first_name,
+            'last_name'           => $request->last_name,
+            'employee_id'         => $request->employee_id,
+            'position'            => $request->position,
+            'email'               => $request->email,
+            'primary_location_id' => (int) $request->primary_location_id,
+            'password'            => Hash::make('P@ssw0rd'),
+            'is_banned'           => false,
+            'email_verified_at'   => now(),
         ]);
 
         return back()->with('success', 'User created.');
@@ -341,33 +415,23 @@ class AdminController extends Controller
 
     public function userUpdate(Request $request, User $user)
     {
-
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'role' => 'required|in:preparer,reviewer,checker,endorser,confirmer,approver,admin,user',
-            'password' => 'nullable|string|min:8',
-
+            'first_name'          => 'required|string|max:255',
+            'last_name'           => 'required|string|max:255',
+            'employee_id'         => 'required|integer|unique:users,employee_id,' . $user->id,
+            'position'            => 'required|string|max:255',
+            'email'               => 'required|email|unique:users,email,' . $user->id,
             'primary_location_id' => 'required|integer|exists:locations,id',
-
-            'location' => 'nullable|array',
-            'location.*' => 'integer|exists:locations,id',
+            'password'            => 'nullable|string|min:8',
         ]);
 
-        $allowed = $request->location ?? [];
-        $primary = (int) $request->primary_location_id;
-
-        if (!in_array($primary, $allowed, true)) {
-            $allowed[] = $primary;
-        }
-
         $data = [
-            'name' => $request->name,
-            'email' => $request->email,
-            'role' => $request->role,
-
-            'primary_location_id' => $primary,
-            'location' => array_values(array_unique($allowed)),
+            'first_name'          => $request->first_name,
+            'last_name'           => $request->last_name,
+            'employee_id'         => $request->employee_id,
+            'position'            => $request->position,
+            'email'               => $request->email,
+            'primary_location_id' => (int) $request->primary_location_id,
         ];
 
         if ($request->filled('password')) {
@@ -381,14 +445,9 @@ class AdminController extends Controller
 
     public function userAssignLocations(Request $request, User $user)
     {
-        $request->validate([
-            'location' => 'required|array',
-            'location.*' => 'integer|exists:locations,id',
+        return back()->withErrors([
+            'location' => 'Multiple user locations are not used in the current setup.',
         ]);
-
-        $user->update(['location' => $request->location]);
-
-        return back()->with('success', 'Locations assigned to ' . $user->name . '.');
     }
 
     public function userBan(User $user)
@@ -397,16 +456,20 @@ class AdminController extends Controller
             return back()->withErrors(['ban' => 'You cannot ban yourself.']);
         }
 
+        $fullName = trim($user->first_name . ' ' . $user->last_name);
+
         $user->update(['is_banned' => true]);
 
-        return back()->with('success', $user->name . ' has been banned.');
+        return back()->with('success', $fullName . ' has been banned.');
     }
 
     public function userUnban(User $user)
     {
+        $fullName = trim($user->first_name . ' ' . $user->last_name);
+
         $user->update(['is_banned' => false]);
 
-        return back()->with('success', $user->name . ' has been unbanned.');
+        return back()->with('success', $fullName . ' has been unbanned.');
     }
 
     public function userDestroy(User $user)
@@ -424,6 +487,7 @@ class AdminController extends Controller
     {
         return response()->json(
             CompanyPosition::query()
+                ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name'])
         );
@@ -441,17 +505,20 @@ class AdminController extends Controller
             ->orderBy('name')
             ->get(['id', 'employee_code', 'name', 'position_id', 'primary_location_id']);
 
-        // return with main location name for UI
-        $locNames = \App\Models\Location::pluck('name', 'id');
+        $locNames = Location::pluck('name', 'id');
+        $positionNames = CompanyPosition::pluck('name', 'id');
 
-        $employees = $employees->map(function ($e) use ($locNames) {
+        $employees = $employees->map(function ($e) use ($locNames, $positionNames) {
+            $nameParts = preg_split('/\s+/', trim((string) $e->name), 2);
+
             return [
-                'id' => $e->id,
-                'employee_code' => $e->employee_code,
-                'name' => $e->name,
-                'position_id' => $e->position_id,
-                'primary_location_id' => $e->primary_location_id,
-                'primary_location_name' => $locNames[(int)$e->primary_location_id] ?? null,
+                'id'                    => $e->id,
+                'employee_code'         => $e->employee_code,
+                'first_name'            => $nameParts[0] ?? '',
+                'last_name'             => $nameParts[1] ?? '',
+                'position'              => $positionNames[(int) $e->position_id] ?? null,
+                'primary_location_id'   => $e->primary_location_id,
+                'primary_location_name' => $locNames[(int) $e->primary_location_id] ?? null,
             ];
         });
 
@@ -461,41 +528,26 @@ class AdminController extends Controller
     public function assignEmployeeUser(Request $request)
     {
         $request->validate([
-            'employee_id' => ['required', 'integer', 'exists:company_employees,id'],
-            'role' => ['required', 'in:preparer,reviewer,checker,endorser,confirmer,approver,admin,user'],
-            'location' => ['nullable', 'array'],
-            'location.*' => ['integer', 'exists:locations,id'],
+            'first_name'          => ['required', 'string', 'max:255'],
+            'last_name'           => ['required', 'string', 'max:255'],
+            'employee_id'         => ['required', 'integer', 'unique:users,employee_id'],
+            'position'            => ['required', 'string', 'max:255'],
+            'email'               => ['required', 'email', 'unique:users,email'],
+            'primary_location_id' => ['required', 'integer', 'exists:locations,id'],
         ]);
 
-        $employee = CompanyEmployee::query()->findOrFail((int) $request->employee_id);
+        User::create([
+            'first_name'          => $request->first_name,
+            'last_name'           => $request->last_name,
+            'employee_id'         => $request->employee_id,
+            'position'            => $request->position,
+            'email'               => $request->email,
+            'primary_location_id' => (int) $request->primary_location_id,
+            'password'            => Hash::make('P@ssw0rd'),
+            'is_banned'           => false,
+            'email_verified_at'   => now(),
+        ]);
 
-        $primary = (int) $employee->primary_location_id;
-        $allowed = $request->location ?? [];
-
-        // always include main location
-        if (!in_array($primary, $allowed, true)) {
-            $allowed[] = $primary;
-        }
-
-        // email: auto-generate placeholder
-        $email = 'emp' . $employee->id . '@local.company';
-
-        // create/update system user linked to this employee
-        $user = User::updateOrCreate(
-            ['employee_id' => $employee->id],
-            [
-                'name' => $employee->name,
-                'email' => $email,
-                'role' => $request->role,
-                'primary_location_id' => $primary,
-                'location' => array_values(array_unique($allowed)),
-                'is_banned' => false,
-                'email_verified_at' => now(),
-                // password: optional — for now set default if empty
-                'password' => Hash::make('password'),
-            ]
-        );
-
-        return back()->with('success', 'Employee assigned as user: ' . $user->name);
+        return back()->with('success', 'User created successfully.');
     }
 }

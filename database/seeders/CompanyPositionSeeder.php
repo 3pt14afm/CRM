@@ -10,16 +10,34 @@ class CompanyPositionSeeder extends Seeder
     public function run(): void
     {
         $positions = [
-            'Account Manager',
-            'Sales Manager',
-            'Sales Director',
-            'VP - Sales & Marketing',
-            'Executive Admin Officer',
-            'CEO/President',
+            [
+                'code' => 'AM-001',
+                'name' => 'Account Manager',
+                'department' => 'Sales',
+                'is_active' => true,
+            ],
+            [
+                'code' => 'SA-001',
+                'name' => 'Sales Associate',
+                'department' => 'Sales',
+                'is_active' => true,
+            ],
+            [
+                'code' => 'HR-001',
+                'name' => 'HR Officer',
+                'department' => 'Human Resources',
+                'is_active' => true,
+            ],
+            [
+                'code' => 'MK-001',
+                'name' => 'Marketing Specialist',
+                'department' => 'Marketing',
+                'is_active' => true,
+            ],
         ];
 
-        foreach ($positions as $name) {
-            CompanyPosition::firstOrCreate(['name' => $name]);
+        foreach ($positions as $position) {
+            CompanyPosition::create($position);
         }
     }
 }
