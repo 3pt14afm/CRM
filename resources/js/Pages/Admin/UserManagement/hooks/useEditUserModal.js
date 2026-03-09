@@ -48,6 +48,8 @@ export default function useEditUserModal() {
       first_name: editForm.first_name,
       last_name: editForm.last_name,
       employee_id: Number(editForm.employee_id),
+      department_id: Number(editForm.department_id),
+      department: editForm.department,
       position: editForm.position,
       email: editForm.email,
       primary_location_id: Number(editForm.primary_location_id),

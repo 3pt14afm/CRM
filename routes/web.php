@@ -80,6 +80,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::delete('/users/{user}', [UserController::class, 'userDestroy'])->name('users.destroy');
 
         // Company Directory endpoints
+        Route::get('/directory/departments', [DepartmentController::class, 'departments'])->name('directory.departments');
         Route::get('/directory/positions', [PositionController::class, 'positions'])->name('directory.positions');
         Route::get('/directory/employees', [UserController::class, 'employeesByPosition'])->name('directory.employees');
         Route::post('/users/assign-employee', [UserController::class, 'assignEmployeeUser'])->name('users.assign-employee');

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('last_name');
 
             $table->string('employee_id', 4)->unique();
+            $table->unsignedBigInteger('department_id')->nullable()->index();
             $table->string('position')->nullable();
 
             $table->string('email')->unique();

@@ -29,18 +29,20 @@ export const formatShortDate = (date = new Date()) =>
     year: "2-digit",
 }).format(date);
 
-export const buildEditFormFromUser = (u) => {
+export function buildEditFormFromUser(user) {
   return {
-    first_name: u?.first_name ?? "",
-    last_name: u?.last_name ?? "",
-    employee_id: u?.employee_id ?? "",
-    position: u?.position ?? "",
-    email: u?.email ?? "",
+    first_name: user?.first_name ?? "",
+    last_name: user?.last_name ?? "",
+    employee_id: user?.employee_id ?? "",
+    email: user?.email ?? "",
+    department_id: user?.department_id ?? "",
+    department: user?.department ?? "",
+    position: user?.position ?? "",
+    primary_location_id: user?.primary_location_id ?? "",
     password: "",
-    primary_location_id: u?.primary_location_id ?? "",
-    is_banned: Boolean(u?.is_banned ?? false),
+    is_banned: Boolean(user?.is_banned),
   };
-};
+}
 
 export const getNextLocationSelection = (currentLocations, targetId, primaryId) => {
   const n = Number(targetId);

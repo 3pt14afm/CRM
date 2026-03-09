@@ -40,6 +40,15 @@ export function getUserColumns({ onEdit, isUserActive }) {
       ),
     },
     {
+      key: "department",
+      header: <div className="text-center w-full">DEPARTMENT</div>,
+      cell: (r) => (
+        <div className="w-full flex justify-center items-center">
+          <span className="text-[11px] text-center lg:text-sm">{r.department_name ?? "—"}</span>
+        </div>
+      ),
+    },
+    {
       key: "email",
       header: <div className="text-center w-full">EMAIL</div>,
       cell: (r) => (

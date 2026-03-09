@@ -33,6 +33,8 @@ export default function useAssignUserModal() {
         first_name: assignForm.first_name,
         last_name: assignForm.last_name,
         employee_id: Number(assignForm.employee_id),
+        department_id: Number(assignForm.department_id),
+        department: assignForm.department,
         position: assignForm.position,
         email: assignForm.email,
         primary_location_id: Number(assignForm.primary_location_id),
