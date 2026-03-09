@@ -30,7 +30,7 @@ export default function ProposalList({ proposals, stats }) {
                 variant: "normal",
             },
             {
-                label: "Recently Archived",
+                label: "Recently Approved",
                 value: recentlyArchivedToday,
                 icon: <IoTimeOutline />,
                 variant: "normal",
@@ -126,7 +126,7 @@ export default function ProposalList({ proposals, stats }) {
                     onClick={() => setActiveTab('archive')}
                     className={`pb-2 font-semibold text-sm ${activeTab === 'archive' ? 'border-b-2 border-[#289800] text-[#289800]' : 'text-gray-500'}`}
                 >
-                    Archived Projects
+                    Approved Projects
                 </button>
                 <button 
                     onClick={() => setActiveTab('generated')}
@@ -140,7 +140,7 @@ export default function ProposalList({ proposals, stats }) {
             {activeTab === 'archive' ? (
                 <ProjectListSection
                     tiles={tiles}
-                    tableTitle="Archived Projects"
+                    tableTitle="Approved Projects"
                     columns={columns}
                     rows={rows}
                     rowKey={(r) => String(r.id)}
