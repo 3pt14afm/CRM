@@ -21,6 +21,21 @@ class UserController extends Controller
         $departmentLookup = CompanyDepartment::orderBy('name')->get(['id', 'name']);
 
         $users = User::query()
+            ->when($request->status === 'active', fn ($q) =>
+                $q->where('is_banned', false)
+            )
+            ->when($request->status === 'banned', fn ($q) =>
+                $q->where('is_banned', true)
+            )
+            ->when($request->location, fn ($q) =>
+                $q->where('primary_location_id', (int) $request->location)
+            )
+            ->when($request->department, fn ($q) =>
+                $q->where('department_id', (int) $request->department)
+            )
+            ->when($request->position, fn ($q) =>
+                $q->where('position', $request->position)
+            )
             ->select(
                 'id',
                 'first_name',
@@ -69,8 +84,10 @@ class UserController extends Controller
         return Inertia::render('Admin/UserManagement', [
             'users'          => $users,
             'locations'      => $locations,
+            'departments'    => $departmentLookup,
             'locationLookup' => $locationLookup,
             'stats'          => $stats,
+            'filters'        => $request->only(['status', 'location', 'department', 'position']),
         ]);
     }
 
@@ -94,6 +111,12 @@ class UserController extends Controller
             ->when($request->location, fn ($q) =>
                 $q->where('primary_location_id', (int) $request->location)
             )
+            ->when($request->department, fn ($q) =>
+                $q->where('department_id', (int) $request->department)
+            )
+            ->when($request->position, fn ($q) =>
+                $q->where('position', $request->position)
+            )
             ->select(
                 'id',
                 'first_name',
@@ -112,9 +135,10 @@ class UserController extends Controller
             ->withQueryString();
 
         return Inertia::render('Admin/Users/Index', [
-            'users'     => $users,
-            'locations' => Location::orderBy('name')->get(['id', 'name']),
-            'filters'   => $request->only(['search', 'status', 'location']),
+            'users'       => $users,
+            'locations'   => Location::orderBy('name')->get(['id', 'name']),
+            'departments' => CompanyDepartment::orderBy('name')->get(['id', 'name']),
+            'filters'     => $request->only(['search', 'status', 'location', 'department', 'position']),
         ]);
     }
 
