@@ -7,10 +7,9 @@ import { FaUser } from "react-icons/fa";
 import { MdLock } from "react-icons/md";
 import { LuEye, LuEyeClosed } from "react-icons/lu";
 
-
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
-        email: '',
+        login: '',
         password: '',
         remember: false,
     });
@@ -27,25 +26,25 @@ export default function Login({ status, canResetPassword }) {
     const passwordRef = useRef(null);
 
     const togglePassword = () => {
-    const el = passwordRef.current;
-    if (!el) {
-        setShowPassword((v) => !v);
-        return;
-    }
-
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-
-    setShowPassword((v) => !v);
-
-    requestAnimationFrame(() => {
-        el.focus();
-        try {
-        el.setSelectionRange(start, end);
-        } catch {
-        // Some browsers can throw when type changes; ignore safely
+        const el = passwordRef.current;
+        if (!el) {
+            setShowPassword((v) => !v);
+            return;
         }
-    });
+
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+
+        setShowPassword((v) => !v);
+
+        requestAnimationFrame(() => {
+            el.focus();
+            try {
+                el.setSelectionRange(start, end);
+            } catch {
+                // ignore safely
+            }
+        });
     };
 
     return (
@@ -57,10 +56,8 @@ export default function Login({ status, canResetPassword }) {
                     
                     {/* Left Side: Branding */}
                     <div className="hidden md:flex w-[55%] bg-[#2D7813] p-8 flex-col justify-between items-center text-white">
-                       <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
-
+                        <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
                             <img src="/images/logo.webp" alt="Logo" />
-
                         </div>
                         
                         <div className="flex justify-center w-full">
@@ -76,24 +73,29 @@ export default function Login({ status, canResetPassword }) {
                         </div>
 
                         <div className="w-full">
-                            {/* Email/Username Field */}
+                            {/* Employee ID / Email Field */}
                             <div className="mb-4">
-                                <InputLabel htmlFor="email" value="Username" className="text-text-secondary font-bold text-sm mb-2 ml-1" />
+                                <InputLabel
+                                    htmlFor="login"
+                                    value="Email"
+                                    className="text-text-secondary font-bold text-sm mb-2 ml-1"
+                                />
 
-                                <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.email ? 'border-red-500' : ''}`}>
+                                <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.login ? 'border-red-500' : ''}`}>
                                     <FaUser className="text-darkgreen/50 group-focus-within:text-darkgreen w-4 h-4 ml-3" />
-                                    <input 
-                                        id="email"
-                                        type="email" 
-                                        name="email"
-                                        value={data.email}
-                                        onChange={(e) => setData('email', e.target.value)}
-                                        placeholder="username" 
+                                    <input
+                                        id="login"
+                                        type="text"
+                                        name="login"
+                                        value={data.login}
+                                        onChange={(e) => setData('login', e.target.value)}
+                                        placeholder="Enter email"
                                         className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
+                                        autoComplete="username"
                                     />
                                 </div>
-                                
-                                
+
+                                <InputError message={errors.login} className="mt-2" />
                             </div>
 
                             {/* Password Field */}
@@ -102,32 +104,30 @@ export default function Login({ status, canResetPassword }) {
 
                                 <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.password ? 'border-red-500' : ''}`}>
                                     <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen w-5 h-5 ml-3" />
-                                    <input 
+                                    <input
                                         ref={passwordRef}
                                         id="password"
-                                        type={showPassword ? "text" : "password"} 
+                                        type={showPassword ? "text" : "password"}
                                         name="password"
                                         value={data.password}
                                         onChange={(e) => setData('password', e.target.value)}
-                                        placeholder="••••••••"  
-                                        className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0" 
+                                        placeholder="••••••••"
+                                        className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
+                                        autoComplete="current-password"
                                     />
 
                                     <button
                                         type="button"
-                                        onMouseDown={(e) => e.preventDefault()}    
+                                        onMouseDown={(e) => e.preventDefault()}
                                         onClick={togglePassword}
                                         className="mr-3 text-darkgreen/50 hover:text-darkgreen transition"
                                         aria-label={showPassword ? "Hide password" : "Show password"}
                                     >
-                                        {/* CLOSED eye when hidden (default), OPEN eye when shown */}
                                         {showPassword ? <LuEye className="w-5 h-5" /> : <LuEyeClosed className="w-5 h-5" />}
                                     </button>
                                 </div>
-                                {/* Display Error for Password */}
+
                                 <InputError message={errors.password} className="mt-2" />
-                                {/* Display Error for Email */}
-                                <InputError message={errors.email} className="mt-2" />
                             </div>
 
                             <div className="flex items-center justify-end mt-2">
@@ -141,15 +141,14 @@ export default function Login({ status, canResetPassword }) {
                                 )}
                             </div>
 
-                            <PrimaryButton 
-                                className="w-full h-[53px] rounded-xl justify-center mt-6" 
+                            <PrimaryButton
+                                className="w-full h-[53px] rounded-xl justify-center mt-6"
                                 disabled={processing}
                             >
                                 {processing ? 'AUTHORIZING...' : 'AUTHORIZE LOGIN'}
                             </PrimaryButton>
                         </div>
                     </div>
-
                 </div>
             </div>
         </form>

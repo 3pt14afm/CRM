@@ -38,14 +38,13 @@ export default function EditUserModal({
       maxWidth="2xl"
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="rounded-md border border-black/10 bg-white p-3">
-          <p className="pb-2 text-xs text-slate-500">Editing User</p>
-          <p className="text-sm font-semibold text-slate-900">
+        <div className="flex flex-col rounded-md border justify-center items-center border-black/10 bg-white p-3">
+          <p className="text-base font-bold text-slate-900">
             {editingUser
               ? `${editingUser.first_name ?? ""} ${editingUser.last_name ?? ""}`.trim()
               : "—"}
           </p>
-          <p className="text-[11px] text-slate-500">{editingUser?.email ?? "—"}</p>
+          <p className="text-sm text-slate-500">{editingUser?.email ?? "—"}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

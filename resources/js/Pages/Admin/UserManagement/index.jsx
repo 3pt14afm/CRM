@@ -1,3 +1,5 @@
+// resources/js/Pages/Admin/UserManagement.jsx
+
 import React, { useCallback, useMemo } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
@@ -12,7 +14,7 @@ import useEditUserModal from "./hooks/useEditUserModal";
 import usePositions from "./hooks/usePositions";
 import useDepartments from "./hooks/useDepartments";
 
-function UserManagement({ users, locations }) {
+function UserManagement({ users, locations, departments: departmentOptionsProp = [], filters = {} }) {
   const formattedDate = formatShortDate();
 
   const locationOptions = useMemo(() => {
@@ -31,13 +33,61 @@ function UserManagement({ users, locations }) {
     [editModal.openEditModal]
   );
 
-  const goToPage = useCallback((p) => {
-    router.get(
-      route("admin.user-management.index"),
-      { page: p },
-      { preserveScroll: true, preserveState: true }
-    );
-  }, []);
+  const applyFilters = useCallback(
+    (nextFilters = {}) => {
+      router.get(
+        route("admin.user-management.index"),
+        {
+          status: nextFilters.status ?? filters.status ?? "",
+          location: nextFilters.location ?? filters.location ?? "",
+          position: nextFilters.position ?? filters.position ?? "",
+          department: nextFilters.department ?? filters.department ?? "",
+          page: nextFilters.page ?? 1,
+        },
+        {
+          preserveScroll: true,
+          preserveState: true,
+          replace: true,
+        }
+      );
+    },
+    [filters]
+  );
+
+  const goToPage = useCallback(
+    (p) => {
+      applyFilters({ page: p });
+    },
+    [applyFilters]
+  );
+
+  const handleStatusChange = useCallback(
+    (value) => {
+      applyFilters({ status: value, page: 1 });
+    },
+    [applyFilters]
+  );
+
+  const handleLocationChange = useCallback(
+    (value) => {
+      applyFilters({ location: value, page: 1 });
+    },
+    [applyFilters]
+  );
+
+  const handlePositionChange = useCallback(
+    (value) => {
+      applyFilters({ position: value, page: 1 });
+    },
+    [applyFilters]
+  );
+
+  const handleDepartmentChange = useCallback(
+    (value) => {
+      applyFilters({ department: value, page: 1 });
+    },
+    [applyFilters]
+  );
 
   const userRows = users?.data ?? [];
   const userPagination =
@@ -49,6 +99,54 @@ function UserManagement({ users, locations }) {
           onPageChange: goToPage,
         }
       : null;
+
+  const locationFilterOptions = useMemo(
+    () => [
+      { label: "All", value: "" },
+      ...locationOptions.map((location) => ({
+        label: location.name,
+        value: String(location.id),
+      })),
+    ],
+    [locationOptions]
+  );
+
+  const positionFilterOptions = useMemo(() => {
+    const list = Array.isArray(positions) ? positions : [];
+    return [
+      { label: "All", value: "" },
+      ...list.map((position) => ({
+        label: position.name,
+        value: position.name,
+      })),
+    ];
+  }, [positions]);
+
+  const departmentFilterOptions = useMemo(() => {
+    const list =
+      Array.isArray(departmentOptionsProp) && departmentOptionsProp.length
+        ? departmentOptionsProp
+        : Array.isArray(departments)
+        ? departments
+        : [];
+
+    return [
+      { label: "All", value: "" },
+      ...list.map((department) => ({
+        label: department.name,
+        value: String(department.id),
+      })),
+    ];
+  }, [departmentOptionsProp, departments]);
+
+  const statusFilterOptions = useMemo(
+    () => [
+      { label: "All", value: "" },
+      { label: "Active", value: "active" },
+      { label: "Inactive", value: "banned" },
+    ],
+    []
+  );
 
   return (
     <>
@@ -119,9 +217,35 @@ function UserManagement({ users, locations }) {
               <div className="-mx-4 md:-mx-6 lg:-mx-10 xl:-mx-14">
                 <div className="-mb-2 mx-6 lg:mx-10 xl:mx-14 rounded-lg border border-black/10 bg-white px-4 py-2 shadow-sm">
                   <div className="flex flex-wrap items-center gap-2">
-                    <FilterPill label="Status" />
-                    <FilterPill label="Location" />
-                    <FilterPill label="Position" />
+                    <FilterPill
+                      label="Status"
+                      value={filters.status ?? ""}
+                      options={statusFilterOptions}
+                      onChange={handleStatusChange}
+                    />
+
+                    <FilterPill
+                      label="Location"
+                      value={String(filters.location ?? "")}
+                      options={locationFilterOptions}
+                      onChange={handleLocationChange}
+                    />
+
+                    <FilterPill
+                      label="Department"
+                      value={String(filters.department ?? "")}
+                      options={departmentFilterOptions}
+                      onChange={handleDepartmentChange}
+                      disabled={loadingDepartments}
+                    />
+
+                    <FilterPill
+                      label="Position"
+                      value={filters.position ?? ""}
+                      options={positionFilterOptions}
+                      onChange={handlePositionChange}
+                      disabled={loadingPositions}
+                    />
                   </div>
                 </div>
 
