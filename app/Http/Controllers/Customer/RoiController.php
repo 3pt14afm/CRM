@@ -191,19 +191,20 @@ class RoiController extends Controller
             $project->user_id,
             $project->approved_by,
             $project->rejected_by,
-            $project->reviewed_by_id ?? null,
-            $project->checked_by_id ?? null,
-            $project->endorsed_by_id ?? null,
-            $project->confirmed_by_id ?? null,
+            $project->reviewed_by,
+            $project->checked_by,
+            $project->endorsed_by,
+            $project->confirmed_by,
         ])->filter()->unique()->values();
 
         $usersById = User::query()
             ->whereIn('id', $userIds)
             ->get(['id', 'first_name', 'last_name'])
-            ->keyBy(fn ($u) => (string) $u->id)
-            ->map(fn ($u) => [
-                'id' => $u->id,
-                'name' => trim($u->first_name . ' ' . $u->last_name),
+            ->mapWithKeys(fn ($u) => [
+                (string) $u->id => [
+                    'id' => $u->id,
+                    'name' => trim($u->first_name . ' ' . $u->last_name),
+                ],
             ]);
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [

@@ -10,7 +10,7 @@ return new class extends Migration {
         Schema::create('roi_current_projects', function (Blueprint $table) {
             $table->id();
 
-            // This should represent the Level 1 owner (Prepared By)
+            // Preparer / submitter
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
 
             $table->foreignId('location_id')
@@ -18,7 +18,6 @@ return new class extends Migration {
                 ->constrained('locations')
                 ->nullOnDelete();
 
-            // helpful inbox filtering
             $table->index(['location_id', 'current_level', 'status']);
 
             // stable ID across stages
@@ -28,16 +27,41 @@ return new class extends Migration {
             $table->unsignedInteger('version')->default(1);
             $table->timestamp('last_saved_at')->nullable();
 
-            // current scope
-            $table->string('status')->default('pending'); // pending | rejected | back_to_sender
-            $table->string('reviewed_by')->nullable();
-            $table->string('checked_by')->nullable();
-            $table->string('endorsed_by')->nullable();
-            $table->string('confirmed_by')->nullable();
-            $table->string('approved_by')->nullable();
+            // runtime workflow/status
+            $table->string('status')->default('For Review');
             $table->text('status_reason')->nullable();
             $table->timestamp('status_updated_at')->nullable();
             $table->unsignedBigInteger('status_updated_by')->nullable();
+            $table->timestamp('submitted_at')->nullable();
+
+            // current workflow owner (2..6)
+            $table->unsignedTinyInteger('current_level')->default(2);
+
+            // approver assignments copied from approver matrix
+            $table->foreignId('reviewed_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('checked_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('endorsed_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('confirmed_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('approved_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
             // inputs: companyInfo
             $table->string('company_name')->default('');
@@ -76,17 +100,9 @@ return new class extends Migration {
             $table->decimal('grand_roi', 18, 6)->default(0);
             $table->decimal('grand_roi_percentage', 18, 10)->default(0);
 
-            // computed: succeeding years snapshot
             $table->json('yearly_breakdown')->nullable();
-
-            // inline notes/comments if you still want them later
             $table->json('notes')->nullable();
             $table->json('comments')->nullable();
-
-            $table->timestamp('submitted_at')->nullable();
-
-            // ✅ WORKFLOW OWNER (2..6)
-            $table->unsignedTinyInteger('current_level')->default(2);
 
             $table->timestamps();
 
@@ -94,8 +110,6 @@ return new class extends Migration {
             $table->index(['contract_type']);
             $table->index(['contract_years']);
             $table->index(['updated_at']);
-
-            // ✅ for filtering inbox by level
             $table->index(['current_level']);
 
             $table->foreign('status_updated_by')

@@ -11,42 +11,39 @@ function Names() {
   const isArchive = routeName === 'archive';
   const status = String(project?.status ?? '').toLowerCase();
   const isRejected = isArchive && status === 'rejected';
-  const isApproved = isArchive && status === 'approved';
 
   const nameOf = (id, fallback = '—') => {
     if (!id) return fallback;
     return usersById?.[String(id)]?.name ?? fallback;
   };
 
-  // ✅ Snapshot signatories (print mode)
   const snapSigns = projectData?.metadata?.signatories ?? {};
   const fromSnap = (key) => snapSigns?.[key] ?? '—';
 
   const hasPageProject = !!project;
 
-  // Prepared by (ID-based if project exists, else snapshot)
   const preparedBy = hasPageProject
     ? (project?.user?.name ?? nameOf(project?.user_id, '—'))
     : fromSnap('preparedBy');
 
   const reviewedBy = hasPageProject
-    ? nameOf(project?.reviewed_by_id, project?.reviewed_by ?? '—')
+    ? nameOf(project?.reviewed_by)
     : fromSnap('reviewedBy');
 
   const checkedBy = hasPageProject
-    ? nameOf(project?.checked_by_id, project?.checked_by ?? '—')
+    ? nameOf(project?.checked_by)
     : fromSnap('checkedBy');
 
   const endorsedBy = hasPageProject
-    ? nameOf(project?.endorsed_by_id, project?.endorsed_by ?? '—')
+    ? nameOf(project?.endorsed_by)
     : fromSnap('endorsedBy');
 
   const confirmedBy = hasPageProject
-    ? nameOf(project?.confirmed_by_id, project?.confirmed_by ?? '—')
+    ? nameOf(project?.confirmed_by)
     : fromSnap('confirmedBy');
 
   const approvedBy = hasPageProject
-    ? (isApproved ? nameOf(project?.approved_by) : '—')
+    ? nameOf(project?.approved_by)
     : fromSnap('approvedBy');
 
   const rejectedBy = hasPageProject
@@ -54,7 +51,6 @@ function Names() {
     : fromSnap('rejectedBy');
 
   const rejectedLevel = Number(project?.rejected_by_level ?? 0);
-  const rejectNameForLevel = (level) => (isRejected && rejectedLevel === level ? rejectedBy : '—');
 
   return (
     <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-12">
@@ -63,26 +59,26 @@ function Names() {
 
         <Signatory
           label="REVIEWED BY:"
-          name={isRejected ? rejectNameForLevel(2) : reviewedBy}
+          name={isRejected && rejectedLevel === 2 ? rejectedBy : reviewedBy}
           title="Sales Manager"
         />
 
         <Signatory
           label="CHECKED BY:"
-          name={isRejected ? rejectNameForLevel(3) : checkedBy}
+          name={isRejected && rejectedLevel === 3 ? rejectedBy : checkedBy}
           title="Sales Director"
         />
 
         <Signatory
           label="ENDORSED BY:"
-          name={isRejected ? rejectNameForLevel(4) : endorsedBy}
+          name={isRejected && rejectedLevel === 4 ? rejectedBy : endorsedBy}
           title="VP - Sales & Marketing"
         />
 
         <div className="col-start-3">
           <Signatory
             label="CONFIRMED BY:"
-            name={isRejected ? rejectNameForLevel(5) : confirmedBy}
+            name={isRejected && rejectedLevel === 5 ? rejectedBy : confirmedBy}
             title="Executive Admin Officer"
           />
         </div>
@@ -90,7 +86,7 @@ function Names() {
         <div className="col-start-4">
           <Signatory
             label="APPROVED BY:"
-            name={isApproved ? approvedBy : '—'}
+            name={isRejected && rejectedLevel === 6 ? rejectedBy : approvedBy}
             title="CEO/President"
           />
         </div>

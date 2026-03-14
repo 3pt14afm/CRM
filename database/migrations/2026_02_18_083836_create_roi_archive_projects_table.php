@@ -10,9 +10,9 @@ return new class extends Migration {
         Schema::create('roi_archive_projects', function (Blueprint $table) {
             $table->id();
 
-            // This should represent the Level 1 owner (Prepared By)
+            // Preparer / submitter
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
-            
+
             $table->foreignId('location_id')
                 ->nullable()
                 ->constrained('locations')
@@ -26,18 +26,35 @@ return new class extends Migration {
             $table->unsignedInteger('version')->default(1);
             $table->timestamp('last_saved_at')->nullable();
 
-            // ✅ final status of archived record
+            // final archived status
             $table->string('status')->default('approved'); // approved | rejected
-            $table->string('reviewed_by')->nullable();
-            $table->string('checked_by')->nullable();
-            $table->string('endorsed_by')->nullable();
-            $table->string('confirmed_by')->nullable();
+
+            // carried-over approver assignments
+            $table->foreignId('reviewed_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('checked_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('endorsed_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('confirmed_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
             // approved metadata
             $table->timestamp('approved_at')->nullable();
             $table->unsignedBigInteger('approved_by')->nullable();
 
-            // ✅ rejected metadata
+            // rejected metadata
             $table->timestamp('rejected_at')->nullable();
             $table->unsignedBigInteger('rejected_by')->nullable();
             $table->unsignedTinyInteger('rejected_by_level')->nullable();
@@ -47,6 +64,7 @@ return new class extends Migration {
             $table->unsignedInteger('contract_years')->default(0);
             $table->string('contract_type')->default('');
             $table->boolean('bundled_std_ink')->default(false);
+            $table->string('purpose')->nullable();
 
             // inputs: interest
             $table->decimal('annual_interest', 10, 4)->default(0);
@@ -79,7 +97,6 @@ return new class extends Migration {
             $table->decimal('grand_roi_percentage', 18, 10)->default(0);
 
             $table->json('yearly_breakdown')->nullable();
-
             $table->json('notes')->nullable();
             $table->json('comments')->nullable();
 
@@ -89,8 +106,6 @@ return new class extends Migration {
             $table->index(['contract_type']);
             $table->index(['contract_years']);
             $table->index(['updated_at']);
-
-            // helpful for archive filtering/search
             $table->index(['status', 'approved_at']);
             $table->index(['status', 'rejected_at']);
 
