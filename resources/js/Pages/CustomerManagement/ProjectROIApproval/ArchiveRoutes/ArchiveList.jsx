@@ -92,7 +92,6 @@ function ArchiveList({ archiveProjects, stats }) {
         return (
           <span className="text-slate-800">
             {name}
-            {lvl ? <span className="text-slate-500 text-xs"> ({lvl})</span> : null}
           </span>
         );
       }

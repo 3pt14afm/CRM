@@ -12,45 +12,33 @@ class RoiCurrentProject extends Model
 
     protected $fillable = [
         'user_id',
+        'location_id',
         'project_uid',
         'reference',
         'version',
         'last_saved_at',
-
-        // temporary workflow/status runtime
         'status',
         'status_reason',
         'status_updated_at',
         'status_updated_by',
         'submitted_at',
         'current_level',
-
-        // temporary audit/signatory fields
-        // these will later be replaced or supplemented by matrix-resolved approvals
         'reviewed_by',
         'checked_by',
         'endorsed_by',
         'confirmed_by',
         'approved_by',
-
-        // company info
         'company_name',
         'contract_years',
         'contract_type',
         'bundled_std_ink',
         'purpose',
-
-        // interest
         'annual_interest',
         'percent_margin',
-
-        // yield
         'mono_yield_monthly',
         'mono_yield_annual',
         'color_yield_monthly',
         'color_yield_annual',
-
-        // machine totals
         'mc_unit_cost',
         'mc_qty',
         'mc_total_cost',
@@ -60,15 +48,11 @@ class RoiCurrentProject extends Model
         'mc_total_sell',
         'mc_sell_cpp',
         'mc_total_bundled_price',
-
-        // fees + grand totals
         'fees_total',
         'grand_total_cost',
         'grand_total_revenue',
         'grand_roi',
         'grand_roi_percentage',
-
-        // snapshots / json
         'yearly_breakdown',
         'notes',
         'comments',
@@ -78,15 +62,18 @@ class RoiCurrentProject extends Model
         'last_saved_at' => 'datetime',
         'submitted_at' => 'datetime',
         'status_updated_at' => 'datetime',
-
         'bundled_std_ink' => 'boolean',
         'yearly_breakdown' => 'array',
         'notes' => 'array',
         'comments' => 'array',
-
         'user_id' => 'integer',
+        'location_id' => 'integer',
         'current_level' => 'integer',
         'status_updated_by' => 'integer',
+        'reviewed_by' => 'integer',
+        'checked_by' => 'integer',
+        'endorsed_by' => 'integer',
+        'confirmed_by' => 'integer',
         'approved_by' => 'integer',
     ];
 
@@ -103,5 +90,40 @@ class RoiCurrentProject extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+    public function reviewedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function checkedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_by');
+    }
+
+    public function endorsedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'endorsed_by');
+    }
+
+    public function confirmedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    public function approvedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function statusUpdatedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'status_updated_by');
     }
 }

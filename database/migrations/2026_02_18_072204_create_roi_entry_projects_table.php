@@ -19,7 +19,6 @@ return new class extends Migration {
 
             $table->index(['location_id', 'status']);
 
-            // recommended stable ID across stages (entry/current/archive)
             $table->ulid('project_uid')->unique();
 
             $table->string('reference')->unique();
@@ -27,19 +26,13 @@ return new class extends Migration {
             $table->timestamp('last_saved_at')->nullable();
 
             // entry scope
-            $table->string('status')->default('draft'); // draft | submitted (optional)
-            $table->string('reviewed_by')->nullable();
-            $table->string('checked_by')->nullable();
-            $table->string('endorsed_by')->nullable();
-            $table->string('confirmed_by')->nullable();
-            $table->string('approved_by')->nullable();
+            $table->string('status')->default('draft'); // draft | returned
 
-            
             // inputs: companyInfo
             $table->string('company_name');
             $table->unsignedInteger('contract_years')->default(0);
             $table->string('contract_type');
-            $table->string('purpose')->nullable(); // or ->string('purpose')->nullable()
+            $table->string('purpose')->nullable();
             $table->boolean('bundled_std_ink')->default(false);
 
             // inputs: interest

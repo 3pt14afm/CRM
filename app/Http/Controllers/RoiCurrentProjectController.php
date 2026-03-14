@@ -16,28 +16,6 @@ use Inertia\Inertia;
 
 class RoiCurrentProjectController extends Controller
 {
-    /**
-     * TEMPORARY workflow mapping.
-     * This will be replaced by Approver Matrix logic later.
-     */
-    private const ROLE_TO_LEVEL = [
-        'preparer'  => 1,
-        'reviewer'  => 2,
-        'checker'   => 3,
-        'endorser'  => 4,
-        'confirmer' => 5,
-        'approver'  => 6,
-    ];
-
-    private const LEVEL_TO_ROLE = [
-        1 => 'preparer',
-        2 => 'reviewer',
-        3 => 'checker',
-        4 => 'endorser',
-        5 => 'confirmer',
-        6 => 'approver',
-    ];
-
     private const LEVEL_TO_LABEL = [
         1 => 'Prepared By',
         2 => 'Reviewed By',
@@ -47,126 +25,95 @@ class RoiCurrentProjectController extends Controller
         6 => 'Approved By',
     ];
 
-    private function roleToLevel(?string $role): ?int
-    {
-        $role = strtolower(trim((string) $role));
-
-        return self::ROLE_TO_LEVEL[$role] ?? null;
-    }
-
-    private function levelToRole(int $level): ?string
-    {
-        return self::LEVEL_TO_ROLE[$level] ?? null;
-    }
-
     private function levelLabel(int $level): string
     {
         return self::LEVEL_TO_LABEL[$level] ?? 'Unknown';
     }
 
-    private function getAuthenticatedUserAndLevel(): array
+    private function getAuthenticatedUser()
     {
         $user = Auth::user();
-        $level = $this->roleToLevel($user->workflow_role);
 
-        if ($level === null) {
-            abort(403, 'Your account has no workflow role.');
+        if (!$user) {
+            abort(403, 'Unauthenticated.');
         }
 
-        return [$user, $level];
+        return $user;
     }
 
-    private function isPreparerLevel(int $level): bool
+    private function approverColumnForLevel(int $level): ?string
     {
-        return $level === 1;
+        return match ($level) {
+            2 => 'reviewed_by',
+            3 => 'checked_by',
+            4 => 'endorsed_by',
+            5 => 'confirmed_by',
+            6 => 'approved_by',
+            default => null,
+        };
     }
 
-    private function isApproverLevel(int $level): bool
+    private function currentProjectAssignedToUser(RoiCurrentProject $project, int $userId): bool
     {
-        return $level >= 2 && $level <= 6;
-    }
+        $column = $this->approverColumnForLevel((int) $project->current_level);
 
-    private function userMatchesProjectLocation($user, RoiCurrentProject $project): bool
-    {
-        $level = $this->roleToLevel($user->workflow_role);
-
-        if ($level === 1) {
-            return true;
-        }
-
-        $preparer = $this->emailUserById((int) $project->user_id);
-
-        if (!$preparer) {
+        if (!$column) {
             return false;
         }
 
-        return (int) $preparer->primary_location_id === (int) $user->primary_location_id;
+        return (int) ($project->{$column} ?? 0) === $userId;
     }
 
-    /**
-     * Current list visibility:
-     * - Level 1 (preparer): can see own submitted in Current (user_id = self)
-     * - Level 2-6: can see only projects assigned to their level (current_level = level)
-     *   and only if the preparer is in the same primary location
-     */
-    private function applyCurrentVisibilityScope($query, $user, int $level)
+    private function applyCurrentVisibilityScope($query, $user)
     {
-        if ($this->isPreparerLevel($level)) {
-            return $query->where('user_id', $user->id);
-        }
+        $userId = (int) $user->id;
 
-        $userPrimaryLocationId = (int) $user->primary_location_id;
-
-        return $query
-            ->where('current_level', $level)
-            ->whereHas('user', function ($q) use ($userPrimaryLocationId) {
-                $q->where('primary_location_id', $userPrimaryLocationId);
-            });
+        return $query->where(function ($q) use ($userId) {
+            $q->where('user_id', $userId)
+                ->orWhere(function ($sub) use ($userId) {
+                    $sub->where('current_level', 2)->where('reviewed_by', $userId);
+                })
+                ->orWhere(function ($sub) use ($userId) {
+                    $sub->where('current_level', 3)->where('checked_by', $userId);
+                })
+                ->orWhere(function ($sub) use ($userId) {
+                    $sub->where('current_level', 4)->where('endorsed_by', $userId);
+                })
+                ->orWhere(function ($sub) use ($userId) {
+                    $sub->where('current_level', 5)->where('confirmed_by', $userId);
+                })
+                ->orWhere(function ($sub) use ($userId) {
+                    $sub->where('current_level', 6)->where('approved_by', $userId);
+                });
+        });
     }
 
-    private function ensureCanAct(RoiCurrentProject $project, $user, int $level): void
+    private function ensureCanAct(RoiCurrentProject $project, $user): void
     {
-        if (!$this->isApproverLevel($level)) {
-            abort(403, 'Not allowed to perform actions.');
-        }
-
-        if ((int) $project->current_level !== (int) $level) {
-            abort(403, 'Project is not assigned to your level.');
-        }
-
-        if (!$this->userMatchesProjectLocation($user, $project)) {
-            abort(403, 'You are not in the same location as this project.');
+        if (!$this->currentProjectAssignedToUser($project, (int) $user->id)) {
+            abort(403, 'Project is not assigned to you.');
         }
     }
 
-    private function ensureCanView(RoiCurrentProject $project, $user, int $level): void
+    private function ensureCanView(RoiCurrentProject $project, $user): void
     {
-        $canView = $this->isPreparerLevel($level)
-            ? ((int) $project->user_id === (int) $user->id)
-            : ((int) $project->current_level === (int) $level);
+        $userId = (int) $user->id;
+
+        $canView =
+            (int) $project->user_id === $userId ||
+            $this->currentProjectAssignedToUser($project, $userId);
 
         if (!$canView) {
             abort(403, 'Not allowed to view this project.');
         }
+    }
 
-        if (!$this->userMatchesProjectLocation($user, $project)) {
-            abort(403, 'You are not in the same location as this project.');
+    private function emailUserById(?int $userId): ?User
+    {
+        if (!$userId) {
+            return null;
         }
-    }
 
-    private function emailUsersByRole(string $role)
-    {
-        return User::query()
-            ->whereNotNull('email')
-            ->get()
-            ->filter(function (User $user) use ($role) {
-                return strtolower((string) $user->workflow_role) === strtolower($role);
-            })
-            ->values();
-    }
-
-    private function emailUserById(int $userId): ?User
-    {
         return User::query()->find($userId);
     }
 
@@ -199,6 +146,17 @@ class RoiCurrentProjectController extends Controller
         }
     }
 
+    private function nextAssignedUserForLevel(RoiCurrentProject $project, int $level): ?User
+    {
+        $column = $this->approverColumnForLevel($level);
+
+        if (!$column) {
+            return null;
+        }
+
+        return $this->emailUserById((int) ($project->{$column} ?? 0));
+    }
+
     private function notifyMoveNextOrBack(
         RoiCurrentProject $project,
         User $actor,
@@ -208,20 +166,16 @@ class RoiCurrentProjectController extends Controller
     ): void {
         $ref = $project->reference;
 
-        $toRole = $this->levelToRole($toLevel);
+        $receiver = $toLevel >= 2 ? $this->nextAssignedUserForLevel($project, $toLevel) : null;
 
-        if ($toRole) {
-            $receivers = $this->emailUsersByRole($toRole);
-
-            foreach ($receivers as $r) {
-                $this->sendEmail(
-                    $r->email,
-                    "ROI Project Received: {$ref}",
-                    "You received ROI project {$ref}.\nAssigned level: Level {$toLevel} ({$this->levelLabel($toLevel)}).\n"
-                    . "Action: " . ($action === 'next' ? 'Sent to next level' : 'Sent back to previous level') . "\n"
-                    . "From: {$actor->name} (Level {$fromLevel})."
-                );
-            }
+        if ($receiver) {
+            $this->sendEmail(
+                $receiver->email,
+                "ROI Project Received: {$ref}",
+                "You received ROI project {$ref}.\nAssigned level: Level {$toLevel} ({$this->levelLabel($toLevel)}).\n"
+                . "Action: " . ($action === 'next' ? 'Sent to next level' : 'Sent back to previous level') . "\n"
+                . "From: {$actor->name} (Level {$fromLevel})."
+            );
         }
 
         $preparer = $this->emailUserById((int) $project->user_id);
@@ -270,21 +224,49 @@ class RoiCurrentProjectController extends Controller
     private function archiveFromCurrent(RoiCurrentProject $current, array $archiveOverrides): RoiArchiveProject
     {
         $base = $current->only([
-            'user_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status',
-            'reviewed_by', 'checked_by', 'endorsed_by', 'confirmed_by',
-            'company_name', 'contract_years', 'contract_type', 'bundled_std_ink',
-            'annual_interest', 'percent_margin',
-            'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly', 'color_yield_annual',
-            'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
-            'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price',
+            'user_id',
+            'location_id',
+            'project_uid',
+            'reference',
+            'version',
+            'last_saved_at',
+            'status',
+            'reviewed_by',
+            'checked_by',
+            'endorsed_by',
+            'confirmed_by',
+            'company_name',
+            'contract_years',
+            'contract_type',
+            'purpose',
+            'bundled_std_ink',
+            'annual_interest',
+            'percent_margin',
+            'mono_yield_monthly',
+            'mono_yield_annual',
+            'color_yield_monthly',
+            'color_yield_annual',
+            'mc_unit_cost',
+            'mc_qty',
+            'mc_total_cost',
+            'mc_yields',
+            'mc_cost_cpp',
+            'mc_selling_price',
+            'mc_total_sell',
+            'mc_sell_cpp',
+            'mc_total_bundled_price',
             'fees_total',
-            'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage',
-            'yearly_breakdown', 'notes', 'comments',
+            'grand_total_cost',
+            'grand_total_revenue',
+            'grand_roi',
+            'grand_roi_percentage',
+            'yearly_breakdown',
+            'notes',
+            'comments',
         ]);
 
         $payload = array_merge($base, $archiveOverrides);
 
-        /** @var RoiArchiveProject $archived */
         $archived = RoiArchiveProject::create($payload);
 
         $current->loadMissing(['items', 'fees']);
@@ -312,15 +294,15 @@ class RoiCurrentProjectController extends Controller
 
     public function current()
     {
-        [$user, $level] = $this->getAuthenticatedUserAndLevel();
+        $user = $this->getAuthenticatedUser();
 
         $query = RoiCurrentProject::with(['items', 'fees', 'user'])
             ->orderBy('last_saved_at', 'desc');
 
-        $this->applyCurrentVisibilityScope($query, $user, $level);
+        $this->applyCurrentVisibilityScope($query, $user);
 
         $currentProjects = $query->paginate(10)
-            ->through(function ($p) {
+            ->through(function ($p) use ($user) {
                 $last = $p->last_saved_at;
                 $display = null;
 
@@ -351,11 +333,14 @@ class RoiCurrentProjectController extends Controller
                     ? ('Level ' . $lvl . ' — ' . $this->levelLabel($lvl))
                     : '—';
 
+                $p->viewer_is_preparer = (int) $p->user_id === (int) $user->id;
+                $p->viewer_is_current_approver = $this->currentProjectAssignedToUser($p, (int) $user->id);
+
                 return $p;
             });
 
         $statsQuery = RoiCurrentProject::query();
-        $this->applyCurrentVisibilityScope($statsQuery, $user, $level);
+        $this->applyCurrentVisibilityScope($statsQuery, $user);
 
         $recentlyAddedToday = (clone $statsQuery)
             ->whereDate('last_saved_at', now()->toDateString())
@@ -374,30 +359,28 @@ class RoiCurrentProjectController extends Controller
         return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
             'currentProjects' => $currentProjects,
             'stats' => $stats,
-            'viewerRole' => strtolower((string) $user->workflow_role),
-            'viewerLevel' => $level,
+            'viewerId' => (int) $user->id,
         ]);
     }
 
     public function show($id)
     {
-        [$user, $level] = $this->getAuthenticatedUserAndLevel();
+        $user = $this->getAuthenticatedUser();
 
         $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-        $this->ensureCanView($project, $user, $level);
+        $this->ensureCanView($project, $user);
 
         $entryProject = RoiEntryProject::where('project_uid', $project->project_uid)->first();
 
         $userIds = collect([
             $project->user_id,
             $project->status_updated_by,
-            $project->reviewed_by_id ?? null,
-            $project->checked_by_id ?? null,
-            $project->endorsed_by_id ?? null,
-            $project->confirmed_by_id ?? null,
-            $project->approved_by ?? null,
-            $project->rejected_by ?? null,
+            $project->reviewed_by,
+            $project->checked_by,
+            $project->endorsed_by,
+            $project->confirmed_by,
+            $project->approved_by,
         ])->filter()->unique()->values();
 
         $usersById = User::query()
@@ -415,8 +398,7 @@ class RoiCurrentProjectController extends Controller
             'readOnly' => true,
             'route' => 'current',
             'createdBy' => $project->user?->name ?? '—',
-            'role' => $user->workflow_role,
-            'viewerLevel' => $level,
+            'viewerLevel' => (int) $project->current_level,
             'usersById' => $usersById,
             'projectNotes' => $entryProject?->notes ?? [],
             'projectComments' => $entryProject?->comments ?? [],
@@ -426,11 +408,11 @@ class RoiCurrentProjectController extends Controller
     public function sendBack($id)
     {
         return DB::transaction(function () use ($id) {
-            [$user, $level] = $this->getAuthenticatedUserAndLevel();
+            $user = $this->getAuthenticatedUser();
 
             $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            $this->ensureCanAct($project, $user, $level);
+            $this->ensureCanAct($project, $user);
 
             $fromLevel = (int) $project->current_level;
 
@@ -444,15 +426,16 @@ class RoiCurrentProjectController extends Controller
                 $projectData = $project->toArray();
                 unset($projectData['id']);
                 unset($projectData['roi_current_project_id']);
+                unset($projectData['submitted_at']);
+                unset($projectData['status_updated_at']);
+                unset($projectData['status_updated_by']);
+                unset($projectData['current_level']);
+                unset($projectData['created_at']);
+                unset($projectData['updated_at']);
 
                 $entryProject = RoiEntryProject::create(array_merge($projectData, [
                     'status' => 'returned',
-                    'current_level' => 1,
-                    'status_updated_at' => now(),
-                    'status_updated_by' => $user->id,
                     'last_saved_at' => now(),
-                    'notes' => $project->notes ?? [],
-                    'comments' => $project->comments ?? [],
                 ]));
 
                 foreach ($project->items as $item) {
@@ -482,7 +465,7 @@ class RoiCurrentProjectController extends Controller
 
             $project->update([
                 'current_level' => $toLevel,
-                'status' => 'pending',
+                'status' => 'Sent Back',
                 'status_reason' => null,
                 'status_updated_at' => now(),
                 'status_updated_by' => $user->id,
@@ -500,9 +483,9 @@ class RoiCurrentProjectController extends Controller
         return DB::transaction(function () use ($id) {
             $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            [$user, $level] = $this->getAuthenticatedUserAndLevel();
+            $user = $this->getAuthenticatedUser();
 
-            $this->ensureCanAct($project, $user, $level);
+            $this->ensureCanAct($project, $user);
 
             $fromLevel = (int) $project->current_level;
 
@@ -512,28 +495,22 @@ class RoiCurrentProjectController extends Controller
 
             $toLevel = $fromLevel + 1;
 
-            $byColumn = match ($fromLevel) {
-                2 => 'reviewed_by',
-                3 => 'checked_by',
-                4 => 'endorsed_by',
-                5 => 'confirmed_by',
-                default => null,
+            $nextStatus = match ($toLevel) {
+                3 => 'For Checking',
+                4 => 'For Endorsement',
+                5 => 'For Confirmation',
+                6 => 'For Approval',
+                default => 'Pending',
             };
 
-            $update = [
+            $project->update([
                 'current_level' => $toLevel,
-                'status' => 'pending',
+                'status' => $nextStatus,
                 'status_reason' => null,
                 'status_updated_at' => now(),
                 'status_updated_by' => $user->id,
                 'last_saved_at' => now(),
-            ];
-
-            if ($byColumn) {
-                $update[$byColumn] = $user->name;
-            }
-
-            $project->update($update);
+            ]);
 
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
 
@@ -546,10 +523,11 @@ class RoiCurrentProjectController extends Controller
         return DB::transaction(function () use ($id) {
             $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            [$actor, $actorLevel] = $this->getAuthenticatedUserAndLevel();
+            $actor = $this->getAuthenticatedUser();
 
-            $this->ensureCanAct($current, $actor, $actorLevel);
+            $this->ensureCanAct($current, $actor);
 
+            $actorLevel = (int) $current->current_level;
             $reference = $current->reference;
             $preparer = $this->emailUserById((int) $current->user_id);
 
@@ -573,12 +551,12 @@ class RoiCurrentProjectController extends Controller
         return DB::transaction(function () use ($id) {
             $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            [$actor, $actorLevel] = $this->getAuthenticatedUserAndLevel();
+            $actor = $this->getAuthenticatedUser();
 
-            $this->ensureCanAct($current, $actor, $actorLevel);
+            $this->ensureCanAct($current, $actor);
 
-            if ((int) $actorLevel !== 6) {
-                abort(403, 'Only approver (Level 6) can approve.');
+            if ((int) $current->current_level !== 6 || (int) $current->approved_by !== (int) $actor->id) {
+                abort(403, 'Only the assigned approver can approve.');
             }
 
             $reference = $current->reference;

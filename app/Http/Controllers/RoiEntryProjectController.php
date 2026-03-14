@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LocationDepartment;
 use App\Models\RoiCurrentFee;
 use App\Models\RoiCurrentItem;
 use App\Models\RoiCurrentProject;
@@ -46,10 +47,11 @@ class RoiEntryProjectController extends Controller
     {
         $data = $this->validateDraftPayload($request);
 
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user->id;
         $reference = $data['companyInfo']['reference'];
 
-        DB::transaction(function () use ($data, $userId, $reference, $request) {
+        DB::transaction(function () use ($data, $user, $userId, $reference, $request) {
             $project = RoiEntryProject::where('user_id', $userId)
                 ->where('reference', $reference)
                 ->first();
@@ -64,6 +66,7 @@ class RoiEntryProjectController extends Controller
 
                 $project = RoiEntryProject::create([
                     'user_id' => $userId,
+                    'location_id' => $user->primary_location_id,
                     'project_uid' => (string) Str::ulid(),
                     'reference' => $reference,
                     'version' => 1,
@@ -95,22 +98,35 @@ class RoiEntryProjectController extends Controller
     {
         abort_unless($project->user_id === Auth::id(), 403);
 
-        // Step 1: persist latest form data if payload present
         if ($request->has('companyInfo')) {
             $data = $this->validateDraftPayload($request);
             $this->persistDraft($request, $project, $data);
             $project->refresh()->load(['items', 'fees']);
         }
 
-        // Step 2: validate completeness
         if (empty($project->company_name) || empty($project->contract_type)) {
             return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
         }
 
-        // Step 3: copy to current and delete from entry
-        return DB::transaction(function () use ($project) {
+        $submitter = Auth::user();
+
+        if (!$submitter?->primary_location_id || !$submitter?->department_id) {
+            return back()->with('error', 'Your account must have both a primary location and department before submitting.');
+        }
+
+        $matrix = LocationDepartment::query()
+            ->where('location_id', $submitter->primary_location_id)
+            ->where('department_id', $submitter->department_id)
+            ->first();
+
+        if (!$matrix) {
+            return back()->with('error', 'No approver matrix found for your location and department.');
+        }
+
+        return DB::transaction(function () use ($project, $submitter, $matrix) {
             $newProject = RoiCurrentProject::create([
                 'user_id' => $project->user_id,
+                'location_id' => $submitter->primary_location_id,
                 'project_uid' => $project->project_uid,
                 'reference' => $project->reference,
                 'version' => $project->version,
@@ -118,6 +134,11 @@ class RoiEntryProjectController extends Controller
                 'current_level' => 2,
                 'submitted_at' => now(),
                 'last_saved_at' => now(),
+                'reviewed_by' => $matrix->reviewed_by,
+                'checked_by' => $matrix->checked_by,
+                'endorsed_by' => $matrix->endorsed_by,
+                'confirmed_by' => $matrix->confirmed_by,
+                'approved_by' => $matrix->approved_by,
                 'company_name' => $project->company_name,
                 'contract_years' => $project->contract_years,
                 'contract_type' => $project->contract_type,
@@ -148,7 +169,6 @@ class RoiEntryProjectController extends Controller
                 'comments' => $project->comments ?? [],
             ]);
 
-            // Copy Items
             foreach ($project->items as $item) {
                 RoiCurrentItem::create([
                     'roi_current_project_id' => $newProject->id,
@@ -172,7 +192,6 @@ class RoiEntryProjectController extends Controller
                 ]);
             }
 
-            // Copy Fees
             foreach ($project->fees as $fee) {
                 RoiCurrentFee::create([
                     'roi_current_project_id' => $newProject->id,
@@ -188,12 +207,11 @@ class RoiEntryProjectController extends Controller
                 ]);
             }
 
-            // Cleanup
             $project->items()->delete();
             $project->fees()->delete();
             $project->delete();
 
-            return redirect()->route('roi.current')->with('success', 'Project submitted successfully!');
+            return redirect()->route('roi.current')->with('success', 'Project submitted successfully.');
         });
     }
 
@@ -203,7 +221,7 @@ class RoiEntryProjectController extends Controller
 
         $allowedStatuses = ['draft', 'returned'];
 
-        if (!in_array($project->status, $allowedStatuses)) {
+        if (!in_array($project->status, $allowedStatuses, true)) {
             return back()->with('error', 'Only drafts or returned projects can be deleted.');
         }
 
@@ -285,7 +303,6 @@ class RoiEntryProjectController extends Controller
             'last_saved_at' => now(),
         ]);
 
-        // Items
         $hasMachinePayload =
             $request->exists('machineConfiguration.machine') ||
             $request->exists('machineConfiguration.consumable');
@@ -306,7 +323,6 @@ class RoiEntryProjectController extends Controller
             }
         }
 
-        // Fees
         $hasFeePayload =
             $request->exists('additionalFees.company') ||
             $request->exists('additionalFees.customer');
@@ -374,7 +390,7 @@ class RoiEntryProjectController extends Controller
 
     public function storeNote(Request $request, RoiEntryProject $project)
     {
-        abort_unless(Auth::user()->workflow_role === 'preparer', 403);
+        abort_unless((int) $project->user_id === (int) Auth::id(), 403);
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
@@ -405,7 +421,7 @@ class RoiEntryProjectController extends Controller
 
     public function storeComment(Request $request, RoiCurrentProject $project)
     {
-        abort_unless(in_array(Auth::user()->workflow_role, ['confirmer', 'approver']), 403);
+        abort_unless($this->canCommentOnCurrentProject($project), 403);
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
@@ -432,5 +448,17 @@ class RoiEntryProjectController extends Controller
         ]);
 
         return back()->with('success', 'Comment added.');
+    }
+
+    private function canCommentOnCurrentProject(RoiCurrentProject $project): bool
+    {
+        $userId = (int) Auth::id();
+        $currentLevel = (int) $project->current_level;
+
+        return match ($currentLevel) {
+            5 => (int) $project->confirmed_by === $userId,
+            6 => (int) $project->approved_by === $userId,
+            default => false,
+        };
     }
 }

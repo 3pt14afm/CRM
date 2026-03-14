@@ -12,38 +12,32 @@ class RoiArchiveProject extends Model
 
     protected $fillable = [
         'user_id',
+        'location_id',
         'project_uid',
         'reference',
         'version',
         'last_saved_at',
         'status',
-
-        // temporary carried-over workflow signatories
         'reviewed_by',
         'checked_by',
         'endorsed_by',
         'confirmed_by',
-
-        // final decision metadata
         'approved_at',
         'approved_by',
         'rejected_at',
         'rejected_by',
         'rejected_by_level',
-
         'company_name',
         'contract_years',
         'contract_type',
         'bundled_std_ink',
-
+        'purpose',
         'annual_interest',
         'percent_margin',
-
         'mono_yield_monthly',
         'mono_yield_annual',
         'color_yield_monthly',
         'color_yield_annual',
-
         'mc_unit_cost',
         'mc_qty',
         'mc_total_cost',
@@ -53,14 +47,11 @@ class RoiArchiveProject extends Model
         'mc_total_sell',
         'mc_sell_cpp',
         'mc_total_bundled_price',
-
         'fees_total',
-
         'grand_total_cost',
         'grand_total_revenue',
         'grand_roi',
         'grand_roi_percentage',
-
         'yearly_breakdown',
         'notes',
         'comments',
@@ -70,13 +61,16 @@ class RoiArchiveProject extends Model
         'last_saved_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
-
         'bundled_std_ink' => 'boolean',
         'yearly_breakdown' => 'array',
         'notes' => 'array',
         'comments' => 'array',
-
         'user_id' => 'integer',
+        'location_id' => 'integer',
+        'reviewed_by' => 'integer',
+        'checked_by' => 'integer',
+        'endorsed_by' => 'integer',
+        'confirmed_by' => 'integer',
         'approved_by' => 'integer',
         'rejected_by' => 'integer',
         'rejected_by_level' => 'integer',
@@ -97,6 +91,26 @@ class RoiArchiveProject extends Model
         return $this->belongsTo(User::class, 'rejected_by');
     }
 
+    public function reviewedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function checkedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_by');
+    }
+
+    public function endorsedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'endorsed_by');
+    }
+
+    public function confirmedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(RoiArchiveItem::class, 'roi_archive_project_id');
@@ -107,9 +121,6 @@ class RoiArchiveProject extends Model
         return $this->hasMany(RoiArchiveFee::class, 'roi_archive_project_id');
     }
 
-    /**
-     * Get the proposals for the archive project.
-     */
     public function proposals(): HasMany
     {
         return $this->hasMany(Proposal::class, 'roi_archive_project_id');
