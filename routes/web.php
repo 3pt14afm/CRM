@@ -213,9 +213,14 @@ Route::middleware(['auth', 'verified'])
             | Proposals
             |--------------------------------------------------------------------------
             */
-            Route::prefix('proposals')->name('proposals.')->group(function () {
-                Route::get('/', [ProposalController::class, 'proposalList'])->name('list');
+         Route::prefix('proposals')->name('proposals.')->group(function () {
+                // This will be URL: /proposals  Name: proposals.index
+                Route::get('/', [ProposalController::class, 'proposalList'])->name('index'); 
+
+                // Actions
                 Route::get('/{id}', [ProposalController::class, 'show'])->name('show');
+                Route::post('/{id}/draft', [ProposalController::class, 'saveDraft'])->name('draft');
+                Route::post('/{id}/generate', [ProposalController::class, 'generate'])->name('generate');
             });
         });
     });

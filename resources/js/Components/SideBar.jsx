@@ -325,7 +325,7 @@ export default function Sidebar() {
 
                 {!activeSubMenu && (
                   <>
-                    <Link  href={route('proposals.list')} className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
+                    <Link  href={route('proposals.index')} className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Proposal Generation
                     </Link>
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">

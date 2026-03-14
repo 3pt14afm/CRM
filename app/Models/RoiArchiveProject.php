@@ -125,4 +125,8 @@ class RoiArchiveProject extends Model
     {
         return $this->hasMany(Proposal::class, 'roi_archive_project_id');
     }
+    public function approver()
+{
+    return $this->belongsTo(\App\Models\User::class, 'approved_by');
+}
 }

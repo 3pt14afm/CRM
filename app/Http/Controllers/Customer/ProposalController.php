@@ -18,41 +18,44 @@ public function proposalList(Request $request)
     $perPage = (int) $request->input('per_page', 10);
     $userId  = Auth::id();
 
-    // 1. Get Approved Projects (Excluding those already generated)
+    // 1. Get Approved Projects
     $archiveQuery = RoiArchiveProject::query()
-        ->where('user_id', $userId)
-        ->where('status', 'approved')
-        // Check if there is NO proposal for this project that is 'generated'
+        // Prefix with table name to avoid "Column not found" or "Ambiguous" errors
+        ->where('roi_archive_projects.user_id', $userId)
+        ->where('roi_archive_projects.status', 'approved')
         ->whereDoesntHave('proposals', function ($query) {
             $query->where('status', 'generated');
         })
-        ->with('user')
-        ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
-        ->select(['roi_archive_projects.*', 'approved_user.name as approved_by_name'])
-        ->orderByDesc('updated_at');
+        // Eager load relationships instead of using manual leftJoin
+        ->with(['user', 'approver']) 
+        ->orderByDesc('roi_archive_projects.updated_at');
 
-    // 2. Get Generated Proposals
-    $generatedQuery = Proposal::query()
-        ->where('user_id', $userId)
-        ->with(['roiArchiveProject'])
-        ->orderByDesc('updated_at');
+    // Clone for stats to avoid conflict with pagination/selects
+    $statsQuery = $archiveQuery->clone();
 
     return Inertia::render('CustomerManagement/Proposal/ProposalRoute', [
         'proposals' => $archiveQuery->paginate($perPage)->through(fn($p) => $this->transformProposal($p)),
         'stats'     => [
-            'totalArchiveProjects' => $archiveQuery->count(),
-            'recentlyArchivedToday' => $archiveQuery->clone()->whereDate('roi_archive_projects.updated_at', now()->toDateString())->count() . ' Today',
+            'totalArchiveProjects' => $statsQuery->count(),
+            'recentlyArchivedToday' => $statsQuery->clone()
+                ->whereDate('roi_archive_projects.updated_at', now()->toDateString())
+                ->count() . ' Today',
         ],
-        'generatedproposals' => $generatedQuery->paginate($perPage)->through(fn($p) => [
-            'id'             => $p->roi_archive_project_id,
-            'proposal_id'    => $p->id,
-            'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
-            'company_name'   => $p->company_name,
-            'status'         => $p->status,
-            'updated_at'     => $p->updated_at->diffForHumans(),
-            'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
-            'project_ref'    => $p->roiArchiveProject->reference ?? '—',
-        ]),
+        'generatedproposals' => Proposal::query()
+            ->where('user_id', $userId)
+            ->with(['roiArchiveProject'])
+            ->orderByDesc('updated_at')
+            ->paginate($perPage)
+            ->through(fn($p) => [
+                'id'             => $p->roi_archive_project_id,
+                'proposal_id'    => $p->id,
+                'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
+                'company_name'   => $p->company_name,
+                'status'         => $p->status,
+                'updated_at'     => $p->updated_at->diffForHumans(),
+                'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
+                'project_ref'    => $p->roiArchiveProject->reference ?? '—',
+            ]),
         'generatedstats' => [
             'totalProposals' => Proposal::where('user_id', $userId)->count(),
             'generatedCount' => Proposal::where('user_id', $userId)->where('status', 'generated')->count(),
@@ -152,16 +155,18 @@ public function proposalList(Request $request)
 
     // ─── Private Helpers ──────────────────────────────────────────
 
-    private function transformProposal($p)
-    {
-        $p->decision_display    = 'Approved';
-        $p->decided_by_name     = $p->approved_by_name ?? '—';
-        $decidedAt              = $p->approved_at;
-        $p->decided_at_display  = $decidedAt ? $decidedAt->diffForHumans() : '—';
+private function transformProposal($p)
+{
+    $p->decision_display    = 'Approved';
+    
+    // Accessing via the 'approver' relationship we defined in Step 1
+    $p->decided_by_name     = $p->approver->name ?? '—';
+    
+    $decidedAt              = $p->approved_at;
+    $p->decided_at_display  = $decidedAt ? $decidedAt->diffForHumans() : '—';
 
-        return $p;
-    }
-
+    return $p;
+}
   private function buildProposal(RoiArchiveProject $project, ?Proposal $doc): array
 {
     $base = [
