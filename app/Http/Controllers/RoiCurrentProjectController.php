@@ -10,149 +10,159 @@ use App\Models\RoiEntryProject;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class RoiCurrentProjectController extends Controller
 {
     /**
-     * Map role string -> workflow level.
-     * preparer=1, reviewer=2, checker=3, endorser=4, confirmer=5, approver=6
+     * TEMPORARY workflow mapping.
+     * This will be replaced by Approver Matrix logic later.
      */
+    private const ROLE_TO_LEVEL = [
+        'preparer'  => 1,
+        'reviewer'  => 2,
+        'checker'   => 3,
+        'endorser'  => 4,
+        'confirmer' => 5,
+        'approver'  => 6,
+    ];
+
+    private const LEVEL_TO_ROLE = [
+        1 => 'preparer',
+        2 => 'reviewer',
+        3 => 'checker',
+        4 => 'endorser',
+        5 => 'confirmer',
+        6 => 'approver',
+    ];
+
+    private const LEVEL_TO_LABEL = [
+        1 => 'Prepared By',
+        2 => 'Reviewed By',
+        3 => 'Checked By',
+        4 => 'Endorsed By',
+        5 => 'Confirmed By',
+        6 => 'Approved By',
+    ];
+
     private function roleToLevel(?string $role): ?int
     {
         $role = strtolower(trim((string) $role));
 
-        return match ($role) {
-            'preparer'  => 1,
-            'reviewer'  => 2,
-            'checker'   => 3,
-            'endorser'  => 4,
-            'confirmer' => 5,
-            'approver'  => 6,
-            default     => null,
-        };
-    }
-
-    private function levelLabel(int $level): string
-    {
-        return match ($level) {
-            1 => 'Prepared By',
-            2 => 'Reviewed By',
-            3 => 'Checked By',
-            4 => 'Endorsed By',
-            5 => 'Confirmed By',
-            6 => 'Approved By',
-            default => 'Unknown',
-        };
+        return self::ROLE_TO_LEVEL[$role] ?? null;
     }
 
     private function levelToRole(int $level): ?string
     {
-        return match ($level) {
-            1 => 'preparer',
-            2 => 'reviewer',
-            3 => 'checker',
-            4 => 'endorser',
-            5 => 'confirmer',
-            6 => 'approver',
-            default => null,
-        };
+        return self::LEVEL_TO_ROLE[$level] ?? null;
     }
 
+    private function levelLabel(int $level): string
+    {
+        return self::LEVEL_TO_LABEL[$level] ?? 'Unknown';
+    }
+
+    private function getAuthenticatedUserAndLevel(): array
+    {
+        $user = Auth::user();
+        $level = $this->roleToLevel($user->workflow_role);
+
+        if ($level === null) {
+            abort(403, 'Your account has no workflow role.');
+        }
+
+        return [$user, $level];
+    }
+
+    private function isPreparerLevel(int $level): bool
+    {
+        return $level === 1;
+    }
+
+    private function isApproverLevel(int $level): bool
+    {
+        return $level >= 2 && $level <= 6;
+    }
 
     private function userMatchesProjectLocation($user, RoiCurrentProject $project): bool
-{
-    $level = $this->roleToLevel($user->role);
-    if ($level === 1) return true; // preparer always has access to own project
+    {
+        $level = $this->roleToLevel($user->workflow_role);
 
-    $preparer = $this->emailUserById((int) $project->user_id);
-    if (!$preparer) return false;
+        if ($level === 1) {
+            return true;
+        }
 
-    $preparerLocations = (array) ($preparer->location ?? []);
-    $userLocations     = (array) ($user->location ?? []);
+        $preparer = $this->emailUserById((int) $project->user_id);
 
-    // at least ONE location must match
-    return count(array_intersect($preparerLocations, $userLocations)) > 0;
-}
+        if (!$preparer) {
+            return false;
+        }
+
+        return (int) $preparer->primary_location_id === (int) $user->primary_location_id;
+    }
 
     /**
      * Current list visibility:
      * - Level 1 (preparer): can see own submitted in Current (user_id = self)
      * - Level 2-6: can see only projects assigned to their level (current_level = level)
+     *   and only if the preparer is in the same primary location
      */
-        private function applyCurrentVisibilityScope($query, $user, int $level)
-        {
-            if ($level === 1) {
-                return $query->where('user_id', $user->id);
-            }
-
-            $userLocations = (array) ($user->location ?? []);
-
-            return $query
-                ->where('current_level', $level)
-                ->whereHas('user', function ($q) use ($userLocations) {
-                    $q->where(function ($inner) use ($userLocations) {
-                        foreach ($userLocations as $loc) {
-                            $inner->orWhereJsonContains('location', $loc);
-                        }
-                    });
-                });
+    private function applyCurrentVisibilityScope($query, $user, int $level)
+    {
+        if ($this->isPreparerLevel($level)) {
+            return $query->where('user_id', $user->id);
         }
 
+        $userPrimaryLocationId = (int) $user->primary_location_id;
 
-    /**
-     * Only levels 2..6 can act and must be the assigned level.
-     */
-        private function ensureCanAct(RoiCurrentProject $project, $user, int $level): void
-        {
-            if ($level < 2 || $level > 6) {
-                abort(403, 'Not allowed to perform actions.');
-            }
+        return $query
+            ->where('current_level', $level)
+            ->whereHas('user', function ($q) use ($userPrimaryLocationId) {
+                $q->where('primary_location_id', $userPrimaryLocationId);
+            });
+    }
 
-            if ((int) $project->current_level !== (int) $level) {
-                abort(403, 'Project is not assigned to your level.');
-            }
-
-            // ✅ location check
-            if (!$this->userMatchesProjectLocation($user, $project)) {
-                abort(403, 'You are not in the same location as this project.');
-            }
+    private function ensureCanAct(RoiCurrentProject $project, $user, int $level): void
+    {
+        if (!$this->isApproverLevel($level)) {
+            abort(403, 'Not allowed to perform actions.');
         }
 
-    /**
-     * View permission:
-     * - Level 1: owner (user_id=self)
-     * - Level 2-6: assigned (current_level=level)
-     */
-            private function ensureCanView(RoiCurrentProject $project, $user, int $level): void
-            {
-                $canView = ($level === 1)
-                    ? ((int) $project->user_id === (int) $user->id)
-                    : ((int) $project->current_level === (int) $level);
+        if ((int) $project->current_level !== (int) $level) {
+            abort(403, 'Project is not assigned to your level.');
+        }
 
-                if (!$canView) {
-                    abort(403, 'Not allowed to view this project.');
-                }
+        if (!$this->userMatchesProjectLocation($user, $project)) {
+            abort(403, 'You are not in the same location as this project.');
+        }
+    }
 
-                // ✅ location check
-                if (!$this->userMatchesProjectLocation($user, $project)) {
-                    abort(403, 'You are not in the same location as this project.');
-                }
-            }
-    /**
-     * Email helpers (simple Mail::raw for now).
-     * - Receiver(s): the users at the new assigned level
-     * - Preparer: project owner (user_id)
-     * - Actor: the user who clicked the action
-     */
+    private function ensureCanView(RoiCurrentProject $project, $user, int $level): void
+    {
+        $canView = $this->isPreparerLevel($level)
+            ? ((int) $project->user_id === (int) $user->id)
+            : ((int) $project->current_level === (int) $level);
+
+        if (!$canView) {
+            abort(403, 'Not allowed to view this project.');
+        }
+
+        if (!$this->userMatchesProjectLocation($user, $project)) {
+            abort(403, 'You are not in the same location as this project.');
+        }
+    }
+
     private function emailUsersByRole(string $role)
     {
         return User::query()
-            ->where('role', $role)
             ->whereNotNull('email')
-            ->get();
+            ->get()
+            ->filter(function (User $user) use ($role) {
+                return strtolower((string) $user->workflow_role) === strtolower($role);
+            })
+            ->values();
     }
 
     private function emailUserById(int $userId): ?User
@@ -179,7 +189,6 @@ class RoiCurrentProjectController extends Controller
                 'subject' => $subject,
             ]);
         } catch (\Throwable $e) {
-            // ✅ SAFE MODE: workflow continues
             Log::warning('[ROI Mail] failed (safe mode)', [
                 'to' => $to,
                 'subject' => $subject,
@@ -195,14 +204,15 @@ class RoiCurrentProjectController extends Controller
         User $actor,
         int $fromLevel,
         int $toLevel,
-        string $action // 'next' | 'back'
+        string $action
     ): void {
         $ref = $project->reference;
 
-        // Receiver(s)
         $toRole = $this->levelToRole($toLevel);
+
         if ($toRole) {
             $receivers = $this->emailUsersByRole($toRole);
+
             foreach ($receivers as $r) {
                 $this->sendEmail(
                     $r->email,
@@ -214,8 +224,8 @@ class RoiCurrentProjectController extends Controller
             }
         }
 
-        // Preparer (owner)
         $preparer = $this->emailUserById((int) $project->user_id);
+
         if ($preparer) {
             $this->sendEmail(
                 $preparer->email,
@@ -226,7 +236,6 @@ class RoiCurrentProjectController extends Controller
             );
         }
 
-        // Actor success
         $this->sendEmail(
             $actor->email,
             "ROI Action Successful: {$ref}",
@@ -236,13 +245,12 @@ class RoiCurrentProjectController extends Controller
     }
 
     private function notifyDecision(
-        string $decision, // 'approved' | 'rejected'
+        string $decision,
         string $reference,
         ?User $preparer,
         User $actor,
         int $actorLevel
     ): void {
-        // Preparer always gets an update
         if ($preparer) {
             $this->sendEmail(
                 $preparer->email,
@@ -252,7 +260,6 @@ class RoiCurrentProjectController extends Controller
             );
         }
 
-        // Actor success
         $this->sendEmail(
             $actor->email,
             "ROI Action Successful: {$reference}",
@@ -260,33 +267,19 @@ class RoiCurrentProjectController extends Controller
         );
     }
 
-    /**
-     * Copy a current project (and children) into archive, then delete from current.
-     * Returns the created RoiArchiveProject.
-     */
     private function archiveFromCurrent(RoiCurrentProject $current, array $archiveOverrides): RoiArchiveProject
     {
-        // Copy only columns that exist in archive fillable.
-        // We'll build the base payload from current->only(...) to avoid extra keys.
         $base = $current->only([
             'user_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status',
-
             'reviewed_by', 'checked_by', 'endorsed_by', 'confirmed_by',
-
             'company_name', 'contract_years', 'contract_type', 'bundled_std_ink',
-
             'annual_interest', 'percent_margin',
-
             'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly', 'color_yield_annual',
-
-            'mc_unit_cost','mc_qty','mc_total_cost','mc_yields','mc_cost_cpp',
-            'mc_selling_price','mc_total_sell','mc_sell_cpp','mc_total_bundled_price',
-
+            'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
+            'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price',
             'fees_total',
-
-            'grand_total_cost','grand_total_revenue','grand_roi','grand_roi_percentage',
-
-            'yearly_breakdown','notes','comments',
+            'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage',
+            'yearly_breakdown', 'notes', 'comments',
         ]);
 
         $payload = array_merge($base, $archiveOverrides);
@@ -294,10 +287,8 @@ class RoiCurrentProjectController extends Controller
         /** @var RoiArchiveProject $archived */
         $archived = RoiArchiveProject::create($payload);
 
-        // Copy children: items and fees
         $current->loadMissing(['items', 'fees']);
 
-        // Items
         if (method_exists($archived, 'items') && $current->items) {
             foreach ($current->items as $item) {
                 $itemData = $item->toArray();
@@ -306,7 +297,6 @@ class RoiCurrentProjectController extends Controller
             }
         }
 
-        // Fees
         if (method_exists($archived, 'fees') && $current->fees) {
             foreach ($current->fees as $fee) {
                 $feeData = $fee->toArray();
@@ -315,7 +305,6 @@ class RoiCurrentProjectController extends Controller
             }
         }
 
-        // Finally remove from current
         $current->delete();
 
         return $archived;
@@ -323,12 +312,7 @@ class RoiCurrentProjectController extends Controller
 
     public function current()
     {
-        $user = Auth::user();
-        $level = $this->roleToLevel($user->role);
-
-        if ($level === null) {
-            abort(403, 'Your account has no workflow role.');
-        }
+        [$user, $level] = $this->getAuthenticatedUserAndLevel();
 
         $query = RoiCurrentProject::with(['items', 'fees', 'user'])
             ->orderBy('last_saved_at', 'desc');
@@ -344,8 +328,8 @@ class RoiCurrentProjectController extends Controller
                     $now = now();
 
                     $diffMinutes = (int) $last->diffInMinutes($now);
-                    $diffHours   = (int) $last->diffInHours($now);
-                    $diffDays    = (int) $last->diffInDays($now);
+                    $diffHours = (int) $last->diffInHours($now);
+                    $diffDays = (int) $last->diffInDays($now);
 
                     if ($diffDays >= 2) {
                         $display = $last->format('m/d/y');
@@ -384,170 +368,140 @@ class RoiCurrentProjectController extends Controller
         $stats = [
             'totalCurrentProjects' => (clone $statsQuery)->count(),
             'recentlyModifiedText' => $latest?->last_saved_at?->diffForHumans() ?? '—',
-            'recentlyAddedToday'   => $recentlyAddedToday . ' Today',
+            'recentlyAddedToday' => $recentlyAddedToday . ' Today',
         ];
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
             'currentProjects' => $currentProjects,
-            'stats'           => $stats,
-            'viewerRole'      => strtolower((string) $user->role),
-            'viewerLevel'     => $level,
+            'stats' => $stats,
+            'viewerRole' => strtolower((string) $user->workflow_role),
+            'viewerLevel' => $level,
         ]);
     }
 
-  public function show($id)
-{
-    $user = Auth::user();
-    $level = $this->roleToLevel($user->role);
-
-    if ($level === null) {
-        abort(403, 'Your account has no workflow role.');
-    }
-
-    $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
-
-    $this->ensureCanView($project, $user, $level);
-
-    // ── fetch the matching entry project for notes/comments ────────────────
-    $entryProject = RoiEntryProject::where('project_uid', $project->project_uid)->first();
-
-    // ✅ include ALL possible signatory/actor ids
-    $userIds = collect([
-        $project->user_id,
-        $project->status_updated_by,
-        $project->reviewed_by_id ?? null,
-        $project->checked_by_id ?? null,
-        $project->endorsed_by_id ?? null,
-        $project->confirmed_by_id ?? null,
-        $project->approved_by ?? null,
-        $project->rejected_by ?? null,
-    ])->filter()->unique()->values();
-
-    $usersById = User::query()
-        ->whereIn('id', $userIds)
-        ->get(['id','name'])
-        ->keyBy(fn ($u) => (string) $u->id)
-        ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]);
-
-    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-        'project'      => $project,
-        'entryProject' => $project,
-        'readOnly'     => true,
-        'route'        => 'current',
-        'createdBy'    => $project->user?->name ?? '—',
-        'role'         => $user->role,
-        'viewerLevel'  => $level,
-        'usersById'    => $usersById,
-        // ── pass notes/comments from entry project ─────────────────────────
-        'projectNotes'    => $entryProject?->notes    ?? [],
-        'projectComments' => $entryProject?->comments ?? [],
-    ]);
-}
-
-    /**
-     * Back to Sender = go back one level only (never below Level 2).
-     */
-public function sendBack($id)
-{
-    return DB::transaction(function () use ($id) {
-        $user = Auth::user();
-        $level = $this->roleToLevel($user->role);
-
-        if ($level === null) {
-            abort(403, 'Your account has no workflow role.');
-        }
+    public function show($id)
+    {
+        [$user, $level] = $this->getAuthenticatedUserAndLevel();
 
         $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-        $this->ensureCanAct($project, $user, $level);
+        $this->ensureCanView($project, $user, $level);
 
-        $fromLevel = (int) $project->current_level;
+        $entryProject = RoiEntryProject::where('project_uid', $project->project_uid)->first();
 
-        if ($fromLevel < 2) {
-            return back()->withErrors(['level' => 'Cannot send back any further.']);
-        }
+        $userIds = collect([
+            $project->user_id,
+            $project->status_updated_by,
+            $project->reviewed_by_id ?? null,
+            $project->checked_by_id ?? null,
+            $project->endorsed_by_id ?? null,
+            $project->confirmed_by_id ?? null,
+            $project->approved_by ?? null,
+            $project->rejected_by ?? null,
+        ])->filter()->unique()->values();
 
-        $toLevel = $fromLevel - 1;
+        $usersById = User::query()
+            ->whereIn('id', $userIds)
+            ->get(['id', 'first_name', 'last_name'])
+            ->keyBy(fn ($u) => (string) $u->id)
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => trim($u->first_name . ' ' . $u->last_name),
+            ]);
 
-        // ── if sending back to preparer, move project back to entry (draft) ───
-        if ($toLevel === 1) {
-            // Step 1: restore to roi_entry_projects as 'returned'
-            $projectData = $project->toArray();
-            unset($projectData['id']);
-            unset($projectData['roi_current_project_id']);
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+            'project' => $project,
+            'entryProject' => $project,
+            'readOnly' => true,
+            'route' => 'current',
+            'createdBy' => $project->user?->name ?? '—',
+            'role' => $user->workflow_role,
+            'viewerLevel' => $level,
+            'usersById' => $usersById,
+            'projectNotes' => $entryProject?->notes ?? [],
+            'projectComments' => $entryProject?->comments ?? [],
+        ]);
+    }
 
-            $entryProject = RoiEntryProject::create(array_merge($projectData, [
-                'status'            => 'returned',
-                'current_level'     => 1,
+    public function sendBack($id)
+    {
+        return DB::transaction(function () use ($id) {
+            [$user, $level] = $this->getAuthenticatedUserAndLevel();
+
+            $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+            $this->ensureCanAct($project, $user, $level);
+
+            $fromLevel = (int) $project->current_level;
+
+            if ($fromLevel < 2) {
+                return back()->withErrors(['level' => 'Cannot send back any further.']);
+            }
+
+            $toLevel = $fromLevel - 1;
+
+            if ($toLevel === 1) {
+                $projectData = $project->toArray();
+                unset($projectData['id']);
+                unset($projectData['roi_current_project_id']);
+
+                $entryProject = RoiEntryProject::create(array_merge($projectData, [
+                    'status' => 'returned',
+                    'current_level' => 1,
+                    'status_updated_at' => now(),
+                    'status_updated_by' => $user->id,
+                    'last_saved_at' => now(),
+                    'notes' => $project->notes ?? [],
+                    'comments' => $project->comments ?? [],
+                ]));
+
+                foreach ($project->items as $item) {
+                    $itemData = $item->toArray();
+                    unset($itemData['id']);
+                    unset($itemData['roi_current_project_id']);
+                    $itemData['roi_entry_project_id'] = $entryProject->id;
+                    RoiEntryItem::create($itemData);
+                }
+
+                foreach ($project->fees as $fee) {
+                    $feeData = $fee->toArray();
+                    unset($feeData['id']);
+                    unset($feeData['roi_current_project_id']);
+                    $feeData['roi_entry_project_id'] = $entryProject->id;
+                    RoiEntryFee::create($feeData);
+                }
+
+                $project->items()->delete();
+                $project->fees()->delete();
+                $project->delete();
+
+                $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
+
+                return to_route('roi.entry.list')->with('success', 'Project returned to Preparer for revision.');
+            }
+
+            $project->update([
+                'current_level' => $toLevel,
+                'status' => 'pending',
+                'status_reason' => null,
                 'status_updated_at' => now(),
                 'status_updated_by' => $user->id,
-                'last_saved_at'     => now(),
-                // ── carry over notes and comments so preparer can see feedback ──
-                'notes'             => $project->notes    ?? [],
-                'comments'          => $project->comments ?? [],
-            ]));
+                'last_saved_at' => now(),
+            ]);
 
-            // Step 2: copy items back
-            foreach ($project->items as $item) {
-                $itemData = $item->toArray();
-                unset($itemData['id']);
-                unset($itemData['roi_current_project_id']);
-                $itemData['roi_entry_project_id'] = $entryProject->id;
-                RoiEntryItem::create($itemData);
-            }
-
-            // Step 3: copy fees back
-            foreach ($project->fees as $fee) {
-                $feeData = $fee->toArray();
-                unset($feeData['id']);
-                unset($feeData['roi_current_project_id']);
-                $feeData['roi_entry_project_id'] = $entryProject->id;
-                RoiEntryFee::create($feeData);
-            }
-
-            // Step 4: delete from current
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->delete();
-
-            // emails: notify preparer
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
 
-            return to_route('roi.entry.list')->with('success', 'Project returned to Preparer for revision.');
-        }
+            return to_route('roi.current')->with('success', 'Project sent back to Level ' . $toLevel . '.');
+        });
+    }
 
-        // ── otherwise just move back one level within current ─────────────────
-        $project->update([
-            'current_level'     => $toLevel,
-            'status'            => 'pending',
-            'status_reason'     => null,
-            'status_updated_at' => now(),
-            'status_updated_by' => $user->id,
-            'last_saved_at'     => now(),
-        ]);
-
-        $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
-
-        return to_route('roi.current')->with('success', 'Project sent back to Level ' . $toLevel . '.');
-    });
-}
-
-    /**
-     * Submit to next level = increment current_level (2->3->4->5->6).
-     */
     public function advanceProject($id)
     {
         return DB::transaction(function () use ($id) {
             $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            $user = Auth::user();
-            $level = $this->roleToLevel($user->role);
+            [$user, $level] = $this->getAuthenticatedUserAndLevel();
 
-            if ($level === null) {
-                abort(403, 'Your account has no workflow role.');
-            }
-
-            // only current assignee can act (levels 2..6)
             $this->ensureCanAct($project, $user, $level);
 
             $fromLevel = (int) $project->current_level;
@@ -558,7 +512,6 @@ public function sendBack($id)
 
             $toLevel = $fromLevel + 1;
 
-            // ✅ record who processed at this level
             $byColumn = match ($fromLevel) {
                 2 => 'reviewed_by',
                 3 => 'checked_by',
@@ -568,80 +521,59 @@ public function sendBack($id)
             };
 
             $update = [
-                'current_level'     => $toLevel,
-                'status'            => 'pending',
-                'status_reason'     => null,
+                'current_level' => $toLevel,
+                'status' => 'pending',
+                'status_reason' => null,
                 'status_updated_at' => now(),
                 'status_updated_by' => $user->id,
-                'last_saved_at'     => now(),
+                'last_saved_at' => now(),
             ];
 
             if ($byColumn) {
-                $update[$byColumn] = $user->name; // ✅ sender/actor name
+                $update[$byColumn] = $user->name;
             }
 
             $project->update($update);
 
-            // emails: receiver + preparer + actor
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
 
             return to_route('roi.current')->with('success', 'Project moved to Level ' . $toLevel . '.');
         });
     }
 
-    /**
-     * Reject/Disapprove: move to archive as rejected and store who rejected it.
-     */
     public function reject($id)
     {
         return DB::transaction(function () use ($id) {
             $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            $actor = Auth::user();
-            $actorLevel = $this->roleToLevel($actor->role);
-
-            if ($actorLevel === null) {
-                abort(403, 'Your account has no workflow role.');
-            }
+            [$actor, $actorLevel] = $this->getAuthenticatedUserAndLevel();
 
             $this->ensureCanAct($current, $actor, $actorLevel);
 
             $reference = $current->reference;
             $preparer = $this->emailUserById((int) $current->user_id);
 
-            // archive then delete current
             $this->archiveFromCurrent($current, [
-                'status'             => 'rejected',
-                'rejected_at'        => now(),
-                'rejected_by'        => $actor->id,
-                'rejected_by_level'  => $actorLevel,
-
-                // clear approval fields (optional)
-                'approved_at'        => null,
-                'approved_by'        => null,
+                'status' => 'rejected',
+                'rejected_at' => now(),
+                'rejected_by' => $actor->id,
+                'rejected_by_level' => $actorLevel,
+                'approved_at' => null,
+                'approved_by' => null,
             ]);
 
-            // emails: preparer + actor (success)
             $this->notifyDecision('rejected', $reference, $preparer, $actor, $actorLevel);
 
             return to_route('roi.current')->with('success', 'Project rejected and archived.');
         });
     }
 
-    /**
-     * Approve: only approver (level 6), move to archive as approved.
-     */
     public function approve($id)
     {
         return DB::transaction(function () use ($id) {
             $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            $actor = Auth::user();
-            $actorLevel = $this->roleToLevel($actor->role);
-
-            if ($actorLevel === null) {
-                abort(403, 'Your account has no workflow role.');
-            }
+            [$actor, $actorLevel] = $this->getAuthenticatedUserAndLevel();
 
             $this->ensureCanAct($current, $actor, $actorLevel);
 
@@ -652,19 +584,15 @@ public function sendBack($id)
             $reference = $current->reference;
             $preparer = $this->emailUserById((int) $current->user_id);
 
-            // archive then delete current
             $this->archiveFromCurrent($current, [
-                'status'      => 'approved',
+                'status' => 'approved',
                 'approved_at' => now(),
                 'approved_by' => $actor->id,
-
-                // clear rejection fields (optional)
-                'rejected_at'       => null,
-                'rejected_by'       => null,
+                'rejected_at' => null,
+                'rejected_by' => null,
                 'rejected_by_level' => null,
             ]);
 
-            // emails: preparer + actor (success)
             $this->notifyDecision('approved', $reference, $preparer, $actor, 6);
 
             return to_route('roi.current')->with('success', 'Project approved and archived.');

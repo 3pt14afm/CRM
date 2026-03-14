@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\RoiCurrentFee;
 use App\Models\RoiCurrentItem;
 use App\Models\RoiCurrentProject;
-use App\Models\RoiEntryProject;
-use App\Models\RoiEntryItem;
 use App\Models\RoiEntryFee;
+use App\Models\RoiEntryItem;
+use App\Models\RoiEntryProject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,11 +23,14 @@ class RoiEntryProjectController extends Controller
         $project->load([
             'items' => fn ($q) => $q->orderBy('id'),
             'fees'  => fn ($q) => $q->orderBy('id'),
-            'user'
+            'user',
         ]);
 
         $notes = $project->notes ?? [];
-        if (!is_array($notes)) $notes = [];
+        if (!is_array($notes)) {
+            $notes = [];
+        }
+
         usort($notes, fn ($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
         $project->notes = array_values($notes);
 
@@ -43,7 +46,7 @@ class RoiEntryProjectController extends Controller
     {
         $data = $this->validateDraftPayload($request);
 
-        $userId    = Auth::id();
+        $userId = Auth::id();
         $reference = $data['companyInfo']['reference'];
 
         DB::transaction(function () use ($data, $userId, $reference, $request) {
@@ -52,30 +55,30 @@ class RoiEntryProjectController extends Controller
                 ->first();
 
             if (!$project) {
-                $company  = $data['companyInfo'];
+                $company = $data['companyInfo'];
                 $interest = $data['interest'] ?? [];
-                $yield    = $data['yield'] ?? [];
+                $yield = $data['yield'] ?? [];
 
-                $monoMonthly  = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
+                $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
                 $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
                 $project = RoiEntryProject::create([
-                    'user_id'      => $userId,
-                    'project_uid'  => (string) Str::ulid(),
-                    'reference'    => $reference,
-                    'version'      => 1,
-                    'status'       => 'draft',
-                    'company_name'    => (string) ($company['companyName'] ?? ''),
-                    'contract_years'  => (int) ($company['contractYears'] ?? 0),
-                    'contract_type'   => (string) ($company['contractType'] ?? ''),
-                    'purpose'         => (string) ($company['purpose'] ?? ''),
+                    'user_id' => $userId,
+                    'project_uid' => (string) Str::ulid(),
+                    'reference' => $reference,
+                    'version' => 1,
+                    'status' => 'draft',
+                    'company_name' => (string) ($company['companyName'] ?? ''),
+                    'contract_years' => (int) ($company['contractYears'] ?? 0),
+                    'contract_type' => (string) ($company['contractType'] ?? ''),
+                    'purpose' => (string) ($company['purpose'] ?? ''),
                     'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
                     'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
-                    'percent_margin'  => (float) ($interest['percentMargin'] ?? 0),
-                    'mono_yield_monthly'  => $monoMonthly,
-                    'mono_yield_annual'   => $monoMonthly * 12,
+                    'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
+                    'mono_yield_monthly' => $monoMonthly,
+                    'mono_yield_annual' => $monoMonthly * 12,
                     'color_yield_monthly' => $colorMonthly,
-                    'color_yield_annual'  => $colorMonthly * 12,
+                    'color_yield_annual' => $colorMonthly * 12,
                     'last_saved_at' => now(),
                 ]);
             } else {
@@ -92,101 +95,100 @@ class RoiEntryProjectController extends Controller
     {
         abort_unless($project->user_id === Auth::id(), 403);
 
-        // ── Step 1: persist latest form data if payload present ───────────
+        // Step 1: persist latest form data if payload present
         if ($request->has('companyInfo')) {
             $data = $this->validateDraftPayload($request);
             $this->persistDraft($request, $project, $data);
             $project->refresh()->load(['items', 'fees']);
         }
 
-        // ── Step 2: validate completeness ─────────────────────────────────
+        // Step 2: validate completeness
         if (empty($project->company_name) || empty($project->contract_type)) {
             return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
         }
 
-        // ── Step 3: copy to current and delete from entry ─────────────────
+        // Step 3: copy to current and delete from entry
         return DB::transaction(function () use ($project) {
-
             $newProject = RoiCurrentProject::create([
-                'user_id'         => $project->user_id,
-                'project_uid'     => $project->project_uid,
-                'reference'       => $project->reference,
-                'version'         => $project->version,
-                'status'          => 'For Review',
-                'current_level'   => 2,
-                'submitted_at'    => now(),
-                'last_saved_at'   => now(),
-                'company_name'    => $project->company_name,
-                'contract_years'  => $project->contract_years,
-                'contract_type'   => $project->contract_type,
-                'purpose'         => $project->purpose,
+                'user_id' => $project->user_id,
+                'project_uid' => $project->project_uid,
+                'reference' => $project->reference,
+                'version' => $project->version,
+                'status' => 'For Review',
+                'current_level' => 2,
+                'submitted_at' => now(),
+                'last_saved_at' => now(),
+                'company_name' => $project->company_name,
+                'contract_years' => $project->contract_years,
+                'contract_type' => $project->contract_type,
+                'purpose' => $project->purpose,
                 'bundled_std_ink' => $project->bundled_std_ink,
                 'annual_interest' => $project->annual_interest,
-                'percent_margin'  => $project->percent_margin,
-                'mono_yield_monthly'  => $project->mono_yield_monthly,
-                'mono_yield_annual'   => $project->mono_yield_annual,
+                'percent_margin' => $project->percent_margin,
+                'mono_yield_monthly' => $project->mono_yield_monthly,
+                'mono_yield_annual' => $project->mono_yield_annual,
                 'color_yield_monthly' => $project->color_yield_monthly,
-                'color_yield_annual'  => $project->color_yield_annual,
-                'mc_unit_cost'           => $project->mc_unit_cost,
-                'mc_qty'                 => $project->mc_qty,
-                'mc_total_cost'          => $project->mc_total_cost,
-                'mc_yields'              => $project->mc_yields,
-                'mc_cost_cpp'            => $project->mc_cost_cpp,
-                'mc_selling_price'       => $project->mc_selling_price,
-                'mc_total_sell'          => $project->mc_total_sell,
-                'mc_sell_cpp'            => $project->mc_sell_cpp,
+                'color_yield_annual' => $project->color_yield_annual,
+                'mc_unit_cost' => $project->mc_unit_cost,
+                'mc_qty' => $project->mc_qty,
+                'mc_total_cost' => $project->mc_total_cost,
+                'mc_yields' => $project->mc_yields,
+                'mc_cost_cpp' => $project->mc_cost_cpp,
+                'mc_selling_price' => $project->mc_selling_price,
+                'mc_total_sell' => $project->mc_total_sell,
+                'mc_sell_cpp' => $project->mc_sell_cpp,
                 'mc_total_bundled_price' => $project->mc_total_bundled_price,
-                'fees_total'           => $project->fees_total,
-                'grand_total_cost'     => $project->grand_total_cost,
-                'grand_total_revenue'  => $project->grand_total_revenue,
-                'grand_roi'            => $project->grand_roi,
+                'fees_total' => $project->fees_total,
+                'grand_total_cost' => $project->grand_total_cost,
+                'grand_total_revenue' => $project->grand_total_revenue,
+                'grand_roi' => $project->grand_roi,
                 'grand_roi_percentage' => $project->grand_roi_percentage,
-                'yearly_breakdown'     => $project->yearly_breakdown,
-                'notes'                => $project->notes    ?? [],
-                'comments'             => $project->comments ?? [],
+                'yearly_breakdown' => $project->yearly_breakdown,
+                'notes' => $project->notes ?? [],
+                'comments' => $project->comments ?? [],
             ]);
 
-            // STEP B: Copy Items
+            // Copy Items
             foreach ($project->items as $item) {
                 RoiCurrentItem::create([
                     'roi_current_project_id' => $newProject->id,
-                    'client_row_id'          => $item->client_row_id,
-                    'kind'                   => $item->kind,
-                    'sku'                    => $item->sku,
-                    'qty'                    => $item->qty,
-                    'yields'                 => $item->yields,
-                    'mode'                   => $item->mode,
-                    'remarks'                => $item->remarks,
-                    'inputted_cost'          => $item->inputted_cost,
-                    'cost'                   => $item->cost,
-                    'price'                  => $item->price,
-                    'base_per_year'          => $item->base_per_year,
-                    'total_cost'             => $item->total_cost,
-                    'cost_cpp'               => $item->cost_cpp,
-                    'total_sell'             => $item->total_sell,
-                    'sell_cpp'               => $item->sell_cpp,
-                    'machine_margin'         => $item->machine_margin,
-                    'machine_margin_total'   => $item->machine_margin_total,
+                    'client_row_id' => $item->client_row_id,
+                    'kind' => $item->kind,
+                    'sku' => $item->sku,
+                    'qty' => $item->qty,
+                    'yields' => $item->yields,
+                    'mode' => $item->mode,
+                    'remarks' => $item->remarks,
+                    'inputted_cost' => $item->inputted_cost,
+                    'cost' => $item->cost,
+                    'price' => $item->price,
+                    'base_per_year' => $item->base_per_year,
+                    'total_cost' => $item->total_cost,
+                    'cost_cpp' => $item->cost_cpp,
+                    'total_sell' => $item->total_sell,
+                    'sell_cpp' => $item->sell_cpp,
+                    'machine_margin' => $item->machine_margin,
+                    'machine_margin_total' => $item->machine_margin_total,
                 ]);
             }
 
-            // STEP C: Copy Fees
+            // Copy Fees
             foreach ($project->fees as $fee) {
                 RoiCurrentFee::create([
                     'roi_current_project_id' => $newProject->id,
-                    'client_row_id'          => $fee->client_row_id,
-                    'payer'                  => $fee->payer,
-                    'label'                  => $fee->label,
-                    'category'               => $fee->category,
-                    'remarks'                => $fee->remarks,
-                    'cost'                   => $fee->cost,
-                    'qty'                    => $fee->qty,
-                    'total'                  => $fee->total,
-                    'is_machine'             => $fee->is_machine,
+                    'client_row_id' => $fee->client_row_id,
+                    'payer' => $fee->payer,
+                    'label' => $fee->label,
+                    'category' => $fee->category,
+                    'remarks' => $fee->remarks,
+                    'cost' => $fee->cost,
+                    'qty' => $fee->qty,
+                    'total' => $fee->total,
+                    'is_machine' => $fee->is_machine,
                 ]);
             }
 
-            // STEP D: Cleanup
+            // Cleanup
             $project->items()->delete();
             $project->fees()->delete();
             $project->delete();
@@ -214,29 +216,27 @@ class RoiEntryProjectController extends Controller
         return redirect()->route('roi.entry.list')->with('success', 'Project deleted.');
     }
 
-    // ── private helpers ────────────────────────────────────────────────────────
-
     private function validateDraftPayload(Request $request): array
     {
         return $request->validate([
-            'companyInfo.reference'         => ['required', 'string', 'max:255'],
-            'companyInfo.companyName'        => ['required', 'string', 'max:255'],
-            'companyInfo.contractYears'      => ['required', 'integer', 'min:0'],
-            'companyInfo.contractType'       => ['required', 'string', 'max:255'],
-            'companyInfo.purpose'            => ['nullable', 'string', 'max:5000'],
-            'companyInfo.bundledStdInk'      => ['nullable', 'boolean'],
-            'interest.annualInterest'        => ['nullable'],
-            'interest.percentMargin'         => ['nullable'],
-            'yield.monoAmvpYields.monthly'   => ['nullable'],
-            'yield.colorAmvpYields.monthly'  => ['nullable'],
-            'machineConfiguration.machine'    => ['nullable', 'array'],
+            'companyInfo.reference' => ['required', 'string', 'max:255'],
+            'companyInfo.companyName' => ['required', 'string', 'max:255'],
+            'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
+            'companyInfo.contractType' => ['required', 'string', 'max:255'],
+            'companyInfo.purpose' => ['nullable', 'string', 'max:5000'],
+            'companyInfo.bundledStdInk' => ['nullable', 'boolean'],
+            'interest.annualInterest' => ['nullable'],
+            'interest.percentMargin' => ['nullable'],
+            'yield.monoAmvpYields.monthly' => ['nullable'],
+            'yield.colorAmvpYields.monthly' => ['nullable'],
+            'machineConfiguration.machine' => ['nullable', 'array'],
             'machineConfiguration.consumable' => ['nullable', 'array'],
-            'machineConfiguration.totals'     => ['nullable', 'array'],
-            'additionalFees.company'          => ['nullable', 'array'],
-            'additionalFees.customer'         => ['nullable', 'array'],
-            'additionalFees.total'            => ['nullable'],
-            'totalProjectCost'                => ['nullable', 'array'],
-            'yearlyBreakdown'                 => ['nullable', 'array'],
+            'machineConfiguration.totals' => ['nullable', 'array'],
+            'additionalFees.company' => ['nullable', 'array'],
+            'additionalFees.customer' => ['nullable', 'array'],
+            'additionalFees.total' => ['nullable'],
+            'totalProjectCost' => ['nullable', 'array'],
+            'yearlyBreakdown' => ['nullable', 'array'],
         ]);
     }
 
@@ -244,48 +244,48 @@ class RoiEntryProjectController extends Controller
     {
         $data = $data ?? $this->validateDraftPayload($request);
 
-        $company  = $data['companyInfo'] ?? [];
+        $company = $data['companyInfo'] ?? [];
         $interest = $data['interest'] ?? [];
-        $yield    = $data['yield'] ?? [];
+        $yield = $data['yield'] ?? [];
 
-        $monoMonthly  = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
+        $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
         $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
-        $mcTotals  = $data['machineConfiguration']['totals'] ?? [];
+        $mcTotals = $data['machineConfiguration']['totals'] ?? [];
         $feesTotal = (float) ($data['additionalFees']['total'] ?? 0);
-        $grand     = $data['totalProjectCost'] ?? [];
+        $grand = $data['totalProjectCost'] ?? [];
 
         $project->update([
-            'company_name'    => (string) ($company['companyName'] ?? ''),
-            'contract_years'  => (int) ($company['contractYears'] ?? 0),
-            'contract_type'   => (string) ($company['contractType'] ?? ''),
-            'purpose'         => (string) ($company['purpose'] ?? ''),
+            'company_name' => (string) ($company['companyName'] ?? ''),
+            'contract_years' => (int) ($company['contractYears'] ?? 0),
+            'contract_type' => (string) ($company['contractType'] ?? ''),
+            'purpose' => (string) ($company['purpose'] ?? ''),
             'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
             'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
-            'percent_margin'  => (float) ($interest['percentMargin'] ?? 0),
-            'mono_yield_monthly'  => $monoMonthly,
-            'mono_yield_annual'   => $monoMonthly * 12,
+            'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
+            'mono_yield_monthly' => $monoMonthly,
+            'mono_yield_annual' => $monoMonthly * 12,
             'color_yield_monthly' => $colorMonthly,
-            'color_yield_annual'  => $colorMonthly * 12,
-            'mc_unit_cost'           => (float) ($mcTotals['unitCost'] ?? 0),
-            'mc_qty'                 => (float) ($mcTotals['qty'] ?? 0),
-            'mc_total_cost'          => (float) ($mcTotals['totalCost'] ?? 0),
-            'mc_yields'              => (float) ($mcTotals['yields'] ?? 0),
-            'mc_cost_cpp'            => (float) ($mcTotals['costCpp'] ?? 0),
-            'mc_selling_price'       => (float) ($mcTotals['sellingPrice'] ?? 0),
-            'mc_total_sell'          => (float) ($mcTotals['totalSell'] ?? 0),
-            'mc_sell_cpp'            => (float) ($mcTotals['sellCpp'] ?? 0),
+            'color_yield_annual' => $colorMonthly * 12,
+            'mc_unit_cost' => (float) ($mcTotals['unitCost'] ?? 0),
+            'mc_qty' => (float) ($mcTotals['qty'] ?? 0),
+            'mc_total_cost' => (float) ($mcTotals['totalCost'] ?? 0),
+            'mc_yields' => (float) ($mcTotals['yields'] ?? 0),
+            'mc_cost_cpp' => (float) ($mcTotals['costCpp'] ?? 0),
+            'mc_selling_price' => (float) ($mcTotals['sellingPrice'] ?? 0),
+            'mc_total_sell' => (float) ($mcTotals['totalSell'] ?? 0),
+            'mc_sell_cpp' => (float) ($mcTotals['sellCpp'] ?? 0),
             'mc_total_bundled_price' => (float) ($mcTotals['totalBundledPrice'] ?? 0),
-            'fees_total'           => $feesTotal,
-            'grand_total_cost'     => (float) ($grand['grandTotalCost'] ?? 0),
-            'grand_total_revenue'  => (float) ($grand['grandTotalRevenue'] ?? 0),
-            'grand_roi'            => (float) ($grand['grandROI'] ?? 0),
+            'fees_total' => $feesTotal,
+            'grand_total_cost' => (float) ($grand['grandTotalCost'] ?? 0),
+            'grand_total_revenue' => (float) ($grand['grandTotalRevenue'] ?? 0),
+            'grand_roi' => (float) ($grand['grandROI'] ?? 0),
             'grand_roi_percentage' => (float) ($grand['grandROIPercentage'] ?? 0),
-            'yearly_breakdown'     => $data['yearlyBreakdown'] ?? null,
-            'last_saved_at'        => now(),
+            'yearly_breakdown' => $data['yearlyBreakdown'] ?? null,
+            'last_saved_at' => now(),
         ]);
 
-        // ── items ──────────────────────────────────────────────────────────
+        // Items
         $hasMachinePayload =
             $request->exists('machineConfiguration.machine') ||
             $request->exists('machineConfiguration.consumable');
@@ -300,12 +300,13 @@ class RoiEntryProjectController extends Controller
             foreach ($data['machineConfiguration']['consumable'] ?? [] as $row) {
                 $itemRows[] = $this->mapItemRow($project->id, $row, 'consumable');
             }
+
             if (!empty($itemRows)) {
                 RoiEntryItem::insert($itemRows);
             }
         }
 
-        // ── fees ───────────────────────────────────────────────────────────
+        // Fees
         $hasFeePayload =
             $request->exists('additionalFees.company') ||
             $request->exists('additionalFees.customer');
@@ -320,6 +321,7 @@ class RoiEntryProjectController extends Controller
             foreach ($data['additionalFees']['customer'] ?? [] as $row) {
                 $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer');
             }
+
             if (!empty($feeRows)) {
                 RoiEntryFee::insert($feeRows);
             }
@@ -330,25 +332,25 @@ class RoiEntryProjectController extends Controller
     {
         return [
             'roi_entry_project_id' => $projectId,
-            'client_row_id'        => isset($row['id']) ? (string) $row['id'] : null,
-            'kind'                 => $kind,
-            'sku'                  => (string) ($row['sku'] ?? ''),
-            'qty'                  => (float) ($row['qty'] ?? 0),
-            'yields'               => (float) ($row['yields'] ?? 0),
-            'mode'                 => $row['mode'] ?? null,
-            'remarks'              => $row['remarks'] ?? null,
-            'inputted_cost'        => (float) ($row['inputtedCost'] ?? 0),
-            'cost'                 => (float) ($row['cost'] ?? 0),
-            'price'                => (float) ($row['price'] ?? 0),
-            'base_per_year'        => (float) ($row['basePerYear'] ?? 0),
-            'total_cost'           => (float) ($row['totalCost'] ?? 0),
-            'cost_cpp'             => (float) ($row['costCpp'] ?? 0),
-            'total_sell'           => (float) ($row['totalSell'] ?? 0),
-            'sell_cpp'             => (float) ($row['sellCpp'] ?? 0),
-            'machine_margin'       => (float) ($row['machineMargin'] ?? 0),
+            'client_row_id' => isset($row['id']) ? (string) $row['id'] : null,
+            'kind' => $kind,
+            'sku' => (string) ($row['sku'] ?? ''),
+            'qty' => (float) ($row['qty'] ?? 0),
+            'yields' => (float) ($row['yields'] ?? 0),
+            'mode' => $row['mode'] ?? null,
+            'remarks' => $row['remarks'] ?? null,
+            'inputted_cost' => (float) ($row['inputtedCost'] ?? 0),
+            'cost' => (float) ($row['cost'] ?? 0),
+            'price' => (float) ($row['price'] ?? 0),
+            'base_per_year' => (float) ($row['basePerYear'] ?? 0),
+            'total_cost' => (float) ($row['totalCost'] ?? 0),
+            'cost_cpp' => (float) ($row['costCpp'] ?? 0),
+            'total_sell' => (float) ($row['totalSell'] ?? 0),
+            'sell_cpp' => (float) ($row['sellCpp'] ?? 0),
+            'machine_margin' => (float) ($row['machineMargin'] ?? 0),
             'machine_margin_total' => (float) ($row['machineMarginTotal'] ?? 0),
-            'created_at'           => now(),
-            'updated_at'           => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
         ];
     }
 
@@ -356,44 +358,46 @@ class RoiEntryProjectController extends Controller
     {
         return [
             'roi_entry_project_id' => $projectId,
-            'client_row_id'        => isset($row['id']) ? (string) $row['id'] : null,
-            'payer'                => $payer,
-            'label'                => (string) ($row['label'] ?? ''),
-            'category'             => $row['category'] ?? null,
-            'remarks'              => $row['remarks'] ?? null,
-            'cost'                 => (float) ($row['cost'] ?? 0),
-            'qty'                  => (float) ($row['qty'] ?? 0),
-            'total'                => (float) ($row['total'] ?? 0),
-            'is_machine'           => (bool) ($row['isMachine'] ?? false),
-            'created_at'           => now(),
-            'updated_at'           => now(),
+            'client_row_id' => isset($row['id']) ? (string) $row['id'] : null,
+            'payer' => $payer,
+            'label' => (string) ($row['label'] ?? ''),
+            'category' => $row['category'] ?? null,
+            'remarks' => $row['remarks'] ?? null,
+            'cost' => (float) ($row['cost'] ?? 0),
+            'qty' => (float) ($row['qty'] ?? 0),
+            'total' => (float) ($row['total'] ?? 0),
+            'is_machine' => (bool) ($row['isMachine'] ?? false),
+            'created_at' => now(),
+            'updated_at' => now(),
         ];
     }
 
     public function storeNote(Request $request, RoiEntryProject $project)
     {
-        abort_unless(Auth::user()->role === 'preparer', 403);
+        abort_unless(Auth::user()->workflow_role === 'preparer', 403);
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
         $notes = $project->notes ?? [];
-        if (!is_array($notes)) $notes = [];
+        if (!is_array($notes)) {
+            $notes = [];
+        }
 
         array_unshift($notes, [
-            'id'         => (string) Str::ulid(),
-            'body'       => trim($validated['body']),
+            'id' => (string) Str::ulid(),
+            'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
-            'author'     => [
-                'id'   => Auth::id(),
+            'author' => [
+                'id' => Auth::id(),
                 'name' => Auth::user()?->name ?? 'Unknown',
             ],
         ]);
 
         $project->update([
-            'notes'        => $notes,
-            'last_saved_at'=> now(),
+            'notes' => $notes,
+            'last_saved_at' => now(),
         ]);
 
         return back()->with('success', 'Note added.');
@@ -401,28 +405,30 @@ class RoiEntryProjectController extends Controller
 
     public function storeComment(Request $request, RoiCurrentProject $project)
     {
-        abort_unless(in_array(Auth::user()->role, ['confirmer', 'approver']), 403);
+        abort_unless(in_array(Auth::user()->workflow_role, ['confirmer', 'approver']), 403);
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
         $comments = $project->comments ?? [];
-        if (!is_array($comments)) $comments = [];
+        if (!is_array($comments)) {
+            $comments = [];
+        }
 
         array_unshift($comments, [
-            'id'         => (string) Str::ulid(),
-            'body'       => trim($validated['body']),
+            'id' => (string) Str::ulid(),
+            'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
-            'author'     => [
-                'id'   => Auth::id(),
+            'author' => [
+                'id' => Auth::id(),
                 'name' => Auth::user()?->name ?? 'Unknown',
             ],
         ]);
 
         $project->update([
-            'comments'     => $comments,
-            'last_saved_at'=> now(),
+            'comments' => $comments,
+            'last_saved_at' => now(),
         ]);
 
         return back()->with('success', 'Comment added.');

@@ -7,11 +7,6 @@ use Inertia\Inertia;
 
 class AdminController extends Controller
 {
-    public function approverMatrix()
-    {
-        return Inertia::render('Admin/ApproverMatrix');
-    }
-
     public function userGroupAccessRights()
     {
         return Inertia::render('Admin/UserGroupAccessRights');

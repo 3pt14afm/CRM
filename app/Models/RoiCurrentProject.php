@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RoiCurrentProject extends Model
 {
@@ -17,7 +17,7 @@ class RoiCurrentProject extends Model
         'version',
         'last_saved_at',
 
-        // workflow/status
+        // temporary workflow/status runtime
         'status',
         'status_reason',
         'status_updated_at',
@@ -25,7 +25,8 @@ class RoiCurrentProject extends Model
         'submitted_at',
         'current_level',
 
-        // audit names (optional - you already have these columns)
+        // temporary audit/signatory fields
+        // these will later be replaced or supplemented by matrix-resolved approvals
         'reviewed_by',
         'checked_by',
         'endorsed_by',
@@ -83,8 +84,10 @@ class RoiCurrentProject extends Model
         'notes' => 'array',
         'comments' => 'array',
 
+        'user_id' => 'integer',
         'current_level' => 'integer',
         'status_updated_by' => 'integer',
+        'approved_by' => 'integer',
     ];
 
     public function items(): HasMany

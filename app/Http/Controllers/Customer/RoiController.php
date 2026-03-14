@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
-use App\Models\RoiEntryProject;
 use App\Models\RoiArchiveProject;
+use App\Models\RoiEntryProject;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -44,8 +44,8 @@ class RoiController extends Controller
                     $now = now();
 
                     $diffMinutes = (int) $last->diffInMinutes($now);
-                    $diffHours   = (int) $last->diffInHours($now);
-                    $diffDays    = (int) $last->diffInDays($now);
+                    $diffHours = (int) $last->diffInHours($now);
+                    $diffDays = (int) $last->diffInDays($now);
 
                     if ($diffDays >= 2) {
                         $display = $last->format('m/d/y');
@@ -65,9 +65,9 @@ class RoiController extends Controller
                     'reference' => $p->reference,
                     'company_name' => $p->company_name,
                     'contract_years' => $p->contract_years,
-                    'contract_type'  => $p->contract_type,
+                    'contract_type' => $p->contract_type,
                     'last_saved_display' => $display,
-                    'status' => $p->status
+                    'status' => $p->status,
                 ];
             }),
             'stats' => [
@@ -93,21 +93,21 @@ class RoiController extends Controller
     public function entryMachine()
     {
         return Inertia::render('CustomerManagement/ProjectROIApproval/Entry', [
-            'activeTab' => 'Machine Configuration'
+            'activeTab' => 'Machine Configuration',
         ]);
     }
 
     public function entrySummary()
     {
         return Inertia::render('CustomerManagement/ProjectROIApproval/Entry', [
-            'activeTab' => 'Summary'
+            'activeTab' => 'Summary',
         ]);
     }
 
     public function entrySucceeding()
     {
         return Inertia::render('CustomerManagement/ProjectROIApproval/Entry', [
-            'activeTab' => 'Succeeding'
+            'activeTab' => 'Succeeding',
         ]);
     }
 
@@ -124,11 +124,11 @@ class RoiController extends Controller
             ->with('user')
             ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
             ->leftJoin('users as rejected_user', 'roi_archive_projects.rejected_by', '=', 'rejected_user.id')
-            ->select([
-                'roi_archive_projects.*',
-                'approved_user.name as approved_by_name',
-                'rejected_user.name as rejected_by_name',
-            ])
+            ->selectRaw("
+                roi_archive_projects.*,
+                TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, ''))) as approved_by_name,
+                TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, ''))) as rejected_by_name
+            ")
             ->orderByDesc('roi_archive_projects.updated_at');
 
         $archiveProjects = (clone $archiveQuery)
@@ -141,12 +141,15 @@ class RoiController extends Controller
                 $isApproved = $status === 'approved';
 
                 $decidedByName = $isRejected
-                    ? ($p->rejected_by_name ?? '—')
-                    : ($p->approved_by_name ?? '—');
+                    ? ($p->rejected_by_name ?: '—')
+                    : ($p->approved_by_name ?: '—');
 
                 $decidedAt = $isRejected ? $p->rejected_at : $p->approved_at;
 
-                $p->decision_display = $isRejected ? 'Rejected' : ($isApproved ? 'Approved' : ($p->status ?? '—'));
+                $p->decision_display = $isRejected
+                    ? 'Rejected'
+                    : ($isApproved ? 'Approved' : ($p->status ?? '—'));
+
                 $p->decided_by_name = $decidedByName;
 
                 $p->decided_at_display = $decidedAt
@@ -180,19 +183,14 @@ class RoiController extends Controller
         ]);
     }
 
-    // ✅ NEW: Archive show
     public function archiveShow($id)
     {
         $project = RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-        // ✅ include ALL possible signatory/actor ids
         $userIds = collect([
             $project->user_id,
-
             $project->approved_by,
             $project->rejected_by,
-
-            // if you later add *_by_id columns in archive too
             $project->reviewed_by_id ?? null,
             $project->checked_by_id ?? null,
             $project->endorsed_by_id ?? null,
@@ -201,18 +199,21 @@ class RoiController extends Controller
 
         $usersById = User::query()
             ->whereIn('id', $userIds)
-            ->get(['id','name'])
+            ->get(['id', 'first_name', 'last_name'])
             ->keyBy(fn ($u) => (string) $u->id)
-            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]);
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => trim($u->first_name . ' ' . $u->last_name),
+            ]);
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-            'project'      => $project,
+            'project' => $project,
             'entryProject' => $project,
-            'readOnly'     => true,
-            'route'        => 'archive',
-            'createdBy'    => $project->user?->name ?? '—',
-            'role'         => Auth::user()->role,
-            'usersById'    => $usersById,
+            'readOnly' => true,
+            'route' => 'archive',
+            'createdBy' => $project->user?->name ?? '—',
+            'role' => Auth::user()->workflow_role,
+            'usersById' => $usersById,
         ]);
     }
 }
