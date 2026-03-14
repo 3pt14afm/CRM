@@ -1,18 +1,19 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\ApproverMatrixController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\PositionController;
 use App\Http\Controllers\Admin\UserController;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -27,12 +28,15 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Admin Panel
+/*
+|--------------------------------------------------------------------------
+| Admin Panel
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['auth', 'verified', 'admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-
         Route::get('/panel', function () {
             return redirect()->route('admin.location-master.index');
         })->name('index');
@@ -42,7 +46,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::get('/department-master', [DepartmentController::class, 'departmentMaster'])->name('department-master.index');
         Route::get('/position-master', [PositionController::class, 'positionMaster'])->name('position-master.index');
         Route::get('/user-management', [UserController::class, 'userManagement'])->name('user-management.index');
-        Route::get('/approver-matrix', [AdminController::class, 'approverMatrix'])->name('approver-matrix.index');
+        Route::get('/approver-matrix', [ApproverMatrixController::class, 'index'])->name('approver-matrix.index');
         Route::get('/user-group-access-rights', [AdminController::class, 'userGroupAccessRights'])->name('user-group-access-rights.index');
         Route::get('/user-access-rights', [AdminController::class, 'userAccessRights'])->name('user-access-rights.index');
         Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit-logs.index');
@@ -56,7 +60,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::delete('/locations/{location}', [LocationController::class, 'locationDestroy'])->name('locations.destroy');
         Route::get('/locations/{location}/users', [LocationController::class, 'locationUsers'])->name('locations.users');
 
-        //Department CRUD
+        // Departments CRUD
         Route::get('/departments', [DepartmentController::class, 'departmentIndex'])->name('departments.index');
         Route::post('/departments', [DepartmentController::class, 'departmentStore'])->name('departments.store');
         Route::put('/departments/{department}', [DepartmentController::class, 'departmentUpdate'])->name('departments.update');
@@ -79,6 +83,10 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::patch('/users/{user}/unban', [UserController::class, 'userUnban'])->name('users.unban');
         Route::delete('/users/{user}', [UserController::class, 'userDestroy'])->name('users.destroy');
 
+        // Approver Matrix CRUD
+        Route::post('/approver-matrix', [ApproverMatrixController::class, 'store'])->name('approver-matrix.store');
+        Route::put('/approver-matrix/{locationDepartment}', [ApproverMatrixController::class, 'update'])->name('approver-matrix.update');
+
         // Company Directory endpoints
         Route::get('/directory/departments', [DepartmentController::class, 'departments'])->name('directory.departments');
         Route::get('/directory/positions', [PositionController::class, 'positions'])->name('directory.positions');
@@ -86,32 +94,56 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::post('/users/assign-employee', [UserController::class, 'assignEmployeeUser'])->name('users.assign-employee');
     });
 
+/*
+|--------------------------------------------------------------------------
+| Customer Management
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['auth', 'verified'])
     ->prefix('customer-management')
     ->group(function () {
-
         Route::get('/dashboard', [CustomerManagementController::class, 'dashboard'])
             ->name('customers.dashboard');
 
         Route::get('/details', [CustomerManagementController::class, 'details'])
             ->name('customers.details');
 
+        /*
+        |--------------------------------------------------------------------------
+        | ROI Approval Module
+        |--------------------------------------------------------------------------
+        | Entry / Current / Archive stays.
+        | Current approval actions are still temporary until Approver Matrix replaces
+        | the hardcoded workflow runtime.
+        */
         Route::prefix('roi')->group(function () {
 
+            /*
+            |--------------------------------------------------------------------------
+            | Entry
+            |--------------------------------------------------------------------------
+            */
             Route::prefix('entry')->group(function () {
-
                 Route::get('/', [RoiController::class, 'entryList'])->name('roi.entry.list');
-
                 Route::get('/create', [RoiController::class, 'entryCreate'])->name('roi.entry.create');
-
-                Route::get('/projects/{project}', [RoiEntryProjectController::class, 'show'])
-                    ->name('roi.entry.projects.show');
 
                 Route::post('/draft', [RoiEntryProjectController::class, 'saveDraft'])
                     ->name('roi.entry.draft.save');
 
-                Route::patch('/entry/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
+                Route::get('/projects/{project}', [RoiEntryProjectController::class, 'show'])
+                    ->name('roi.entry.projects.show');
+
+                Route::patch('/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])
                     ->name('roi.entry.projects.submit');
+
+                Route::delete('/projects/{project}', [RoiEntryProjectController::class, 'destroy'])
+                    ->name('roi.entry.projects.destroy');
+
+                Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])
+                    ->name('roi.entry.projects.notes.store');
+
+                Route::post('/projects/{project}/comments', [RoiEntryProjectController::class, 'storeComment'])
+                    ->name('roi.projects.comments.store');
 
                 Route::get('/projects/{project}/print', function ($project) {
                     $p = \App\Models\RoiEntryProject::with(['items', 'fees', 'user'])->findOrFail($project);
@@ -124,25 +156,24 @@ Route::middleware(['auth', 'verified'])
                         'entryProject' => $p,
                     ]);
                 })->name('roi.entry.projects.print');
-
-                Route::delete('/projects/{project}', [RoiEntryProjectController::class, 'destroy'])
-                    ->name('roi.entry.projects.destroy');
-
-                Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])
-                    ->name('roi.entry.projects.notes.store');
-
-                Route::post('/{project}/comments', [RoiEntryProjectController::class, 'storeComment'])
-                    ->name('roi.projects.comments.store');
             });
 
+            /*
+            |--------------------------------------------------------------------------
+            | Current
+            |--------------------------------------------------------------------------
+            | These actions are temporary runtime workflow actions.
+            | Later, Approver Matrix + resolved approvers will drive them.
+            */
             Route::prefix('current')->group(function () {
-                Route::get('/', [RoiCurrentProjectController::class, 'current'])->name('roi.current');
-
-                Route::patch('/{id}/send-back', [RoiCurrentProjectController::class, 'sendBack'])
-                    ->name('roi.current.send-back');
+                Route::get('/', [RoiCurrentProjectController::class, 'current'])
+                    ->name('roi.current');
 
                 Route::get('/{id}', [RoiCurrentProjectController::class, 'show'])
                     ->name('roi.current.show');
+
+                Route::patch('/{id}/send-back', [RoiCurrentProjectController::class, 'sendBack'])
+                    ->name('roi.current.send-back');
 
                 Route::post('/{id}/advance', [RoiCurrentProjectController::class, 'advanceProject'])
                     ->name('roi.current.advance');
@@ -166,9 +197,22 @@ Route::middleware(['auth', 'verified'])
                 })->name('roi.current.print');
             });
 
-            Route::get('/archive', [RoiController::class, 'archive'])->name('roi.archive');
-            Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])->name('roi.archive.show');
+            /*
+            |--------------------------------------------------------------------------
+            | Archive
+            |--------------------------------------------------------------------------
+            */
+            Route::get('/archive', [RoiController::class, 'archive'])
+                ->name('roi.archive');
 
+            Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])
+                ->name('roi.archive.show');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Proposals
+            |--------------------------------------------------------------------------
+            */
             Route::prefix('proposals')->name('proposals.')->group(function () {
                 Route::get('/', [ProposalController::class, 'proposalList'])->name('list');
                 Route::get('/{id}', [ProposalController::class, 'show'])->name('show');

@@ -3,42 +3,67 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RoiArchiveProject extends Model
 {
     protected $table = 'roi_archive_projects';
 
     protected $fillable = [
-        'user_id','project_uid','reference','version','last_saved_at','status',
+        'user_id',
+        'project_uid',
+        'reference',
+        'version',
+        'last_saved_at',
+        'status',
 
-        // ✅ carry workflow signatories into archive (Level 2-5)
+        // temporary carried-over workflow signatories
         'reviewed_by',
         'checked_by',
         'endorsed_by',
         'confirmed_by',
 
-        // ✅ approve metadata
-        'approved_at','approved_by',
+        // final decision metadata
+        'approved_at',
+        'approved_by',
+        'rejected_at',
+        'rejected_by',
+        'rejected_by_level',
 
-        // ✅ reject metadata
-        'rejected_at','rejected_by','rejected_by_level',
+        'company_name',
+        'contract_years',
+        'contract_type',
+        'bundled_std_ink',
 
-        'company_name','contract_years','contract_type','bundled_std_ink',
+        'annual_interest',
+        'percent_margin',
 
-        'annual_interest','percent_margin',
+        'mono_yield_monthly',
+        'mono_yield_annual',
+        'color_yield_monthly',
+        'color_yield_annual',
 
-        'mono_yield_monthly','mono_yield_annual','color_yield_monthly','color_yield_annual',
-
-        'mc_unit_cost','mc_qty','mc_total_cost','mc_yields','mc_cost_cpp',
-        'mc_selling_price','mc_total_sell','mc_sell_cpp','mc_total_bundled_price',
+        'mc_unit_cost',
+        'mc_qty',
+        'mc_total_cost',
+        'mc_yields',
+        'mc_cost_cpp',
+        'mc_selling_price',
+        'mc_total_sell',
+        'mc_sell_cpp',
+        'mc_total_bundled_price',
 
         'fees_total',
 
-        'grand_total_cost','grand_total_revenue','grand_roi','grand_roi_percentage',
+        'grand_total_cost',
+        'grand_total_revenue',
+        'grand_roi',
+        'grand_roi_percentage',
 
-        'yearly_breakdown','notes','comments',
+        'yearly_breakdown',
+        'notes',
+        'comments',
     ];
 
     protected $casts = [
@@ -50,6 +75,11 @@ class RoiArchiveProject extends Model
         'yearly_breakdown' => 'array',
         'notes' => 'array',
         'comments' => 'array',
+
+        'user_id' => 'integer',
+        'approved_by' => 'integer',
+        'rejected_by' => 'integer',
+        'rejected_by_level' => 'integer',
     ];
 
     public function user(): BelongsTo
@@ -76,12 +106,12 @@ class RoiArchiveProject extends Model
     {
         return $this->hasMany(RoiArchiveFee::class, 'roi_archive_project_id');
     }
+
     /**
- * Get the proposals for the archive project.
- */
-public function proposals()
-{
-    // Ensure 'roi_archive_project_id' matches the actual column name in your proposals table
-    return $this->hasMany(Proposal::class, 'roi_archive_project_id');
-}
+     * Get the proposals for the archive project.
+     */
+    public function proposals(): HasMany
+    {
+        return $this->hasMany(Proposal::class, 'roi_archive_project_id');
+    }
 }
