@@ -20,6 +20,14 @@ class User extends Authenticatable
         'admin@example.com' => 'approver',
     ];
 
+    private const TEMP_WORKFLOW_ROLE_BY_EMPLOYEE_ID = [
+        '0002' => 'preparer',
+        '0003' => 'reviewer',
+        '0004' => 'checker',
+        '0005' => 'endorser',
+        '0006' => 'confirmer',
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -91,18 +99,24 @@ class User extends Authenticatable
      * Temporary helper for ROI workflow testing.
      * Priority:
      * 1. hardcoded test email mapping
-     * 2. actual role column value, if present
+     * 2. hardcoded test employee id mapping
+     * 3. actual role column value, if present
      */
     public function getWorkflowRoleAttribute(): ?string
     {
         $email = strtolower(trim((string) $this->email));
+        $employeeId = str_pad((string) ($this->employee_id ?? ''), 4, '0', STR_PAD_LEFT);
 
         if (isset(self::TEMP_WORKFLOW_ROLE_BY_EMAIL[$email])) {
             return self::TEMP_WORKFLOW_ROLE_BY_EMAIL[$email];
         }
 
+        if (isset(self::TEMP_WORKFLOW_ROLE_BY_EMPLOYEE_ID[$employeeId])) {
+            return self::TEMP_WORKFLOW_ROLE_BY_EMPLOYEE_ID[$employeeId];
+        }
+
         return isset($this->attributes['role'])
-            ? strtolower(trim((string) $this->attributes['role']))
+            ? strtolower(trim((string) ($this->attributes['role'] ?? '')))
             : null;
     }
 }
