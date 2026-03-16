@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Location;
 use App\Models\LocationDepartment;
 use App\Models\RoiCurrentFee;
 use App\Models\RoiCurrentItem;
@@ -9,6 +10,8 @@ use App\Models\RoiCurrentProject;
 use App\Models\RoiEntryFee;
 use App\Models\RoiEntryItem;
 use App\Models\RoiEntryProject;
+use App\Models\RoiArchiveProject;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -49,49 +52,92 @@ class RoiEntryProjectController extends Controller
 
         $user = Auth::user();
         $userId = $user->id;
-        $reference = $data['companyInfo']['reference'];
 
-        DB::transaction(function () use ($data, $user, $userId, $reference, $request) {
-            $project = RoiEntryProject::where('user_id', $userId)
-                ->where('reference', $reference)
-                ->first();
+        $projectUid = $data['companyInfo']['projectUid'] ?? null;
+        $reference = $data['companyInfo']['reference'] ?? null;
+
+        $project = DB::transaction(function () use ($data, $user, $userId, $projectUid, $reference, $request) {
+            $project = null;
+
+            if (!empty($projectUid)) {
+                $project = RoiEntryProject::where('user_id', $userId)
+                    ->where('project_uid', $projectUid)
+                    ->first();
+            }
+
+            if (!$project && !empty($reference)) {
+                $project = RoiEntryProject::where('user_id', $userId)
+                    ->where('reference', $reference)
+                    ->first();
+            }
 
             if (!$project) {
-                $company = $data['companyInfo'];
+                $company = $data['companyInfo'] ?? [];
                 $interest = $data['interest'] ?? [];
                 $yield = $data['yield'] ?? [];
 
                 $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
                 $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
-                $project = RoiEntryProject::create([
-                    'user_id' => $userId,
-                    'location_id' => $user->primary_location_id,
-                    'project_uid' => (string) Str::ulid(),
-                    'reference' => $reference,
-                    'version' => 1,
-                    'status' => 'draft',
-                    'company_name' => (string) ($company['companyName'] ?? ''),
-                    'contract_years' => (int) ($company['contractYears'] ?? 0),
-                    'contract_type' => (string) ($company['contractType'] ?? ''),
-                    'purpose' => (string) ($company['purpose'] ?? ''),
-                    'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
-                    'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
-                    'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
-                    'mono_yield_monthly' => $monoMonthly,
-                    'mono_yield_annual' => $monoMonthly * 12,
-                    'color_yield_monthly' => $colorMonthly,
-                    'color_yield_annual' => $colorMonthly * 12,
-                    'last_saved_at' => now(),
-                ]);
+                $created = false;
+
+                for ($attempt = 0; $attempt < 3 && !$created; $attempt++) {
+                    try {
+                        $generatedReference = $this->generateReferenceForUser($user);
+                        $generatedProjectUid = (string) Str::ulid();
+
+                        $project = RoiEntryProject::create([
+                            'user_id' => $userId,
+                            'location_id' => $user->primary_location_id,
+                            'project_uid' => $generatedProjectUid,
+                            'reference' => $generatedReference,
+                            'version' => 1,
+                            'status' => 'draft',
+                            'company_name' => (string) ($company['companyName'] ?? ''),
+                            'contract_years' => (int) ($company['contractYears'] ?? 0),
+                            'contract_type' => (string) ($company['contractType'] ?? ''),
+                            'purpose' => (string) ($company['purpose'] ?? ''),
+                            'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
+                            'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
+                            'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
+                            'mono_yield_monthly' => $monoMonthly,
+                            'mono_yield_annual' => $monoMonthly * 12,
+                            'color_yield_monthly' => $colorMonthly,
+                            'color_yield_annual' => $colorMonthly * 12,
+                            'last_saved_at' => now(),
+                        ]);
+
+                        $created = true;
+                    } catch (QueryException $e) {
+                        $errorInfo = $e->errorInfo;
+                        $sqlState = $errorInfo[0] ?? null;
+                        $driverCode = $errorInfo[1] ?? null;
+                        $message = strtolower($errorInfo[2] ?? $e->getMessage());
+
+                        $isDuplicateKey =
+                            $sqlState === '23000' ||
+                            $sqlState === '23505' ||
+                            in_array($driverCode, [1062, 1555, 2067], true);
+
+                        $isReferenceConflict = str_contains($message, 'reference');
+
+                        if (!($isDuplicateKey && $isReferenceConflict) || $attempt === 2) {
+                            throw $e;
+                        }
+                    }
+                }
             } else {
                 $project->increment('version');
             }
 
             $this->persistDraft($request, $project, $data);
+
+            return $project->fresh();
         });
 
-        return redirect()->route('roi.entry.list');
+        return redirect()
+            ->route('roi.entry.projects.show', $project)
+            ->with('success', 'Draft saved successfully.');
     }
 
     public function submit(Request $request, RoiEntryProject $project)
@@ -237,7 +283,8 @@ class RoiEntryProjectController extends Controller
     private function validateDraftPayload(Request $request): array
     {
         return $request->validate([
-            'companyInfo.reference' => ['required', 'string', 'max:255'],
+            'companyInfo.reference' => ['nullable', 'string', 'max:255'],
+            'companyInfo.projectUid' => ['nullable', 'string', 'max:255'],
             'companyInfo.companyName' => ['required', 'string', 'max:255'],
             'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
             'companyInfo.contractType' => ['required', 'string', 'max:255'],
@@ -460,5 +507,58 @@ class RoiEntryProjectController extends Controller
             6 => (int) $project->approved_by === $userId,
             default => false,
         };
+    }
+
+    private function generateReferenceForUser($user): string
+    {
+        if (!$user?->primary_location_id) {
+            abort(422, 'Your account has no primary location.');
+        }
+
+        $location = Location::find($user->primary_location_id);
+
+        if (!$location || empty($location->code)) {
+            abort(422, 'Primary location has no code.');
+        }
+
+        $prefix = strtoupper(trim($location->code));
+
+        return $this->generateNextReferenceFromPrefix($prefix);
+    }
+
+    private function generateNextReferenceFromPrefix(string $prefix): string
+    {
+        $entryReference = RoiEntryProject::query()
+            ->where('reference', 'like', $prefix . '-%')
+            ->orderByDesc('id')
+            ->value('reference');
+
+        $currentReference = RoiCurrentProject::query()
+            ->where('reference', 'like', $prefix . '-%')
+            ->orderByDesc('id')
+            ->value('reference');
+
+        $archiveReference = RoiArchiveProject::query()
+            ->where('reference', 'like', $prefix . '-%')
+            ->orderByDesc('id')
+            ->value('reference');
+
+        $references = array_filter([
+            $entryReference,
+            $currentReference,
+            $archiveReference,
+        ]);
+
+        $maxNumber = 0;
+
+        foreach ($references as $reference) {
+            if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $reference, $matches)) {
+                $maxNumber = max($maxNumber, (int) $matches[1]);
+            }
+        }
+
+        $nextNumber = $maxNumber + 1;
+
+        return $prefix . '-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 }
