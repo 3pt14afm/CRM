@@ -43,74 +43,100 @@ console.log({ currentProjects, stats });
       key: "Created by",
       header: "PREPARED BY",
       cell: (r) => (
-        <span className="text-[#289800] font-semibold">{r.user?.name ?? " "}</span>
+        <span className="text-[#195c00] font-semibold">{r.user?.name ?? " "}</span>
       ),
     },
      {
       key: "reference",
-      header: "REFERENCE",
+      header: <div className="text-center w-full">REFERENCE</div>,
       cell: (r) => (
-        <span className=" font-semibold">{r.reference}</span>
+        <div className="w-full flex justify-center font-medium items-center">
+          <span className="text-[11px] lg:text-sm">
+            {r.reference}
+          </span>
+        </div>
       ),
     },
     {
       key: "company_name",
-      header: "COMPANY NAME",
-      cell: (r) => r.company_name ?? "—",
+      header: <div className="text-center w-full">COMPANY NAME</div>,
+      cell: (r) => (
+        <div className="w-full flex justify-center items-center">
+          <span className="text-[11px] lg:text-sm">
+            {r.company_name ?? "—"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "contract_years",
-      header: "CONTRACT TERM",
-      cell: (r) => r.contract_years != null ? `${r.contract_years}` : "—",
+      header: <div className="text-center w-full">CONTRACT TERM</div>,
+      cell: (r) => (
+        <div className="w-full flex justify-center items-center">
+          <span className="text-[11px] lg:text-sm">
+            {r.contract_years != null ? `${r.contract_years}` : "—"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "contract_type",
-      header: "CONTRACT TYPE",
-      cell: (r) => r.contract_type ?? "—",
+      header: <div className="text-center w-full">CONTRACT TYPE</div>,
+      cell: (r) => (
+        <div className="w-full flex justify-center items-center">
+          <span className="text-[11px] lg:text-sm">
+            {r.contract_type ?? "—"}
+          </span>
+        </div>
+      ),
     },
     {
-    header: "STATUS",
-    key: "status",
-    cell: (row) => {
-      // Define colors based on status value
-      const ForReview = row.status === 'For Review';
-      
-      return (
-        <span className={`
-          px-2 py-1           /* Padding for the background */
-          rounded-full        /* High radius (capsule shape) */
-          text-[9px]         /* Smaller font size */
-          font-bold           /* Bold text */
-          uppercase           /* Clean look */
-          tracking-wider      /* Spacing */
-        ${ForReview 
-            ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20" 
-            : "bg-blue-100 text-blue-700 border border-blue-200"
-          }
-        `}>
-          {row.status}
-        </span>
-      );
-    }
-  },
+      key: "status",
+      header: <div className="text-center w-full">STATUS</div>,
+      cell: (row) => {
+        return (
+          <div className="w-full flex justify-center items-center">
+            <div className="flex flex-col items-center leading-tight">
+              <span
+                className={`
+                  inline-block px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider
+                  bg-blue-100 text-blue-700 border border-blue-200
+                `}
+              >
+                {row.status}
+              </span>
+
+              <span className="mt-1 text-[10px] text-center italic text-blue-700">
+                by: {row.status_assignee_name ?? "—"}
+              </span>
+            </div>
+          </div>
+        );
+      },
+    },
     {
       key: "last_saved_at",
-      header: "LAST SAVED",
-      cell: (r) => <span className="text-xs">{r.last_saved_display ?? "—"}</span>,
-    },  {
-                key: "actions",
-                header: "ACTIONS",
-                cell: (r) => (
-                    <div className="flex  items-center gap-2">
-                        <button
-                            className="px-3 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
-                            onClick={() => router.visit(route("roi.current.show", r.id))}
-                        >
-                           <IoEyeOutline className='text-[18px]'/>
-                        </button>
-                    </div>
-                ),
-                },
+      header: <div className="text-center w-full">LAST SAVED</div>,
+      cell: (r) => (
+        <div className="w-full flex justify-center items-center">
+          <span className="text-xs">{r.last_saved_display ?? "—"}</span>
+        </div>
+      ),
+    },  
+    {
+      key: "actions",
+      header: <div className="text-center w-full">ACTIONS</div>,
+      cell: (r) => (
+      <div className="flex justify-center items-center gap-2">
+        <button
+          className="px-3 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
+          onClick={() => router.visit(route("roi.current.show", r.id))}
+        >
+          <IoEyeOutline className='text-[18px]'/>
+        </button>
+      </div>
+      ),
+    },
 
   ], []);
 
