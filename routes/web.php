@@ -145,12 +145,34 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/projects/{project}/print', function ($project) {
                     $p = \App\Models\RoiEntryProject::with(['items', 'fees', 'user'])->findOrFail($project);
 
+                    $userIds = collect([
+                        $p->user_id,
+                        $p->status_updated_by,
+                        $p->reviewed_by,
+                        $p->checked_by,
+                        $p->endorsed_by,
+                        $p->confirmed_by,
+                        $p->approved_by,
+                        $p->rejected_by,
+                    ])->filter()->unique()->values();
+
+                    $usersById = \App\Models\User::query()
+                        ->whereIn('id', $userIds)
+                        ->get(['id', 'first_name', 'last_name'])
+                        ->keyBy(fn ($u) => (string) $u->id)
+                        ->map(fn ($u) => [
+                            'id' => $u->id,
+                            'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+                        ]);
+
                     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
                         'tab' => request('tab', 'summary'),
                         'storageKey' => request('storageKey'),
                         'autoprint' => (bool) request('autoprint', false),
                         'showDraftWatermark' => (bool) request('draftWatermark', true),
                         'entryProject' => $p,
+                        'usersById' => $usersById,
+                        'route' => 'entry',
                     ]);
                 })->name('roi.entry.projects.print');
             });
@@ -184,8 +206,27 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/{id}/approve', [RoiCurrentProjectController::class, 'approve'])
                     ->name('roi.current.approve');
 
-                Route::get('/{id}/print', function ($id) {
+             Route::get('/{id}/print', function ($id) {
                     $p = \App\Models\RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+                    $userIds = collect([
+                        $p->user_id,
+                        $p->status_updated_by,
+                        $p->reviewed_by,
+                        $p->checked_by,
+                        $p->endorsed_by,
+                        $p->confirmed_by,
+                        $p->approved_by,
+                    ])->filter()->unique()->values();
+
+                    $usersById = \App\Models\User::query()
+                        ->whereIn('id', $userIds)
+                        ->get(['id', 'first_name', 'last_name'])
+                        ->keyBy(fn ($u) => (string) $u->id)
+                        ->map(fn ($u) => [
+                            'id' => $u->id,
+                            'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+                        ]);
 
                     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
                         'tab' => request('tab', 'summary'),
@@ -193,6 +234,8 @@ Route::middleware(['auth', 'verified'])
                         'autoprint' => (bool) request('autoprint', false),
                         'showDraftWatermark' => false,
                         'entryProject' => $p,
+                        'usersById' => $usersById,
+                        'route' => 'current',
                     ]);
                 })->name('roi.current.print');
             });
@@ -207,7 +250,39 @@ Route::middleware(['auth', 'verified'])
 
             Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])
                 ->name('roi.archive.show');
+            Route::get('/archive/{id}/print', function ($id) {
+                $p = \App\Models\RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
+                $userIds = collect([
+                    $p->user_id,
+                    $p->status_updated_by,
+                    $p->reviewed_by,
+                    $p->checked_by,
+                    $p->endorsed_by,
+                    $p->confirmed_by,
+                    $p->approved_by,
+                    $p->rejected_by,
+                ])->filter()->unique()->values();
+
+                $usersById = \App\Models\User::query()
+                    ->whereIn('id', $userIds)
+                    ->get(['id', 'first_name', 'last_name'])
+                    ->keyBy(fn ($u) => (string) $u->id)
+                    ->map(fn ($u) => [
+                        'id' => $u->id,
+                        'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+                    ]);
+
+                return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
+                    'tab' => request('tab', 'summary'),
+                    'storageKey' => request('storageKey'),
+                    'autoprint' => (bool) request('autoprint', false),
+                    'showDraftWatermark' => false,
+                    'entryProject' => $p,
+                    'usersById' => $usersById,
+                    'route' => 'archive',
+                ]);
+            })->name('roi.archive.print');
             /*
             |--------------------------------------------------------------------------
             | Proposals
