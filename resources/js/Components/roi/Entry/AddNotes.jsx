@@ -3,6 +3,7 @@ import { IoIosAddCircle } from "react-icons/io";
 import { FaRegUserCircle } from "react-icons/fa";
 import { router, usePage } from "@inertiajs/react";
 import { route } from "ziggy-js";
+import { useProjectData } from "@/Context/ProjectContext";
 
 function formatDateTime(date) {
   const d = new Date(date);
@@ -24,48 +25,81 @@ function formatDateTime(date) {
 }
 
 export default function AddNotes({ scopeKey = "default" }) {
-  const { auth, entryProject, projectNotes } = usePage().props;
-  const project = entryProject;
+  const { projectData } = useProjectData();
+  const {
+    auth,
+    entryProject,
+    project: inertiaProject,
+    projectNotes,
+  } = usePage().props;
 
-  // ── derived identifiers ────────────────────────────────────────────────────
-  const projectId  = project?.id;
-  const userId     = auth?.user?.id ?? "guest";
-  const role       = auth?.user?.role;
-  const isPreparer = role === 'preparer';
+  const project = entryProject ?? inertiaProject ?? null;
 
-  // ── lock logic ─────────────────────────────────────────────────────────────
-  const isSubmitted    = project?.status === 'submitted';
-  const isForReview    = project?.status === 'For Review';
-  const isReturned     = project?.status === 'returned';
-  const isStatusLocked = isSubmitted || isForReview;
+  const projectId =
+    project?.id ??
+    projectData?.metadata?.projectId ??
+    null;
 
-  // input is only usable by preparers when status is not locked
-  const isLocked = !projectId || !isPreparer || isStatusLocked;
+  const userId =
+    auth?.user?.id ??
+    auth?.id ??
+    null;
 
-  // ── draft key ──────────────────────────────────────────────────────────────
+  const isEntryOwner =
+    !!userId &&
+    !!project?.user_id &&
+    Number(project.user_id) === Number(userId);
+
+  const isAssignedReviewer =
+    !!userId &&
+    !!project?.reviewed_by &&
+    Number(project.reviewed_by) === Number(userId);
+
+  const isAssignedChecker =
+    !!userId &&
+    !!project?.checked_by &&
+    Number(project.checked_by) === Number(userId);
+
+  const isAssignedEndorser =
+    !!userId &&
+    !!project?.endorsed_by &&
+    Number(project.endorsed_by) === Number(userId);
+
+  const canNote =
+    isEntryOwner ||
+    isAssignedReviewer ||
+    isAssignedChecker ||
+    isAssignedEndorser;
+
+  const isLocked = !projectId || !canNote;
+
   const DRAFT_KEY = useMemo(() => {
     return projectId ? `roi-note-draft:${userId}:${projectId}:${scopeKey}` : null;
   }, [userId, projectId, scopeKey]);
 
-  const [open, setOpen]           = useState(false);
+  const [open, setOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
 
-  // ── notes: prefer project.notes if non-empty, else fall back to projectNotes prop ──
   const serverNotes = useMemo(() => {
     const fromProject = project?.notes;
-    const rows = (Array.isArray(fromProject) && fromProject.length > 0)
-      ? fromProject
-      : (projectNotes ?? []);
+
+    const rows =
+      Array.isArray(fromProject) && fromProject.length > 0
+        ? fromProject
+        : projectNotes ?? [];
+
     return Array.isArray(rows) ? rows : [];
   }, [project, projectNotes]);
 
-  const modalRef    = useRef(null);
+  const modalRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const openModal  = () => { if (!isLocked) setOpen(true); };
+  const openModal = () => {
+    if (!isLocked) setOpen(true);
+  };
+
   const closeModal = () => setOpen(false);
 
-  // ── persist draft ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!DRAFT_KEY) return;
     try {
@@ -76,10 +110,11 @@ export default function AddNotes({ scopeKey = "default" }) {
 
   useEffect(() => {
     if (!DRAFT_KEY) return;
-    try { localStorage.setItem(DRAFT_KEY, noteDraft); } catch {}
+    try {
+      localStorage.setItem(DRAFT_KEY, noteDraft);
+    } catch {}
   }, [DRAFT_KEY, noteDraft]);
 
-  // ── modal UX ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open]);
@@ -100,8 +135,7 @@ export default function AddNotes({ scopeKey = "default" }) {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
-  // ── submit ─────────────────────────────────────────────────────────────────
-  const canSubmit = noteDraft.trim().length > 0 && !!projectId && !isLocked;
+  const canSubmit = noteDraft.trim().length > 0 && !!projectId && canNote;
 
   const handleAddNote = () => {
     if (!canSubmit) return;
@@ -113,8 +147,16 @@ export default function AddNotes({ scopeKey = "default" }) {
         preserveScroll: true,
         onSuccess: () => {
           setNoteDraft("");
-          if (DRAFT_KEY) { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
-          router.reload({ only: ["entryProject", "projectNotes"] });
+          if (DRAFT_KEY) {
+            try {
+              localStorage.removeItem(DRAFT_KEY);
+            } catch {}
+          }
+
+          router.reload({
+            only: ["entryProject", "project", "projectNotes"],
+          });
+
           closeModal();
         },
         onError: (errs) => {
@@ -125,50 +167,44 @@ export default function AddNotes({ scopeKey = "default" }) {
     );
   };
 
-  // ── render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="w-full mb-6 px-4">
-
-        {/* Warning: no project saved yet — only relevant to preparers */}
-        {!projectId && isPreparer && (
+        {!projectId && (
           <div className="mb-2 pl-2 text-[12px] font-bold text-red-600 print:hidden uppercase tracking-wider">
             Note: Save the project as a draft first before adding notes.
           </div>
         )}
 
-     
-        {/* Input bar — only shown to preparers when status is not locked */}
-        { !isStatusLocked && (
-          <div
-            onClick={!isLocked ? openModal : undefined}
-            className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
-              !isLocked ? "bg-white hover:cursor-pointer" : "bg-gray-50 cursor-not-allowed opacity-70"
+        <div
+          onClick={!isLocked ? openModal : undefined}
+          className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
+            !isLocked
+              ? "bg-white hover:cursor-pointer"
+              : "bg-gray-50 cursor-not-allowed opacity-70"
+          }`}
+        >
+          <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
+            Write your notes here.....
+          </div>
+
+          <button
+            type="button"
+            onClick={!isLocked ? openModal : (e) => e.stopPropagation()}
+            disabled={isLocked}
+            className={`flex items-center gap-1 px-3 py-2 rounded-full font-semibold text-xs transition-all shrink-0 ${
+              !isLocked
+                ? "bg-[#2DA300] hover:bg-[#268a00] text-white shadow-[0px_4px_10px_rgba(45,163,0,0.3)]"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
-              Write your notes here.....
-            </div>
+            <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
+              <IoIosAddCircle />
+            </span>
+            Add Notes
+          </button>
+        </div>
 
-            <button
-              type="button"
-              onClick={!isLocked ? openModal : (e) => e.stopPropagation()}
-              disabled={isLocked}
-              className={`flex items-center gap-1 px-3 py-2 rounded-full font-semibold text-xs transition-all shrink-0 ${
-                !isLocked
-                  ? "bg-[#2DA300] hover:bg-[#268a00] text-white shadow-[0px_4px_10px_rgba(45,163,0,0.3)]"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
-                <IoIosAddCircle />
-              </span>
-              Add Notes
-            </button>
-          </div>
-        )}
-
-        {/* Notes list — hidden if empty, visible to ALL roles */}
         {serverNotes.length > 0 && (
           <div className="mt-2 print:mt-1">
             <span className="font-medium text-[11px] text-gray-400 pl-2">NOTES</span>

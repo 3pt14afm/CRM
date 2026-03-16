@@ -437,11 +437,13 @@ class RoiEntryProjectController extends Controller
 
     public function storeNote(Request $request, RoiEntryProject $project)
     {
-        abort_unless((int) $project->user_id === (int) Auth::id(), 403);
+        abort_unless($this->canNoteOnEntryProject($project), 403);
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
         ]);
+
+        $user = Auth::user();
 
         $notes = $project->notes ?? [];
         if (!is_array($notes)) {
@@ -454,7 +456,8 @@ class RoiEntryProjectController extends Controller
             'created_at' => now()->toISOString(),
             'author' => [
                 'id' => Auth::id(),
-                'name' => Auth::user()?->name ?? 'Unknown',
+                'name' => $user?->name ?? 'Unknown',
+                'role' => $user?->role,
             ],
         ]);
 
@@ -474,6 +477,8 @@ class RoiEntryProjectController extends Controller
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
+        $user = Auth::user();
+
         $comments = $project->comments ?? [];
         if (!is_array($comments)) {
             $comments = [];
@@ -485,7 +490,8 @@ class RoiEntryProjectController extends Controller
             'created_at' => now()->toISOString(),
             'author' => [
                 'id' => Auth::id(),
-                'name' => Auth::user()?->name ?? 'Unknown',
+                'name' => $user?->name ?? 'Unknown',
+                'role' => $user?->role,
             ],
         ]);
 
@@ -497,16 +503,49 @@ class RoiEntryProjectController extends Controller
         return back()->with('success', 'Comment added.');
     }
 
+    private function canNoteOnEntryProject(RoiEntryProject $project): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        if (!in_array($project->status, ['draft', 'returned'], true)) {
+            return false;
+        }
+
+        $userId = (int) $user->id;
+
+        if ((int) $project->user_id === $userId) {
+            return true;
+        }
+
+        $currentProject = RoiCurrentProject::query()
+            ->where('project_uid', $project->project_uid)
+            ->first();
+
+        if (!$currentProject) {
+            return false;
+        }
+
+        return
+            (int) $currentProject->reviewed_by === $userId ||
+            (int) $currentProject->checked_by === $userId ||
+            (int) $currentProject->endorsed_by === $userId;
+    }
+
     private function canCommentOnCurrentProject(RoiCurrentProject $project): bool
     {
-        $userId = (int) Auth::id();
-        $currentLevel = (int) $project->current_level;
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
 
-        return match ($currentLevel) {
-            5 => (int) $project->confirmed_by === $userId,
-            6 => (int) $project->approved_by === $userId,
-            default => false,
-        };
+        $userId = (int) $user->id;
+
+        return
+            (int) $project->confirmed_by === $userId ||
+            (int) $project->approved_by === $userId;
     }
 
     private function generateReferenceForUser($user): string

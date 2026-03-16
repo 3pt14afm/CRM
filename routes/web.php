@@ -142,9 +142,6 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])
                     ->name('roi.entry.projects.notes.store');
 
-                Route::post('/projects/{project}/comments', [RoiEntryProjectController::class, 'storeComment'])
-                    ->name('roi.projects.comments.store');
-
                 Route::get('/projects/{project}/print', function ($project) {
                     $p = \App\Models\RoiEntryProject::with(['items', 'fees', 'user'])->findOrFail($project);
 
@@ -174,6 +171,9 @@ Route::middleware(['auth', 'verified'])
 
                 Route::patch('/{id}/send-back', [RoiCurrentProjectController::class, 'sendBack'])
                     ->name('roi.current.send-back');
+
+                Route::post('/{project}/comments', [RoiEntryProjectController::class, 'storeComment'])
+                    ->name('roi.projects.comments.store');
 
                 Route::post('/{id}/advance', [RoiCurrentProjectController::class, 'advanceProject'])
                     ->name('roi.current.advance');
@@ -213,9 +213,9 @@ Route::middleware(['auth', 'verified'])
             | Proposals
             |--------------------------------------------------------------------------
             */
-         Route::prefix('proposals')->name('proposals.')->group(function () {
+            Route::prefix('proposals')->name('proposals.')->group(function () {
                 // This will be URL: /proposals  Name: proposals.index
-                Route::get('/', [ProposalController::class, 'proposalList'])->name('index'); 
+                Route::get('/', [ProposalController::class, 'proposalList'])->name('index');
 
                 // Actions
                 Route::get('/{id}', [ProposalController::class, 'show'])->name('show');
