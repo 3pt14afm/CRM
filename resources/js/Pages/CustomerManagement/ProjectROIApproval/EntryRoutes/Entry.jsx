@@ -155,7 +155,7 @@ export default function Entry({
   const projectRef =
     entryProject?.reference ||
     projectData?.companyInfo?.reference ||
-    'Not yet generated';
+    '—';
 
   const [tab, setTab] = useState("Machine");
   const [buttonClicked, setButtonClicked] = useState(false);
