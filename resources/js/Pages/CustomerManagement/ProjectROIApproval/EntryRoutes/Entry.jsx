@@ -12,6 +12,7 @@ import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { useProjectData } from '@/Context/ProjectContext';
 import { route as ziggyRoute } from "ziggy-js";
 import toast, { Toaster } from 'react-hot-toast';
+import { IoAlertCircle } from "react-icons/io5";
 
 function mapEntryProjectToContext(entryProject) {
   const items = entryProject?.items ?? [];
@@ -295,8 +296,8 @@ export default function Entry({
   useEffect(() => {
     const next =
       activeTab === 'Summary' ? 'Summary' :
-        activeTab === 'Succeeding' ? 'Succeeding' :
-          'Machine';
+      activeTab === 'Succeeding' ? 'Succeeding' :
+      'Machine';
     setTab(next);
   }, [activeTab]);
 
@@ -387,10 +388,17 @@ export default function Entry({
   const handleSubmit = () => {
     const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
-    if (!projectId) {
-      alert("Please click Save Draft first to create the project.");
-      return;
-    }
+  if (!projectId) {
+    toast((t) => (
+      <div className="flex items-center gap-2 text-sm">
+       <IoAlertCircle className="text-red-500 text-lg shrink-0" />
+        <span>
+          Please <b className="text-darkgreen/70">Save Draft</b> first before submitting.
+        </span>
+      </div>
+    ), { duration: 1000 });
+    return;
+  }
 
     const payload = buildPayload();
     const toastId = toast.loading("Submitting...");
@@ -447,6 +455,22 @@ export default function Entry({
   const openPrintPage = (autoPrint = false) => {
     if (!(tab === "Summary" || tab === "Succeeding")) return;
 
+    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
+
+    // ✅ prevent print / preview if no saved draft yet
+    if (!projectId) {
+      toast((t) => (
+        <div className="flex items-center gap-2 rounded-md  text-sm ">
+          <IoAlertCircle className="text-red-500 text-lg shrink-0" />
+          <span>
+            Please <b className="text-darkgreen/70">Save Draft</b> first before printing.
+          </span>
+        </div>
+      ), { duration: 1500 });
+
+      return;
+    }
+
     const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
 
     // We'll only use storageKey if snapshot save succeeds
@@ -472,21 +496,14 @@ export default function Entry({
       storageKey = null;
     }
 
-    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
-
     let printPath = "";
 
-    if (projectId) {
-      if (routeName === "current") {
-        printPath = ziggyRoute("roi.current.print", projectId);
-      } else if (routeName === "archive") {
-        printPath = ziggyRoute("roi.archive.print", projectId);
-      } else {
-        printPath = ziggyRoute("roi.entry.projects.print", projectId);
-      }
+    if (routeName === "current") {
+      printPath = ziggyRoute("roi.current.print", projectId);
+    } else if (routeName === "archive") {
+      printPath = ziggyRoute("roi.archive.print", projectId);
     } else {
-      const current = window.location.pathname.replace(/\/$/, "");
-      printPath = `${current}/print`;
+      printPath = ziggyRoute("roi.entry.projects.print", projectId);
     }
 
     // Build query params safely

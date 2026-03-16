@@ -23,6 +23,7 @@ public function proposalList(Request $request)
         // Prefix with table name to avoid "Column not found" or "Ambiguous" errors
         ->where('roi_archive_projects.user_id', $userId)
         ->where('roi_archive_projects.status', 'approved')
+        ->with(['user', 'approver']) // <--- BOTH MUST BE HERE
         ->whereDoesntHave('proposals', function ($query) {
             $query->where('status', 'generated');
         })
@@ -157,13 +158,15 @@ public function proposalList(Request $request)
 
 private function transformProposal($p)
 {
+    // Ensure the user relationship is converted to an array/object the frontend expects
+    $p->user_data = $p->user ? [
+        'name' => $p->user->name,
+        'role' => $p->user->role,
+    ] : null;
+
     $p->decision_display    = 'Approved';
-    
-    // Accessing via the 'approver' relationship we defined in Step 1
     $p->decided_by_name     = $p->approver->name ?? '—';
-    
-    $decidedAt              = $p->approved_at;
-    $p->decided_at_display  = $decidedAt ? $decidedAt->diffForHumans() : '—';
+    $p->decided_at_display  = $p->approved_at ? $p->approved_at->diffForHumans() : '—';
 
     return $p;
 }
