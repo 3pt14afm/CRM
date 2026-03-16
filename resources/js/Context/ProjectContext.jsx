@@ -13,14 +13,16 @@ const defaultInitialState = {
     projectId: null,
     lastSaved: null,
     version: 1,
-    status: "draft", 
+    status: "draft",
   },
   companyInfo: {
+    projectUid: "",
     companyName: "",
     contractYears: 0,
     contractType: "",
     reference: "",
     purpose: "",
+    bundledStdInk: false,
   },
   interest: {
     annualInterest: 12,
@@ -64,7 +66,6 @@ const defaultInitialState = {
   },
 };
 
-// ✅ Fresh copy every time
 const cloneDefault = () => {
   if (typeof structuredClone === "function") return structuredClone(defaultInitialState);
   return JSON.parse(JSON.stringify(defaultInitialState));
@@ -78,6 +79,31 @@ const safeParse = (raw) => {
   }
 };
 
+const mergeWithDefaults = (base, incoming) => {
+  if (Array.isArray(base)) {
+    return Array.isArray(incoming) ? incoming : base;
+  }
+
+  if (base && typeof base === "object") {
+    const result = { ...base };
+    const source = incoming && typeof incoming === "object" ? incoming : {};
+
+    for (const key of Object.keys(base)) {
+      result[key] = mergeWithDefaults(base[key], source[key]);
+    }
+
+    for (const key of Object.keys(source)) {
+      if (!(key in result)) {
+        result[key] = source[key];
+      }
+    }
+
+    return result;
+  }
+
+  return incoming === undefined ? base : incoming;
+};
+
 const ProjectDataProvider = ({ children }) => {
   const [projectData, setProjectData] = useState(() => {
     if (typeof window === "undefined") return cloneDefault();
@@ -86,7 +112,9 @@ const ProjectDataProvider = ({ children }) => {
     if (!saved) return cloneDefault();
 
     const parsed = safeParse(saved);
-    return parsed ?? cloneDefault();
+    if (!parsed) return cloneDefault();
+
+    return mergeWithDefaults(cloneDefault(), parsed);
   });
 
   const updateSection = useCallback((section, newData) => {
@@ -162,10 +190,10 @@ const ProjectDataProvider = ({ children }) => {
     });
   }, []);
 
-  // ✅ Manual draft save (updates state + persists SAME object)
   const saveDraft = useCallback((updater) => {
     setProjectData((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const nextRaw = typeof updater === "function" ? updater(prev) : updater;
+      const next = mergeWithDefaults(cloneDefault(), nextRaw);
 
       if (typeof window !== "undefined") {
         try {
@@ -198,7 +226,7 @@ const ProjectDataProvider = ({ children }) => {
         setYearlyData,
         syncYearlyBreakdown,
         setContractDetails,
-        saveDraft,     // ✅ add this
+        saveDraft,
         resetProject,
       }}
     >
