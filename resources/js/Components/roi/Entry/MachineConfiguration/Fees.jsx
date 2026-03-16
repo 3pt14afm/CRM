@@ -244,11 +244,12 @@ const Fees = ({readOnly}) => {
     }));
   }, [rows, setProjectData]);
 
-  // 3️⃣ Update a row
+  // Update a row
   const handleUpdate = (id, field, value) => {
     setRows(prev =>
       prev.map(row => {
         if (row.id !== id) return row;
+        if (field === 'remarks' && readOnly) return row;
 
         // lock label editing for fixed rows
         if (hasFixedRows && row.__fixed && field === 'label') return row;
@@ -417,12 +418,13 @@ const Fees = ({readOnly}) => {
                   </div>
                 </td>
                   <td className="border-b border-darkgreen/15 p-1">
-                    <input 
+                    <input
                       type="text"
                       value={row.remarks}
                       onChange={e => handleUpdate(row.id, 'remarks', e.target.value)}
                       placeholder="Enter remarks"
-                      className={`${inputClass} !text-left px-2 w-full normal-case`}
+                      disabled={readOnly}
+                      className={`${inputClass} !text-left px-2 w-full normal-case ${readOnly ? 'border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed' : ''}`}
                     />
                   </td>
                 </tr>

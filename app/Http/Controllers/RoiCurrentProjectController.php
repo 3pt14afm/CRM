@@ -8,6 +8,7 @@ use App\Models\RoiEntryFee;
 use App\Models\RoiEntryItem;
 use App\Models\RoiEntryProject;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -292,6 +293,39 @@ class RoiCurrentProjectController extends Controller
         return $archived;
     }
 
+    private function requiredSendBackTypeForLevel(int $level): ?string
+    {
+        return match ($level) {
+            2, 3, 4 => 'note',
+            5, 6 => 'comment',
+            default => null,
+        };
+    }
+
+    private function appendSendBackEntry(RoiCurrentProject $project, User $user, string $type, string $body): void
+    {
+        $entry = [
+            'body' => trim($body),
+            'created_at' => now()->toISOString(),
+            'author' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'role' => $user->role,
+            ],
+        ];
+
+        if ($type === 'note') {
+            $notes = is_array($project->notes) ? $project->notes : [];
+            $notes[] = $entry;
+            $project->notes = $notes;
+            return;
+        }
+
+        $comments = is_array($project->comments) ? $project->comments : [];
+        $comments[] = $entry;
+        $project->comments = $comments;
+    }
+
     public function current()
     {
         $user = $this->getAuthenticatedUser();
@@ -400,8 +434,6 @@ class RoiCurrentProjectController extends Controller
 
         $this->ensureCanView($project, $user);
 
-        $entryProject = RoiEntryProject::where('project_uid', $project->project_uid)->first();
-
         $userIds = collect([
             $project->user_id,
             $project->status_updated_by,
@@ -428,15 +460,16 @@ class RoiCurrentProjectController extends Controller
             'route' => 'current',
             'createdBy' => $project->user?->name ?? '—',
             'viewerLevel' => (int) $project->current_level,
+            'canActOnCurrentProject' => $this->currentProjectAssignedToUser($project, (int) $user->id),
             'usersById' => $usersById,
-            'projectNotes' => $entryProject?->notes ?? [],
-            'projectComments' => $entryProject?->comments ?? [],
+            'projectNotes' => $project->notes ?? [],
+            'projectComments' => $project->comments ?? [],
         ]);
     }
 
-    public function sendBack($id)
+    public function sendBack(Request $request, $id)
     {
-        return DB::transaction(function () use ($id) {
+        return DB::transaction(function () use ($request, $id) {
             $user = $this->getAuthenticatedUser();
 
             $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
@@ -449,9 +482,37 @@ class RoiCurrentProjectController extends Controller
                 return back()->withErrors(['level' => 'Cannot send back any further.']);
             }
 
+            $requiredType = $this->requiredSendBackTypeForLevel($fromLevel);
+
+            if (!$requiredType) {
+                return back()->withErrors([
+                    'type' => 'Invalid send back action for this level.',
+                ]);
+            }
+
+            $validated = $request->validate([
+                'body' => ['required', 'string', 'max:2000'],
+                'type' => ['required', 'in:note,comment'],
+            ]);
+
+            if ($validated['type'] !== $requiredType) {
+                return back()->withErrors([
+                    'body' => $requiredType === 'comment'
+                        ? 'Comment is required for send back.'
+                        : 'Note is required for send back.',
+                ]);
+            }
+
+            $this->appendSendBackEntry($project, $user, $validated['type'], $validated['body']);
+
             $toLevel = $fromLevel - 1;
 
             if ($toLevel === 1) {
+                $project->save();
+
+                $project->refresh();
+                $project->load(['items', 'fees', 'user']);
+
                 $projectData = $project->toArray();
                 unset($projectData['id']);
                 unset($projectData['roi_current_project_id']);
@@ -492,14 +553,13 @@ class RoiCurrentProjectController extends Controller
                 return to_route('roi.entry.list')->with('success', 'Project returned to Preparer for revision.');
             }
 
-            $project->update([
-                'current_level' => $toLevel,
-                'status' => 'Sent Back',
-                'status_reason' => null,
-                'status_updated_at' => now(),
-                'status_updated_by' => $user->id,
-                'last_saved_at' => now(),
-            ]);
+            $project->status = 'Sent Back';
+            $project->status_reason = null;
+            $project->status_updated_at = now();
+            $project->status_updated_by = $user->id;
+            $project->last_saved_at = now();
+            $project->current_level = $toLevel;
+            $project->save();
 
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
 

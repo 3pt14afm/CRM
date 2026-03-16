@@ -142,6 +142,14 @@ export default function Entry({
 }) {
   const { auth } = usePage().props;
   const createdBy = auth?.user?.name ?? null;
+  const actorRole = auth?.user?.role ?? null;
+
+  const NOTE_ROLES = ['preparer', 'reviewer', 'checker', 'endorser'];
+  const COMMENT_ROLES = ['confirmer', 'approver'];
+
+  const requiresNoteOnSendBack = NOTE_ROLES.includes(actorRole);
+  const requiresCommentOnSendBack = COMMENT_ROLES.includes(actorRole);
+  const sendBackLabel = requiresCommentOnSendBack ? 'comment' : 'note';
 
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
@@ -161,6 +169,9 @@ export default function Entry({
   const [buttonClicked, setButtonClicked] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [showCompanyInfoErrors, setShowCompanyInfoErrors] = useState(false);
+
+  const [showSendBackModal, setShowSendBackModal] = useState(false);
+  const [sendBackText, setSendBackText] = useState("");
 
   const isCompanyInfoValid = () => {
     const ci = projectData?.companyInfo ?? {};
@@ -214,32 +225,44 @@ export default function Entry({
   };
 
   const handleBackToSender = () => {
-    toast((t) => (
-      <div className="flex flex-col gap-2">
-        <p className="font-medium text-sm">Send this project back to the sender?</p>
-        <div className="flex gap-2 justify-end">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-3 py-1 text-sm rounded border border-slate-300 hover:bg-slate-100"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              toast.dismiss(t.id);
-              router.patch(ziggyRoute('roi.current.send-back', entryProject.id), {}, {
-                onStart: () => toast.loading('Sending back...', { id: 'sendBack' }),
-                onSuccess: () => toast.success('Project sent back to sender.', { id: 'sendBack' }),
-                onError: () => toast.error('Failed to send back.', { id: 'sendBack' }),
-              });
-            }}
-            className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-orange-600"
-          >
-            Yes, Send Back
-          </button>
-        </div>
-      </div>
-    ), { duration: Infinity });
+    setSendBackText("");
+    setShowSendBackModal(true);
+  };
+
+  const submitSendBack = () => {
+    const trimmed = sendBackText.trim();
+
+    if (!trimmed) {
+      toast.error(
+        requiresCommentOnSendBack
+          ? 'Comment is required before sending back.'
+          : 'Note is required before sending back.'
+      );
+      return;
+    }
+
+    setShowSendBackModal(false);
+
+    router.patch(
+      ziggyRoute('roi.current.send-back', entryProject.id),
+      {
+        body: trimmed,
+        type: requiresCommentOnSendBack ? 'comment' : 'note',
+      },
+      {
+        onStart: () => toast.loading('Sending back...', { id: 'sendBack' }),
+        onSuccess: () => {
+          setSendBackText("");
+          toast.success('Project sent back to sender.', { id: 'sendBack' });
+        },
+        onError: (errors) => {
+          const message =
+            Object.values(errors ?? {})[0] ||
+            `Failed to send back. ${requiresCommentOnSendBack ? 'Comment' : 'Note'} is required.`;
+          toast.error(message, { id: 'sendBack' });
+        },
+      }
+    );
   };
 
   const handleAdvance = (projectId) => {
@@ -755,6 +778,53 @@ export default function Entry({
           </div>
         </div>
       </div>
+
+      {showSendBackModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/35"
+            onClick={() => setShowSendBackModal(false)}
+          />
+
+          <div className="relative w-[92%] max-w-xl bg-white rounded-2xl shadow-xl border border-black/10 overflow-hidden">
+            <div className="px-8 pt-8 pb-4">
+              <h2 className="text-2xl font-extrabold tracking-wide text-black">
+                SEND BACK TO SENDER
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Please add a {sendBackLabel} before continuing.
+              </p>
+            </div>
+
+            <div className="px-8 pb-8">
+              <textarea
+                value={sendBackText}
+                onChange={(e) => setSendBackText(e.target.value)}
+                placeholder={`Write your ${sendBackLabel} here...`}
+                className="w-full min-h-[160px] rounded-xl border border-slate-300 px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
+              />
+
+              <div className="mt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSendBackModal(false)}
+                  className="px-5 py-2 rounded-lg bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={submitSendBack}
+                  className="px-5 py-2 rounded-lg bg-[#CD4E00] hover:bg-orange-700 text-white font-semibold"
+                >
+                  Yes, Send Back
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

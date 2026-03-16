@@ -1,31 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
+import { usePage } from '@inertiajs/react';
 import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculations';
-import { get1YrPotential } from '@/utils/calculations/freeuse/get1YrPotential';
-import { succeedingYears } from '@/utils/calculations/freeuse/succeedingYears';
 
-function MachineConfig({readOnly}) {
-  const { setProjectData, projectData, setYearlyData } = useProjectData();
+function MachineConfig({ readOnly }) {
+  const { auth, entryProject, project: inertiaProject } = usePage().props;
+  const { setProjectData, projectData } = useProjectData();
 
-  // ✅ Track which numeric cell is currently focused (so we can show raw while editing)
+  const currentUserId = auth?.user?.id ?? auth?.id ?? null;
+  const project = entryProject ?? inertiaProject ?? null;
+
+  const isEntryOwner = !project?.id || Number(project?.user_id) === Number(currentUserId);
+  const canEditRemarks = !readOnly && isEntryOwner;
+
   const [focusedField, setFocusedField] = useState(null);
   const keyOf = (rowId, field) => `${rowId}:${field}`;
 
-  // ✅ Track which project rows were hydrated from (prevents stale rows across draft switch)
   const hydratedProjectKeyRef = useRef(null);
 
-  // ✅ Helpers for sanitizing + formatting (only what we discussed)
-  const sanitizeInt = (v) => String(v ?? '').replace(/\D/g, ''); // digits only
+  const sanitizeInt = (v) => String(v ?? '').replace(/\D/g, '');
 
   const sanitize2dp = (v) => {
     let s = String(v ?? '').replace(/,/g, '').trim();
-    s = s.replace(/[^\d.]/g, ''); // digits + dot only
+    s = s.replace(/[^\d.]/g, '');
 
-    // keep only first dot
     const parts = s.split('.');
     if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
 
-    // limit decimals to 2
     const [a, b] = s.split('.');
     if (b !== undefined) s = `${a}.${b.slice(0, 2)}`;
 
@@ -52,7 +53,10 @@ function MachineConfig({readOnly}) {
     if (!s) return '';
     const n = Number(s);
     if (Number.isNaN(n)) return '';
-    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   const onlyNumericKeys = (allowDot) => (e) => {
@@ -64,9 +68,6 @@ function MachineConfig({readOnly}) {
     e.preventDefault();
   };
 
-  const isConsumableModeMissing = (row) => row?.type === 'consumable' && !String(row?.mode || '').trim();
-
-  // ✅ Enforce fixed qty for consumables
   const enforceConsumableQty = (row) => {
     if (row?.type !== 'consumable') return row;
     return { ...row, qty: 1 };
@@ -76,7 +77,7 @@ function MachineConfig({readOnly}) {
     id: Date.now(),
     sku: '',
     cost: '',
-    qty: 1, // ✅ fixed qty for consumables
+    qty: 1,
     yields: '',
     price: '',
     remarks: '',
@@ -84,23 +85,21 @@ function MachineConfig({readOnly}) {
     mode: '',
   });
 
-  // Initialize rows from context or default
   const [rows, setRows] = useState(() => {
     const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
     const combined = [...machine, ...consumable];
 
     return combined.length > 0
       ? combined
-          .map(r => ({
+          .map((r) => ({
             ...r,
             cost: r.inputtedCost || r.cost,
-            mode: r.mode || "",
+            mode: r.mode || '',
           }))
-          .map(enforceConsumableQty) // ✅ consumables always qty=1
+          .map(enforceConsumableQty)
       : [makeBlankRow()];
   });
 
-  // ✅ Hydrate rows per project (handles switching to a draft with NO items too)
   useEffect(() => {
     const projectKey = projectData?.metadata?.projectId ?? 'new';
 
@@ -114,15 +113,14 @@ function MachineConfig({readOnly}) {
     if (combined.length > 0) {
       setRows(
         combined
-          .map(r => ({
+          .map((r) => ({
             ...r,
             cost: r.inputtedCost ?? r.cost ?? '',
             mode: r.mode || '',
           }))
-          .map(enforceConsumableQty) // ✅ consumables always qty=1
+          .map(enforceConsumableQty)
       );
     } else {
-      // ✅ important: reset to a clean blank row when draft has no items
       setRows([makeBlankRow()]);
     }
 
@@ -130,77 +128,89 @@ function MachineConfig({readOnly}) {
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
-  // Totals for table footer
-  const computeTotals = (rows) => rows.reduce((acc, r) => {
-    const calcs = getRowCalculations(r, projectData);
-    acc.unitCost += parseFloat(r.cost) || 0;
-    acc.qty += parseFloat(r.qty) || 0;
-    acc.totalCost += calcs.totalCost;
-    acc.yields += parseFloat(r.yields) || 0;
-    acc.costCpp += calcs.costCpp;
-    acc.sellingPrice += parseFloat(r.price) || 0;
-    acc.totalSell += calcs.totalSell;
-    acc.sellCpp += calcs.sellCpp;
-    return acc;
-  }, { unitCost: 0, qty: 0, totalCost: 0, yields: 0, costCpp: 0, sellingPrice: 0, totalSell: 0, sellCpp: 0 });
+  const computeTotals = (rows) =>
+    rows.reduce(
+      (acc, r) => {
+        const calcs = getRowCalculations(r, projectData);
+        acc.unitCost += parseFloat(r.cost) || 0;
+        acc.qty += parseFloat(r.qty) || 0;
+        acc.totalCost += calcs.totalCost;
+        acc.yields += parseFloat(r.yields) || 0;
+        acc.costCpp += calcs.costCpp;
+        acc.sellingPrice += parseFloat(r.price) || 0;
+        acc.totalSell += calcs.totalSell;
+        acc.sellCpp += calcs.sellCpp;
+        return acc;
+      },
+      {
+        unitCost: 0,
+        qty: 0,
+        totalCost: 0,
+        yields: 0,
+        costCpp: 0,
+        sellingPrice: 0,
+        totalSell: 0,
+        sellCpp: 0,
+      }
+    );
 
   const tableTotals = computeTotals(rows);
 
-  // Handle input changes (update local rows only)
   const handleInputChange = (id, field, value) => {
-    setRows(prevRows =>
-      prevRows.map(row => {
+    setRows((prevRows) =>
+      prevRows.map((row) => {
         if (row.id !== id) return row;
 
-        // ✅ consumable qty is fixed to 1 (ignore user input)
         if (row.type === 'consumable' && field === 'qty') {
           return { ...row, qty: 1 };
         }
 
-        const updated = { ...row, [field]: value };
+        if (field === 'remarks' && !canEditRemarks) {
+          return row;
+        }
 
-        // ✅ keep consumables locked to qty=1 no matter what field changes
+        const updated = { ...row, [field]: value };
         return enforceConsumableQty(updated);
       })
     );
   };
 
   const toggleMachine = (id, isMachine) => {
-    setRows(prev =>
-      prev.map(r => {
+    setRows((prev) =>
+      prev.map((r) => {
         if (r.id !== id) return r;
 
         if (isMachine) {
           return {
             ...r,
-            type: "machine",
-            prevMode: r.mode || "",
-            mode: "",
+            type: 'machine',
+            prevMode: r.mode || '',
+            mode: '',
           };
         }
 
         return {
           ...r,
-          type: "consumable",
-          mode: r.prevMode || "",
-          qty: 1, // ✅ fixed qty for consumables
+          type: 'consumable',
+          mode: r.prevMode || '',
+          qty: 1,
         };
       })
     );
   };
 
   const setMode = (id, mode) => {
-    setRows(prev => prev.map(r => (r.id === id ? { ...r, mode } : r)));
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, mode } : r)));
   };
 
   const isRowStarted = (row) => {
     return Boolean(
       String(row?.sku || '').trim() ||
-      String(row?.cost || '').trim() ||
-      String(row?.yields || '').trim() ||
-      String(row?.price || '').trim() ||
-      String(row?.remarks || '').trim() ||
-      (row?.type === 'machine' && String(row?.qty || '').trim()) // qty matters for machine rows
+        String(row?.cost || '').trim() ||
+        String(row?.yields || '').trim() ||
+        String(row?.price || '').trim() ||
+        String(row?.remarks || '').trim() ||
+        (row?.type === 'machine' && String(row?.qty || '').trim())
     );
   };
 
@@ -208,24 +218,35 @@ function MachineConfig({readOnly}) {
     return row?.type === 'consumable' && isRowStarted(row) && !String(row?.mode || '').trim();
   };
 
-  // Add / Remove row
   const addRow = () =>
-    setRows(prev => [
+    setRows((prev) => [
       ...prev,
-      { id: Date.now(), sku: '', cost: '', qty: 1, yields: '', price: '', remarks: '', type: 'consumable', mode: '' } // ✅ qty fixed for new consumable row
+      {
+        id: Date.now(),
+        sku: '',
+        cost: '',
+        qty: 1,
+        yields: '',
+        price: '',
+        remarks: '',
+        type: 'consumable',
+        mode: '',
+      },
     ]);
 
-  const removeRow = (id) => rows.length > 1 && setRows(rows.filter(r => r.id !== id));
+  const removeRow = (id) => rows.length > 1 && setRows(rows.filter((r) => r.id !== id));
 
-  const formatNum = (num) => (Number(num) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatNum = (num) =>
+    (Number(num) || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
-  // Live update context whenever rows change
   useEffect(() => {
-    // 1. Check conditions for bundling
-    const isMonthlyRental = projectData.companyInfo?.contractType === "Monthly Rental";
+    const isMonthlyRental = projectData.companyInfo?.contractType === 'Monthly Rental';
     const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
 
-    const rowsWithCalculations = rows.map(r => {
+    const rowsWithCalculations = rows.map((r) => {
       const calcs = getRowCalculations(r, projectData);
       return {
         ...r,
@@ -237,14 +258,13 @@ function MachineConfig({readOnly}) {
         totalSell: calcs.totalSell,
         sellCpp: calcs.sellCpp,
         machineMargin: calcs.machineMargin,
-        machineMarginTotal: calcs.machineMarginTotal
+        machineMarginTotal: calcs.machineMarginTotal,
       };
     });
 
-    const machines = rowsWithCalculations.filter(r => r.type === 'machine' && r.sku?.trim() !== '');
-    const consumables = rowsWithCalculations.filter(r => r.type === 'consumable' && r.sku?.trim() !== '');
+    const machines = rowsWithCalculations.filter((r) => r.type === 'machine' && r.sku?.trim() !== '');
+    const consumables = rowsWithCalculations.filter((r) => r.type === 'consumable' && r.sku?.trim() !== '');
 
-    // 2. Calculate Bundle Price based on Mode (Mono/Color)
     let calculatedBundledPrice = 0;
     if (isMonthlyRental && isBundleChecked) {
       calculatedBundledPrice = consumables.reduce((sum, r) => {
@@ -256,50 +276,53 @@ function MachineConfig({readOnly}) {
       }, 0);
     }
 
-    // 3. Aggregate Totals and include totalBundledPrice
-    const totalsObj = rowsWithCalculations.reduce((acc, r) => {
-      acc.unitCost += r.inputtedCost;
-      acc.qty += Number(r.qty) || 0;
-      acc.totalCost += r.totalCost;
-      acc.yields += Number(r.yields) || 0;
-      acc.costCpp += r.costCpp;
-      acc.sellingPrice += Number(r.price) || 0;
-      acc.totalSell += r.totalSell;
-      acc.sellCpp += r.sellCpp;
-      return acc;
-    }, {
-      unitCost: 0,
-      qty: 0,
-      totalCost: 0,
-      yields: 0,
-      costCpp: 0,
-      sellingPrice: 0,
-      totalSell: 0,
-      sellCpp: 0,
-      totalBundledPrice: calculatedBundledPrice
-    });
+    const totalsObj = rowsWithCalculations.reduce(
+      (acc, r) => {
+        acc.unitCost += r.inputtedCost;
+        acc.qty += Number(r.qty) || 0;
+        acc.totalCost += r.totalCost;
+        acc.yields += Number(r.yields) || 0;
+        acc.costCpp += r.costCpp;
+        acc.sellingPrice += Number(r.price) || 0;
+        acc.totalSell += r.totalSell;
+        acc.sellCpp += r.sellCpp;
+        return acc;
+      },
+      {
+        unitCost: 0,
+        qty: 0,
+        totalCost: 0,
+        yields: 0,
+        costCpp: 0,
+        sellingPrice: 0,
+        totalSell: 0,
+        sellCpp: 0,
+        totalBundledPrice: calculatedBundledPrice,
+      }
+    );
 
-    setProjectData(prev => ({
+    setProjectData((prev) => ({
       ...prev,
       machineConfiguration: {
         machine: machines,
         consumable: consumables,
-        totals: totalsObj
-      }
+        totals: totalsObj,
+      },
     }));
-
   }, [
     rows,
     projectData.interest.annualInterest,
     projectData.companyInfo.contractYears,
     projectData.companyInfo.contractType,
-    projectData.companyInfo.bundledStdInk
+    projectData.companyInfo.bundledStdInk,
+    setProjectData,
   ]);
 
-  const inputClass = "w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
-  const readonlyClass = "w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center";
-  const footerCellClass ="bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ";
-  const disabledInputClass = "border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed";
+  const inputClass =
+    'w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+  const readonlyClass = 'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
+  const footerCellClass = 'bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ';
+  const disabledInputClass = 'border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed';
 
   return (
     <div className="mx-10 mb-5">
@@ -310,19 +333,19 @@ function MachineConfig({readOnly}) {
         <div className="w-full">
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
-              <col style={{ width: "4%" }} />
-              <col style={{ width: "7%" }} />
-              <col style={{ width: "30%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "5%" }} />
-              <col style={{ width: "11%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "7%" }} />
-              <col style={{ width: "9%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "7%" }} />
-              <col style={{ width: "6%" }} />
-              <col style={{ width: "16%" }} />
+              <col style={{ width: '4%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '30%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '5%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '6%' }} />
+              <col style={{ width: '16%' }} />
             </colgroup>
             <thead>
               <tr className="bg-lightgreen/15 text-[11px] uppercase text-black">
@@ -342,39 +365,40 @@ function MachineConfig({readOnly}) {
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => {
+              {rows.map((row) => {
                 const calcs = getRowCalculations(row, projectData);
                 const isMachineRow = row.type === 'machine';
 
                 return (
-                  <tr key={row.id} className='border-b'>
+                  <tr key={row.id} className="border-b">
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
                       <input
-                      disabled={readOnly}
+                        disabled={readOnly}
                         type="checkbox"
                         className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
                         checked={row.type === 'machine'}
-                        onChange={e => toggleMachine(row.id, e.target.checked)}
+                        onChange={(e) => toggleMachine(row.id, e.target.checked)}
                       />
                     </td>
                     <td className="border-r border-b border-darkgreen/15 px-1">
                       <div className="flex items-center justify-center">
                         <select
-                          value={row.type === "machine" ? "" : (row.mode || "")}
+                          value={row.type === 'machine' ? '' : row.mode || ''}
                           onChange={(e) => setMode(row.id, e.target.value)}
-                          
-                          disabled={row.type === "machine" || readOnly}
+                          disabled={row.type === 'machine' || readOnly}
                           className={`w-[90%] min-w-0 h-6 text-[11px] sm:text-xs px-2 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0 
                             ${
-                              row.type === "machine"
-                                ? "border-darkgreen/20 opacity-50 cursor-not-allowed bg-slate-100"
+                              row.type === 'machine'
+                                ? 'border-darkgreen/20 opacity-50 cursor-not-allowed bg-slate-100'
                                 : shouldHighlightModeError(row)
-                                  ? "border-red-400 focus:border-red-400 bg-red-50 text-red-700 cursor-pointer"
-                                  : "border-darkgreen/20 focus:border-[#289800] cursor-pointer"
+                                ? 'border-red-400 focus:border-red-400 bg-red-50 text-red-700 cursor-pointer'
+                                : 'border-darkgreen/20 focus:border-[#289800] cursor-pointer'
                             }`}
                           aria-label="Select mode: Mono / Color / Others"
                         >
-                          <option className="text-gray-400" value="">Select</option>
+                          <option className="text-gray-400" value="">
+                            Select
+                          </option>
                           <option value="mono">Mono</option>
                           <option value="color">Color</option>
                           <option value="others">Others</option>
@@ -386,7 +410,7 @@ function MachineConfig({readOnly}) {
                         type="text"
                         value={row.sku}
                         disabled={readOnly}
-                        onChange={e => handleInputChange(row.id, 'sku', e.target.value)}
+                        onChange={(e) => handleInputChange(row.id, 'sku', e.target.value)}
                         className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''}`}
                         placeholder="SKU-XXX"
                       />
@@ -399,7 +423,7 @@ function MachineConfig({readOnly}) {
                         disabled={readOnly}
                         value={
                           focusedField === keyOf(row.id, 'cost')
-                            ? (row.cost || '')
+                            ? row.cost || ''
                             : format2dpWithCommas(row.cost)
                         }
                         onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
@@ -408,7 +432,7 @@ function MachineConfig({readOnly}) {
                           handleInputChange(row.id, 'cost', normalize2dp(row.cost));
                         }}
                         onKeyDown={onlyNumericKeys(true)}
-                        onChange={e => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
+                        onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
                         className={inputClass}
                         placeholder="0.00"
                       />
@@ -420,13 +444,13 @@ function MachineConfig({readOnly}) {
                         inputMode="numeric"
                         value={
                           focusedField === keyOf(row.id, 'qty')
-                            ? (row.qty || '')
+                            ? row.qty || ''
                             : formatIntWithCommas(row.qty)
                         }
                         onFocus={() => setFocusedField(keyOf(row.id, 'qty'))}
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
-                        onChange={e => handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
+                        onChange={(e) => handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
                         disabled={!isMachineRow || readOnly}
                         className={`${inputClass} ${!isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0"
@@ -437,7 +461,7 @@ function MachineConfig({readOnly}) {
                       <div className={readonlyClass}>
                         {formatNum(
                           isMachineRow
-                            ? (Number(row.cost) || 0) * (Number(row.qty) || 0) // ✅ display only: unit cost × qty
+                            ? (Number(row.cost) || 0) * (Number(row.qty) || 0)
                             : (Number(calcs.totalCost) || 0) * (Number(row.qty) || 0)
                         )}
                       </div>
@@ -449,13 +473,13 @@ function MachineConfig({readOnly}) {
                         inputMode="numeric"
                         value={
                           focusedField === keyOf(row.id, 'yields')
-                            ? (row.yields || '')
+                            ? row.yields || ''
                             : formatIntWithCommas(row.yields)
                         }
                         onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
-                        onChange={e => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
+                        onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
                         disabled={isMachineRow || readOnly}
                         className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0"
@@ -472,7 +496,7 @@ function MachineConfig({readOnly}) {
                         inputMode="decimal"
                         value={
                           focusedField === keyOf(row.id, 'price')
-                            ? (row.price || '')
+                            ? row.price || ''
                             : format2dpWithCommas(row.price)
                         }
                         onFocus={() => setFocusedField(keyOf(row.id, 'price'))}
@@ -481,7 +505,7 @@ function MachineConfig({readOnly}) {
                           handleInputChange(row.id, 'price', normalize2dp(row.price));
                         }}
                         onKeyDown={onlyNumericKeys(true)}
-                        onChange={e => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
+                        onChange={(e) => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
                         disabled={isMachineRow || readOnly}
                         className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
                         placeholder="0.00"
@@ -494,28 +518,36 @@ function MachineConfig({readOnly}) {
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className={readonlyClass}>{formatNum(calcs.sellCpp)}</div>
                     </td>
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className="flex gap-1 justify-center">
-                    <button 
-                      onClick={addRow} 
-                      disabled={readOnly}
-                      className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${readOnly ? 'opacity-30 cursor-not-allowed' : ''}`}
-                    >+</button>
-                    <button 
-                      onClick={() => removeRow(row.id)} 
-                      disabled={readOnly}
-                      className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly ? 'opacity-30 cursor-not-allowed' : ''}`}
-                    >-</button>
-                  </div>
-                </td>
+                    <td className="border-b border-r border-darkgreen/15 p-1">
+                      <div className="flex gap-1 justify-center">
+                        <button
+                          onClick={addRow}
+                          disabled={readOnly}
+                          className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${
+                            readOnly ? 'opacity-30 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => removeRow(row.id)}
+                          disabled={readOnly}
+                          className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${
+                            readOnly ? 'opacity-30 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          -
+                        </button>
+                      </div>
+                    </td>
                     <td className="border-b border-darkgreen/15 p-1">
                       <input
                         type="text"
                         value={row.remarks}
-                        onChange={e => handleInputChange(row.id, 'remarks', e.target.value)}
+                        onChange={(e) => handleInputChange(row.id, 'remarks', e.target.value)}
                         placeholder="Enter remarks"
-                        className={`${inputClass} normal-case text-start`}
-                        // disabled={readOnly}
+                        disabled={!canEditRemarks}
+                        className={`${inputClass} normal-case text-start ${!canEditRemarks ? disabledInputClass : ''}`}
                       />
                     </td>
                   </tr>
