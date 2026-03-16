@@ -20,20 +20,15 @@ function mapEntryProjectToContext(entryProject) {
 
   const mapItem = (r) => ({
     id: r.client_row_id || String(r.id),
-
-    // ✅ keep row type so MachineConfig can re-split rows correctly
     type: r.kind === "machine" ? "machine" : "consumable",
-
     sku: r.sku ?? "",
     qty: Number(r.qty ?? 0),
     yields: Number(r.yields ?? 0),
     mode: r.mode ?? "",
     remarks: r.remarks ?? "",
-
     inputtedCost: Number(r.inputted_cost ?? 0),
     cost: Number(r.cost ?? 0),
     price: Number(r.price ?? 0),
-
     basePerYear: Number(r.base_per_year ?? 0),
     totalCost: Number(r.total_cost ?? 0),
     costCpp: Number(r.cost_cpp ?? 0),
@@ -73,6 +68,7 @@ function mapEntryProjectToContext(entryProject) {
     },
 
     companyInfo: {
+      projectUid: entryProject.project_uid ?? "",
       companyName: entryProject.company_name ?? "",
       contractYears: Number(entryProject.contract_years ?? 0),
       contractType: entryProject.contract_type ?? "",
@@ -156,17 +152,14 @@ export default function Entry({
 
   const { setProjectData, projectData, resetProject, saveDraft } = useProjectData();
 
-  const [generatedRef] = useState(() =>
-    `PRJ-${Math.random().toString(36).slice(2, 9).toUpperCase()}`
-  );
-
-  const projectRef = entryProject?.reference || generatedRef;
+  const projectRef =
+    entryProject?.reference ||
+    projectData?.companyInfo?.reference ||
+    'Not yet generated';
 
   const [tab, setTab] = useState("Machine");
   const [buttonClicked, setButtonClicked] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-
-  // ✅ show required-field red highlights only after Save Draft is clicked
   const [showCompanyInfoErrors, setShowCompanyInfoErrors] = useState(false);
 
   const isCompanyInfoValid = () => {
@@ -180,7 +173,6 @@ export default function Entry({
     return nameOk && typeOk && yearsOk;
   };
 
-  // ✅ prevent duplicate hydration overwriting edits
   const hydratedEntryIdRef = useRef(null);
 
   const summaryRef = useRef(null);
@@ -271,7 +263,6 @@ export default function Entry({
     }
   };
 
-  // ✅ approve (level 6 only)
   const handleApprove = (projectId) => {
     if (!projectId) {
       toast.error("Invalid Project ID");
@@ -301,22 +292,18 @@ export default function Entry({
     setTab(next);
   }, [activeTab]);
 
-  // ✅ When opening /entry/create (no entryProject), ensure fresh form
   useEffect(() => {
     if (entryProject) return;
 
     hydratedEntryIdRef.current = null;
     setShowCompanyInfoErrors(false);
     resetProject();
-    setResetKey((k) => k + 1); // force remount of tab content
+    setResetKey((k) => k + 1);
     setTab('Machine');
   }, [entryProject, resetProject]);
 
-  // ✅ hydrate context when opening /entry/projects/{id}
   useEffect(() => {
     if (!entryProject?.id) return;
-
-    // avoid re-hydrating same project on rerenders
     if (hydratedEntryIdRef.current === entryProject.id) return;
 
     const mapped = mapEntryProjectToContext(entryProject);
@@ -326,15 +313,13 @@ export default function Entry({
     saveDraft(mapped);
 
     hydratedEntryIdRef.current = entryProject.id;
-
-    // ✅ CRITICAL FIX: remount tab components so local state (rows) resets per draft
     setResetKey((k) => k + 1);
   }, [entryProject, setProjectData, saveDraft]);
 
   const buildPayload = () => ({
     ...projectData,
     metadata: {
-      ...projectData.metadata,
+      ...projectData?.metadata,
       projectId: entryProject?.id ?? projectData?.metadata?.projectId ?? null,
       lastSaved: formattedDate,
       status:
@@ -343,8 +328,15 @@ export default function Entry({
         "draft",
     },
     companyInfo: {
-      ...projectData.companyInfo,
-      reference: projectRef,
+      ...projectData?.companyInfo,
+      projectUid:
+        entryProject?.project_uid ??
+        projectData?.companyInfo?.projectUid ??
+        "",
+      reference:
+        entryProject?.reference ??
+        projectData?.companyInfo?.reference ??
+        "",
     },
   });
 
@@ -356,7 +348,6 @@ export default function Entry({
   const handleSaveDraft = () => {
     setShowCompanyInfoErrors(true);
 
-    // ✅ block saving if required fields are missing
     if (!isCompanyInfoValid()) {
       toast.error("Please fill in all required fields.");
       setTab("Machine");
@@ -364,23 +355,20 @@ export default function Entry({
     }
 
     const payload = buildPayload();
-
     saveDraft(payload);
 
     router.post(ziggyRoute("roi.entry.draft.save"), payload, {
+      preserveScroll: true,
       onStart: () => {
         toast.loading("Saving Draft...", { id: "saveDraft" });
       },
       onSuccess: () => {
         triggerBlink();
         toast.success("Draft saved!", { id: "saveDraft" });
-
-        // reset so it won't keep showing errors while editing later
         setShowCompanyInfoErrors(false);
       },
       onError: () => {
         toast.error("Cannot save draft. All marked fields are required.", { id: "saveDraft" });
-        // keep errors shown so user can see what to fix
       },
     });
   };
@@ -388,24 +376,34 @@ export default function Entry({
   const handleSubmit = () => {
     const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
-  if (!projectId) {
-    toast((t) => (
-      <div className="flex items-center gap-2 text-sm">
-       <IoAlertCircle className="text-red-500 text-lg shrink-0" />
-        <span>
-          Please <b className="text-darkgreen/70">Save Draft</b> first before submitting.
-        </span>
-      </div>
-    ), { duration: 1000 });
-    return;
-  }
+    if (!projectId) {
+      toast((t) => (
+        <div className="flex items-center gap-2 text-sm">
+          <IoAlertCircle className="text-red-500 text-lg shrink-0" />
+          <span>
+            Please <b className="text-darkgreen/70">Save Draft</b> first before submitting.
+          </span>
+        </div>
+      ), { duration: 1000 });
+      return;
+    }
 
     const payload = buildPayload();
     const toastId = toast.loading("Submitting...");
 
     router.patch(ziggyRoute("roi.entry.projects.submit", projectId), payload, {
       preserveScroll: true,
-      onSuccess: () => toast.success("Project submitted!", { id: toastId }),
+      onSuccess: (page) => {
+        const flashError = page?.props?.flash?.error;
+        const flashSuccess = page?.props?.flash?.success;
+
+        if (flashError) {
+          toast.error(flashError, { id: toastId });
+          return;
+        }
+
+        toast.success(flashSuccess || "Project submitted!", { id: toastId });
+      },
       onError: (errors) => {
         const message = Object.values(errors)[0] || "Failed to submit.";
         toast.error(message, { id: toastId });
@@ -426,21 +424,14 @@ export default function Entry({
   const isCurrentRecord = routeName === 'current';
   const isSummaryLikeTab = tab === 'Summary' || tab === 'Succeeding';
 
-  // ✅ define watermark flag safely (prevents ReferenceError)
   const statusText = String(
     projectData?.metadata?.status ?? entryProject?.status ?? "draft"
   ).toLowerCase();
 
   const showDraftWatermark = !isCurrentRecord && statusText === "draft";
-
-  // entry DB (draft/edit)
   const showMachineDraftActions = tab === 'Machine' && !readOnly && !isCurrentRecord;
   const showEntrySummaryDraftActions = isSummaryLikeTab && !readOnly && !isCurrentRecord;
-
-  // current DB (submitted)
   const showCurrentSummaryApprovalActions = isSummaryLikeTab && isCurrentRecord;
-
-  // fallback print-only (safety)
   const showPrintFooter = isSummaryLikeTab;
 
   const buildSignatoriesForPrint = (preparedByName) => ({
@@ -457,10 +448,9 @@ export default function Entry({
 
     const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
-    // ✅ prevent print / preview if no saved draft yet
     if (!projectId) {
       toast((t) => (
-        <div className="flex items-center gap-2 rounded-md  text-sm ">
+        <div className="flex items-center gap-2 rounded-md text-sm">
           <IoAlertCircle className="text-red-500 text-lg shrink-0" />
           <span>
             Please <b className="text-darkgreen/70">Save Draft</b> first before printing.
@@ -472,8 +462,6 @@ export default function Entry({
     }
 
     const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
-
-    // We'll only use storageKey if snapshot save succeeds
     let storageKey = null;
 
     try {
@@ -485,7 +473,6 @@ export default function Entry({
           ...(projectData?.metadata ?? {}),
           signatories: buildSignatoriesForPrint(createdBy),
         },
-        // ── include notes and comments for print ───────────────────────────
         projectNotes: entryProject?.notes ?? projectData?.projectNotes ?? [],
         projectComments: entryProject?.comments ?? projectData?.projectComments ?? [],
       };
@@ -506,13 +493,11 @@ export default function Entry({
       printPath = ziggyRoute("roi.entry.projects.print", projectId);
     }
 
-    // Build query params safely
     const params = new URLSearchParams();
     params.set("tab", tabParam);
     params.set("autoprint", autoPrint ? "1" : "0");
     params.set("draftWatermark", showDraftWatermark ? "1" : "0");
 
-    // Only include storageKey if we actually saved it
     if (storageKey) params.set("storageKey", storageKey);
 
     const href = `${printPath}?${params.toString()}`;
@@ -526,7 +511,6 @@ export default function Entry({
     a.remove();
   };
 
-  // ✅ enforce: only assigned level (2..6) can act
   const levelNum = Number(viewerLevel ?? 0);
   const projectLevel = Number(entryProject?.current_level ?? 0);
   const isAssignedApproverLevel =
@@ -562,7 +546,6 @@ export default function Entry({
             </div>
           </div>
 
-          {/* TABS */}
           <div className="mx-5">
             <div className="flex gap-[2px]">
               <button
@@ -590,7 +573,6 @@ export default function Entry({
             <Toaster />
           </div>
 
-          {/* CONTENT */}
           {tab === 'Machine' ? (
             <MachineConfigTab
               key={`machine-${entryProject?.id ?? 'new'}-${resetKey}`}
@@ -611,10 +593,8 @@ export default function Entry({
           ) : null}
         </div>
 
-        {/* STICKY FOOTER */}
         <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
           <div className="px-10 py-3 flex items-center justify-between relative">
-            {/* MACHINE TAB (entry DB only) */}
             {showMachineDraftActions && (
               <>
                 <button
@@ -645,7 +625,6 @@ export default function Entry({
               </>
             )}
 
-            {/* SUMMARY - ENTRY DB */}
             {showEntrySummaryDraftActions && (
               <>
                 <button
@@ -694,7 +673,6 @@ export default function Entry({
               </>
             )}
 
-            {/* SUMMARY - CURRENT DB (assigned level only) */}
             {showCurrentSummaryApprovalActions && isAssignedApproverLevel && (
               <>
                 <div className="flex items-center gap-3">
@@ -755,7 +733,6 @@ export default function Entry({
               </>
             )}
 
-            {/* Fallback: print only */}
             {showPrintFooter && !showEntrySummaryDraftActions && !showCurrentSummaryApprovalActions && (
               <div className="ml-auto flex items-center gap-2">
                 <button
