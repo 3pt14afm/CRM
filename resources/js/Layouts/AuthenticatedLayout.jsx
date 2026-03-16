@@ -1,3 +1,4 @@
+import FlashMessages from '@/Components/FlashMessages';
 import Sidebar from '@/Components/Sidebar';
 
 export default function AuthenticatedLayout({ children }) {
@@ -5,6 +6,7 @@ export default function AuthenticatedLayout({ children }) {
         <div className="flex h-screen bg-darkgreen/60">
             <Sidebar />
             <main className="flex-1 overflow-y-auto bg-white/95">
+                <FlashMessages />
                 {children}
             </main>
         </div>

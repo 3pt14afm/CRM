@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
@@ -23,6 +23,12 @@ export default function Sidebar() {
   const dropdownRef = useRef(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const sidebarRef = useRef(null);
+
+
+  const visitAdmin = (e, href) => {
+  e.preventDefault();
+  router.visit(href);
+};
 
   // Compute dropdown position when it opens (works open OR collapsed)
   useEffect(() => {
@@ -895,6 +901,7 @@ export default function Sidebar() {
               <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-lg mb-7 lg:pl-8">
                 <Link
                   href={route('admin.location-master.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.location-master.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.location-master.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -906,6 +913,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.department-master.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.department-master.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.department-master.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -917,6 +925,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.position-master.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.position-master.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.position-master.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -928,6 +937,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.user-management.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.user-management.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.user-management.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -939,6 +949,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.approver-matrix.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.approver-matrix.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.approver-matrix.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -950,6 +961,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.user-group-access-rights.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.user-group-access-rights.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.user-group-access-rights.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -961,6 +973,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.user-access-rights.index')}
+                   onClick={(e) => visitAdmin(e, route('admin.user-access-rights.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.user-access-rights.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -972,6 +985,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.audit-logs.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.audit-logs.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.audit-logs.*')
                       ? 'text-darkgreen font-semibold opacity-100'
