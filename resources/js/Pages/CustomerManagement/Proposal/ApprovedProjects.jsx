@@ -69,7 +69,7 @@ function ApproveProjects({ proposals, stats }) {
       key: "approved_by_name",
       header: "APPROVED BY",
       cell: (r) => (
-        <span className="text-slate-800">{r.approved_by_name ?? "—"}</span>
+        <span className="text-slate-800">{r.decided_by_name ?? "—"}</span>
       ),
     },
     {
