@@ -296,8 +296,16 @@ class RoiCurrentProjectController extends Controller
     {
         $user = $this->getAuthenticatedUser();
 
-        $query = RoiCurrentProject::with(['items', 'fees', 'user'])
-            ->orderBy('last_saved_at', 'desc');
+        $query = RoiCurrentProject::with([
+            'items',
+            'fees',
+            'user',
+            'reviewedByUser:id,first_name,last_name',
+            'checkedByUser:id,first_name,last_name',
+            'endorsedByUser:id,first_name,last_name',
+            'confirmedByUser:id,first_name,last_name',
+            'approvedByUser:id,first_name,last_name',
+        ])->orderBy('last_saved_at', 'desc');
 
         $this->applyCurrentVisibilityScope($query, $user);
 
@@ -332,6 +340,27 @@ class RoiCurrentProjectController extends Controller
                 $p->level_display = ($lvl >= 1 && $lvl <= 6)
                     ? ('Level ' . $lvl . ' — ' . $this->levelLabel($lvl))
                     : '—';
+
+                $assignedName = match ($lvl) {
+                    2 => $p->reviewedByUser
+                        ? trim(($p->reviewedByUser->first_name ?? '') . ' ' . ($p->reviewedByUser->last_name ?? ''))
+                        : null,
+                    3 => $p->checkedByUser
+                        ? trim(($p->checkedByUser->first_name ?? '') . ' ' . ($p->checkedByUser->last_name ?? ''))
+                        : null,
+                    4 => $p->endorsedByUser
+                        ? trim(($p->endorsedByUser->first_name ?? '') . ' ' . ($p->endorsedByUser->last_name ?? ''))
+                        : null,
+                    5 => $p->confirmedByUser
+                        ? trim(($p->confirmedByUser->first_name ?? '') . ' ' . ($p->confirmedByUser->last_name ?? ''))
+                        : null,
+                    6 => $p->approvedByUser
+                        ? trim(($p->approvedByUser->first_name ?? '') . ' ' . ($p->approvedByUser->last_name ?? ''))
+                        : null,
+                    default => null,
+                };
+
+                $p->status_assignee_name = $assignedName ?: '—';
 
                 $p->viewer_is_preparer = (int) $p->user_id === (int) $user->id;
                 $p->viewer_is_current_approver = $this->currentProjectAssignedToUser($p, (int) $user->id);
