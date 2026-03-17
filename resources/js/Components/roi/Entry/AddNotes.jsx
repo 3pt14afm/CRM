@@ -76,6 +76,10 @@ export default function AddNotes({ scopeKey = "default" }) {
     ? (isAssignedReviewer || isAssignedChecker || isAssignedEndorser)
     : (isEntryOwner || isAssignedReviewer || isAssignedChecker || isAssignedEndorser);
 
+  const isPrintPreview =
+  projectData?.metadata?.isPrintPreview === true ||
+  projectData?.metadata?.readOnly === true;
+
   const isLocked = !projectId || !canNote || isArchiveRoute || isPrintPreview;
 
   const DRAFT_KEY = useMemo(() => {
@@ -148,10 +152,6 @@ export default function AddNotes({ scopeKey = "default" }) {
 
   const canSubmit = noteDraft.trim().length > 0 && !!projectId && canNote && !isArchiveRoute;
 
-  const isPrintPreview =
-  projectData?.metadata?.isPrintPreview === true ||
-  projectData?.metadata?.readOnly === true;
-
   const handleAddNote = () => {
     if (!canSubmit) return;
 
@@ -189,11 +189,6 @@ export default function AddNotes({ scopeKey = "default" }) {
   return (
     <>
       <div className="w-full mb-6 px-4">
-        {!projectId && (
-          <div className="mb-2 pl-2 text-[12px] font-bold text-red-600 print:hidden uppercase tracking-wider">
-            Note: Save the project as a draft first before adding notes.
-          </div>
-        )}
 
         <div
           onClick={!isLocked ? openModal : undefined}
@@ -223,6 +218,12 @@ export default function AddNotes({ scopeKey = "default" }) {
             Add Notes
           </button>
         </div>
+
+        {!projectId && (
+          <div className="my-2 pl-2 text-[10px] italic font-medium text-red-600 print:hidden tracking-wider">
+            Note: Save the project as a draft first before adding notes.
+          </div>
+        )}
 
         {serverNotes.length > 0 && (
           <div className="mt-2 print:mt-1">

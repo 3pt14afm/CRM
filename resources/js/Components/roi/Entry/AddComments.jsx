@@ -162,11 +162,6 @@ export default function AddComments({ scopeKey = "default" }) {
   return (
     <>
       <div className="w-full mx-auto mb-6 px-4">
-        {!projectId && (
-          <div className="mb-2 pl-2 text-[12px] font-bold text-red-600 print:hidden uppercase tracking-wider">
-            Note: You can only add comments once the project is saved.
-          </div>
-        )}
 
         <div
           onClick={!isLocked ? openModal : undefined}
