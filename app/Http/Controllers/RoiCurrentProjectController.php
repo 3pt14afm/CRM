@@ -31,6 +31,33 @@ class RoiCurrentProjectController extends Controller
         return self::LEVEL_TO_LABEL[$level] ?? 'Unknown';
     }
 
+    private function queueLabelForLevel(int $level): string
+    {
+        return match ($level) {
+            1 => 'For Revision',
+            2 => 'For Review',
+            3 => 'For Checking',
+            4 => 'For Endorsement',
+            5 => 'For Confirmation',
+            6 => 'For Approval',
+            default => 'Pending',
+        };
+    }
+
+    private function sortTimelineEntries(?array $entries): array
+    {
+        $rows = is_array($entries) ? $entries : [];
+
+        usort($rows, function ($a, $b) {
+            $aTime = strtotime($a['created_at'] ?? '') ?: 0;
+            $bTime = strtotime($b['created_at'] ?? '') ?: 0;
+
+            return $bTime <=> $aTime;
+        });
+
+        return array_values($rows);
+    }
+
     private function getAuthenticatedUser()
     {
         $user = Auth::user();
@@ -305,6 +332,7 @@ class RoiCurrentProjectController extends Controller
     private function appendSendBackEntry(RoiCurrentProject $project, User $user, string $type, string $body): void
     {
         $entry = [
+            'id' => (string) \Illuminate\Support\Str::ulid(),
             'body' => trim($body),
             'created_at' => now()->toISOString(),
             'author' => [
@@ -317,13 +345,13 @@ class RoiCurrentProjectController extends Controller
         if ($type === 'note') {
             $notes = is_array($project->notes) ? $project->notes : [];
             $notes[] = $entry;
-            $project->notes = $notes;
+            $project->notes = $this->sortTimelineEntries($notes);
             return;
         }
 
         $comments = is_array($project->comments) ? $project->comments : [];
         $comments[] = $entry;
-        $project->comments = $comments;
+        $project->comments = $this->sortTimelineEntries($comments);
     }
 
     public function current()
@@ -396,6 +424,14 @@ class RoiCurrentProjectController extends Controller
 
                 $p->status_assignee_name = $assignedName ?: '—';
 
+                $isSentBack = strtolower((string) $p->status) === 'sent back';
+
+                $p->status_display_main = $isSentBack
+                    ? $this->queueLabelForLevel($lvl)
+                    : ($p->status ?? '—');
+
+                $p->status_display_suffix = $isSentBack ? ' (Sent Back)' : '';
+
                 $p->viewer_is_preparer = (int) $p->user_id === (int) $user->id;
                 $p->viewer_is_current_approver = $this->currentProjectAssignedToUser($p, (int) $user->id);
 
@@ -453,6 +489,9 @@ class RoiCurrentProjectController extends Controller
                 'name' => trim($u->first_name . ' ' . $u->last_name),
             ]);
 
+        $project->notes = $this->sortTimelineEntries($project->notes);
+        $project->comments = $this->sortTimelineEntries($project->comments);
+
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'project' => $project,
             'entryProject' => $project,
@@ -464,6 +503,7 @@ class RoiCurrentProjectController extends Controller
             'usersById' => $usersById,
             'projectNotes' => $project->notes ?? [],
             'projectComments' => $project->comments ?? [],
+            'requiredSendBackType' => $this->requiredSendBackTypeForLevel((int) $project->current_level),
         ]);
     }
 
@@ -497,9 +537,7 @@ class RoiCurrentProjectController extends Controller
 
             if ($validated['type'] !== $requiredType) {
                 return back()->withErrors([
-                    'body' => $requiredType === 'comment'
-                        ? 'Comment is required for send back.'
-                        : 'Note is required for send back.',
+                    'type' => "Invalid type for this level. Expected {$requiredType}.",
                 ]);
             }
 
@@ -585,6 +623,7 @@ class RoiCurrentProjectController extends Controller
             $toLevel = $fromLevel + 1;
 
             $nextStatus = match ($toLevel) {
+                2 => 'For Review',
                 3 => 'For Checking',
                 4 => 'For Endorsement',
                 5 => 'For Confirmation',
@@ -664,5 +703,49 @@ class RoiCurrentProjectController extends Controller
 
             return to_route('roi.current')->with('success', 'Project approved and archived.');
         });
+    }
+
+    public function storeNote(Request $request, RoiCurrentProject $project)
+    {
+        $user = $this->getAuthenticatedUser();
+
+        $this->ensureCanAct($project, $user);
+
+        $level = (int) $project->current_level;
+
+        if (!in_array($level, [2, 3, 4], true)) {
+            abort(403, 'Only reviewer, checker, or endorser can add notes on current projects.');
+        }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $notes = is_array($project->notes) ? $project->notes : [];
+
+        $notes[] = [
+            'id' => (string) \Illuminate\Support\Str::ulid(),
+            'body' => trim($validated['body']),
+            'created_at' => now()->toISOString(),
+            'author' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'role' => $user->role,
+            ],
+        ];
+
+        usort($notes, function ($a, $b) {
+            $aTime = strtotime($a['created_at'] ?? '') ?: 0;
+            $bTime = strtotime($b['created_at'] ?? '') ?: 0;
+
+            return $bTime <=> $aTime;
+        });
+
+        $project->update([
+            'notes' => array_values($notes),
+            'last_saved_at' => now(),
+        ]);
+
+        return back()->with('success', 'Note added.');
     }
 }

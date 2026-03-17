@@ -26,12 +26,15 @@ function formatDateTime(date) {
 
 export default function AddNotes({ scopeKey = "default" }) {
   const { projectData } = useProjectData();
+  const page = usePage();
+
   const {
     auth,
     entryProject,
     project: inertiaProject,
     projectNotes,
-  } = usePage().props;
+    route: pageRoute,
+  } = page.props;
 
   const project = entryProject ?? inertiaProject ?? null;
 
@@ -44,6 +47,10 @@ export default function AddNotes({ scopeKey = "default" }) {
     auth?.user?.id ??
     auth?.id ??
     null;
+
+  const isCurrentRoute = pageRoute === "current";
+  const isArchiveRoute = pageRoute === "archive";
+  const isEntryRoute = !isCurrentRoute && !isArchiveRoute;
 
   const isEntryOwner =
     !!userId &&
@@ -65,13 +72,11 @@ export default function AddNotes({ scopeKey = "default" }) {
     !!project?.endorsed_by &&
     Number(project.endorsed_by) === Number(userId);
 
-  const canNote =
-    isEntryOwner ||
-    isAssignedReviewer ||
-    isAssignedChecker ||
-    isAssignedEndorser;
+  const canNote = isCurrentRoute
+    ? (isAssignedReviewer || isAssignedChecker || isAssignedEndorser)
+    : (isEntryOwner || isAssignedReviewer || isAssignedChecker || isAssignedEndorser);
 
-  const isLocked = !projectId || !canNote;
+  const isLocked = !projectId || !canNote || isArchiveRoute || isPrintPreview;
 
   const DRAFT_KEY = useMemo(() => {
     return projectId ? `roi-note-draft:${userId}:${projectId}:${scopeKey}` : null;
@@ -88,7 +93,13 @@ export default function AddNotes({ scopeKey = "default" }) {
         ? fromProject
         : projectNotes ?? [];
 
-    return Array.isArray(rows) ? rows : [];
+    if (!Array.isArray(rows)) return [];
+
+    return [...rows].sort((a, b) => {
+      const aTime = a?.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b?.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
   }, [project, projectNotes]);
 
   const modalRef = useRef(null);
@@ -135,13 +146,21 @@ export default function AddNotes({ scopeKey = "default" }) {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
-  const canSubmit = noteDraft.trim().length > 0 && !!projectId && canNote;
+  const canSubmit = noteDraft.trim().length > 0 && !!projectId && canNote && !isArchiveRoute;
+
+  const isPrintPreview =
+  projectData?.metadata?.isPrintPreview === true ||
+  projectData?.metadata?.readOnly === true;
 
   const handleAddNote = () => {
     if (!canSubmit) return;
 
+    const noteRoute = isCurrentRoute
+      ? route("roi.current.notes.store", projectId)
+      : route("roi.entry.projects.notes.store", projectId);
+
     router.post(
-      route("roi.entry.projects.notes.store", projectId),
+      noteRoute,
       { body: noteDraft.trim() },
       {
         preserveScroll: true,
@@ -238,10 +257,10 @@ export default function AddNotes({ scopeKey = "default" }) {
 
           <div
             ref={modalRef}
-            className="relative w-[92%] max-w-5xl bg-white rounded-2xl shadow-xl border border-black/10 overflow-hidden"
+            className="relative w-[40%] max-w-xl bg-white rounded-xl shadow-xl border border-black/10 overflow-hidden"
           >
             <div className="px-10 pt-10 pb-4">
-              <h2 className="text-3xl font-extrabold tracking-wide text-black">
+              <h2 className="text-2xl font-extrabold tracking-wide text-black">
                 ADD NOTE
               </h2>
             </div>
@@ -259,11 +278,11 @@ export default function AddNotes({ scopeKey = "default" }) {
                   />
                 </div>
 
-                <div className="border-t border-black/10 bg-white px-6 py-4 flex justify-end gap-3">
+                <div className=" bg-white px-2 py-2 flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-5 py-2 rounded-lg bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
+                    className="px-3 py-2 rounded-lg text-sm bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
                   >
                     Cancel
                   </button>
@@ -272,7 +291,7 @@ export default function AddNotes({ scopeKey = "default" }) {
                     type="button"
                     onClick={handleAddNote}
                     disabled={!canSubmit}
-                    className={`px-5 py-2 rounded-lg font-semibold ${
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                       canSubmit
                         ? "bg-[#A7E86B] hover:bg-[#93db57] text-gray-900"
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"

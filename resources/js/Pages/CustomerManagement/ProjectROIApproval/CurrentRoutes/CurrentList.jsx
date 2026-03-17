@@ -98,12 +98,19 @@ console.log({ currentProjects, stats });
           <div className="w-full flex justify-center items-center">
             <div className="flex flex-col items-center leading-tight">
               <span
-                className={`
-                  inline-block px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider
+                className="
+                  inline-block px-2 py-1 rounded-full text-[9px] font-bold tracking-wider
                   bg-blue-100 text-blue-700 border border-blue-200
-                `}
+                "
               >
-                {row.status}
+                <span className="uppercase">
+                  {row.status_display_main ?? row.status}
+                </span>
+                {row.status_display_suffix ? (
+                  <span className="font-normal text-[10px] text-gray-500">
+                    {row.status_display_suffix}
+                  </span>
+                ) : null}
               </span>
 
               <span className="mt-1 text-[10px] text-center italic text-blue-700">
