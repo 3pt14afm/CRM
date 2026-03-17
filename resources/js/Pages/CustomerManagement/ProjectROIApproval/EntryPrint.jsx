@@ -50,14 +50,16 @@ function mapProjectToContext(p) {
     customerFees.reduce((s, r) => s + (r.total || 0), 0);
 
   return {
-          metadata: {
-          projectId: p?.id ?? null,
-        lastSaved: p?.last_saved_at ?? null,
-        version: p?.version ?? 1,
-        status: p?.status ?? "draft",
-        comments: p?.comments ?? [], // Change "" to []
-        notes: p?.notes ?? "",
-        signatories: p?.signatories ?? undefined,
+    metadata: {
+      projectId: p?.id ?? null,
+      lastSaved: p?.last_saved_at ?? null,
+      version: p?.version ?? 1,
+      status: p?.status ?? "draft",
+      comments: p?.comments ?? [],
+      notes: p?.notes ?? [],
+      signatories: p?.signatories ?? undefined,
+      isPrintPreview: true,
+      readOnly: true,
     },
 
     companyInfo: {
@@ -134,7 +136,6 @@ export default function EntryPrint({
   const { setProjectData, projectData } = useProjectData();
   const [loaded, setLoaded] = useState(false);
 
-  // 1) Prefer server-provided project data (no size limit)
   useEffect(() => {
     const p = entryProject || project;
     if (!p) return;
@@ -148,9 +149,8 @@ export default function EntryPrint({
     }
   }, [entryProject, project, setProjectData]);
 
-  // 2) Fallback: Load snapshot from sessionStorage (old behavior)
   useEffect(() => {
-    if (loaded) return; // already loaded from server
+    if (loaded) return;
     try {
       if (!storageKey) {
         setLoaded(true);
@@ -163,7 +163,15 @@ export default function EntryPrint({
         return;
       }
 
-      setProjectData(JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      setProjectData({
+        ...parsed,
+        metadata: {
+          ...(parsed?.metadata ?? {}),
+          isPrintPreview: true,
+          readOnly: true,
+        },
+      });
       setLoaded(true);
     } catch (e) {
       console.error("Print page: failed to load snapshot:", e);
@@ -229,7 +237,11 @@ export default function EntryPrint({
       )}
 
       <div className="print-root">
-        {tab === "succeeding" ? <SucceedingYears /> : <Summary1stYear />}
+        {tab === "succeeding" ? (
+          <SucceedingYears readOnly isPrintPreview />
+        ) : (
+          <Summary1stYear readOnly isPrintPreview />
+        )}
       </div>
     </div>
   );

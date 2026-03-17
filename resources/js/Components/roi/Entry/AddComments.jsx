@@ -55,8 +55,12 @@ export default function AddComments({ scopeKey = "default" }) {
     !!project?.approved_by &&
     Number(project.approved_by) === Number(userId);
 
+  const isPrintPreview =
+  projectData?.metadata?.isPrintPreview === true ||
+  projectData?.metadata?.readOnly === true;  
+
   const canComment = isAssignedConfirmer || isAssignedApprover;
-  const isLocked = !projectId || !canComment;
+  const isLocked = !projectId || !canComment || isPrintPreview;
 
   const DRAFT_KEY = useMemo(() => {
     return projectId ? `roi-comment-draft:${userId}:${projectId}:${scopeKey}` : null;
@@ -226,10 +230,10 @@ export default function AddComments({ scopeKey = "default" }) {
 
           <div
             ref={modalRef}
-            className="relative w-[92%] max-w-5xl bg-white rounded-2xl shadow-xl border border-black/10 overflow-hidden"
+            className="relative w-[40%] max-w-xl bg-white rounded-xl shadow-xl border border-black/10 overflow-hidden"
           >
             <div className="px-10 pt-10 pb-4">
-              <h2 className="text-3xl font-extrabold tracking-wide text-black">
+              <h2 className="text-2xl font-extrabold tracking-wide text-black">
                 ADD COMMENT
               </h2>
             </div>
@@ -247,11 +251,11 @@ export default function AddComments({ scopeKey = "default" }) {
                   />
                 </div>
 
-                <div className="border-t border-black/10 bg-white px-6 py-4 flex justify-end gap-3">
+                <div className=" bg-white px-2 py-2 flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-5 py-2 rounded-lg bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
+                    className="px-3 py-2 rounded-lg text-sm bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
                   >
                     Cancel
                   </button>
@@ -260,7 +264,7 @@ export default function AddComments({ scopeKey = "default" }) {
                     type="button"
                     onClick={handleAddComment}
                     disabled={!canSubmit}
-                    className={`px-5 py-2 rounded-lg font-semibold ${
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                       canSubmit
                         ? "bg-[#A7E86B] hover:bg-[#93db57] text-gray-900"
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"

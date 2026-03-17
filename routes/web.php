@@ -194,6 +194,9 @@ Route::middleware(['auth', 'verified'])
                 Route::patch('/{id}/send-back', [RoiCurrentProjectController::class, 'sendBack'])
                     ->name('roi.current.send-back');
 
+                Route::post('/{project}/notes', [RoiCurrentProjectController::class, 'storeNote'])
+                    ->name('roi.current.notes.store');    
+
                 Route::post('/{project}/comments', [RoiEntryProjectController::class, 'storeComment'])
                     ->name('roi.projects.comments.store');
 
@@ -206,7 +209,7 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/{id}/approve', [RoiCurrentProjectController::class, 'approve'])
                     ->name('roi.current.approve');
 
-             Route::get('/{id}/print', function ($id) {
+                Route::get('/{id}/print', function ($id) {
                     $p = \App\Models\RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
                     $userIds = collect([
@@ -238,6 +241,7 @@ Route::middleware(['auth', 'verified'])
                         'route' => 'current',
                     ]);
                 })->name('roi.current.print');
+
             });
 
             /*

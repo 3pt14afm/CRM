@@ -30,13 +30,8 @@ class RoiEntryProjectController extends Controller
             'user',
         ]);
 
-        $notes = $project->notes ?? [];
-        if (!is_array($notes)) {
-            $notes = [];
-        }
-
-        usort($notes, fn ($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
-        $project->notes = array_values($notes);
+        $project->notes = $this->sortTimelineEntries($project->notes);
+        $project->comments = $this->sortTimelineEntries($project->comments);
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'activeTab'    => 'Machine Configuration',
@@ -450,7 +445,7 @@ class RoiEntryProjectController extends Controller
             $notes = [];
         }
 
-        array_unshift($notes, [
+        $notes[] = [
             'id' => (string) Str::ulid(),
             'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
@@ -459,6 +454,11 @@ class RoiEntryProjectController extends Controller
                 'name' => $user?->name ?? 'Unknown',
                 'role' => $user?->role,
             ],
+        ];
+
+        $project->update([
+            'notes' => $this->sortTimelineEntries($notes),
+            'last_saved_at' => now(),
         ]);
 
         $project->update([
@@ -484,7 +484,7 @@ class RoiEntryProjectController extends Controller
             $comments = [];
         }
 
-        array_unshift($comments, [
+        $comments[] = [
             'id' => (string) Str::ulid(),
             'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
@@ -493,10 +493,10 @@ class RoiEntryProjectController extends Controller
                 'name' => $user?->name ?? 'Unknown',
                 'role' => $user?->role,
             ],
-        ]);
+        ];
 
         $project->update([
-            'comments' => $comments,
+            'comments' => $this->sortTimelineEntries($comments),
             'last_saved_at' => now(),
         ]);
 
@@ -599,5 +599,19 @@ class RoiEntryProjectController extends Controller
         $nextNumber = $maxNumber + 1;
 
         return $prefix . '-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
+    private function sortTimelineEntries(?array $entries): array
+    {
+        $rows = is_array($entries) ? $entries : [];
+
+        usort($rows, function ($a, $b) {
+            $aTime = strtotime($a['created_at'] ?? '') ?: 0;
+            $bTime = strtotime($b['created_at'] ?? '') ?: 0;
+
+            return $bTime <=> $aTime;
+        });
+
+        return array_values($rows);
     }
 }

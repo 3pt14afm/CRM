@@ -140,16 +140,11 @@ export default function Entry({
   role = '',
   viewerLevel = null,
 }) {
-  const { auth } = usePage().props;
+  const { auth, requiredSendBackType } = usePage().props;
   const createdBy = auth?.user?.name ?? null;
-  const actorRole = auth?.user?.role ?? null;
 
-  const NOTE_ROLES = ['preparer', 'reviewer', 'checker', 'endorser'];
-  const COMMENT_ROLES = ['confirmer', 'approver'];
-
-  const requiresNoteOnSendBack = NOTE_ROLES.includes(actorRole);
-  const requiresCommentOnSendBack = COMMENT_ROLES.includes(actorRole);
-  const sendBackLabel = requiresCommentOnSendBack ? 'comment' : 'note';
+  const sendBackType = requiredSendBackType === 'comment' ? 'comment' : 'note';
+  const sendBackLabel = sendBackType === 'comment' ? 'comment' : 'note';
 
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
@@ -234,31 +229,34 @@ export default function Entry({
 
     if (!trimmed) {
       toast.error(
-        requiresCommentOnSendBack
+        sendBackType === 'comment'
           ? 'Comment is required before sending back.'
           : 'Note is required before sending back.'
       );
       return;
     }
 
-    setShowSendBackModal(false);
-
     router.patch(
       ziggyRoute('roi.current.send-back', entryProject.id),
       {
         body: trimmed,
-        type: requiresCommentOnSendBack ? 'comment' : 'note',
+        type: sendBackType,
       },
       {
-        onStart: () => toast.loading('Sending back...', { id: 'sendBack' }),
+        preserveScroll: true,
+        onStart: () => {
+          setShowSendBackModal(false);
+          toast.loading('Sending back...', { id: 'sendBack' });
+        },
         onSuccess: () => {
           setSendBackText("");
           toast.success('Project sent back to sender.', { id: 'sendBack' });
         },
         onError: (errors) => {
+          setShowSendBackModal(true);
           const message =
             Object.values(errors ?? {})[0] ||
-            `Failed to send back. ${requiresCommentOnSendBack ? 'Comment' : 'Note'} is required.`;
+            `Failed to send back. ${sendBackType === 'comment' ? 'Comment' : 'Note'} is required.`;
           toast.error(message, { id: 'sendBack' });
         },
       }
