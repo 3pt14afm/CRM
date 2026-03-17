@@ -567,30 +567,23 @@ class RoiEntryProjectController extends Controller
 
     private function generateNextReferenceFromPrefix(string $prefix): string
     {
-        $entryReference = RoiEntryProject::query()
+        $allReferences = RoiEntryProject::query()
             ->where('reference', 'like', $prefix . '-%')
-            ->orderByDesc('id')
-            ->value('reference');
-
-        $currentReference = RoiCurrentProject::query()
-            ->where('reference', 'like', $prefix . '-%')
-            ->orderByDesc('id')
-            ->value('reference');
-
-        $archiveReference = RoiArchiveProject::query()
-            ->where('reference', 'like', $prefix . '-%')
-            ->orderByDesc('id')
-            ->value('reference');
-
-        $references = array_filter([
-            $entryReference,
-            $currentReference,
-            $archiveReference,
-        ]);
+            ->pluck('reference')
+            ->merge(
+                RoiCurrentProject::query()
+                    ->where('reference', 'like', $prefix . '-%')
+                    ->pluck('reference')
+            )
+            ->merge(
+                RoiArchiveProject::query()
+                    ->where('reference', 'like', $prefix . '-%')
+                    ->pluck('reference')
+            );
 
         $maxNumber = 0;
 
-        foreach ($references as $reference) {
+        foreach ($allReferences as $reference) {
             if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $reference, $matches)) {
                 $maxNumber = max($maxNumber, (int) $matches[1]);
             }
