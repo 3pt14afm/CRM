@@ -252,7 +252,7 @@ class RoiEntryProjectController extends Controller
             $project->fees()->delete();
             $project->delete();
 
-            return redirect()->route('roi.current')->with('success', 'Project submitted successfully.');
+            return redirect()->route('roi.entry.list')->with('success', 'Project submitted successfully.');
         });
     }
 

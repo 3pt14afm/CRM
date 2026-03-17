@@ -9,6 +9,7 @@ import { FaFolderOpen } from "react-icons/fa";
 import { IoTimeOutline, IoAddCircleOutline } from "react-icons/io5";
 import toast, { Toaster } from 'react-hot-toast';
 import { MdDelete, MdEdit } from 'react-icons/md';
+import FlashMessages from '@/Components/FlashMessages';
 
 export default function EntryList({
   drafts = null, // expected: { data, current_page, per_page, total }
@@ -242,6 +243,7 @@ const handleDelete = (row) => {
           />
         </div>
           <Toaster />
+          <FlashMessages />
         {/* Keep footer spacing consistent with your pages if needed */}
         <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
           <div className="px-10 py-3 flex items-center justify-end">

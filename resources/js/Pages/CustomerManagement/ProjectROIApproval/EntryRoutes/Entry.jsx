@@ -429,7 +429,7 @@ export default function Entry({
         const message = Object.values(errors)[0] || "Failed to submit.";
         toast.error(message, { id: toastId });
       },
-      onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
+      // onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
     });
   };
 
