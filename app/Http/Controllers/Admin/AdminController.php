@@ -21,4 +21,9 @@ class AdminController extends Controller
     {
         return Inertia::render('Admin/AuditLogs');
     }
+
+    public function preferences()
+    {
+        return Inertia::render('Admin/Preferences');
+    }
 }
