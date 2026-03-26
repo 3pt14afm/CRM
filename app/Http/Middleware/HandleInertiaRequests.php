@@ -28,28 +28,38 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
-        public function share(Request $request): array
-        {
-            return [
-                ...parent::share($request),
+    public function share(Request $request): array
+    {
+        $user = $request->user();
 
-                'auth' => [
-                    'user' => $request->user(),
-                    'role' => $request->user()?->role,
-                ],
+        $passwordExpired = $user?->isPasswordExpired() ?? false;
+        $mustChangePassword = $user?->must_change_password ?? false;
+        $defaultPasswordLoginCount = $user?->default_password_login_count ?? 0;
+        $isUsingDefaultPassword = $user?->is_using_default_password ?? false;
 
-                'mustChangePassword' => $request->user()?->must_change_password ?? false,
-                'defaultPasswordLoginCount' => $request->user()?->default_password_login_count ?? 0,
+        return [
+            ...parent::share($request),
 
-                'flash' => [
-                    'success' => fn () => $request->session()->get('success'),
-                    'error' => fn () => $request->session()->get('error'),
-                ],
+            'auth' => [
+                'user' => $user,
+                'role' => $user?->role,
+            ],
 
-                'ziggy' => fn () => [
-                    ...(new Ziggy)->toArray(),
-                    'location' => $request->url(),
-                ],
-            ];
-        }
+            'mustChangePassword' => $mustChangePassword,
+            'defaultPasswordLoginCount' => $defaultPasswordLoginCount,
+            'passwordExpired' => $passwordExpired,
+            'isUsingDefaultPassword' => $isUsingDefaultPassword,
+            'requiresPasswordChange' => $mustChangePassword || $defaultPasswordLoginCount > 0 || $passwordExpired,
+
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+            ],
+
+            'ziggy' => fn () => [
+                ...(new Ziggy)->toArray(),
+                'location' => $request->url(),
+            ],
+        ];
+    }
 }

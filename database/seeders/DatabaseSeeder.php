@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             CompanyDepartmentSeeder::class,
             CompanyPositionSeeder::class,
             CompanyEmployeeSeeder::class,
+            PreferencesSeeder::class,
         ]);
 
         $manilaId = Location::where('name', 'Manila')->value('id');

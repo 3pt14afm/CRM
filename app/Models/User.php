@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -41,6 +42,7 @@ class User extends Authenticatable
         'position',
         'email',
         'password',
+        'password_expiry',
         'primary_location_id',
         'is_banned',
         // 'email_verified_at',
@@ -65,18 +67,19 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-  protected function casts(): array
-{
-    return [
-        'email_verified_at'           => 'datetime',
-        'password'                    => 'hashed',
-        'is_banned'                   => 'boolean',
-        'primary_location_id'         => 'integer',
-        'is_using_default_password'   => 'boolean',
-        'default_password_login_count'=> 'integer',
-        'must_change_password'        => 'boolean',
-    ];
-}
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at'            => 'datetime',
+            'password'                     => 'hashed',
+            'password_expiry'              => 'date',
+            'is_banned'                    => 'boolean',
+            'primary_location_id'          => 'integer',
+            'is_using_default_password'    => 'boolean',
+            'default_password_login_count' => 'integer',
+            'must_change_password'         => 'boolean',
+        ];
+    }
 
     protected $appends = [
         'name',
@@ -99,6 +102,15 @@ class User extends Authenticatable
             ((string) ($this->attributes['first_name'] ?? '')) . ' ' .
             ((string) ($this->attributes['last_name'] ?? ''))
         );
+    }
+
+    public function isPasswordExpired(): bool
+    {
+        if (! $this->password_expiry) {
+            return false;
+        }
+
+        return Carbon::parse($this->password_expiry)->startOfDay()->lte(now()->startOfDay());
     }
 
     /**
