@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\PositionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\PreferencesController;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
@@ -90,6 +91,12 @@ Route::middleware(['auth', 'verified', 'admin'])
         // Approver Matrix CRUD
         Route::post('/approver-matrix', [ApproverMatrixController::class, 'store'])->name('approver-matrix.store');
         Route::put('/approver-matrix/{locationDepartment}', [ApproverMatrixController::class, 'update'])->name('approver-matrix.update');
+
+        Route::get('/preferences', [PreferencesController::class, 'preferenceMaster'])->name('preferences.index');
+        Route::post('/preferences', [PreferencesController::class, 'preferenceStore'])->name('preferences.store');
+        Route::put('/preferences/{preference}', [PreferencesController::class, 'preferenceUpdate'])->name('preferences.update');
+        Route::patch('/preferences/{preference}/activate', [PreferencesController::class, 'preferenceActivate'])->name('preferences.activate');
+        Route::patch('/preferences/{preference}/deactivate', [PreferencesController::class, 'preferenceDeactivate'])->name('preferences.deactivate');
 
         // Company Directory endpoints
         Route::get('/directory/departments', [DepartmentController::class, 'departments'])->name('directory.departments');

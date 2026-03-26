@@ -994,6 +994,18 @@ export default function Sidebar() {
                 >
                   Audit Logs
                 </Link>
+
+                <Link
+                  href={route('admin.preferences.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.preferences.index'))}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.preferences.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Preferences
+                </Link>
               </div>
             )}
           </div>
