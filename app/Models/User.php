@@ -47,7 +47,6 @@ class User extends Authenticatable
         'is_banned',
         // 'email_verified_at',
         'role',
-        'is_using_default_password',
         'default_password_login_count',
         'must_change_password',
     ];
@@ -75,7 +74,6 @@ class User extends Authenticatable
             'password_expiry'              => 'date',
             'is_banned'                    => 'boolean',
             'primary_location_id'          => 'integer',
-            'is_using_default_password'    => 'boolean',
             'default_password_login_count' => 'integer',
             'must_change_password'         => 'boolean',
         ];

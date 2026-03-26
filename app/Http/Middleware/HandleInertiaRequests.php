@@ -35,7 +35,6 @@ class HandleInertiaRequests extends Middleware
         $passwordExpired = $user?->isPasswordExpired() ?? false;
         $mustChangePassword = $user?->must_change_password ?? false;
         $defaultPasswordLoginCount = $user?->default_password_login_count ?? 0;
-        $isUsingDefaultPassword = $user?->is_using_default_password ?? false;
 
         return [
             ...parent::share($request),
@@ -48,7 +47,6 @@ class HandleInertiaRequests extends Middleware
             'mustChangePassword' => $mustChangePassword,
             'defaultPasswordLoginCount' => $defaultPasswordLoginCount,
             'passwordExpired' => $passwordExpired,
-            'isUsingDefaultPassword' => $isUsingDefaultPassword,
             'requiresPasswordChange' => $mustChangePassword || $defaultPasswordLoginCount > 0 || $passwordExpired,
 
             'flash' => [

@@ -37,7 +37,6 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         $requiresPasswordChange =
-            $user->is_using_default_password ||
             $user->must_change_password ||
             $user->isPasswordExpired();
 

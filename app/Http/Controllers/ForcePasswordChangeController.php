@@ -25,7 +25,6 @@ class ForcePasswordChangeController extends Controller
 
         $user->password = $request->password;
         $user->password_expiry = $nextExpiry->toDateString();
-        $user->is_using_default_password = false;
         $user->default_password_login_count = 0;
         $user->must_change_password = false;
         $user->save();
