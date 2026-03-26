@@ -224,7 +224,6 @@ class UserController extends Controller
 
         if ($request->filled('password')) {
             $data['password'] = $request->password;
-            $data['is_using_default_password'] = false;
             $data['default_password_login_count'] = 0;
             $data['must_change_password'] = false;
         }

@@ -56,18 +56,6 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
-
-      $user = User::find(Auth::id());
-
-        if ($user && $user->is_using_default_password) {
-            $user->default_password_login_count++;
-
-            if ($user->default_password_login_count >= 3) {
-                $user->must_change_password = true;
-            }
-
-            $user->save();
-        }
     }
 
     public function ensureIsNotRateLimited(): void
@@ -90,6 +78,6 @@ class LoginRequest extends FormRequest
 
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('login')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->string('login')) . '|' . $this->ip());
     }
 }
