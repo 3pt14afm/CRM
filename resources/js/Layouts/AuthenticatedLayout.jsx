@@ -1,14 +1,19 @@
 import FlashMessages from '@/Components/FlashMessages';
 import Sidebar from '@/Components/Sidebar';
+import ForceChangePasswordModal from '@/Components/ForceChangePasswordModal';
 
 export default function AuthenticatedLayout({ children }) {
     return (
-        <div className="flex h-screen bg-darkgreen/60">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto bg-white/95">
-                <FlashMessages />
-                {children}
-            </main>
-        </div>
+        <>
+            <div className="flex h-screen bg-darkgreen/60">
+                <Sidebar />
+                <main className="flex-1 overflow-y-auto bg-white/95">
+                    <FlashMessages />
+                    {children}
+                </main>
+            </div>
+
+            <ForceChangePasswordModal />
+        </>
     );
 }

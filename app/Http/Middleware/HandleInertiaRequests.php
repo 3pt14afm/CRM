@@ -38,6 +38,8 @@ class HandleInertiaRequests extends Middleware
                 'role' => $request->user()?->role,
             ],
 
+            'mustChangePassword' => $request->user()?->must_change_password ?? false,
+
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

@@ -168,18 +168,18 @@ class UserController extends Controller
             ])->withInput();
         }
 
-        User::create([
-            'first_name'          => $request->first_name,
-            'last_name'           => $request->last_name,
-            'employee_id'         => $request->employee_id,
-            'department_id'       => (int) $request->department_id,
-            'position'            => $request->position,
-            'email'               => $request->email,
-            'primary_location_id' => (int) $request->primary_location_id,
-            'password'            => Hash::make('P@ssw0rd'),
-            'is_banned'           => false,
-            'email_verified_at'   => now(),
-        ]);
+            User::create([
+                'first_name'                   => $request->first_name,
+                'last_name'                    => $request->last_name,
+                'employee_id'                  => $request->employee_id,
+                'department_id'                => (int) $request->department_id,
+                'position'                     => $request->position,
+                'email'                        => $request->email,
+                'primary_location_id'          => (int) $request->primary_location_id,
+                'password'                     => 'P@ssw0rd',
+                'is_banned'                    => false,
+                'email_verified_at'            => now(),
+            ]);
 
         return back()->with('success', 'User created.');
     }
@@ -222,7 +222,10 @@ class UserController extends Controller
         ];
 
         if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
+           $data['password'] = $request->password;
+            $data['is_using_default_password'] = false;
+            $data['default_password_login_count'] = 0;
+            $data['must_change_password'] = false;
         }
 
         $user->update($data);
@@ -329,17 +332,17 @@ class UserController extends Controller
         }
 
         User::create([
-            'first_name'          => $request->first_name,
-            'last_name'           => $request->last_name,
-            'employee_id'         => $request->employee_id,
-            'department_id'       => (int) $request->department_id,
-            'position'            => $request->position,
-            'email'               => $request->email,
-            'primary_location_id' => (int) $request->primary_location_id,
-            'password'            => Hash::make('P@ssw0rd'),
-            'is_banned'           => false,
-            'email_verified_at'   => now(),
-        ]);
+        'first_name'                   => $request->first_name,
+        'last_name'                    => $request->last_name,
+        'employee_id'                  => $request->employee_id,
+        'department_id'                => (int) $request->department_id,
+        'position'                     => $request->position,
+        'email'                        => $request->email,
+        'primary_location_id'          => (int) $request->primary_location_id,
+        'password'                     => 'P@ssw0rd',
+        'is_banned'                    => false,
+        'email_verified_at'            => now(),
+    ]);
 
         return back()->with('success', 'User created successfully.');
     }

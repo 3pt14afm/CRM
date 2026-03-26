@@ -131,8 +131,7 @@ class RoiEntryProjectController extends Controller
         });
 
         return redirect()
-            ->route('roi.entry.projects.show', $project)
-            ->with('success', 'Draft saved successfully.');
+            ->route('roi.entry.projects.show', $project);
     }
 
     public function submit(Request $request, RoiEntryProject $project)
@@ -252,7 +251,7 @@ class RoiEntryProjectController extends Controller
             $project->fees()->delete();
             $project->delete();
 
-            return redirect()->route('roi.entry.list')->with('success', 'Project submitted successfully.');
+            return redirect()->route('roi.entry.list');
         });
     }
 
@@ -272,7 +271,7 @@ class RoiEntryProjectController extends Controller
             $project->delete();
         });
 
-        return redirect()->route('roi.entry.list')->with('success', 'Project deleted.');
+        return redirect()->route('roi.entry.list');
     }
 
     private function validateDraftPayload(Request $request): array

@@ -43,8 +43,11 @@ class User extends Authenticatable
         'password',
         'primary_location_id',
         'is_banned',
-        'email_verified_at',
+        // 'email_verified_at',
         'role',
+        'is_using_default_password',
+        'default_password_login_count',
+        'must_change_password',
     ];
 
     /**
@@ -62,15 +65,18 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at'   => 'datetime',
-            'password'            => 'hashed',
-            'is_banned'           => 'boolean',
-            'primary_location_id' => 'integer',
-        ];
-    }
+  protected function casts(): array
+{
+    return [
+        'email_verified_at'           => 'datetime',
+        'password'                    => 'hashed',
+        'is_banned'                   => 'boolean',
+        'primary_location_id'         => 'integer',
+        'is_using_default_password'   => 'boolean',
+        'default_password_login_count'=> 'integer',
+        'must_change_password'        => 'boolean',
+    ];
+}
 
     protected $appends = [
         'name',
