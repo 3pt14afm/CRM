@@ -32,22 +32,38 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
-        // Example: create a cookie named 'user'
-            $cookie = cookie(
-                'user',                 // Cookie name
-                Auth::user()->id,       // Cookie value (user ID, safer than username)
-                60,                     // Expiration in minutes (1 hour)
-                '/',                    // Path
-                null,                   // Domain (default)
-                false,                  // Secure (true if using HTTPS)
-                true                    // HttpOnly
-            );
 
-            // Redirect to dashboard with cookie attached
-            // return redirect()->intended(route('dashboard', absolute: false))
-            //                 ->cookie($cookie);
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
 
-            return redirect()->route('customers.dashboard')->cookie($cookie);
+        $requiresPasswordChange =
+            $user->is_using_default_password ||
+            $user->must_change_password ||
+            $user->isPasswordExpired();
+
+        if ($requiresPasswordChange) {
+            $nextCount = min(((int) $user->default_password_login_count) + 1, 3);
+
+            $user->default_password_login_count = $nextCount;
+
+            if ($nextCount >= 3) {
+                $user->must_change_password = true;
+            }
+
+            $user->save();
+        }
+
+        $cookie = cookie(
+            'user',
+            $user->id,
+            60,
+            '/',
+            null,
+            false,
+            true
+        );
+
+        return redirect()->route('customers.dashboard')->cookie($cookie);
     }
 
     /**

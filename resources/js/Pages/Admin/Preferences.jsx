@@ -127,7 +127,6 @@ function Preferences({ stats, preferences }) {
     router.put(
       route("admin.preferences.update", editingPreference.id),
       {
-        settings_id: editForm.settings_id,
         settings_key: editForm.settings_key,
         setting_value: editForm.setting_value,
         entity_attribute: editForm.entity_attribute,

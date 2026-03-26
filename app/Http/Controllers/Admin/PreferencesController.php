@@ -61,14 +61,12 @@ class PreferencesController extends Controller
     public function preferenceUpdate(Request $request, Preferences $preference)
     {
         $request->validate([
-            'settings_id' => 'required|string|max:50|unique:preferences,settings_id,' . $preference->id,
             'settings_key' => 'required|string|max:255',
             'setting_value' => 'required|integer|min:0',
             'entity_attribute' => 'required|in:day,month,year',
         ]);
 
         $preference->update([
-            'settings_id' => strtoupper($request->settings_id),
             'settings_key' => $request->settings_key,
             'setting_value' => $request->setting_value,
             'entity_attribute' => strtolower($request->entity_attribute),

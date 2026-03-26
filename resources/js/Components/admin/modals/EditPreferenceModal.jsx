@@ -24,14 +24,16 @@ export default function EditPreferenceModal({
             Settings ID
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-slate-100 px-3 py-2 text-sm text-slate-500 outline-none cursor-not-allowed"
             value={editForm.settings_id}
-            onChange={(e) =>
-              setEditForm((p) => ({ ...p, settings_id: e.target.value }))
-            }
-            placeholder="e.g. RETENTION_DAYS"
+            readOnly
+            disabled
+            placeholder="e.g. PWX"
             autoFocus
           />
+          <p className="mt-1 text-[11px] text-slate-500">
+            Settings ID cannot be changed after creation.
+          </p>
           {errors.settings_id ? (
             <p className="mt-1 text-xs text-red-600">{errors.settings_id}</p>
           ) : null}

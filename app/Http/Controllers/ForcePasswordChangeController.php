@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\PreferenceHelper;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
 
@@ -20,7 +21,10 @@ class ForcePasswordChangeController extends Controller
             abort(403);
         }
 
+        $nextExpiry = PreferenceHelper::passwordExpiryDate();
+
         $user->password = $request->password;
+        $user->password_expiry = $nextExpiry->toDateString();
         $user->is_using_default_password = false;
         $user->default_password_login_count = 0;
         $user->must_change_password = false;
