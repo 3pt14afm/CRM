@@ -244,10 +244,7 @@ export default function Entry({
       },
       {
         preserveScroll: true,
-        onStart: () => {
-          setShowSendBackModal(false);
-          toast.loading('Sending back...', { id: 'sendBack' });
-        },
+    
         onSuccess: () => {
           setSendBackText("");
           toast.success('Project sent back to sender.', { id: 'sendBack' });

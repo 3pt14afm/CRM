@@ -28,27 +28,28 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
-    public function share(Request $request): array
-    {
-        return [
-            ...parent::share($request),
+        public function share(Request $request): array
+        {
+            return [
+                ...parent::share($request),
 
-            'auth' => [
-                'user' => $request->user(),
-                'role' => $request->user()?->role,
-            ],
+                'auth' => [
+                    'user' => $request->user(),
+                    'role' => $request->user()?->role,
+                ],
 
-            'mustChangePassword' => $request->user()?->must_change_password ?? false,
+                'mustChangePassword' => $request->user()?->must_change_password ?? false,
+                'defaultPasswordLoginCount' => $request->user()?->default_password_login_count ?? 0,
 
-            'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-            ],
+                'flash' => [
+                    'success' => fn () => $request->session()->get('success'),
+                    'error' => fn () => $request->session()->get('error'),
+                ],
 
-            'ziggy' => fn () => [
-                ...(new Ziggy)->toArray(),
-                'location' => $request->url(),
-            ],
-        ];
-    }
+                'ziggy' => fn () => [
+                    ...(new Ziggy)->toArray(),
+                    'location' => $request->url(),
+                ],
+            ];
+        }
 }

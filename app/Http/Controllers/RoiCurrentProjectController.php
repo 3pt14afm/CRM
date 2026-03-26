@@ -588,7 +588,7 @@ class RoiCurrentProjectController extends Controller
 
                 $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
 
-                return to_route('roi.entry.list')->with('success', 'Project returned to Preparer for revision.');
+                return to_route('roi.entry.list');
             }
 
             $project->status = 'Sent Back';
@@ -601,7 +601,7 @@ class RoiCurrentProjectController extends Controller
 
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
 
-            return to_route('roi.current')->with('success', 'Project sent back to Level ' . $toLevel . '.');
+            return to_route('roi.current');
         });
     }
 
