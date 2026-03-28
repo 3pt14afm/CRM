@@ -10,6 +10,14 @@ function Paper({ isSidebarOpen, proposal, items, fees }) {
     } min-h-screen py-12 font-sans`}>
       
   <PrintablePaper>
+     {/* LOGO */}
+        <div className="mb-6">
+          <img
+            src="/images/logo.png"
+            alt="Delsan Office Systems Corporation"
+            className="h-14 w-auto object-contain"
+          />
+        </div>
        {/* HEADER SECTION */}
         <div className="flex justify-between text-[11px] mb-8">
           <div className="space-y-1">
@@ -181,15 +189,15 @@ function Paper({ isSidebarOpen, proposal, items, fees }) {
           TERMS & CONDITIONS
         </h4>
         {(proposal.terms_text || '').trim() ? (
-          <ol className="list-decimal ml-4 space-y-1">
-            {proposal.terms_text
-              .split('\n')
-              .map(line => line.replace(/^\d+\.\s*/, '').trim())
-              .filter(Boolean)
-              .map((line, idx) => (
-                <li key={idx} dangerouslySetInnerHTML={{ __html: line }} />
-              ))}
-          </ol>
+     <div className="space-y-1">
+      {proposal.terms_text
+        .split('\n')
+        .map(line => line.replace(/^\d+\.\s*/, '').trim())
+        .filter(Boolean)
+        .map((line, idx) => (
+          <div key={idx} dangerouslySetInnerHTML={{ __html: line }} />
+        ))}
+    </div>
         ) : (
           <p className="text-slate-300 italic">No terms added yet.</p>
         )}
@@ -210,7 +218,7 @@ function Paper({ isSidebarOpen, proposal, items, fees }) {
             )}
             <div className="border-t border-slate-400 pt-1 w-52">
               <p className="font-black text-slate-900 uppercase">{proposal.user?.name || '---'}</p>
-              <p className="text-slate-500 text-[10px] uppercase">{proposal.user?.role || '---'}</p>
+              <p className="text-slate-500 text-[10px] uppercase">{proposal.user?.position || '---'}</p>
             </div>
           </div>
 

@@ -185,6 +185,7 @@ private function transformProposal($p)
         'user'           => $project->user ? [
             'name' => $project->user->name,
             'role' => $project->user->role,
+            'position' => $project->user->position
         ] : null,
 
         // Document defaults
