@@ -94,7 +94,7 @@ export default function ProjectListSection({
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-100">
               <tr className="text-left text-slate-500">
                 {columns.map((c) => (
                   <th key={c.key} className="px-1 py-2.5 text-xs font-semibold tracking-wide md:px-3 md:py-2 md:text-[8px] lg:px-4 lg:text-[10px] xl:px-6 xl:text-xs ">
@@ -109,7 +109,7 @@ export default function ProjectListSection({
                 rows.map((r) => (
                   <tr key={rowKey(r)} className="border-t border-black/5">
                     {columns.map((c) => (
-                      <td key={c.key} className="px-8 py-2 md:px-3 md:text-xs lg:text-sm lg:px-4 lg:py-3 xl:px-6 xl:text-base">
+                      <td key={c.key} className="px-8 py-2 md:px-3 md:text-xs lg:text-sm lg:px-4 xl:px-6 xl:text-base">
                         {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
                       </td>
                     ))}
