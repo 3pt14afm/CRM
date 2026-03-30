@@ -86,7 +86,6 @@ export default function Sidebar() {
     }
   }, [activeByRoute, url]);
 
-  // PROFILE DROPDOWN POSITION
   useEffect(() => {
     if (activeItem !== "profile") return;
 
@@ -101,7 +100,6 @@ export default function Sidebar() {
     });
   }, [activeItem, isOpen]);
 
-  // CLOSE PROFILE DROPDOWN WHEN CLICKING OUTSIDE
   useEffect(() => {
     if (activeItem !== "profile") return;
 
@@ -123,7 +121,6 @@ export default function Sidebar() {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [activeItem]);
 
-  // STRICT BEHAVIOR FOR REAL MODULES (CUSTOMER / ADMIN)
   const handleRealModuleClick = (e, moduleName, isActive, defaultHref) => {
     e.preventDefault();
 
@@ -133,25 +130,19 @@ export default function Sidebar() {
       setIsOpen(true);
       setActiveModule(moduleName);
 
-      // Active module while collapsed => ONLY OPEN SIDEBAR
       if (isActive) return;
 
-      // Inactive module while collapsed => OPEN + NAVIGATE TO FIRST CHILD
       router.visit(defaultHref);
       return;
     }
 
-    // Sidebar already open
     setActiveModule(moduleName);
 
-    // Active module while open => DO NOT NAVIGATE
     if (isActive) return;
 
-    // Inactive module while open => NAVIGATE TO FIRST CHILD
     router.visit(defaultHref);
   };
 
-  // PLACEHOLDER MODULES (MACHINE / SERVICE / DELIVERY)
   const handlePlaceholderModuleClick = (e, moduleName) => {
     e.preventDefault();
 
@@ -993,6 +984,43 @@ export default function Sidebar() {
                   }`}
                 >
                   User Access Rights Management
+                </Link>
+
+                
+                <Link
+                  href={route('admin.printer-maintenance.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.printer-maintenance.index'))}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.printer-maintenance.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Printer Maintenance
+                </Link>
+
+                <Link
+                  href={route('admin.supply-maintenance.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.supply-maintenance.index'))}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.supply-maintenance.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Supply Maintenance
+                </Link>
+
+                <Link
+                  href={route('admin.printer-supplies.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.printer-supplies.index'))}
+                  className={`block px-8 py-2 text-[11px] lg:text-sm ${
+                    route().current('admin.printer-supplies.*')
+                      ? 'text-darkgreen font-semibold opacity-100'
+                      : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                  }`}
+                >
+                  Printer Supplies
                 </Link>
 
                 <Link
