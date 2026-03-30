@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
-import { RiSettingsLine, RiSettingsFill, RiAdminFill, RiAdminLine } from "react-icons/ri";
 import { IoMdArrowDropdown } from "react-icons/io";
 import { route } from 'ziggy-js';
 
@@ -18,19 +17,76 @@ export default function Sidebar() {
   const [activeMachineSubMenu, setActiveMachineSubMenu] = useState(null);
   const [activeServiceSubMenu, setActiveServiceSubMenu] = useState(null);
   const [activeDeliverySubMenu, setActiveDeliverySubMenu] = useState(null);
-  const [activeItem, setActiveItem] = useState(null); // "profile" | "settings" | null
+  const [activeItem, setActiveItem] = useState(null);
+
   const profileBtnRef = useRef(null);
   const dropdownRef = useRef(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const sidebarRef = useRef(null);
 
-
   const visitAdmin = (e, href) => {
-  e.preventDefault();
-  router.visit(href);
-};
+    e.preventDefault();
+    router.visit(href);
+  };
 
-  // Compute dropdown position when it opens (works open OR collapsed)
+  const resetAllSubMenus = () => {
+    setActiveSubMenu(null);
+    setActiveMachineSubMenu(null);
+    setActiveServiceSubMenu(null);
+    setActiveDeliverySubMenu(null);
+  };
+
+  const closeAllMenus = () => {
+    setActiveModule(null);
+    resetAllSubMenus();
+  };
+
+  const toggleSidebar = () => setIsOpen(!isOpen);
+
+  const handleSubToggle = (subMenuName) => {
+    setActiveSubMenu(activeSubMenu === subMenuName ? null : subMenuName);
+  };
+
+  const handleMachineSubToggle = (name) => {
+    setActiveMachineSubMenu(activeMachineSubMenu === name ? null : name);
+  };
+
+  const handleServiceSubToggle = (name) => {
+    setActiveServiceSubMenu(activeServiceSubMenu === name ? null : name);
+  };
+
+  const handleDeliverySubToggle = (name) => {
+    setActiveDeliverySubMenu(activeDeliverySubMenu === name ? null : name);
+  };
+
+  const activeByRoute =
+    route().current('customers.*') ||
+    route().current('roi.*') ||
+    route().current('proposals.*')
+      ? 'customer'
+      : route().current('machine.*')
+      ? 'machine'
+      : route().current('service.*')
+      ? 'service'
+      : route().current('delivery.*')
+      ? 'delivery'
+      : route().current('admin.*')
+      ? 'admin'
+      : null;
+
+  const isCustomerActive = activeByRoute === 'customer';
+  const isMachineActive = activeByRoute === 'machine';
+  const isServiceActive = activeByRoute === 'service';
+  const isDeliveryActive = activeByRoute === 'delivery';
+  const isAdminActive = activeByRoute === 'admin';
+
+  useEffect(() => {
+    if (activeByRoute) {
+      setActiveModule(activeByRoute);
+    }
+  }, [activeByRoute, url]);
+
+  // PROFILE DROPDOWN POSITION
   useEffect(() => {
     if (activeItem !== "profile") return;
 
@@ -39,14 +95,13 @@ export default function Sidebar() {
 
     const rect = btn.getBoundingClientRect();
 
-    // Place dropdown to the right of the profile icon
     setDropdownPos({
       top: rect.bottom,
       left: rect.right + 12,
     });
   }, [activeItem, isOpen]);
 
-  // Close dropdown when clicking outside
+  // CLOSE PROFILE DROPDOWN WHEN CLICKING OUTSIDE
   useEffect(() => {
     if (activeItem !== "profile") return;
 
@@ -68,55 +123,47 @@ export default function Sidebar() {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [activeItem]);
 
-  const toggleSidebar = () => setIsOpen(!isOpen);
+  // STRICT BEHAVIOR FOR REAL MODULES (CUSTOMER / ADMIN)
+  const handleRealModuleClick = (e, moduleName, isActive, defaultHref) => {
+    e.preventDefault();
 
-  const closeAllMenus = () => {
-    setActiveModule(null);
-    setActiveSubMenu(null);
-    setActiveMachineSubMenu(null);
-    setActiveServiceSubMenu(null);
-    setActiveDeliverySubMenu(null);
-  };
+    resetAllSubMenus();
 
-  const handleModuleToggle = (moduleName) => {
-    setActiveModule(activeModule === moduleName ? null : moduleName);
-    setActiveSubMenu(null);
-    setActiveMachineSubMenu(null);
-    setActiveServiceSubMenu(null);
-    setActiveDeliverySubMenu(null);
-  };
-
-  const handleSubToggle = (subMenuName) => {
-    setActiveSubMenu(activeSubMenu === subMenuName ? null : subMenuName);
-  };
-
-  const handleMachineSubToggle = (name) => {
-    setActiveMachineSubMenu(activeMachineSubMenu === name ? null : name);
-  };
-
-  const handleServiceSubToggle = (name) => {
-    setActiveServiceSubMenu(activeServiceSubMenu === name ? null : name);
-  };
-
-  const handleDeliverySubToggle = (name) => {
-    setActiveDeliverySubMenu(activeDeliverySubMenu === name ? null : name);
-  };
-
-  const openSidebarAndToggleModule = (moduleName) => {
-    // If sidebar is closed, open it first
     if (!isOpen) {
       setIsOpen(true);
-      setActiveModule(moduleName); // expand the clicked module
-      // reset submenus so it starts clean
-      setActiveSubMenu(null);
-      setActiveMachineSubMenu(null);
-      setActiveServiceSubMenu(null);
-      setActiveDeliverySubMenu(null);
+      setActiveModule(moduleName);
+
+      // Active module while collapsed => ONLY OPEN SIDEBAR
+      if (isActive) return;
+
+      // Inactive module while collapsed => OPEN + NAVIGATE TO FIRST CHILD
+      router.visit(defaultHref);
       return;
     }
 
-    // If already open, behave like your normal toggle
-    handleModuleToggle(moduleName);
+    // Sidebar already open
+    setActiveModule(moduleName);
+
+    // Active module while open => DO NOT NAVIGATE
+    if (isActive) return;
+
+    // Inactive module while open => NAVIGATE TO FIRST CHILD
+    router.visit(defaultHref);
+  };
+
+  // PLACEHOLDER MODULES (MACHINE / SERVICE / DELIVERY)
+  const handlePlaceholderModuleClick = (e, moduleName) => {
+    e.preventDefault();
+
+    resetAllSubMenus();
+
+    if (!isOpen) {
+      setIsOpen(true);
+      setActiveModule(moduleName);
+      return;
+    }
+
+    setActiveModule((prev) => (prev === moduleName ? null : moduleName));
   };
 
   useEffect(() => {
@@ -128,9 +175,7 @@ export default function Sidebar() {
       const profileBtnEl = profileBtnRef.current;
 
       if (sidebarEl && sidebarEl.contains(e.target)) return;
-
       if (dropdownEl && dropdownEl.contains(e.target)) return;
-
       if (profileBtnEl && profileBtnEl.contains(e.target)) return;
 
       setIsOpen(false);
@@ -160,38 +205,16 @@ export default function Sidebar() {
     </Link>
   );
 
-  // ACTIVE (highlight) is route-based, independent from EXPANDED (activeModule)
-  const activeByRoute =
-    route().current('customers.*') || route().current('roi.*')
-      ? 'customer'
-      : route().current('machine.*')
-      ? 'machine'
-      : route().current('service.*')
-      ? 'service'
-      : route().current('delivery.*')
-      ? 'delivery'
-      : route().current('admin.*')
-      ? 'admin'
-      : null;
-
-  const isCustomerActive = activeByRoute === 'customer';
-  const isMachineActive = activeByRoute === 'machine';
-  const isServiceActive = activeByRoute === 'service';
-  const isDeliveryActive = activeByRoute === 'delivery';
-  const isAdminActive = activeByRoute === 'admin';
-
   const customerExpanded = isOpen && activeModule === 'customer';
   const machineExpanded = isOpen && activeModule === 'machine';
   const serviceExpanded = isOpen && activeModule === 'service';
   const deliveryExpanded = isOpen && activeModule === 'delivery';
   const adminExpanded = isOpen && activeModule === 'admin';
 
-  // Text reveal/hide WITHOUT moving icons
   const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ease-in-out ${
     isOpen ? "max-w-[240px] opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1"
   }`;
 
-  // Reserve space for chevron so row doesn’t shift
   const chevronSlotClass = `flex items-center justify-end w-12 transition-opacity duration-300 ease-in-out ${
     isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
   }`;
@@ -205,9 +228,8 @@ export default function Sidebar() {
         isOpen ? "w-60 lg:w-80" : "w-16 lg:w-20"
       }`}
     >
-      {/* HEADER (stable: grid prevents shifting) */}
+      {/* HEADER */}
       <div className={`p-4 flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
-        {/* Center logo area */}
         {isOpen ? (
           <img src="/images/logo.webp" alt="CRM Logo" className="pl-1 h-12 w-auto lg:h-16" />
         ) : (
@@ -234,7 +256,6 @@ export default function Sidebar() {
           </button>
         )}
 
-        {/* Right side: collapse button (slot reserved when closed) */}
         <div className="w-12 flex justify-end">
           {isOpen ? (
             <button
@@ -252,35 +273,54 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto no-scrollbar">
-        {/* CUSTOMER MANAGEMENT */}
         <div className="space-y-1 mx-2">
+          {/* CUSTOMER MANAGEMENT */}
           <div>
-            <div className={`group ${ isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50' } ${customerExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
-              <div className={`flex items-center px-2 py-2 lg:px-3`}>
+            <div className={`group ${isCustomerActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'} ${customerExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
+              <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href={route('roi.current')}
-                  onClick={() => openSidebarAndToggleModule('customer')}
-                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${ isCustomerActive ? 'text-black' : 'text-darkgreen' }`}>
-                  {/* ICON (fixed slot) */}
+                  onClick={(e) =>
+                    handleRealModuleClick(
+                      e,
+                      'customer',
+                      isCustomerActive,
+                      route('roi.current')
+                    )
+                  }
+                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
+                    isCustomerActive ? 'text-black' : 'text-darkgreen'
+                  }`}
+                >
                   <div
                     title="Customer Account Management"
-                    className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors lg:w-9 lg:h-9 ${ activeModule === 'customer' ? 'bg-white/0' : 'group-hover:bg-green-100'}`}>
+                    className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors lg:w-9 lg:h-9 ${
+                      activeModule === 'customer' ? 'bg-white/0' : 'group-hover:bg-green-100'
+                    }`}
+                  >
                     <img src="/images/cam.webp" alt="Customer Account Management" />
                   </div>
 
-                  {/* LABEL (reveal/hide only) */}
-                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}> Customer Account <br /> Management</span>
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
+                    Customer Account <br /> Management
+                  </span>
                 </Link>
 
-                {/* Chevron slot (reserved width so no shifting) */}
                 <div className={chevronSlotClass}>
                   <button
-                    onClick={() => openSidebarAndToggleModule('customer')}
+                    onClick={(e) =>
+                      handleRealModuleClick(
+                        e,
+                        'customer',
+                        isCustomerActive,
+                        route('roi.current')
+                      )
+                    }
                     className="p-2"
                     aria-label="Toggle customer menu"
                     type="button"
                   >
-                    <span className={`inline-block transition-transform duration-300 ${ activeModule === 'customer' ? 'rotate-180' : '' }`} >
+                    <span className={`inline-block transition-transform duration-300 ${activeModule === 'customer' ? 'rotate-180' : ''}`}>
                       <IoMdArrowDropdown color="black" size={18} />
                     </span>
                   </button>
@@ -288,7 +328,6 @@ export default function Sidebar() {
               </div>
             </div>
 
-            {/* CUSTOMER SUB-ITEMS */}
             {isOpen && activeModule === 'customer' && (
               <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-lg mb-7 lg:pl-8">
                 {!activeSubMenu && (
@@ -302,7 +341,7 @@ export default function Sidebar() {
 
                 {(activeSubMenu === null || activeSubMenu === 'roi') && (
                   <div className="relative">
-                    <div className="flex items-center -mt-3 -mb-3 py-2 ">
+                    <div className="flex items-center -mt-3 -mb-3 py-2">
                       <Link
                         href={route('roi.current')}
                         onClick={() => handleSubToggle('roi')}
@@ -313,7 +352,7 @@ export default function Sidebar() {
                         Project ROI Approval
                       </Link>
                       <button onClick={() => handleSubToggle('roi')} className="px-6 py-2" type="button">
-                        <span className={`inline-block transition-transform duration-300 ${ activeSubMenu === 'roi' ? 'rotate-180' : ''}`} >
+                        <span className={`inline-block transition-transform duration-300 ${activeSubMenu === 'roi' ? 'rotate-180' : ''}`}>
                           <IoMdArrowDropdown size={14} color={activeSubMenu === 'roi' ? '#15803d' : 'black'} />
                         </span>
                       </button>
@@ -321,9 +360,15 @@ export default function Sidebar() {
 
                     {activeSubMenu === 'roi' && (
                       <div className="relative ml-6 lg:ml-8 pb-2 mt-2">
-                        <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>Current</NavSubLink>
-                        <NavSubLink href={route('roi.archive')} active={route().current('roi.archive')}>Archive</NavSubLink>
-                        <NavSubLink href={route('roi.entry.list')} active={route().current('roi.entry.list')}>Entry</NavSubLink>
+                        <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>
+                          Current
+                        </NavSubLink>
+                        <NavSubLink href={route('roi.archive')} active={route().current('roi.archive')}>
+                          Archive
+                        </NavSubLink>
+                        <NavSubLink href={route('roi.entry.list')} active={route().current('roi.entry.list')}>
+                          Entry
+                        </NavSubLink>
                       </div>
                     )}
                   </div>
@@ -331,7 +376,7 @@ export default function Sidebar() {
 
                 {!activeSubMenu && (
                   <>
-                    <Link  href={route('proposals.index')} className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
+                    <Link href={route('proposals.index')} className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
                       Proposal Generation
                     </Link>
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
@@ -365,7 +410,7 @@ export default function Sidebar() {
                         Reports/View Only
                       </Link>
                       <button onClick={() => handleSubToggle('reports')} className="px-6 py-2" type="button">
-                        <span className={`inline-block transition-transform duration-300 ${ activeSubMenu === 'reports' ? 'rotate-180' : '' }`} >
+                        <span className={`inline-block transition-transform duration-300 ${activeSubMenu === 'reports' ? 'rotate-180' : ''}`}>
                           <IoMdArrowDropdown size={14} color={activeSubMenu === 'reports' ? '#15803d' : 'black'} />
                         </span>
                       </button>
@@ -393,29 +438,21 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* OTHER NAV*/}
-
           {/* MACHINE INVENTORY */}
           <div>
-            <div
-              className={`mx-0 group ${
-                activeModule === 'machine' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg'
-              }`}
-            >
+            <div className={`mx-0 group ${isMachineActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/40'} ${machineExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
               <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    openSidebarAndToggleModule('machine');
-                  }}
+                  onClick={(e) => handlePlaceholderModuleClick(e, 'machine')}
                   className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
-                    activeModule === 'machine' ? 'text-black' : 'text-darkgreen'
+                    isMachineActive ? 'text-black' : 'text-darkgreen'
                   }`}
                 >
                   <div
                     title="Machine Inventory Management"
-                    className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9">
+                    className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
+                  >
                     <img src="/images/mim.webp" alt="Machine Inventory Management" />
                   </div>
 
@@ -425,12 +462,13 @@ export default function Sidebar() {
                 </Link>
 
                 <div className={chevronSlotClass}>
-                  <button onClick={() => handleModuleToggle('machine')} className="p-2" aria-label="Toggle machine menu" type="button">
-                    <span
-                      className={`inline-block transition-transform duration-300 ${
-                        activeModule === 'machine' ? 'rotate-180' : ''
-                      }`}
-                    >
+                  <button
+                    onClick={(e) => handlePlaceholderModuleClick(e, 'machine')}
+                    className="p-2"
+                    aria-label="Toggle machine menu"
+                    type="button"
+                  >
+                    <span className={`inline-block transition-transform duration-300 ${activeModule === 'machine' ? 'rotate-180' : ''}`}>
                       <IoMdArrowDropdown color="black" size={18} />
                     </span>
                   </button>
@@ -438,10 +476,8 @@ export default function Sidebar() {
               </div>
             </div>
 
-            {/* MACHINE INVENTORY SUB-ITEMS */}
             {isOpen && activeModule === 'machine' && (
               <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-4 shadow-lg mb-3 lg:pl-8">
-                {/* 1) Machine In-Field Inventory (with sublinks) */}
                 {(activeMachineSubMenu === null || activeMachineSubMenu === 'infield') && (
                   <div className="relative">
                     <div className="flex items-center -mt-3 py-2 pb-2 pt-5">
@@ -458,11 +494,7 @@ export default function Sidebar() {
                       </Link>
 
                       <button onClick={() => handleMachineSubToggle('infield')} className="px-6 py-2" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeMachineSubMenu === 'infield' ? 'rotate-180' : ''
-                          }`}
-                        >
+                        <span className={`inline-block transition-transform duration-300 ${activeMachineSubMenu === 'infield' ? 'rotate-180' : ''}`}>
                           <IoMdArrowDropdown
                             size={14}
                             color={activeMachineSubMenu === 'infield' ? '#15803d' : 'black'}
@@ -481,7 +513,6 @@ export default function Sidebar() {
                   </div>
                 )}
 
-                {/* 2-8) Normal links (ONLY show when no submenu is open) */}
                 {!activeMachineSubMenu && (
                   <>
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
@@ -505,7 +536,6 @@ export default function Sidebar() {
                   </>
                 )}
 
-                {/* 9) Inventory Machine (View Only) (with sublinks) */}
                 {(activeMachineSubMenu === null || activeMachineSubMenu === 'inventory_view') && (
                   <div className="relative">
                     <div className="flex items-center py-1">
@@ -522,11 +552,7 @@ export default function Sidebar() {
                       </Link>
 
                       <button onClick={() => handleMachineSubToggle('inventory_view')} className="px-6 py-2" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeMachineSubMenu === 'inventory_view' ? 'rotate-180' : ''
-                          }`}
-                        >
+                        <span className={`inline-block transition-transform duration-300 ${activeMachineSubMenu === 'inventory_view' ? 'rotate-180' : ''}`}>
                           <IoMdArrowDropdown
                             size={14}
                             color={activeMachineSubMenu === 'inventory_view' ? '#15803d' : 'black'}
@@ -551,7 +577,6 @@ export default function Sidebar() {
                   </div>
                 )}
 
-                {/* 10) Reports (ONLY show when no submenu is open) */}
                 {!activeMachineSubMenu && (
                   <Link
                     href="#"
@@ -566,40 +591,35 @@ export default function Sidebar() {
 
           {/* SERVICE SUPPORT */}
           <div>
-            <div
-              className={`mx-0 group ${
-                activeModule === 'service' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg'
-              }`}
-            >
+            <div className={`mx-0 group ${isServiceActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/40'} ${serviceExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
               <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    openSidebarAndToggleModule('service');
-                  }}
+                  onClick={(e) => handlePlaceholderModuleClick(e, 'service')}
                   className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
-                    activeModule === 'service' ? 'text-black' : 'text-darkgreen'
+                    isServiceActive ? 'text-black' : 'text-darkgreen'
                   }`}
                 >
-                  <div 
+                  <div
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
-                    title="Service Support Management">
+                    title="Service Support Management"
+                  >
                     <img src="/images/ssm.webp" alt="Service Support Management" />
                   </div>
 
-                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4  ${labelClass}`}>
+                  <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
                     Service Support <br /> Management
                   </span>
                 </Link>
 
                 <div className={chevronSlotClass}>
-                  <button onClick={() => handleModuleToggle('service')} className="p-2" aria-label="Toggle service menu" type="button">
-                    <span
-                      className={`inline-block transition-transform duration-300 ${
-                        activeModule === 'service' ? 'rotate-180' : ''
-                      }`}
-                    >
+                  <button
+                    onClick={(e) => handlePlaceholderModuleClick(e, 'service')}
+                    className="p-2"
+                    aria-label="Toggle service menu"
+                    type="button"
+                  >
+                    <span className={`inline-block transition-transform duration-300 ${activeModule === 'service' ? 'rotate-180' : ''}`}>
                       <IoMdArrowDropdown color="black" size={18} />
                     </span>
                   </button>
@@ -609,7 +629,6 @@ export default function Sidebar() {
 
             {isOpen && activeModule === 'service' && (
               <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-2 pb-2 pl-4 shadow-lg mb-3 lg:pl-8">
-                {/* 1) Service Ticketing (with sublinks) */}
                 {(activeServiceSubMenu === null || activeServiceSubMenu === 'ticketing') && (
                   <div className="relative">
                     <div className="flex items-center -mt-3 -mb-3 pb-3 py-3">
@@ -626,11 +645,7 @@ export default function Sidebar() {
                       </Link>
 
                       <button onClick={() => handleServiceSubToggle('ticketing')} className="px-6 py-2" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeServiceSubMenu === 'ticketing' ? 'rotate-180' : ''
-                          }`}
-                        >
+                        <span className={`inline-block transition-transform duration-300 ${activeServiceSubMenu === 'ticketing' ? 'rotate-180' : ''}`}>
                           <IoMdArrowDropdown
                             size={14}
                             color={activeServiceSubMenu === 'ticketing' ? '#15803d' : 'black'}
@@ -658,7 +673,6 @@ export default function Sidebar() {
                   </div>
                 )}
 
-                {/* Rest of the normal links (ONLY show when no submenu is open) */}
                 {!activeServiceSubMenu && (
                   <>
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
@@ -675,19 +689,19 @@ export default function Sidebar() {
 
           {/* DELIVERY LOGISTICS */}
           <div>
-            <div className={`mx-0 group ${ activeModule === 'delivery' ? 'bg-lightgreen shadow-lg rounded-t-lg' : 'hover:bg-lightgreen/40 rounded-lg' }`} >
+            <div className={`mx-0 group ${isDeliveryActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/40'} ${deliveryExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
               <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    openSidebarAndToggleModule('delivery');
-                  }}
-                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${ activeModule === 'delivery' ? 'text-black' : 'text-darkgreen' }`}
+                  onClick={(e) => handlePlaceholderModuleClick(e, 'delivery')}
+                  className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
+                    isDeliveryActive ? 'text-black' : 'text-darkgreen'
+                  }`}
                 >
-                  <div 
+                  <div
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors group-hover:bg-green-100 lg:w-9 lg:h-9"
-                    title="Delivery Logistics Management">
+                    title="Delivery Logistics Management"
+                  >
                     <img src="/images/dlm.webp" alt="Delivery Logistics Management" />
                   </div>
 
@@ -697,8 +711,13 @@ export default function Sidebar() {
                 </Link>
 
                 <div className={chevronSlotClass}>
-                  <button onClick={() => handleModuleToggle('delivery')} className="p-2" aria-label="Toggle delivery menu" type="button">
-                    <span className={`inline-block transition-transform duration-300 ${ activeModule === 'delivery' ? 'rotate-180' : '' }`}>
+                  <button
+                    onClick={(e) => handlePlaceholderModuleClick(e, 'delivery')}
+                    className="p-2"
+                    aria-label="Toggle delivery menu"
+                    type="button"
+                  >
+                    <span className={`inline-block transition-transform duration-300 ${activeModule === 'delivery' ? 'rotate-180' : ''}`}>
                       <IoMdArrowDropdown color="black" size={18} />
                     </span>
                   </button>
@@ -708,7 +727,6 @@ export default function Sidebar() {
 
             {isOpen && activeModule === 'delivery' && (
               <div className="bg-lightgreen/50 rounded-b-lg mx-0 pt-4 pb-2 pl-4 shadow-lg mb-3 lg:pl-8">
-                {/* 1) Order & Delivery Management (with sublinks) */}
                 {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'order_delivery') && (
                   <div className="relative">
                     <div className="flex items-center -mt-3 -mb-3 py-3">
@@ -716,14 +734,17 @@ export default function Sidebar() {
                         href="#"
                         onClick={() => handleDeliverySubToggle('order_delivery')}
                         className={`flex-1 px-8 text-[11px] tracking-tight hover:text-darkgreen hover:font-medium transition-opacity lg:text-sm ${
-                          activeDeliverySubMenu === 'order_delivery' ? 'text-darkgreen/85 font-semibold' : 'text-darkgreen/70 opacity-80' }`}
+                          activeDeliverySubMenu === 'order_delivery'
+                            ? 'text-darkgreen/85 font-semibold'
+                            : 'text-darkgreen/70 opacity-80'
+                        }`}
                       >
                         Order & Delivery Management
                       </Link>
 
                       <button onClick={() => handleDeliverySubToggle('order_delivery')} className="px-6 py-2" type="button">
-                        <span className={`inline-block transition-transform duration-300 ${ activeDeliverySubMenu === 'order_delivery' ? 'rotate-180' : '' }`} >
-                          <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'order_delivery' ? '#15803d' : 'black'}/>
+                        <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'order_delivery' ? 'rotate-180' : ''}`}>
+                          <IoMdArrowDropdown size={14} color={activeDeliverySubMenu === 'order_delivery' ? '#15803d' : 'black'} />
                         </span>
                       </button>
                     </div>
@@ -741,7 +762,6 @@ export default function Sidebar() {
                   </div>
                 )}
 
-                {/* 2) Vehicle Tracking (with sublinks) */}
                 {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'vehicle_tracking') && (
                   <div className="relative">
                     <div className="flex items-center -mt-3 -mb-3 pb-1 py-2">
@@ -758,11 +778,7 @@ export default function Sidebar() {
                       </Link>
 
                       <button onClick={() => handleDeliverySubToggle('vehicle_tracking')} className="px-6 py-2" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeDeliverySubMenu === 'vehicle_tracking' ? 'rotate-180' : ''
-                          }`}
-                        >
+                        <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'vehicle_tracking' ? 'rotate-180' : ''}`}>
                           <IoMdArrowDropdown
                             size={14}
                             color={activeDeliverySubMenu === 'vehicle_tracking' ? '#15803d' : 'black'}
@@ -787,7 +803,6 @@ export default function Sidebar() {
                   </div>
                 )}
 
-                {/* 3) Driver Tracking (with sublinks) */}
                 {(activeDeliverySubMenu === null || activeDeliverySubMenu === 'driver_tracking') && (
                   <div className="relative">
                     <div className="flex items-center -mt-3 -mb-3 pb-3 py-2">
@@ -804,11 +819,7 @@ export default function Sidebar() {
                       </Link>
 
                       <button onClick={() => handleDeliverySubToggle('driver_tracking')} className="px-6 py-2 pt-1" type="button">
-                        <span
-                          className={`inline-block transition-transform duration-300 ${
-                            activeDeliverySubMenu === 'driver_tracking' ? 'rotate-180' : ''
-                          }`}
-                        >
+                        <span className={`inline-block transition-transform duration-300 ${activeDeliverySubMenu === 'driver_tracking' ? 'rotate-180' : ''}`}>
                           <IoMdArrowDropdown
                             size={14}
                             color={activeDeliverySubMenu === 'driver_tracking' ? '#15803d' : 'black'}
@@ -830,7 +841,6 @@ export default function Sidebar() {
                   </div>
                 )}
 
-                {/* then the rest of the normal links (ONLY show when no submenu is open) */}
                 {!activeDeliverySubMenu && (
                   <>
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium lg:text-sm">
@@ -847,20 +857,22 @@ export default function Sidebar() {
 
           {/* ADMIN PANEL */}
           <div>
-            <div
-              className={`group ${
-                isAdminActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'
-              } ${adminExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
-            >
-              <div className="flex items-center px-2 py-2 lg:px-3"> 
+            <div className={`group ${isAdminActive ? 'bg-lightgreen shadow-lg' : 'hover:bg-lightgreen/50'} ${adminExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
+              <div className="flex items-center px-2 py-2 lg:px-3">
                 <Link
                   href={route('admin.location-master.index')}
-                  onClick={() => openSidebarAndToggleModule('admin')}
+                  onClick={(e) =>
+                    handleRealModuleClick(
+                      e,
+                      'admin',
+                      isAdminActive,
+                      route('admin.location-master.index')
+                    )
+                  }
                   className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
                     isAdminActive ? 'text-black' : 'text-darkgreen'
                   }`}
                 >
-                  {/* ICON (fixed slot) */}
                   <div
                     title="Admin Panel"
                     className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors lg:w-9 lg:h-9 ${
@@ -870,25 +882,26 @@ export default function Sidebar() {
                     <img src="/images/admin.webp" alt="Admin Panel" />
                   </div>
 
-                  {/* LABEL (reveal/hide only) */}
                   <span className={`ml-3 text-xs tracking-wide font-semibold lg:text-base lg:ml-4 ${labelClass}`}>
                     Admin Panel
                   </span>
                 </Link>
 
-                {/* Chevron slot (reserved width so no shifting) */}
                 <div className={chevronSlotClass}>
                   <button
-                    onClick={() => openSidebarAndToggleModule('admin')}
+                    onClick={(e) =>
+                      handleRealModuleClick(
+                        e,
+                        'admin',
+                        isAdminActive,
+                        route('admin.location-master.index')
+                      )
+                    }
                     className="p-2"
                     aria-label="Toggle admin menu"
                     type="button"
                   >
-                    <span
-                      className={`inline-block transition-transform duration-300 ${
-                        activeModule === 'admin' ? 'rotate-180' : ''
-                      }`}
-                    >
+                    <span className={`inline-block transition-transform duration-300 ${activeModule === 'admin' ? 'rotate-180' : ''}`}>
                       <IoMdArrowDropdown color="black" size={18} />
                     </span>
                   </button>
@@ -896,7 +909,6 @@ export default function Sidebar() {
               </div>
             </div>
 
-            {/* ADMIN SUB-ITEMS */}
             {isOpen && activeModule === 'admin' && (
               <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-lg mb-7 lg:pl-8">
                 <Link
@@ -973,7 +985,7 @@ export default function Sidebar() {
 
                 <Link
                   href={route('admin.user-access-rights.index')}
-                   onClick={(e) => visitAdmin(e, route('admin.user-access-rights.index'))}
+                  onClick={(e) => visitAdmin(e, route('admin.user-access-rights.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
                     route().current('admin.user-access-rights.*')
                       ? 'text-darkgreen font-semibold opacity-100'
@@ -1012,7 +1024,7 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Footer (fixed position, no shifting) */}
+      {/* FOOTER */}
       <div className="relative p-2.5 lg:p-4 ml-2 flex flex-col gap-4 items-start">
         <div className="relative">
           <button
@@ -1062,20 +1074,6 @@ export default function Sidebar() {
               document.body
             )}
         </div>
-
-        <button
-          onClick={() => setActiveItem(activeItem === "settings" ? null : "settings")}
-          className="text-darkgreen transition"
-          aria-label="Settings"
-          title="Settings"
-          type="button"
-        >
-          {activeItem === "settings" ? (
-            <RiSettingsFill className="w-7 h-7 lg:w-8 lg:h-8" />
-          ) : (
-            <RiSettingsLine className="w-7 h-7 lg:w-8 lg:h-8" />
-          )}
-        </button>
       </div>
     </aside>
   );

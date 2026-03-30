@@ -45,6 +45,7 @@ class PreferenceHelper
         $attribute = strtolower((string) self::attribute($settingsId, $defaultAttribute));
 
         return match ($attribute) {
+            'week' => now()->addWeeks($value),
             'month' => now()->addMonths($value),
             'year' => now()->addYears($value),
             default => now()->addDays($value),
