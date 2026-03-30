@@ -176,8 +176,10 @@ class UserController extends Controller
             'position'                     => $request->position,
             'email'                        => $request->email,
             'primary_location_id'          => (int) $request->primary_location_id,
-            'password'                     => 'P@ssw0rd',
+            'password'                     => Hash::make('P@ssw0rd'),
             'password_expiry'              => now()->subDay()->toDateString(),
+            'default_password_login_count' => 0,
+            'must_change_password'         => true,
             'is_banned'                    => false,
             'email_verified_at'            => now(),
         ]);
@@ -223,7 +225,7 @@ class UserController extends Controller
         ];
 
         if ($request->filled('password')) {
-            $data['password'] = $request->password;
+            $data['password'] = Hash::make($request->password);
             $data['default_password_login_count'] = 0;
             $data['must_change_password'] = false;
         }
@@ -339,7 +341,7 @@ class UserController extends Controller
             'position'                     => $request->position,
             'email'                        => $request->email,
             'primary_location_id'          => (int) $request->primary_location_id,
-            'password'                     => 'P@ssw0rd',
+            'password'                     => Hash::make('P@ssw0rd'),
             'password_expiry'              => now()->subDay()->toDateString(),
             'is_banned'                    => false,
             'email_verified_at'            => now(),

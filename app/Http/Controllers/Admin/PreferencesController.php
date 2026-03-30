@@ -44,7 +44,7 @@ class PreferencesController extends Controller
             'settings_id' => 'required|string|max:50|unique:preferences,settings_id',
             'settings_key' => 'required|string|max:255',
             'setting_value' => 'required|integer|min:0',
-            'entity_attribute' => 'required|in:day,month,year',
+            'entity_attribute' => 'required|in:day,week,month,year',
         ]);
 
         Preferences::create([
@@ -63,7 +63,7 @@ class PreferencesController extends Controller
         $request->validate([
             'settings_key' => 'required|string|max:255',
             'setting_value' => 'required|integer|min:0',
-            'entity_attribute' => 'required|in:day,month,year',
+            'entity_attribute' => 'required|in:day,week,month,year',
         ]);
 
         $preference->update([
