@@ -250,6 +250,24 @@ private function transformProposal($p)
         ];
     }
 
+public function print($id)
+{
+    $proposal = Proposal::with(['roiArchiveProject', 'user'])->findOrFail($id);
+
+    $project = $proposal->roiArchiveProject;
+
+    return Inertia::render('CustomerManagement/Proposal/ProposalPrint', [
+        'proposal' => [
+            ...$proposal->toArray(),
+            'contract_type' => $project?->contract_type,
+            'contract_years' => $project?->contract_years,
+        ],
+        'items' => $project?->items ?? [],
+        'fees' => $project?->fees ?? [],
+        'showDraftWatermark' => $proposal->status === 'draft',
+    ]);
+}
+
     // ProposalController.php
 
 }
