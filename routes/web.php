@@ -15,6 +15,7 @@ use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
 use App\Http\Controllers\ForcePasswordChangeController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoiChatController;
 use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController;
 use Illuminate\Support\Facades\Auth;
@@ -347,6 +348,12 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/{id}/generate', [ProposalController::class, 'generate'])->name('generate');
             });
         });
+
+        Route::post('/roi/chat/message', [RoiChatController::class, 'message'])
+    ->name('roi.chat.message');
+
+Route::post('/roi/chat/reset', [RoiChatController::class, 'reset'])
+    ->name('roi.chat.reset');
     });
 
 require __DIR__ . '/auth.php';

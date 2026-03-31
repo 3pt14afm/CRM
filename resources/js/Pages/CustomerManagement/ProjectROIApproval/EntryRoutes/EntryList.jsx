@@ -11,6 +11,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { MdDelete, MdEdit } from 'react-icons/md';
 import FlashMessages from '@/Components/FlashMessages';
 
+
 export default function EntryList({
   drafts = null, // expected: { data, current_page, per_page, total }
   stats = null,  // expected: { totalDrafts, recentlyModifiedText }  (you can shape this later)
@@ -250,6 +251,8 @@ const handleDelete = (row) => {
             {/* No actions for list footer right now (intentionally empty) */}
           </div>
         </div>
+
+     
       </div>
     </>
   );

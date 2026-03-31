@@ -299,7 +299,7 @@ class RoiEntryProjectController extends Controller
         ]);
     }
 
-    private function persistDraft(Request $request, RoiEntryProject $project, ?array $data = null): void
+    public function persistDraft(Request $request, RoiEntryProject $project, ?array $data = null): void
     {
         $data = $data ?? $this->validateDraftPayload($request);
 
