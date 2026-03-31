@@ -7,6 +7,9 @@ use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\PositionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PreferencesController;
+use App\Http\Controllers\Admin\PrinterController;
+use App\Http\Controllers\Admin\SupplyController;
+use App\Http\Controllers\Admin\PrinterSupplyController;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
@@ -50,6 +53,9 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::get('/location-master', [LocationController::class, 'locationMaster'])->name('location-master.index');
         Route::get('/department-master', [DepartmentController::class, 'departmentMaster'])->name('department-master.index');
         Route::get('/position-master', [PositionController::class, 'positionMaster'])->name('position-master.index');
+        Route::get('/printer-maintenance', [PrinterController::class, 'printerMaintenance'])->name('printer-maintenance.index');
+        Route::get('/supply-maintenance', [SupplyController::class, 'supplyMaintenance'])->name('supply-maintenance.index');
+        Route::get('/printer-supplies', [PrinterSupplyController::class, 'printerSupplies'])->name('printer-supplies.index');
         Route::get('/user-management', [UserController::class, 'userManagement'])->name('user-management.index');
         Route::get('/approver-matrix', [ApproverMatrixController::class, 'index'])->name('approver-matrix.index');
         Route::get('/user-group-access-rights', [AdminController::class, 'userGroupAccessRights'])->name('user-group-access-rights.index');
@@ -92,6 +98,29 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::post('/approver-matrix', [ApproverMatrixController::class, 'store'])->name('approver-matrix.store');
         Route::put('/approver-matrix/{locationDepartment}', [ApproverMatrixController::class, 'update'])->name('approver-matrix.update');
 
+        // Printer Models CRUD
+        Route::get('/printer-models', [PrinterController::class, 'printerModelIndex'])->name('printer-models.index');
+        Route::post('/printer-models', [PrinterController::class, 'printerModelStore'])->name('printer-models.store');
+        Route::put('/printer-models/{printerModel}', [PrinterController::class, 'printerModelUpdate'])->name('printer-models.update');
+        Route::patch('/printer-models/{printerModel}/activate', [PrinterController::class, 'printerModelActivate'])->name('printer-models.activate');
+        Route::patch('/printer-models/{printerModel}/deactivate', [PrinterController::class, 'printerModelDeactivate'])->name('printer-models.deactivate');
+
+        // Supplies CRUD
+        Route::get('/supplies', [SupplyController::class, 'supplyIndex'])->name('supplies.index');
+        Route::post('/supplies', [SupplyController::class, 'supplyStore'])->name('supplies.store');
+        Route::put('/supplies/{supply}', [SupplyController::class, 'supplyUpdate'])->name('supplies.update');
+        Route::patch('/supplies/{supply}/activate', [SupplyController::class, 'supplyActivate'])->name('supplies.activate');
+        Route::patch('/supplies/{supply}/deactivate', [SupplyController::class, 'supplyDeactivate'])->name('supplies.deactivate');
+
+        // Printer Supplies CRUD
+        Route::get('/printer-models/{printerModel}/supplies', [PrinterSupplyController::class, 'printerModelSupplyIndex'])->name('printer-models.supplies.index');
+        Route::post('/printer-model-supplies', [PrinterSupplyController::class, 'printerModelSupplyStore'])->name('printer-model-supplies.store');
+        Route::put('/printer-model-supplies/{printerModelSupply}', [PrinterSupplyController::class, 'printerModelSupplyUpdate'])->name('printer-model-supplies.update');
+        Route::patch('/printer-model-supplies/{printerModelSupply}/activate', [PrinterSupplyController::class, 'printerModelSupplyActivate'])->name('printer-model-supplies.activate');
+        Route::patch('/printer-model-supplies/{printerModelSupply}/deactivate', [PrinterSupplyController::class, 'printerModelSupplyDeactivate'])->name('printer-model-supplies.deactivate');
+        Route::delete('/printer-model-supplies/{printerModelSupply}', [PrinterSupplyController::class, 'printerModelSupplyDestroy'])->name('printer-model-supplies.destroy');
+
+        // Preferences CRUD
         Route::get('/preferences', [PreferencesController::class, 'preferenceMaster'])->name('preferences.index');
         Route::post('/preferences', [PreferencesController::class, 'preferenceStore'])->name('preferences.store');
         Route::put('/preferences/{preference}', [PreferencesController::class, 'preferenceUpdate'])->name('preferences.update');
@@ -206,7 +235,7 @@ Route::middleware(['auth', 'verified'])
                     ->name('roi.current.send-back');
 
                 Route::post('/{project}/notes', [RoiCurrentProjectController::class, 'storeNote'])
-                    ->name('roi.current.notes.store');    
+                    ->name('roi.current.notes.store');
 
                 Route::post('/{project}/comments', [RoiEntryProjectController::class, 'storeComment'])
                     ->name('roi.projects.comments.store');
@@ -252,7 +281,6 @@ Route::middleware(['auth', 'verified'])
                         'route' => 'current',
                     ]);
                 })->name('roi.current.print');
-
             });
 
             /*
@@ -265,6 +293,7 @@ Route::middleware(['auth', 'verified'])
 
             Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])
                 ->name('roi.archive.show');
+
             Route::get('/archive/{id}/print', function ($id) {
                 $p = \App\Models\RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
@@ -298,20 +327,19 @@ Route::middleware(['auth', 'verified'])
                     'route' => 'archive',
                 ]);
             })->name('roi.archive.print');
+
             /*
             |--------------------------------------------------------------------------
             | Proposals
             |--------------------------------------------------------------------------
             */
-         Route::prefix('proposals')->name('proposals.')->group(function () {
-            Route::get('/', [ProposalController::class, 'proposalList'])->name('index');
-
-            Route::get('/{id}', [ProposalController::class, 'show'])->name('show');
-            Route::get('/{id}/print', [ProposalController::class, 'print'])->name('print');
-
-            Route::post('/{id}/draft', [ProposalController::class, 'saveDraft'])->name('draft');
-            Route::post('/{id}/generate', [ProposalController::class, 'generate'])->name('generate');
-        });
+            Route::prefix('proposals')->name('proposals.')->group(function () {
+                Route::get('/', [ProposalController::class, 'proposalList'])->name('index');
+                Route::get('/{id}', [ProposalController::class, 'show'])->name('show');
+                Route::get('/{id}/print', [ProposalController::class, 'print'])->name('print');
+                Route::post('/{id}/draft', [ProposalController::class, 'saveDraft'])->name('draft');
+                Route::post('/{id}/generate', [ProposalController::class, 'generate'])->name('generate');
+            });
         });
     });
 
