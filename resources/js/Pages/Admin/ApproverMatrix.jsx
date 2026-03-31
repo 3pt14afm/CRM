@@ -4,6 +4,7 @@ import { Head, router } from "@inertiajs/react";
 import NewApproverMatrixModal from "@/Components/admin/modals/NewApproverMatrixModal";
 import EditApproverMatrixModal from "@/Components/admin/modals/EditApproverMatrixModal";
 import { MdEdit } from "react-icons/md";
+import { IoAddCircle } from "react-icons/io5";
 
 function StatusPill({ children, tone = "neutral" }) {
   const classes = {
@@ -237,10 +238,10 @@ function ApproverMatrix({ stats, matrices }) {
             <div className="flex justify-end">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
+                className="inline-flex items-center gap-2 text-[#289800] hover:brightness-95 md:text-xs lg:text-sm"
                 onClick={openCreateModal}
               >
-                + New Matrix
+                <IoAddCircle className="w-6 h-6" />
               </button>
             </div>
 

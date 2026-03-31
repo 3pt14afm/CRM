@@ -5,6 +5,7 @@ import ProjectListSection from "@/Components/roi/ProjectListSection";
 import NewPreferenceModal from "@/Components/admin/modals/NewPreferenceModal";
 import EditPreferenceModal from "@/Components/admin/modals/EditPreferenceModal";
 import { MdEdit } from "react-icons/md";
+import { IoAddCircle } from "react-icons/io5";
 
 function Preferences({ stats, preferences }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -321,20 +322,6 @@ function Preferences({ stats, preferences }) {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-5">
-                <div className="ml-auto">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
-                    onClick={openCreateModal}
-                  >
-                    + New Preference
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
@@ -343,6 +330,17 @@ function Preferences({ stats, preferences }) {
                 rows={preferenceRows}
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={preferencePagination}
+                rightControls={
+                    <button
+                      type="button"
+                      title="Add Printer"
+                      aria-label="Add Printer"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={openCreateModal}
+                    >
+                      <IoAddCircle className="w-6 h-6" />
+                    </button>
+                  }
               />
             </div>
           </div>

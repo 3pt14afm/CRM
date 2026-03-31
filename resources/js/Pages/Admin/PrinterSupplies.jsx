@@ -253,7 +253,7 @@ function PrinterSupplies({
         header: <div className="text-center w-full text-[11px] font-bold">UNIT COST</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {formatMoney(r.unit_cost)}
             </span>
           </div>
@@ -264,7 +264,7 @@ function PrinterSupplies({
         header: <div className="text-center w-full text-[11px] font-bold">SELLING PRICE</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {formatMoney(r.selling_price)}
             </span>
           </div>
@@ -296,7 +296,7 @@ function PrinterSupplies({
         header: <div className="text-center w-full text-[11px] font-bold">LINKED SUPPLIES</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.linked_supplies_count ?? 0}
             </span>
           </div>
@@ -340,7 +340,7 @@ function PrinterSupplies({
         header: <div className="text-center w-full text-[11px] font-bold">CATEGORY</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.category ?? "—"}
             </span>
           </div>
@@ -351,7 +351,7 @@ function PrinterSupplies({
         header: <div className="text-center w-full text-[11px] font-bold">COLOR / MONO</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm ">
               {r.print_type ?? "—"}
             </span>
           </div>
@@ -362,7 +362,7 @@ function PrinterSupplies({
         header: <div className="text-center w-full text-[11px] font-bold">YIELD</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.yield ?? "—"}
             </span>
           </div>
@@ -394,7 +394,7 @@ function PrinterSupplies({
         header: <div className="text-center w-full text-[11px] font-bold">LINKED PRINTERS</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.linked_printers_count ?? 0}
             </span>
           </div>

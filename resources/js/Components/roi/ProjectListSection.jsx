@@ -109,7 +109,7 @@ export default function ProjectListSection({
                 rows.map((r) => (
                   <tr key={rowKey(r)} className="border-t border-black/5">
                     {columns.map((c) => (
-                      <td key={c.key} className="px-8 py-2 md:px-3 md:text-xs lg:text-sm lg:px-4 xl:px-6 xl:text-base">
+                      <td key={c.key} className="px-8 py-2 md:px-3 md:text-xs lg:text-sm lg:px-4 xl:px-6">
                         {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
                       </td>
                     ))}
@@ -127,7 +127,7 @@ export default function ProjectListSection({
         </div>
 
         {pagination && (
-          <div className="flex items-center text-sm justify-between px-6 py-2 border-t border-black/10 md:px-3 md:py-1 md:text-[10px] lg:text-xs lg:px-4 xl:px-6 xl:text-sm">
+          <div className="flex items-center justify-between px-6 py-2 border-t border-black/10 md:px-3 md:py-1 md:text-[10px] lg:text-xs lg:px-4 xl:px-6">
             <div className="text-slate-500">{rangeText}</div>
 
             <div className="flex items-center gap-2 md:gap-0">
