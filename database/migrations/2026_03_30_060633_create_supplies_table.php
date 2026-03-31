@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('supplies', function (Blueprint $table) {
             $table->id();
+            $table->string('item_code')->unique();
             $table->string('category'); // Consumable or Part
             $table->string('print_type')->nullable(); // Color, Mono, or null for parts
             $table->string('supply_name');

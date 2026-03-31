@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PrinterModel extends Model
 {
     protected $fillable = [
+        'item_code',
         'printer_name',
         'unit_cost',
         'selling_price',

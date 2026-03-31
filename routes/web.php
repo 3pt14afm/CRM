@@ -53,8 +53,8 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::get('/location-master', [LocationController::class, 'locationMaster'])->name('location-master.index');
         Route::get('/department-master', [DepartmentController::class, 'departmentMaster'])->name('department-master.index');
         Route::get('/position-master', [PositionController::class, 'positionMaster'])->name('position-master.index');
-        Route::get('/printer-maintenance', [PrinterController::class, 'printerMaintenance'])->name('printer-maintenance.index');
-        Route::get('/supply-maintenance', [SupplyController::class, 'supplyMaintenance'])->name('supply-maintenance.index');
+        Route::get('/printer-master', [PrinterController::class, 'printerMaster'])->name('printer-master.index');
+        Route::get('/supply-master', [SupplyController::class, 'supplyMaster'])->name('supply-master.index');
         Route::get('/printer-supplies', [PrinterSupplyController::class, 'printerSupplies'])->name('printer-supplies.index');
         Route::get('/user-management', [UserController::class, 'userManagement'])->name('user-management.index');
         Route::get('/approver-matrix', [ApproverMatrixController::class, 'index'])->name('approver-matrix.index');
@@ -114,11 +114,17 @@ Route::middleware(['auth', 'verified', 'admin'])
 
         // Printer Supplies CRUD
         Route::get('/printer-models/{printerModel}/supplies', [PrinterSupplyController::class, 'printerModelSupplyIndex'])->name('printer-models.supplies.index');
+        Route::get('/supplies/{supply}/printer-models', [PrinterSupplyController::class, 'supplyPrinterModelIndex'])->name('supplies.printer-models.index');
         Route::post('/printer-model-supplies', [PrinterSupplyController::class, 'printerModelSupplyStore'])->name('printer-model-supplies.store');
         Route::put('/printer-model-supplies/{printerModelSupply}', [PrinterSupplyController::class, 'printerModelSupplyUpdate'])->name('printer-model-supplies.update');
         Route::patch('/printer-model-supplies/{printerModelSupply}/activate', [PrinterSupplyController::class, 'printerModelSupplyActivate'])->name('printer-model-supplies.activate');
         Route::patch('/printer-model-supplies/{printerModelSupply}/deactivate', [PrinterSupplyController::class, 'printerModelSupplyDeactivate'])->name('printer-model-supplies.deactivate');
         Route::delete('/printer-model-supplies/{printerModelSupply}', [PrinterSupplyController::class, 'printerModelSupplyDestroy'])->name('printer-model-supplies.destroy');
+
+        Route::post('/printer-supplies/managed-printers', [PrinterSupplyController::class, 'addManagedPrinter'])->name('printer-supplies.managed-printers.store');
+        Route::delete('/printer-supplies/managed-printers/{printerSupplyPagePrinter}', [PrinterSupplyController::class, 'removeManagedPrinter'])->name('printer-supplies.managed-printers.destroy');
+        Route::post('/printer-supplies/managed-supplies', [PrinterSupplyController::class, 'addManagedSupply'])->name('printer-supplies.managed-supplies.store');
+        Route::delete('/printer-supplies/managed-supplies/{printerSupplyPageSupply}', [PrinterSupplyController::class, 'removeManagedSupply'])->name('printer-supplies.managed-supplies.destroy');
 
         // Preferences CRUD
         Route::get('/preferences', [PreferencesController::class, 'preferenceMaster'])->name('preferences.index');

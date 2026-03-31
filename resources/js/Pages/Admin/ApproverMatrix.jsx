@@ -245,18 +245,18 @@ function ApproverMatrix({ stats, matrices }) {
             </div>
 
             <div className="mt-5">
-              <div className="rounded-lg bg-white shadow-sm border border-slate-200/70 overflow-hidden">
+              <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full border-collapse">
                     <thead>
-                      <tr className="bg-lightgreen/10 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
-                        <th className="px-6 py-2 text-left font-semibold">Location</th>
-                        <th className="px-4 py-2 text-center font-semibold">Department</th>
-                        <th className="px-4 py-2 text-center font-semibold min-w-[420px]">
+                      <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-2 text-left font-bold">Location</th>
+                        <th className="px-4 py-2 text-center font-bold">Department</th>
+                        <th className="px-4 py-2 text-center font-bold min-w-[420px]">
                           Approvers
                         </th>
-                        <th className="px-4 py-2 text-center font-semibold">Status</th>
-                        <th className="px-4 py-2 text-center font-semibold">Actions</th>
+                        <th className="px-4 py-2 text-center font-bold">Status</th>
+                        <th className="px-4 py-2 text-center font-bold">Actions</th>
                       </tr>
                     </thead>
 

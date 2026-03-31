@@ -3,65 +3,65 @@ import { router } from "@inertiajs/react";
 import { MdClose, MdEdit, MdDelete } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
 
-export default function PrinterSuppliesDrawer({
+export default function SupplyPrintersDrawer({
   open,
   onClose,
-  printer,
-  printers = [],
-  linkedSupplies = [],
+  supply,
   supplies = [],
+  printers = [],
+  linkedPrinters = [],
   drawerLoading = false,
   onRefresh,
-  onPrinterChange,
+  onSupplyChange,
   mode = "manage-links",
 }) {
-  const [selectedPrinterId, setSelectedPrinterId] = useState(
-    printer?.id ? String(printer.id) : ""
+  const [selectedSupplyId, setSelectedSupplyId] = useState(
+    supply?.id ? String(supply.id) : ""
   );
-  const [printerQuery, setPrinterQuery] = useState("");
-  const [showPrinterSuggestions, setShowPrinterSuggestions] = useState(false);
+  const [supplyQuery, setSupplyQuery] = useState("");
+  const [showSupplySuggestions, setShowSupplySuggestions] = useState(false);
 
   const [createProcessing, setCreateProcessing] = useState(false);
   const [createErrors, setCreateErrors] = useState({});
   const [createForm, setCreateForm] = useState({
-    supply_id: "",
+    printer_model_id: "",
     status: "Active",
   });
-  const [supplyQuery, setSupplyQuery] = useState("");
-  const [showSupplySuggestions, setShowSupplySuggestions] = useState(false);
+  const [printerQuery, setPrinterQuery] = useState("");
+  const [showPrinterSuggestions, setShowPrinterSuggestions] = useState(false);
 
   const [editProcessingId, setEditProcessingId] = useState(null);
 
-  const printerBoxRef = useRef(null);
   const supplyBoxRef = useRef(null);
+  const printerBoxRef = useRef(null);
 
   useEffect(() => {
     const selected =
-      printers.find((item) => String(item.id) === String(printer?.id)) ?? printer ?? null;
+      supplies.find((item) => String(item.id) === String(supply?.id)) ?? supply ?? null;
 
-    setSelectedPrinterId(selected?.id ? String(selected.id) : "");
-    setPrinterQuery(
+    setSelectedSupplyId(selected?.id ? String(selected.id) : "");
+    setSupplyQuery(
       selected
-        ? `${selected.item_code ?? "—"} - ${selected.printer_name ?? "—"}`
+        ? `${selected.item_code ?? "—"} - ${selected.supply_name ?? "—"}`
         : ""
     );
-    setSupplyQuery("");
-    setShowPrinterSuggestions(false);
+    setPrinterQuery("");
     setShowSupplySuggestions(false);
+    setShowPrinterSuggestions(false);
     setCreateErrors({});
     setCreateForm({
-      supply_id: "",
+      printer_model_id: "",
       status: "Active",
     });
-  }, [printer?.id, open, printers]);
+  }, [supply?.id, open, supplies]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (printerBoxRef.current && !printerBoxRef.current.contains(event.target)) {
-        setShowPrinterSuggestions(false);
-      }
       if (supplyBoxRef.current && !supplyBoxRef.current.contains(event.target)) {
         setShowSupplySuggestions(false);
+      }
+      if (printerBoxRef.current && !printerBoxRef.current.contains(event.target)) {
+        setShowPrinterSuggestions(false);
       }
     };
 
@@ -69,13 +69,13 @@ export default function PrinterSuppliesDrawer({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedPrinter = useMemo(() => {
+  const selectedSupply = useMemo(() => {
     return (
-      printers.find((item) => String(item.id) === String(selectedPrinterId)) ??
-      printer ??
+      supplies.find((item) => String(item.id) === String(selectedSupplyId)) ??
+      supply ??
       null
     );
-  }, [printers, selectedPrinterId, printer]);
+  }, [supplies, selectedSupplyId, supply]);
 
   const isPageAddMode = mode === "add-page-item";
 
@@ -88,77 +88,80 @@ export default function PrinterSuppliesDrawer({
     });
   };
 
-  const availableSupplies = useMemo(() => {
-    const linkedIds = new Set(linkedSupplies.map((item) => Number(item.supply_id)));
-    return supplies.filter((supply) => !linkedIds.has(Number(supply.id)));
-  }, [supplies, linkedSupplies]);
+  const availablePrinters = useMemo(() => {
+    const linkedIds = new Set(
+      linkedPrinters.map((item) => Number(item.printer_model_id))
+    );
 
-  const filteredPrinters = useMemo(() => {
-    const q = printerQuery.trim().toLowerCase();
-    const source = printers;
+    return printers.filter((printer) => !linkedIds.has(Number(printer.id)));
+  }, [printers, linkedPrinters]);
+
+  const filteredSupplies = useMemo(() => {
+    const q = supplyQuery.trim().toLowerCase();
+    const source = supplies;
 
     if (!q) return source.slice(0, 8);
 
     return source
       .filter((item) => {
-        const hay = `${item.item_code ?? ""} ${item.printer_name ?? ""}`.toLowerCase();
-        return hay.includes(q);
-      })
-      .slice(0, 8);
-  }, [printers, printerQuery]);
-
-  const filteredSupplies = useMemo(() => {
-    const q = supplyQuery.trim().toLowerCase();
-
-    if (!q) return availableSupplies.slice(0, 8);
-
-    return availableSupplies
-      .filter((item) => {
         const hay = `${item.item_code ?? ""} ${item.supply_name ?? ""} ${item.category ?? ""} ${item.print_type ?? ""}`.toLowerCase();
         return hay.includes(q);
       })
       .slice(0, 8);
-  }, [availableSupplies, supplyQuery]);
+  }, [supplies, supplyQuery]);
+
+  const filteredPrinters = useMemo(() => {
+    const q = printerQuery.trim().toLowerCase();
+
+    if (!q) return availablePrinters.slice(0, 8);
+
+    return availablePrinters
+      .filter((item) => {
+        const hay = `${item.item_code ?? ""} ${item.printer_name ?? ""}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 8);
+  }, [availablePrinters, printerQuery]);
 
   const handleClose = () => {
     if (createProcessing || editProcessingId) return;
 
     setCreateErrors({});
     setCreateForm({
-      supply_id: "",
+      printer_model_id: "",
       status: "Active",
     });
-    setSupplyQuery("");
+
     onClose?.();
   };
 
-  const selectPrinter = async (nextPrinter) => {
-    setSelectedPrinterId(String(nextPrinter.id));
-    setPrinterQuery(`${nextPrinter.item_code ?? "—"} - ${nextPrinter.printer_name ?? "—"}`);
-    setShowPrinterSuggestions(false);
-    setCreateForm((p) => ({ ...p, supply_id: "" }));
-    setSupplyQuery("");
-    await onPrinterChange?.(nextPrinter);
+  const selectSupply = async (nextSupply) => {
+    setSelectedSupplyId(String(nextSupply.id));
+    setSupplyQuery(`${nextSupply.item_code ?? "—"} - ${nextSupply.supply_name ?? "—"}`);
+    setShowSupplySuggestions(false);
+    setCreateForm((p) => ({ ...p, printer_model_id: "" }));
+    setPrinterQuery("");
+    await onSupplyChange?.(nextSupply);
   };
 
-  const selectSupply = (supply) => {
-    setCreateForm((p) => ({ ...p, supply_id: String(supply.id) }));
-    setSupplyQuery(`${supply.item_code ?? "—"} - ${supply.supply_name ?? "—"}`);
-    setShowSupplySuggestions(false);
+  const selectPrinter = (nextPrinter) => {
+    setCreateForm((p) => ({ ...p, printer_model_id: String(nextPrinter.id) }));
+    setPrinterQuery(`${nextPrinter.item_code ?? "—"} - ${nextPrinter.printer_name ?? "—"}`);
+    setShowPrinterSuggestions(false);
   };
 
   const submitCreate = (e) => {
     e.preventDefault();
-    if (!selectedPrinterId) return;
+    if (!selectedSupplyId) return;
 
     setCreateProcessing(true);
     setCreateErrors({});
 
     if (isPageAddMode) {
       router.post(
-        route("admin.printer-supplies.managed-printers.store"),
+        route("admin.printer-supplies.managed-supplies.store"),
         {
-          printer_model_id: selectedPrinterId,
+          supply_id: selectedSupplyId,
           status: createForm.status,
         },
         {
@@ -167,7 +170,7 @@ export default function PrinterSuppliesDrawer({
           onSuccess: async () => {
             setCreateErrors({});
             setCreateForm({
-              supply_id: "",
+              printer_model_id: "",
               status: "Active",
             });
             setCreateProcessing(false);
@@ -184,7 +187,7 @@ export default function PrinterSuppliesDrawer({
       return;
     }
 
-    if (!selectedPrinter?.id || !createForm.supply_id) {
+    if (!selectedSupply?.id || !createForm.printer_model_id) {
       setCreateProcessing(false);
       return;
     }
@@ -192,8 +195,8 @@ export default function PrinterSuppliesDrawer({
     router.post(
       route("admin.printer-model-supplies.store"),
       {
-        printer_model_id: selectedPrinter.id,
-        supply_id: createForm.supply_id,
+        printer_model_id: createForm.printer_model_id,
+        supply_id: selectedSupply.id,
         status: createForm.status,
       },
       {
@@ -202,10 +205,10 @@ export default function PrinterSuppliesDrawer({
         onSuccess: async () => {
           setCreateErrors({});
           setCreateForm({
-            supply_id: "",
+            printer_model_id: "",
             status: "Active",
           });
-          setSupplyQuery("");
+          setPrinterQuery("");
           setCreateProcessing(false);
           await onRefresh?.();
         },
@@ -241,7 +244,7 @@ export default function PrinterSuppliesDrawer({
 
   const removeLink = (link) => {
     const confirmed = window.confirm(
-      `Remove ${link.supply_name} from ${selectedPrinter?.printer_name ?? "this printer"}?`
+      `Remove ${link.printer_name} from ${selectedSupply?.supply_name ?? "this supply"}?`
     );
 
     if (!confirmed) return;
@@ -270,10 +273,10 @@ export default function PrinterSuppliesDrawer({
         <div className="flex items-start justify-between gap-4 border-b border-darkgreen/30 shadow-md bg-[#FBFFFA] mx-5 mt-5 rounded-2xl px-6 py-5">
           <div className="flex flex-col">
             <h2 className="text-lg font-semibold text-slate-900">
-              {isPageAddMode ? "Add Printer" : "Manage Supplies"}
+              {isPageAddMode ? "Add Supply" : "Manage Printers"}
             </h2>
             <p className="text-sm text-slate-500">
-              {selectedPrinter?.printer_name ?? "Select Printer"}
+              {selectedSupply?.supply_name ?? "Select Supply"}
             </p>
           </div>
 
@@ -289,43 +292,44 @@ export default function PrinterSuppliesDrawer({
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           <div className="rounded-xl border-b border-darkgreen/30 shadow-md bg-[#FBFFFA] p-4">
             <h3 className="text-sm font-semibold text-slate-800 mb-4">
-              {isPageAddMode ? "Add Printer to Printer Supplies" : "Add Supply to Printer"}
+              {isPageAddMode ? "Add Supply to Printer Supplies" : "Add Printer to Supply"}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-[40%_30%_30%] gap-4 mb-4">
-              <div ref={printerBoxRef} className="relative">
+              <div ref={supplyBoxRef} className="relative">
                 <label className="block text-xs font-semibold text-slate-500 mb-2">
-                  Printer
+                  Supply
                 </label>
                 <input
-                  className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 shadow-inner outline-none focus:ring-0 focus:border-[#289800]"
-                  value={printerQuery}
+                  className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+                  value={supplyQuery}
                   onChange={(e) => {
-                    setPrinterQuery(e.target.value);
-                    setSelectedPrinterId("");
-                    setShowPrinterSuggestions(true);
+                    setSupplyQuery(e.target.value);
+                    setSelectedSupplyId("");
+                    setShowSupplySuggestions(true);
                   }}
-                  onFocus={() => setShowPrinterSuggestions(true)}
-                  placeholder="Type item code or printer name"
+                  onFocus={() => setShowSupplySuggestions(true)}
+                  placeholder="Type item code or supply name"
                 />
-                {createErrors.printer_model_id ? (
-                  <p className="mt-1 text-xs text-red-600">{createErrors.printer_model_id}</p>
+                {createErrors.supply_id ? (
+                  <p className="mt-1 text-xs text-red-600">{createErrors.supply_id}</p>
                 ) : null}
 
-                {showPrinterSuggestions && filteredPrinters.length > 0 ? (
+                {showSupplySuggestions && filteredSupplies.length > 0 ? (
                   <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg">
-                    {filteredPrinters.map((item) => (
+                    {filteredSupplies.map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         className="block w-full px-3 py-2 text-left text-sm hover:bg-[#FBFFFA]"
-                        onClick={() => selectPrinter(item)}
+                        onClick={() => selectSupply(item)}
                       >
                         <div className="font-medium text-slate-800">
-                          {item.item_code ?? "—"} - {item.printer_name ?? "—"}
+                          {item.item_code ?? "—"} - {item.supply_name ?? "—"}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {formatMoney(item.unit_cost)} / {formatMoney(item.selling_price)}
+                          {item.category ?? "—"}
+                          {item.print_type ? ` • ${item.print_type}` : ""}
                         </div>
                       </button>
                     ))}
@@ -335,60 +339,59 @@ export default function PrinterSuppliesDrawer({
 
               <div className="ml-5">
                 <label className="block text-xs font-semibold text-slate-500 mb-2">
-                  Unit Cost
+                  Category
                 </label>
                 <div className="text-sm text-slate-900">
-                  {formatMoney(selectedPrinter?.unit_cost)}
+                  {selectedSupply?.category ?? "—"}
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-2">
-                  Selling Price
+                  Color / Mono
                 </label>
                 <div className="text-sm text-slate-900">
-                  {formatMoney(selectedPrinter?.selling_price)}
+                  {selectedSupply?.print_type ?? "—"}
                 </div>
               </div>
             </div>
 
             <form onSubmit={submitCreate} className="space-y-4 flex justify-end">
               {!isPageAddMode ? (
-                <div ref={supplyBoxRef} className="relative w-full">
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">
-                    Supply
+                <div ref={printerBoxRef} className="relative w-full">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Printer
                   </label>
                   <input
-                    className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 shadow-inner outline-none focus:ring-0 focus:border-[#289800]"
-                    value={supplyQuery}
+                    className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+                    value={printerQuery}
                     onChange={(e) => {
-                      setSupplyQuery(e.target.value);
-                      setCreateForm((p) => ({ ...p, supply_id: "" }));
-                      setShowSupplySuggestions(true);
+                      setPrinterQuery(e.target.value);
+                      setCreateForm((p) => ({ ...p, printer_model_id: "" }));
+                      setShowPrinterSuggestions(true);
                     }}
-                    onFocus={() => setShowSupplySuggestions(true)}
-                    disabled={!selectedPrinterId}
-                    placeholder="Type item code or supply name"
+                    onFocus={() => setShowPrinterSuggestions(true)}
+                    disabled={!selectedSupplyId}
+                    placeholder="Type item code or printer name"
                   />
-                  {createErrors.supply_id ? (
-                    <p className="mt-1 text-xs text-red-600">{createErrors.supply_id}</p>
+                  {createErrors.printer_model_id ? (
+                    <p className="mt-1 text-xs text-red-600">{createErrors.printer_model_id}</p>
                   ) : null}
 
-                  {showSupplySuggestions && filteredSupplies.length > 0 ? (
+                  {showPrinterSuggestions && filteredPrinters.length > 0 ? (
                     <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg">
-                      {filteredSupplies.map((item) => (
+                      {filteredPrinters.map((item) => (
                         <button
                           key={item.id}
                           type="button"
                           className="block w-full px-3 py-2 text-left text-sm hover:bg-[#FBFFFA]"
-                          onClick={() => selectSupply(item)}
+                          onClick={() => selectPrinter(item)}
                         >
                           <div className="font-medium text-slate-800">
-                            {item.item_code ?? "—"} - {item.supply_name ?? "—"}
+                            {item.item_code ?? "—"} - {item.printer_name ?? "—"}
                           </div>
                           <div className="text-xs text-slate-500">
-                            {item.category ?? "—"}
-                            {item.print_type ? ` • ${item.print_type}` : ""}
+                            {formatMoney(item.unit_cost)} / {formatMoney(item.selling_price)}
                           </div>
                         </button>
                       ))}
@@ -400,11 +403,11 @@ export default function PrinterSuppliesDrawer({
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="rounded-lg px-5 text-sm font-semibold text-[#2DA300] hover:brightness-95 disabled:text-gray-400 pt-2"
+                  className="rounded-lg px-5 text-sm font-semibold text-[#2DA300] hover:brightness-95 disabled:text-gray-400"
                   disabled={
-                    !selectedPrinterId ||
+                    !selectedSupplyId ||
                     createProcessing ||
-                    (!isPageAddMode && !createForm.supply_id)
+                    (!isPageAddMode && !createForm.printer_model_id)
                   }
                 >
                   {createProcessing ? "Saving..." : <IoAddCircle size={26} />}
@@ -416,37 +419,35 @@ export default function PrinterSuppliesDrawer({
           {!isPageAddMode ? (
             <div className="rounded-xl border-b border-darkgreen/30 shadow-md bg-[#FBFFFA] overflow-hidden">
               <div className="border-b border-black/10 px-4 py-3">
-                <h3 className="text-sm font-semibold text-slate-800">Linked Supplies</h3>
+                <h3 className="text-sm font-semibold text-slate-800">Linked Printers</h3>
               </div>
 
               {drawerLoading ? (
-                <div className="px-4 py-8 text-sm text-slate-500">Loading supplies...</div>
-              ) : linkedSupplies.length > 0 ? (
+                <div className="px-4 py-8 text-sm text-slate-500">Loading printers...</div>
+              ) : linkedPrinters.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-[#4cd964]/10 border-b border-darkgreen/20">
                       <tr className="text-center text-slate-500">
-                        <th className="px-4 py-1 text-[10px] text-left font-bold">ITEM CODE</th>
-                        <th className="px-4 py-1 text-[10px] w-[25%] text-left font-bold">SUPPLY NAME</th>
-                        <th className="px-3 py-1 text-[10px] font-bold">CATEGORY</th>
-                        <th className="px-3 py-1 text-[10px] font-bold">COLOR / MONO</th>
-                        <th className="px-3 py-1 text-[10px] font-bold">YIELD</th>
-                        <th className="px-3 py-1 text-[10px] font-bold">STATUS</th>
-                        <th className="px-3 py-1 text-[10px] font-bold text-center">ACTIONS</th>
+                        <th className="px-4 py-1 text-[11px] text-left font-semibold">ITEM CODE</th>
+                        <th className="px-4 py-1 text-[11px] w-[30%] text-left font-semibold">PRINTER NAME</th>
+                        <th className="px-3 py-1 text-[11px] font-semibold">UNIT COST</th>
+                        <th className="px-3 py-1 text-[11px] font-semibold">SELLING PRICE</th>
+                        <th className="px-3 py-1 text-[11px] font-semibold">STATUS</th>
+                        <th className="px-3 py-1 text-[11px] font-semibold text-center">ACTIONS</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {linkedSupplies.map((link) => {
+                      {linkedPrinters.map((link) => {
                         const processing = editProcessingId === link.id;
                         const isActive = link.status === "Active";
 
                         return (
                           <tr key={link.id} className="border-b border-darkgreen/20 text-center">
                             <td className="px-4 py-3 text-left">{link.item_code ?? "—"}</td>
-                            <td className="px-4 py-3 text-left">{link.supply_name ?? "—"}</td>
-                            <td className="px-3 py-3">{link.category ?? "—"}</td>
-                            <td className="px-3 py-3">{link.print_type || "—"}</td>
-                            <td className="px-3 py-3">{link.yield ?? "—"}</td>
+                            <td className="px-4 py-3 text-left">{link.printer_name ?? "—"}</td>
+                            <td className="px-3 py-3">{formatMoney(link.unit_cost)}</td>
+                            <td className="px-3 py-3">{formatMoney(link.selling_price)}</td>
                             <td className="px-3 py-3">
                               <span
                                 className={`px-1.5 py-px rounded-full text-[8px] font-bold uppercase tracking-wider ${
@@ -479,7 +480,7 @@ export default function PrinterSuppliesDrawer({
                 </div>
               ) : (
                 <div className="px-4 py-8 text-sm text-slate-500">
-                  {selectedPrinterId ? "No linked supplies yet." : "Select a printer first."}
+                  {selectedSupplyId ? "No linked printers yet." : "Select a supply first."}
                 </div>
               )}
             </div>

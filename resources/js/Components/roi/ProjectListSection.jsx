@@ -75,7 +75,7 @@ export default function ProjectListSection({
   })();
 
   return (
-    <div className="mx-4 md:mx-6 lg:mx-10 xl:mx-14">
+    <div className="mx-4 md:mx-6 lg:mx-10">
       {/* Tiles */}
       <div className="grid grid-cols-12 gap-6 md:gap-4 xl:gap-6">
         {tiles.map((t) => (
@@ -86,7 +86,7 @@ export default function ProjectListSection({
       </div>
 
       {/* Table */}
-      <div className="mt-6 bg-white rounded-xl border border-black/10 shadow-sm">
+      <div className="mt-6 bg-white rounded-xl border border-b-black/20 border-black/10 shadow-md">
         <div className="flex items-center justify-between px-8 py-4 border-b border-black/10 md:px-3 md:py-3 lg:px-4 xl:px-6">
           <h2 className="font-semibold text-xs md:text-sm lg:text-base xl:text-lg">{tableTitle}</h2>
           <div className="flex items-center gap-2">{rightControls}</div>
@@ -97,7 +97,7 @@ export default function ProjectListSection({
             <thead className="bg-gray-100">
               <tr className="text-left text-slate-500">
                 {columns.map((c) => (
-                  <th key={c.key} className="px-1 py-2.5 text-xs font-semibold tracking-wide md:px-3 md:py-2 md:text-[8px] lg:px-4 lg:text-[10px] xl:px-6 xl:text-xs ">
+                  <th key={c.key} className="px-1 py-1 font-bold tracking-wide md:px-3 md:py-[6px] md:text-[8px] lg:px-4 lg:text-[10px] xl:text-[11px] xl:px-6">
                     {c.header}
                   </th>
                 ))}
