@@ -13,7 +13,7 @@ const FIXED_FEE_LABELS_RENTAL_CLICK = [
   "Shipping",
   "Rebate",
   "Support Services",
-  "Monthly Rental",
+  "Rental + Supplies",
   "A4/A3 MONO CLICK",
   "A4/LGL COLOR CLICK",
   "A3 COLOR CLICK",
@@ -34,12 +34,12 @@ const FIXED_FEE_LABELS_MONTHLY_RENTAL = [
   "Shipping",
   "Rebate",
   "Support Services",
-  "Monthly Rental",
+  "Rental + Supplies",
 ];
 
 // ✅ rows that should exist only in specific contract types
 const CONTRACT_SPECIFIC_LABELS = [
-  "Monthly Rental",
+  "Rental + Supplies",
   "A4/A3 MONO CLICK",
   "A4/LGL COLOR CLICK",
   "A3 COLOR CLICK",
@@ -72,7 +72,7 @@ const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0) => {
   if (l === "shipping") return 1;
   if (l === "rebate") return 1;
   if (l === "support services") return 12;
-  if (l === "monthly rental") return 12;
+  if (l === "Rental + Supplies") return 12;
   if (l === "a4/a3 mono click") return monoAnnual;      // ✅ fixed to monoAnnual
   if (l === "a4/lgl color click") return colorAnnual;   // ✅ fixed to colorAnnual
   if (l === "a3 color click") return 0;
@@ -162,7 +162,7 @@ const Fees = ({readOnly}) => {
   const isFreeUse = contractType === "Free Use";
   const isRentalClick = contractType === "Rental + Click";
   const isFixClick = contractType === "Fix Click";
-  const isMonthlyRental = contractType === "Monthly Rental";
+  const isMonthlyRental = contractType === "Rental + Supplies";
 
   const activeFixedLabels =
     isFreeUse

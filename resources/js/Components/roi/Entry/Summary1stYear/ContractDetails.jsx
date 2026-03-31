@@ -32,7 +32,7 @@ function ContractDetails() {
   const monoMonthlyYields = Number(projectData?.yield?.monoAmvpYields?.monthly) || 0;
   const colorMonthlyYields = Number(projectData?.yield?.colorAmvpYields?.monthly) || 0;
 
-  // Fees (source of click-charge unit price + monthly rental price for click-based contracts)
+  // Fees (source of click-charge unit price + Rental + Supplies price for click-based contracts)
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
@@ -46,9 +46,9 @@ function ContractDetails() {
 
   const normalize = (s) => String(s || '').trim().toLowerCase();
 
-  // ✅ Monthly Rental fee cost (used as machine unit price for click-based contracts)
+  // ✅ Rental + Supplies fee cost (used as machine unit price for click-based contracts)
   const monthlyRentalFee = useMemo(() => {
-    return allFees.find(f => normalize(f.label) === "monthly rental");
+    return allFees.find(f => normalize(f.label) === "Rental + Supplies");
   }, [allFees]);
 
   const monthlyRentalUnitPrice = Number(monthlyRentalFee?.cost) || 0;
@@ -62,8 +62,8 @@ function ContractDetails() {
   // ✅ Build hardware rows for Contract Details
   // Click-based contracts (Rental + Click / Fix Click):
   // - qty is always 1
-  // - unit price is monthly rental fee cost
-  // - amount = monthly rental x total contract months
+  // - unit price is Rental + Supplies fee cost
+  // - amount = Rental + Supplies x total contract months
   // Other contract types:
   // - keep original qty display
   // - hardware unit price/amount stays 0 (same as your original behavior)
@@ -72,8 +72,8 @@ function ContractDetails() {
       // For both Rental + Click and Fix Click, display qty as 1
       const qty = isClickBasedContract ? 1 : (Number(m.qty) || 0);
 
-      // ✅ Only Rental + Click uses Monthly Rental fee as machine unit price
-      // ✅ Fix Click has no monthly rental, so machine unit price/amount must be 0
+      // ✅ Only Rental + Click uses Rental + Supplies fee as machine unit price
+      // ✅ Fix Click has no Rental + Supplies, so machine unit price/amount must be 0
       const unitPrice = isRentalClick ? monthlyRentalUnitPrice : 0;
       const amount = isRentalClick ? (unitPrice * contractMonths) : 0;
 
@@ -146,7 +146,7 @@ function ContractDetails() {
   }, [isClickBasedContract, monoMonthlyYields, colorMonthlyYields, allFees, consumable]);
 
   // ✅ Total Initial includes:
-  // - click-based machine amount (monthly rental x months) + click charges
+  // - click-based machine amount (Rental + Supplies x months) + click charges
   // - Other contract types: consumables only (hardware amount remains 0)
   const totalInitial = useMemo(() => {
     const machineTotal = contractMachines.reduce((sum, item) => {

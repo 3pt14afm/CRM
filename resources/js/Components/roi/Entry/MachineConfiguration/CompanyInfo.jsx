@@ -55,7 +55,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const showContractTypeError = !readOnly && showErrors && contractTypeInvalid;
 
   const contractType = projectData?.companyInfo?.contractType || "";
-  const showBundledInk = contractType === "Monthly Rental";
+  const showBundledInk = contractType === "Rental + Supplies";
 
   const baseInput =
     "rounded-sm border px-2 text-sm outline-none focus:outline-none focus:ring-0 h-10";
@@ -123,7 +123,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                   handleChange("contractType", nextType);
 
                   // auto-clear when switching away from Monthly Rental
-                  if (nextType !== "Monthly Rental") {
+                  if (nextType !== "Rental + Supplies") {
                     handleChange("bundledStdInk", false);
                   }
                 }}
@@ -140,8 +140,8 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                 <option className="text-black" value="Fix Click">
                   Fix Click
                 </option>
-                <option className="text-black" value="Monthly Rental">
-                  Monthly Rental
+                <option className="text-black" value="Rental + Supplies">
+                  Rental + Supplies
                 </option>
               </select>
             </div>

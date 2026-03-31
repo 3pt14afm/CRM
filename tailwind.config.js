@@ -19,7 +19,9 @@ export default {
                     'system-ui',
                     '-apple-system',
                     'BlinkMacSystemFont',
-                    'sans-serif'],
+                    'sans-serif',
+                    'Inter',
+                ],
             },
             colors: {
                 darkgreen:'#133307',

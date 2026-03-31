@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+body{
+   font-family: Inter;
+}
 /* Hide scrollbar but keep scroll */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -72,6 +75,7 @@
 
   /* Force the body to be white and remove margin defaults */
   body {
+    font-family: Inter;
     background: white !important;
     margin: 0;
     padding: 0;

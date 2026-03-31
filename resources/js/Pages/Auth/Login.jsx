@@ -66,11 +66,19 @@ export default function Login({ status, canResetPassword }) {
                     </div>
 
                     {/* Right Side: Form */}
-                    <div className="flex flex-col justify-center items-start flex-1 p-8 md:p-12">
-                        <div className="mb-8">
-                            <h1 className='text-text-secondary font-bold text-4xl mb-2'>Account Login</h1>
-                            <p className='text-sm text-darkgreen opacity-55'>Welcome back! Please enter your details.</p>
-                        </div>
+                {/* Right Side: Form */}
+              <div className="flex flex-col justify-center items-start flex-1 p-8 md:p-12">
+                <img className=" w-[500px] mx-auto block "src="/images/derms4.png"alt=""srcSet=""/>
+
+                <div className="mb-4 w-full">
+                
+                    {/* <h2 className='text-text-secondary font-semibold text-2xl mb-2'>Account Login</h2> */}
+
+                    <p className="text-sm text-darkgreen text-center opacity-55">
+                    Please enter your credentials.
+                    </p>
+                </div>
+                
 
                         <div className="w-full">
                             {/* Employee ID / Email Field */}
@@ -89,7 +97,7 @@ export default function Login({ status, canResetPassword }) {
                                         name="login"
                                         value={data.login}
                                         onChange={(e) => setData('login', e.target.value)}
-                                        placeholder="Enter email"
+                                        placeholder="Enter ID No. / Email"
                                         className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
                                         autoComplete="username"
                                     />

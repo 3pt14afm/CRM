@@ -5,6 +5,7 @@ import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
 import { IoMdArrowDropdown } from "react-icons/io";
 import { route } from 'ziggy-js';
+import { UserPen, LogOut } from "lucide-react";
 
 export default function Sidebar() {
   const { url } = usePage();
@@ -1070,37 +1071,41 @@ export default function Sidebar() {
             )}
           </button>
 
-          {activeItem === "profile" &&
-            createPortal(
-              <div
-                ref={dropdownRef}
-                className="fixed z-[9999] w-28 bg-[#D4F0CB] shadow-lg rounded-lg border border-black/10"
-                style={{
-                  top: dropdownPos.top,
-                  left: dropdownPos.left,
-                  transform: "translateY(-100%)",
-                }}
-              >
-                <Link
-                  href={route("profile.edit")}
-                  className="block w-full text-left px-4 py-3 text-sm rounded-t-lg font-semibold border-b text-darkgreen border-black/10 hover:bg-green/70"
-                  onClick={() => setActiveItem(null)}
-                >
-                  Edit Profile
-                </Link>
+{activeItem === "profile" &&
+  createPortal(
+    <div
+      ref={dropdownRef}
+      className="fixed z-[9999] w-36 overflow-hidden rounded-xl border border-white/20 bg-green-500/20 backdrop-blur-2xl shadow-[0_4px_12px_rgba(0,0,0,0.18)]"
+      style={{
+        top: dropdownPos.top - 16,
+        left: dropdownPos.left,
+        transform: "translateY(-100%)",
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-green-300/10 to-green-600/10 pointer-events-none" />
 
-                <Link
-                  href={route("logout")}
-                  method="post"
-                  as="button"
-                  className="w-full text-left px-4 py-3 text-sm rounded-b-lg font-semibold hover:bg-green/70 text-red-600"
-                  onClick={() => setActiveItem(null)}
-                >
-                  Logout
-                </Link>
-              </div>,
-              document.body
-            )}
+      <Link
+        href={route("profile.edit")}
+        className="relative flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-green-950 border-b border-black/5 hover:bg-white/20 hover:backdrop-blur-md transition-all duration-200"
+        onClick={() => setActiveItem(null)}
+      >
+        <UserPen className="w-4 h-4" />
+        <span>Edit Profile</span>
+      </Link>
+
+      <Link
+        href={route("logout")}
+        method="post"
+        as="button"
+        className="relative flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-red-700 hover:bg-white/20 hover:backdrop-blur-md transition-all duration-200"
+        onClick={() => setActiveItem(null)}
+      >
+        <LogOut className="w-4 h-4" />
+        <span>Signout</span>
+      </Link>
+    </div>,
+    document.body
+  )}
         </div>
       </div>
     </aside>
