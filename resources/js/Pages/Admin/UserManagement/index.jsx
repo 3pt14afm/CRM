@@ -214,8 +214,8 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
             </div>
 
             <div className="mt-4">
-              <div className="-mx-4 md:-mx-6 lg:-mx-10 xl:-mx-14">
-                <div className="-mb-2 mx-6 lg:mx-10 xl:mx-14 rounded-lg border border-black/10 bg-white px-4 py-2 shadow-sm">
+              <div className="-mx-4 md:-mx-6 lg:-mx-10">
+                <div className="-mb-2 mx-6 lg:mx-10 rounded-lg border border-b-black/20 border-black/10 bg-white px-4 py-2 shadow">
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterPill
                       label="Status"
@@ -262,9 +262,7 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className="px-10 py-3 flex items-center justify-end" />
-        </div>
+        
       </div>
     </>
   );

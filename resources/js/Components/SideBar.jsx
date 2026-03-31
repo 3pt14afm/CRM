@@ -989,27 +989,27 @@ export default function Sidebar() {
 
                 
                 <Link
-                  href={route('admin.printer-maintenance.index')}
-                  onClick={(e) => visitAdmin(e, route('admin.printer-maintenance.index'))}
+                  href={route('admin.printer-master.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.printer-master.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
-                    route().current('admin.printer-maintenance.*')
+                    route().current('admin.printer-master.*')
                       ? 'text-darkgreen font-semibold opacity-100'
                       : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                   }`}
                 >
-                  Printer Maintenance
+                  Printer Master
                 </Link>
 
                 <Link
-                  href={route('admin.supply-maintenance.index')}
-                  onClick={(e) => visitAdmin(e, route('admin.supply-maintenance.index'))}
+                  href={route('admin.supply-master.index')}
+                  onClick={(e) => visitAdmin(e, route('admin.supply-master.index'))}
                   className={`block px-8 py-2 text-[11px] lg:text-sm ${
-                    route().current('admin.supply-maintenance.*')
+                    route().current('admin.supply-master.*')
                       ? 'text-darkgreen font-semibold opacity-100'
                       : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                   }`}
                 >
-                  Supply Maintenance
+                  Supply Master
                 </Link>
 
                 <Link
@@ -1021,7 +1021,7 @@ export default function Sidebar() {
                       : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                   }`}
                 >
-                  Printer Supplies
+                  Printer Supplies Master
                 </Link>
 
                 <Link

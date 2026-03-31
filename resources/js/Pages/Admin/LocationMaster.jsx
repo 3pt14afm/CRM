@@ -325,7 +325,7 @@ function LocationMaster({ stats, locations }) {
               </div>
             </div>
 
-            <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10 xl:-mx-14">
+            <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
                 tableTitle="Locations"

@@ -3,12 +3,32 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
 import PrinterSuppliesDrawer from "@/Components/admin/PrinterSuppliesDrawer";
+import SupplyPrintersDrawer from "@/Components/admin/SupplyPrintersDrawer";
+import { MdOutlineSettings } from "react-icons/md";
+import { IoAddCircle } from "react-icons/io5";
+import { BsPrinterFill, BsBoxSeamFill } from "react-icons/bs";
 
-function PrinterSupplies({ stats, printerModels, supplies = [] }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+function PrinterSupplies({
+  stats,
+  managedPrinters = [],
+  managedSupplies = [],
+  printerModels = [],
+  supplies = [],
+}) {
+  const [printerDrawerOpen, setPrinterDrawerOpen] = useState(false);
+  const [supplyDrawerOpen, setSupplyDrawerOpen] = useState(false);
+
+  const [printerDrawerMode, setPrinterDrawerMode] = useState("manage-links");
+  const [supplyDrawerMode, setSupplyDrawerMode] = useState("manage-links");
+
   const [selectedPrinter, setSelectedPrinter] = useState(null);
+  const [selectedSupply, setSelectedSupply] = useState(null);
+
   const [linkedSupplies, setLinkedSupplies] = useState([]);
-  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [linkedPrinters, setLinkedPrinters] = useState([]);
+
+  const [printerDrawerLoading, setPrinterDrawerLoading] = useState(false);
+  const [supplyDrawerLoading, setSupplyDrawerLoading] = useState(false);
 
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
@@ -18,12 +38,50 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
   }).format(today);
 
   const printerRows = useMemo(() => {
-    const raw = printerModels?.data ?? printerModels ?? stats?.printer_models ?? [];
+    const raw =
+      managedPrinters?.data ??
+      managedPrinters ??
+      stats?.managed_printers ??
+      [];
+    return Array.isArray(raw) ? raw : [];
+  }, [managedPrinters, stats]);
+
+  const supplyRows = useMemo(() => {
+    const raw =
+      managedSupplies?.data ??
+      managedSupplies ??
+      stats?.managed_supplies ??
+      [];
+    return Array.isArray(raw) ? raw : [];
+  }, [managedSupplies, stats]);
+
+  const masterPrinterRows = useMemo(() => {
+    const raw =
+      printerModels?.data ??
+      printerModels ??
+      stats?.printer_models ??
+      [];
     return Array.isArray(raw) ? raw : [];
   }, [printerModels, stats]);
 
+  const masterSupplyRows = useMemo(() => {
+    const raw =
+      supplies?.data ??
+      supplies ??
+      stats?.supplies ??
+      [];
+    return Array.isArray(raw) ? raw : [];
+  }, [supplies, stats]);
+
   const isPrinterActive = (printer) => {
     if (typeof printer?.status === "string") return printer.status === "Active";
+    if (typeof printer?.is_active === "boolean") return printer.is_active;
+    return true;
+  };
+
+  const isSupplyActive = (supply) => {
+    if (typeof supply?.status === "string") return supply.status === "Active";
+    if (typeof supply?.is_active === "boolean") return supply.is_active;
     return true;
   };
 
@@ -37,15 +95,18 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
   };
 
   const fetchPrinterSupplies = async (printerId) => {
-    setDrawerLoading(true);
+    if (!printerId) {
+      setLinkedSupplies([]);
+      return;
+    }
+
+    setPrinterDrawerLoading(true);
 
     try {
       const response = await fetch(
         route("admin.printer-models.supplies.index", printerId),
         {
-          headers: {
-            Accept: "application/json",
-          },
+          headers: { Accept: "application/json" },
         }
       );
 
@@ -55,29 +116,121 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
       console.error("Failed to load printer supplies:", error);
       setLinkedSupplies([]);
     } finally {
-      setDrawerLoading(false);
+      setPrinterDrawerLoading(false);
     }
   };
 
-  const openDrawer = async (printer) => {
-    setSelectedPrinter(printer);
-    setDrawerOpen(true);
-    await fetchPrinterSupplies(printer.id);
+  const fetchSupplyPrinters = async (supplyId) => {
+    if (!supplyId) {
+      setLinkedPrinters([]);
+      return;
+    }
+
+    setSupplyDrawerLoading(true);
+
+    try {
+      const response = await fetch(
+        route("admin.supplies.printer-models.index", supplyId),
+        {
+          headers: { Accept: "application/json" },
+        }
+      );
+
+      const data = await response.json();
+      setLinkedPrinters(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load supply printers:", error);
+      setLinkedPrinters([]);
+    } finally {
+      setSupplyDrawerLoading(false);
+    }
   };
 
-  const closeDrawer = () => {
-    setDrawerOpen(false);
+  const openPrinterDrawer = async (printer = null, mode = "manage-links") => {
+    setPrinterDrawerMode(mode);
+    setSelectedPrinter(printer);
+    setPrinterDrawerOpen(true);
+
+    if (mode === "manage-links" && printer?.id) {
+      await fetchPrinterSupplies(printer.id);
+    } else {
+      setLinkedSupplies([]);
+    }
+  };
+
+  const openSupplyDrawer = async (supply = null, mode = "manage-links") => {
+    setSupplyDrawerMode(mode);
+    setSelectedSupply(supply);
+    setSupplyDrawerOpen(true);
+
+    if (mode === "manage-links" && supply?.id) {
+      await fetchSupplyPrinters(supply.id);
+    } else {
+      setLinkedPrinters([]);
+    }
+  };
+
+  const closePrinterDrawer = () => {
+    setPrinterDrawerOpen(false);
+    setPrinterDrawerMode("manage-links");
     setSelectedPrinter(null);
     setLinkedSupplies([]);
   };
 
-  const refreshDrawerData = async () => {
-    if (!selectedPrinter?.id) return;
+  const closeSupplyDrawer = () => {
+    setSupplyDrawerOpen(false);
+    setSupplyDrawerMode("manage-links");
+    setSelectedSupply(null);
+    setLinkedPrinters([]);
+  };
 
-    await fetchPrinterSupplies(selectedPrinter.id);
+  const handlePrinterChange = async (printer) => {
+    setSelectedPrinter(printer);
+
+    if (printerDrawerMode === "manage-links") {
+      await fetchPrinterSupplies(printer?.id);
+    }
+  };
+
+  const handleSupplyChange = async (supply) => {
+    setSelectedSupply(supply);
+
+    if (supplyDrawerMode === "manage-links") {
+      await fetchSupplyPrinters(supply?.id);
+    }
+  };
+
+  const refreshPrinterDrawerData = async () => {
+    if (printerDrawerMode === "manage-links" && selectedPrinter?.id) {
+      await fetchPrinterSupplies(selectedPrinter.id);
+    }
 
     router.reload({
-      only: ["printerModels", "stats"],
+      only: [
+        "managedPrinters",
+        "managedSupplies",
+        "printerModels",
+        "supplies",
+        "stats",
+      ],
+      preserveScroll: true,
+      preserveState: true,
+    });
+  };
+
+  const refreshSupplyDrawerData = async () => {
+    if (supplyDrawerMode === "manage-links" && selectedSupply?.id) {
+      await fetchSupplyPrinters(selectedSupply.id);
+    }
+
+    router.reload({
+      only: [
+        "managedPrinters",
+        "managedSupplies",
+        "printerModels",
+        "supplies",
+        "stats",
+      ],
       preserveScroll: true,
       preserveState: true,
     });
@@ -86,13 +239,18 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
   const printerColumns = useMemo(
     () => [
       {
+        key: "item_code",
+        header: <div className="w-full text-[11px] font-bold">ITEM CODE</div>,
+        cell: (r) => r.item_code ?? "—",
+      },
+      {
         key: "printer_name",
-        header: "PRINTER NAME",
+        header: <div className="w-full text-[11px] font-bold">PRINTER NAME</div>,
         cell: (r) => r.printer_name ?? "—",
       },
       {
         key: "unit_cost",
-        header: <div className="text-center w-full">UNIT COST</div>,
+        header: <div className="text-center w-full text-[11px] font-bold">UNIT COST</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <span className="text-[11px] lg:text-sm xl:text-base">
@@ -103,7 +261,7 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
       },
       {
         key: "selling_price",
-        header: <div className="text-center w-full">SELLING PRICE</div>,
+        header: <div className="text-center w-full text-[11px] font-bold">SELLING PRICE</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <span className="text-[11px] lg:text-sm xl:text-base">
@@ -114,7 +272,7 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
       },
       {
         key: "status",
-        header: <div className="text-center w-full">STATUS</div>,
+        header: <div className="text-center w-full text-[11px] font-bold">STATUS</div>,
         cell: (r) => {
           const isActive = isPrinterActive(r);
 
@@ -135,7 +293,7 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
       },
       {
         key: "linked_supplies_count",
-        header: <div className="text-center w-full">LINKED SUPPLIES</div>,
+        header: <div className="text-center w-full text-[11px] font-bold">LINKED SUPPLIES</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <span className="text-[11px] lg:text-sm xl:text-base">
@@ -146,15 +304,115 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
       },
       {
         key: "actions",
-        header: <div className="text-center w-full">ACTIONS</div>,
+        header: <div className="text-center w-full text-[11px] font-bold">ACTIONS</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <button
               type="button"
-              className="rounded-lg bg-[#289800] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:brightness-95"
-              onClick={() => openDrawer(r)}
+              className="rounded-lg px-2 py-1 text-xs text-[#007aff] font-semibold hover:brightness-95"
+              onClick={() => openPrinterDrawer(r, "manage-links")}
+              title="Manage Supplies"
+              aria-label="Manage Supplies"
             >
-              Manage Supplies
+              <MdOutlineSettings className="w-5 h-5" />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  const supplyColumns = useMemo(
+    () => [
+      {
+        key: "item_code",
+        header: <div className="w-full text-[11px] font-bold">ITEM CODE</div>,
+        cell: (r) => r.item_code ?? "—",
+      },
+      {
+        key: "supply_name",
+        header: <div className="w-full text-[11px] font-bold">SUPPLY NAME</div>,
+        cell: (r) => r.supply_name ?? "—",
+      },
+      {
+        key: "category",
+        header: <div className="text-center w-full text-[11px] font-bold">CATEGORY</div>,
+        cell: (r) => (
+          <div className="w-full flex justify-center items-center">
+            <span className="text-[11px] lg:text-sm xl:text-base">
+              {r.category ?? "—"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "print_type",
+        header: <div className="text-center w-full text-[11px] font-bold">COLOR / MONO</div>,
+        cell: (r) => (
+          <div className="w-full flex justify-center items-center">
+            <span className="text-[11px] lg:text-sm xl:text-base">
+              {r.print_type ?? "—"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "yield",
+        header: <div className="text-center w-full text-[11px] font-bold">YIELD</div>,
+        cell: (r) => (
+          <div className="w-full flex justify-center items-center">
+            <span className="text-[11px] lg:text-sm xl:text-base">
+              {r.yield ?? "—"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "status",
+        header: <div className="text-center w-full text-[11px] font-bold">STATUS</div>,
+        cell: (r) => {
+          const isActive = isSupplyActive(r);
+
+          return (
+            <div className="w-full flex justify-center items-center">
+              <span
+                className={`px-2 py-px rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  isActive
+                    ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
+                    : "bg-red-100 text-red-600 border border-red-200"
+                }`}
+              >
+                {isActive ? "Active" : "Inactive"}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        key: "linked_printers_count",
+        header: <div className="text-center w-full text-[11px] font-bold">LINKED PRINTERS</div>,
+        cell: (r) => (
+          <div className="w-full flex justify-center items-center">
+            <span className="text-[11px] lg:text-sm xl:text-base">
+              {r.linked_printers_count ?? 0}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "actions",
+        header: <div className="text-center w-full text-[11px] font-bold">ACTIONS</div>,
+        cell: (r) => (
+          <div className="w-full flex justify-center items-center">
+            <button
+              type="button"
+              className="rounded-lg px-2 py-1 text-xs text-[#007aff] font-semibold hover:brightness-95"
+              onClick={() => openSupplyDrawer(r, "manage-links")}
+              title="Manage Printers"
+              aria-label="Manage Printers"
+            >
+              <MdOutlineSettings className="w-5 h-5" />
             </button>
           </div>
         ),
@@ -172,11 +430,21 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
   };
 
   const printerPagination =
-    printerModels && typeof printerModels.current_page === "number"
+    managedPrinters && typeof managedPrinters.current_page === "number"
       ? {
-          page: printerModels.current_page,
-          perPage: printerModels.per_page ?? 10,
-          total: printerModels.total ?? printerRows.length,
+          page: managedPrinters.current_page,
+          perPage: managedPrinters.per_page ?? 10,
+          total: managedPrinters.total ?? printerRows.length,
+          onPageChange: goToPage,
+        }
+      : null;
+
+  const supplyPagination =
+    managedSupplies && typeof managedSupplies.current_page === "number"
+      ? {
+          page: managedSupplies.current_page,
+          perPage: managedSupplies.per_page ?? 10,
+          total: managedSupplies.total ?? supplyRows.length,
           onPageChange: goToPage,
         }
       : null;
@@ -191,7 +459,7 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
             <div className="flex items-start justify-between gap-6">
               <div className="flex flex-col gap-1">
                 <h1 className="text-lg font-semibold text-slate-900 md:text-xl lg:text-2xl">
-                  Printer Supplies
+                  Printer Supplies Master
                 </h1>
                 <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
                   Manage which supplies belong to each printer.
@@ -202,32 +470,89 @@ function PrinterSupplies({ stats, printerModels, supplies = [] }) {
               </div>
             </div>
 
-            <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10 xl:-mx-14">
-              <ProjectListSection
-                tiles={[]}
-                tableTitle="Printers"
-                columns={printerColumns}
-                rows={printerRows}
-                rowKey={(r, i) => String(r.id ?? i)}
-                pagination={printerPagination}
-              />
+            <div className="space-y-6">
+              <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
+                <ProjectListSection
+                  tiles={[]}
+                  tableTitle={
+                    <div className="flex items-center gap-2">
+                      <BsPrinterFill className="h-4 w-4" />
+                      <span>Printers</span>
+                    </div>
+                  }
+                  columns={printerColumns}
+                  rows={printerRows}
+                  rowKey={(r, i) => String(r.id ?? i)}
+                  pagination={printerPagination}
+                  rightControls={
+                    <button
+                      title="Add Printer"
+                      aria-label="Add Printer"
+                      type="button"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={() => openPrinterDrawer(null, "add-page-item")}
+                    >
+                      <IoAddCircle className="w-6 h-6" />
+                    </button>
+                  }
+                />
+              </div>
+
+              <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
+                <ProjectListSection
+                  tiles={[]}
+                  tableTitle={
+                    <div className="flex items-center gap-2">
+                      <BsBoxSeamFill className=" h-4 w-4" />
+                      <span>Supplies</span>
+                    </div>
+                  }
+                  columns={supplyColumns}
+                  rows={supplyRows}
+                  rowKey={(r, i) => String(r.id ?? i)}
+                  pagination={supplyPagination}
+                  rightControls={
+                    <button
+                      type="button"
+                      title="Add Supply"
+                      aria-label="Add Supply"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={() => openSupplyDrawer(null, "add-page-item")}
+                    >
+                      <IoAddCircle className="w-6 h-6" />
+                    </button>
+                  }
+                />
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className="px-10 py-3 flex items-center justify-end" />
         </div>
       </div>
 
       <PrinterSuppliesDrawer
-        open={drawerOpen}
-        onClose={closeDrawer}
+        open={printerDrawerOpen}
+        onClose={closePrinterDrawer}
         printer={selectedPrinter}
+        printers={masterPrinterRows}
         linkedSupplies={linkedSupplies}
-        supplies={supplies}
-        drawerLoading={drawerLoading}
-        onRefresh={refreshDrawerData}
+        supplies={masterSupplyRows}
+        drawerLoading={printerDrawerLoading}
+        onRefresh={refreshPrinterDrawerData}
+        onPrinterChange={handlePrinterChange}
+        mode={printerDrawerMode}
+      />
+
+      <SupplyPrintersDrawer
+        open={supplyDrawerOpen}
+        onClose={closeSupplyDrawer}
+        supply={selectedSupply}
+        supplies={masterSupplyRows}
+        printers={masterPrinterRows}
+        linkedPrinters={linkedPrinters}
+        drawerLoading={supplyDrawerLoading}
+        onRefresh={refreshSupplyDrawerData}
+        onSupplyChange={handleSupplyChange}
+        mode={supplyDrawerMode}
       />
     </>
   );

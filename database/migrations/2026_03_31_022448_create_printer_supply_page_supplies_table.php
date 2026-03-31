@@ -8,19 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('printer_models', function (Blueprint $table) {
+        Schema::create('printer_supply_page_supplies', function (Blueprint $table) {
             $table->id();
-            $table->string('item_code')->unique();
-            $table->string('printer_name');
-            $table->decimal('unit_cost', 15, 2)->default(0);
-            $table->decimal('selling_price', 15, 2)->default(0);
+            $table->foreignId('supply_id')->constrained('supplies')->cascadeOnDelete();
             $table->string('status')->default('Active');
             $table->timestamps();
+
+            $table->unique('supply_id');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('printer_models');
+        Schema::dropIfExists('printer_supply_page_supplies');
     }
 };

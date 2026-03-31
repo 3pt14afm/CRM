@@ -7,7 +7,7 @@ export default function AuthenticatedLayout({ children }) {
         <>
             <div className="flex h-screen bg-darkgreen/60">
                 <Sidebar />
-                <main className="flex-1 overflow-y-auto bg-white/95">
+                <main className="flex-1 overflow-y-auto bg-[#f5f5f7]">
                     <FlashMessages />
                     {children}
                 </main>

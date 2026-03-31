@@ -9,7 +9,7 @@ import Fees from '@/Components/roi/Entry/MachineConfiguration/Fees';
 
 function MachineConfigTab({ buttonClicked, readOnly, showCompanyInfoErrors = false }) {
   return (
-    <div className='mx-5 bg-lightgreen/5 border rounded-r-lg rounded-b-xl border-t-0 border-b-[#B5EBA2]/80 border-x-[#B5EBA2]/80'>
+    <div className='mx-5 bg-white border rounded-r-lg rounded-b-xl border-b-[#2c2c2e]/30 border-t-0 border-[#2c2c2e]/20 shadow-md'>
       {/* COMPANY INFO + INTEREST */}
       <div className='flex items-center px-10 pt-5 gap-5 mb-5 md:flex-col lg:flex-row'>
         <CompanyInfo

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Supply extends Model
 {
     protected $fillable = [
+        'item_code',
         'category',
         'print_type',
         'supply_name',

@@ -2,20 +2,19 @@ import React, { useMemo, useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
-import NewSupplyModal from "@/Components/admin/modals/NewSupplyModal";
-import EditSupplyModal from "@/Components/admin/modals/EditSupplyModal";
+import NewPrinterModal from "@/Components/admin/modals/NewPrinterModal";
+import EditPrinterModal from "@/Components/admin/modals/EditPrinterModal";
 import { MdEdit } from "react-icons/md";
+import { BsPrinterFill } from "react-icons/bs";
 
-function SupplyMaintenance({ stats, supplies }) {
+function PrinterMaster({ stats, printerModels }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createProcessing, setCreateProcessing] = useState(false);
   const [createErrors, setCreateErrors] = useState({});
 
   const [createForm, setCreateForm] = useState({
-    category: "",
-    print_type: "",
-    supply_name: "",
-    yield: "",
+    item_code: "",
+    printer_name: "",
     unit_cost: "",
     selling_price: "",
   });
@@ -23,13 +22,11 @@ function SupplyMaintenance({ stats, supplies }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editProcessing, setEditProcessing] = useState(false);
   const [editErrors, setEditErrors] = useState({});
-  const [editingSupply, setEditingSupply] = useState(null);
+  const [editingPrinter, setEditingPrinter] = useState(null);
 
   const [editForm, setEditForm] = useState({
-    category: "",
-    print_type: "",
-    supply_name: "",
-    yield: "",
+    item_code: "",
+    printer_name: "",
     unit_cost: "",
     selling_price: "",
     is_active: true,
@@ -42,33 +39,22 @@ function SupplyMaintenance({ stats, supplies }) {
     year: "2-digit",
   }).format(today);
 
-  const supplyRows = useMemo(() => {
-    const raw = supplies?.data ?? supplies ?? stats?.supplies ?? [];
+  const printerRows = useMemo(() => {
+    const raw = printerModels?.data ?? printerModels ?? stats?.printer_models ?? [];
     return Array.isArray(raw) ? raw : [];
-  }, [supplies, stats]);
+  }, [printerModels, stats]);
 
-  const isSupplyActive = (supply) => {
-    if (typeof supply?.status === "string") return supply.status === "Active";
+  const isPrinterActive = (printer) => {
+    if (typeof printer?.status === "string") return printer.status === "Active";
     return true;
-  };
-
-  const formatMoney = (value) => {
-    if (value === null || value === undefined || value === "") return "—";
-
-    return Number(value).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
   };
 
   const openCreateModal = () => {
     setCreateErrors({});
     setCreateProcessing(false);
     setCreateForm({
-      category: "",
-      print_type: "",
-      supply_name: "",
-      yield: "",
+      item_code: "",
+      printer_name: "",
       unit_cost: "",
       selling_price: "",
     });
@@ -80,19 +66,17 @@ function SupplyMaintenance({ stats, supplies }) {
     setShowCreateModal(false);
   };
 
-  const openEditModal = (supply) => {
+  const openEditModal = (printer) => {
     setEditErrors({});
     setEditProcessing(false);
-    setEditingSupply(supply);
+    setEditingPrinter(printer);
 
     setEditForm({
-      category: supply?.category ?? "",
-      print_type: supply?.print_type ?? "",
-      supply_name: supply?.supply_name ?? "",
-      yield: supply?.yield ?? "",
-      unit_cost: supply?.unit_cost ?? "",
-      selling_price: supply?.selling_price ?? "",
-      is_active: isSupplyActive(supply),
+      item_code: printer?.item_code ?? "",
+      printer_name: printer?.printer_name ?? "",
+      unit_cost: printer?.unit_cost ?? "",
+      selling_price: printer?.selling_price ?? "",
+      is_active: isPrinterActive(printer),
     });
 
     setShowEditModal(true);
@@ -101,7 +85,7 @@ function SupplyMaintenance({ stats, supplies }) {
   const closeEditModal = () => {
     if (editProcessing) return;
     setShowEditModal(false);
-    setEditingSupply(null);
+    setEditingPrinter(null);
   };
 
   const submitCreate = (e) => {
@@ -110,12 +94,10 @@ function SupplyMaintenance({ stats, supplies }) {
     setCreateErrors({});
 
     router.post(
-      route("admin.supplies.store"),
+      route("admin.printer-models.store"),
       {
-        category: createForm.category,
-        print_type: createForm.category === "Part" ? "" : createForm.print_type,
-        supply_name: createForm.supply_name,
-        yield: createForm.yield || null,
+        item_code: createForm.item_code,
+        printer_name: createForm.printer_name,
         unit_cost: createForm.unit_cost,
         selling_price: createForm.selling_price,
         status: "Active",
@@ -125,7 +107,7 @@ function SupplyMaintenance({ stats, supplies }) {
         onSuccess: () => {
           setCreateProcessing(false);
           setShowCreateModal(false);
-          router.reload({ only: ["supplies", "stats"] });
+          router.reload({ only: ["printerModels", "stats"] });
         },
         onError: (errs) => {
           setCreateErrors(errs || {});
@@ -138,18 +120,16 @@ function SupplyMaintenance({ stats, supplies }) {
 
   const submitEdit = (e) => {
     e.preventDefault();
-    if (!editingSupply?.id) return;
+    if (!editingPrinter?.id) return;
 
     setEditProcessing(true);
     setEditErrors({});
 
     router.put(
-      route("admin.supplies.update", editingSupply.id),
+      route("admin.printer-models.update", editingPrinter.id),
       {
-        category: editForm.category,
-        print_type: editForm.category === "Part" ? "" : editForm.print_type,
-        supply_name: editForm.supply_name,
-        yield: editForm.yield || null,
+        item_code: editForm.item_code,
+        printer_name: editForm.printer_name,
         unit_cost: editForm.unit_cost,
         selling_price: editForm.selling_price,
         status: editForm.is_active ? "Active" : "Inactive",
@@ -158,12 +138,12 @@ function SupplyMaintenance({ stats, supplies }) {
         preserveScroll: true,
         onSuccess: () => {
           const shouldActivate = Boolean(editForm.is_active);
-          const currentlyActive = isSupplyActive(editingSupply);
+          const currentlyActive = isPrinterActive(editingPrinter);
 
           if (shouldActivate !== currentlyActive) {
             const toggleRoute = shouldActivate
-              ? route("admin.supplies.activate", editingSupply.id)
-              : route("admin.supplies.deactivate", editingSupply.id);
+              ? route("admin.printer-models.activate", editingPrinter.id)
+              : route("admin.printer-models.deactivate", editingPrinter.id);
 
             router.patch(
               toggleRoute,
@@ -171,10 +151,10 @@ function SupplyMaintenance({ stats, supplies }) {
               {
                 preserveScroll: true,
                 onSuccess: () => {
-                  router.reload({ only: ["supplies", "stats"] });
+                  router.reload({ only: ["printerModels", "stats"] });
                   setEditProcessing(false);
                   setShowEditModal(false);
-                  setEditingSupply(null);
+                  setEditingPrinter(null);
                 },
                 onError: (errs) => {
                   setEditErrors(errs || {});
@@ -183,10 +163,10 @@ function SupplyMaintenance({ stats, supplies }) {
               }
             );
           } else {
-            router.reload({ only: ["supplies", "stats"] });
+            router.reload({ only: ["printerModels", "stats"] });
             setEditProcessing(false);
             setShowEditModal(false);
-            setEditingSupply(null);
+            setEditingPrinter(null);
           }
         },
         onError: (errs) => {
@@ -197,45 +177,17 @@ function SupplyMaintenance({ stats, supplies }) {
     );
   };
 
-  const supplyColumns = useMemo(
+  const printerColumns = useMemo(
     () => [
       {
-        key: "category",
-        header: "CATEGORY",
-        cell: (r) => r.category ?? "—",
+        key: "item_code",
+        header: "ITEM CODE",
+        cell: (r) => r.item_code ?? "—",
       },
       {
-        key: "print_type",
-        header: <div className="text-center w-full">COLOR / MONO</div>,
-        cell: (r) => (
-          <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
-              {r.print_type || "—"}
-            </span>
-          </div>
-        ),
-      },
-      {
-        key: "supply_name",
-        header:<div className="text-center w-full">SUPPLY NAME</div>,
-        cell: (r) => (
-          <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
-              {r.supply_name ?? "—"}
-            </span>
-          </div>
-        ),
-      },
-      {
-        key: "yield",
-        header: <div className="text-center w-full">YIELD</div>,
-        cell: (r) => (
-          <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
-              {r.yield ?? "—"}
-            </span>
-          </div>
-        ),
+        key: "printer_name",
+        header: "PRINTER NAME",
+        cell: (r) => r.printer_name ?? "—",
       },
       {
         key: "unit_cost",
@@ -243,7 +195,12 @@ function SupplyMaintenance({ stats, supplies }) {
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <span className="text-[11px] lg:text-sm xl:text-base">
-              {formatMoney(r.unit_cost)}
+              {r.unit_cost != null
+                ? Number(r.unit_cost).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : "—"}
             </span>
           </div>
         ),
@@ -254,7 +211,12 @@ function SupplyMaintenance({ stats, supplies }) {
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <span className="text-[11px] lg:text-sm xl:text-base">
-              {formatMoney(r.selling_price)}
+              {r.selling_price != null
+                ? Number(r.selling_price).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : "—"}
             </span>
           </div>
         ),
@@ -263,7 +225,7 @@ function SupplyMaintenance({ stats, supplies }) {
         key: "status",
         header: <div className="text-center w-full">STATUS</div>,
         cell: (r) => {
-          const isActive = isSupplyActive(r);
+          const isActive = isPrinterActive(r);
 
           return (
             <div className="w-full flex justify-center items-center">
@@ -307,27 +269,27 @@ function SupplyMaintenance({ stats, supplies }) {
 
   const goToPage = (p) => {
     router.get(
-      route("admin.supply-maintenance.index"),
+      route("admin.printer-master.index"),
       { page: p },
       { preserveScroll: true, preserveState: true }
     );
   };
 
-  const supplyPagination =
-    supplies && typeof supplies.current_page === "number"
+  const printerPagination =
+    printerModels && typeof printerModels.current_page === "number"
       ? {
-          page: supplies.current_page,
-          perPage: supplies.per_page ?? 10,
-          total: supplies.total ?? supplyRows.length,
+          page: printerModels.current_page,
+          perPage: printerModels.per_page ?? 10,
+          total: printerModels.total ?? printerRows.length,
           onPageChange: goToPage,
         }
       : null;
 
   return (
     <>
-      <Head title="Supply Maintenance" />
+      <Head title="Printer Master" />
 
-      <NewSupplyModal
+      <NewPrinterModal
         show={showCreateModal}
         onClose={closeCreateModal}
         processing={createProcessing}
@@ -337,12 +299,12 @@ function SupplyMaintenance({ stats, supplies }) {
         onSubmit={submitCreate}
       />
 
-      <EditSupplyModal
+      <EditPrinterModal
         show={showEditModal}
         onClose={closeEditModal}
         processing={editProcessing}
         errors={editErrors}
-        editingSupply={editingSupply}
+        editingPrinter={editingPrinter}
         editForm={editForm}
         setEditForm={setEditForm}
         onSubmit={submitEdit}
@@ -354,10 +316,10 @@ function SupplyMaintenance({ stats, supplies }) {
             <div className="flex items-start justify-between gap-6">
               <div className="flex flex-col gap-1">
                 <h1 className="text-lg font-semibold text-slate-900 md:text-xl lg:text-2xl">
-                  Supply Maintenance
+                  Printer Master
                 </h1>
                 <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
-                  Manage consumables and parts across the system.
+                  Manage printer records across the system.
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -373,20 +335,25 @@ function SupplyMaintenance({ stats, supplies }) {
                     className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
                     onClick={openCreateModal}
                   >
-                    + New Supply
+                    + New Printer
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10 xl:-mx-14">
+            <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
-                tableTitle="Supplies"
-                columns={supplyColumns}
-                rows={supplyRows}
+                tableTitle={
+                  <div className="flex items-center gap-2">
+                    <BsPrinterFill className="h-4 w-4" />
+                    <span>Printers</span>
+                  </div>
+                }
+                columns={printerColumns}
+                rows={printerRows}
                 rowKey={(r, i) => String(r.id ?? i)}
-                pagination={supplyPagination}
+                pagination={printerPagination}
               />
             </div>
           </div>
@@ -400,5 +367,5 @@ function SupplyMaintenance({ stats, supplies }) {
   );
 }
 
-export default SupplyMaintenance;
-SupplyMaintenance.layout = (page) => <AuthenticatedLayout children={page} />;
+export default PrinterMaster;
+PrinterMaster.layout = (page) => <AuthenticatedLayout children={page} />;

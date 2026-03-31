@@ -7,18 +7,20 @@ use App\Models\Supply;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SupplyController extends Controller
 {
-    public function supplyMaintenance(): Response
+    public function supplyMaster(): Response
     {
         $supplies = Supply::query()
             ->orderBy('supply_name')
             ->paginate(10)
-            ->through(fn ($supply) => [                                                                                                                                                                                  
+            ->through(fn ($supply) => [
                 'id' => $supply->id,
+                'item_code' => $supply->item_code,
                 'category' => $supply->category,
                 'print_type' => $supply->print_type,
                 'supply_name' => $supply->supply_name,
@@ -28,7 +30,7 @@ class SupplyController extends Controller
                 'status' => $supply->status,
             ]);
 
-        return Inertia::render('Admin/SupplyMaintenance', [
+        return Inertia::render('Admin/SupplyMaster', [
             'stats' => [
                 'supplies' => $supplies->total(),
             ],
@@ -40,7 +42,17 @@ class SupplyController extends Controller
     {
         $supplies = Supply::query()
             ->orderBy('supply_name')
-            ->get();
+            ->get([
+                'id',
+                'item_code',
+                'category',
+                'print_type',
+                'supply_name',
+                'yield',
+                'unit_cost',
+                'selling_price',
+                'status',
+            ]);
 
         return response()->json($supplies);
     }
@@ -48,6 +60,7 @@ class SupplyController extends Controller
     public function supplyStore(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'item_code' => ['required', 'string', 'max:255', 'unique:supplies,item_code'],
             'category' => ['required', 'in:Consumable,Part'],
             'print_type' => ['nullable', 'in:Color,Mono'],
             'supply_name' => ['required', 'string', 'max:255'],
@@ -69,6 +82,12 @@ class SupplyController extends Controller
     public function supplyUpdate(Request $request, Supply $supply): RedirectResponse
     {
         $validated = $request->validate([
+            'item_code' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('supplies', 'item_code')->ignore($supply->id),
+            ],
             'category' => ['required', 'in:Consumable,Part'],
             'print_type' => ['nullable', 'in:Color,Mono'],
             'supply_name' => ['required', 'string', 'max:255'],
