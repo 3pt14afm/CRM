@@ -5,6 +5,7 @@ import ProjectListSection from "@/Components/roi/ProjectListSection";
 import NewPositionModal from "@/Components/admin/modals/NewPositionModal";
 import EditPositionModal from "@/Components/admin/modals/EditPositionModal";
 import { MdEdit } from "react-icons/md";
+import { IoAddCircle, IoBriefcase } from "react-icons/io5";
 
 function PositionMaster({ stats, positions, departments }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -191,7 +192,7 @@ function PositionMaster({ stats, positions, departments }) {
         header: <div className="text-center w-full">DEPARTMENT</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.department_name ?? "—"}
             </span>
           </div>
@@ -305,28 +306,30 @@ function PositionMaster({ stats, positions, departments }) {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-5">
-                <div className="ml-auto">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
-                    onClick={openCreateModal}
-                  >
-                    + New Position
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
-                tableTitle="Positions"
+                tableTitle={
+                  <div className="flex items-center gap-2">
+                    <IoBriefcase className="h-4 w-4" />
+                    <span>Positions</span>
+                  </div>
+                }
                 columns={positionColumns}
                 rows={positionRows}
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={positionPagination}
+                rightControls={
+                    <button
+                      type="button"
+                      title="Add Position"
+                      aria-label="Add Position"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={openCreateModal}
+                    >
+                      <IoAddCircle className="w-6 h-6" />
+                    </button>
+                  }
               />
             </div>
           </div>

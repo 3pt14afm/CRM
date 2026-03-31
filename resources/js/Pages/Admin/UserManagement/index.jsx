@@ -13,6 +13,8 @@ import useAssignUserModal from "./hooks/useAssignUserModal";
 import useEditUserModal from "./hooks/useEditUserModal";
 import usePositions from "./hooks/usePositions";
 import useDepartments from "./hooks/useDepartments";
+import { BsPersonFillAdd } from "react-icons/bs";
+import { FaUsers } from "react-icons/fa";
 
 function UserManagement({ users, locations, departments: departmentOptionsProp = [], filters = {} }) {
   const formattedDate = formatShortDate();
@@ -199,20 +201,6 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-5">
-                <div className="ml-auto">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
-                    onClick={assignModal.openAssignModal}
-                  >
-                    + New User
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="mt-4">
               <div className="-mx-4 md:-mx-6 lg:-mx-10">
                 <div className="-mb-2 mx-6 lg:mx-10 rounded-lg border border-b-black/20 border-black/10 bg-white px-4 py-2 shadow">
@@ -251,11 +239,27 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
 
                 <ProjectListSection
                   tiles={[]}
-                  tableTitle="User Management"
+                  tableTitle={
+                  <div className="flex items-center gap-2">
+                    <FaUsers className="h-5 w-5" />
+                    <span>User Management</span>
+                  </div>
+                }
                   columns={userColumns}
                   rows={userRows}
                   rowKey={(r) => String(r.id)}
                   pagination={userPagination}
+                  rightControls={
+                    <button
+                      type="button"
+                      title="Add User"
+                      aria-label="Add User"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={assignModal.openAssignModal}
+                    >
+                      <BsPersonFillAdd className="w-6 h-6" />
+                    </button>
+                  }
                 />
               </div>
             </div>

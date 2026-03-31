@@ -4,7 +4,7 @@ import { Head, router } from "@inertiajs/react";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
 import NewLocationModal from "@/Components/admin/modals/NewLocationModal";
 import EditLocationModal from "@/Components/admin/modals/EditLocationModal";
-import { MdEdit } from "react-icons/md";
+import { MdAddLocationAlt, MdEdit, MdLocationPin } from "react-icons/md";
 
 function LocationMaster({ stats, locations }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -311,28 +311,32 @@ function LocationMaster({ stats, locations }) {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-5">
-                <div className="ml-auto">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
-                    onClick={openCreateModal}
-                  >
-                    + New Location
-                  </button>
-                </div>
-              </div>
-            </div>
+            
 
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
-                tableTitle="Locations"
+                tableTitle={
+                  <div className="flex items-center gap-2">
+                    <MdLocationPin className="h-4 w-4" />
+                    <span>Locations</span>
+                  </div>
+                }
                 columns={locationColumns}
                 rows={locationRows}
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={locationPagination}
+                rightControls={
+                    <button
+                      type="button"
+                      title="Add Location"
+                      aria-label="Add Location"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={openCreateModal}
+                    >
+                      <MdAddLocationAlt className="w-6 h-6" />
+                    </button>
+                  }
               />
             </div>
           </div>

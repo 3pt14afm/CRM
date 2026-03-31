@@ -6,6 +6,7 @@ import NewSupplyModal from "@/Components/admin/modals/NewSupplyModal";
 import EditSupplyModal from "@/Components/admin/modals/EditSupplyModal";
 import { MdEdit } from "react-icons/md";
 import { BsBoxSeamFill } from "react-icons/bs";
+import { IoAddCircle } from "react-icons/io5";
 
 function SupplyMaster({ stats, supplies }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -221,7 +222,7 @@ function SupplyMaster({ stats, supplies }) {
         header: <div className="text-center w-full">COLOR / MONO</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.print_type || "—"}
             </span>
           </div>
@@ -232,7 +233,7 @@ function SupplyMaster({ stats, supplies }) {
         header: <div className="text-center w-full">SUPPLY NAME</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.supply_name ?? "—"}
             </span>
           </div>
@@ -243,7 +244,7 @@ function SupplyMaster({ stats, supplies }) {
         header: <div className="text-center w-full">YIELD</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.yield ?? "—"}
             </span>
           </div>
@@ -254,7 +255,7 @@ function SupplyMaster({ stats, supplies }) {
         header: <div className="text-center w-full">UNIT COST</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {formatMoney(r.unit_cost)}
             </span>
           </div>
@@ -265,7 +266,7 @@ function SupplyMaster({ stats, supplies }) {
         header: <div className="text-center w-full">SELLING PRICE</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {formatMoney(r.selling_price)}
             </span>
           </div>
@@ -377,20 +378,6 @@ function SupplyMaster({ stats, supplies }) {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-5">
-                <div className="ml-auto">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
-                    onClick={openCreateModal}
-                  >
-                    + New Supply
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
@@ -404,6 +391,17 @@ function SupplyMaster({ stats, supplies }) {
                 rows={supplyRows}
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={supplyPagination}
+                rightControls={
+                    <button
+                      type="button"
+                      title="Add Supply"
+                      aria-label="Add Supply"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={openCreateModal}
+                    >
+                      <IoAddCircle className="w-6 h-6" />
+                    </button>
+                  }
               />
             </div>
           </div>

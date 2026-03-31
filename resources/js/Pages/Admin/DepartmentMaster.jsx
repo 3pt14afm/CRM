@@ -5,6 +5,7 @@ import ProjectListSection from "@/Components/roi/ProjectListSection";
 import NewDepartmentModal from "@/Components/admin/modals/NewDepartmentModal";
 import EditDepartmentModal from "@/Components/admin/modals/EditDepartmentModal";
 import { MdEdit } from "react-icons/md";
+import { BsBuildingFillAdd, BsFillBuildingFill } from "react-icons/bs";
 
 function DepartmentMaster({ stats, departments }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -282,28 +283,30 @@ function DepartmentMaster({ stats, departments }) {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-5">
-                <div className="ml-auto">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
-                    onClick={openCreateModal}
-                  >
-                    + New Department
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
-                tableTitle="Departments"
+                tableTitle={
+                  <div className="flex items-center gap-2">
+                    <BsFillBuildingFill className="h-4 w-4" />
+                    <span>Departments</span>
+                  </div>
+                }
                 columns={departmentColumns}
                 rows={departmentRows}
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={departmentPagination}
+                rightControls={
+                    <button
+                      type="button"
+                      title="Add Department"
+                      aria-label="Add Department"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={openCreateModal}
+                    >
+                      <BsBuildingFillAdd className="w-5 h-5" />
+                    </button>
+                  }
               />
             </div>
           </div>

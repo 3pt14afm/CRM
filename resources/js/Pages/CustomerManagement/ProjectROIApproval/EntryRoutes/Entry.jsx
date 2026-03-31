@@ -581,7 +581,7 @@ export default function Entry({
                 onClick={() => setTab('Summary')}
                 className={`px-7 text-sm py-2 ${
                   tab === 'Summary'
-                    ? 'bg-[#B5EBA2]/10 font-medium border border-t-[#B5EBA2] border-b-0 border-x-[#B5EBA2] rounded-t-xl'
+                    ? 'bg-white border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
                     : 'bg-[#B5EBA2]/80 rounded-t-xl'
                 }`}
               >

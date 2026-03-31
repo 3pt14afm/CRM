@@ -14,13 +14,7 @@ export default {
         extend: {
             fontFamily: {
                 sans: [
-                    'Segoe UI',
-                    'Segoe UI Variable',
-                    'system-ui',
-                    '-apple-system',
-                    'BlinkMacSystemFont',
-                    'sans-serif',
-                    'Inter',
+                    'Inter', ...defaultTheme.fontFamily.sans,
                 ],
             },
             colors: {

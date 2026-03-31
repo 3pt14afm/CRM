@@ -1,4 +1,5 @@
 import AdminFormModal from "@/Components/admin/AdminFormModal";
+import { MdLocationPin } from "react-icons/md";
 
 export default function NewLocationModal({
   show,
@@ -14,7 +15,12 @@ export default function NewLocationModal({
       show={show}
       onClose={onClose}
       processing={processing}
-      title="New Location"
+      title={
+        <div className="flex items-center gap-1 text-lg font-bold">
+          <MdLocationPin className="h-5 w-5" />
+          <span>New Location</span>
+        </div>
+      }
       maxWidth="lg"
     >
       <form onSubmit={onSubmit} className="space-y-4">
@@ -23,7 +29,7 @@ export default function NewLocationModal({
             Location Name
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-xl border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.name}
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             placeholder="e.g. Manila HQ"
@@ -39,7 +45,7 @@ export default function NewLocationModal({
             Code
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-xl border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.code}
             onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
             placeholder="e.g. MNL"
@@ -55,7 +61,7 @@ export default function NewLocationModal({
           </label>
           <input
             type="text"
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-xl border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.phone_number}
             onChange={(e) =>
               setForm((p) => ({ ...p, phone_number: e.target.value }))
@@ -73,7 +79,7 @@ export default function NewLocationModal({
           </label>
           <input
             type="text"
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-xl border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.address}
             onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
             placeholder="Start typing an address..."

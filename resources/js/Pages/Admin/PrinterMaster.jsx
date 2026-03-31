@@ -6,6 +6,7 @@ import NewPrinterModal from "@/Components/admin/modals/NewPrinterModal";
 import EditPrinterModal from "@/Components/admin/modals/EditPrinterModal";
 import { MdEdit } from "react-icons/md";
 import { BsPrinterFill } from "react-icons/bs";
+import { IoAddCircle } from "react-icons/io5";
 
 function PrinterMaster({ stats, printerModels }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -194,7 +195,7 @@ function PrinterMaster({ stats, printerModels }) {
         header: <div className="text-center w-full">UNIT COST</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.unit_cost != null
                 ? Number(r.unit_cost).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
@@ -210,7 +211,7 @@ function PrinterMaster({ stats, printerModels }) {
         header: <div className="text-center w-full">SELLING PRICE</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm xl:text-base">
+            <span className="text-[11px] lg:text-sm">
               {r.selling_price != null
                 ? Number(r.selling_price).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
@@ -327,20 +328,6 @@ function PrinterMaster({ stats, printerModels }) {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-5">
-                <div className="ml-auto">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#289800] px-3 py-2 text-white font-semibold shadow-sm hover:brightness-95 md:text-xs lg:text-sm"
-                    onClick={openCreateModal}
-                  >
-                    + New Printer
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
@@ -354,6 +341,17 @@ function PrinterMaster({ stats, printerModels }) {
                 rows={printerRows}
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={printerPagination}
+                rightControls={
+                    <button
+                      type="button"
+                      title="Add Printer"
+                      aria-label="Add Printer"
+                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      onClick={openCreateModal}
+                    >
+                      <IoAddCircle className="w-6 h-6" />
+                    </button>
+                  }
               />
             </div>
           </div>
