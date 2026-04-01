@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::get('/supply-master', [SupplyController::class, 'supplyMaster'])->name('supply-master.index');
         Route::get('/printer-supplies', [PrinterSupplyController::class, 'printerSupplies'])->name('printer-supplies.index');
         Route::get('/user-management', [UserController::class, 'userManagement'])->name('user-management.index');
+        Route::get('/user-management/suggestions', [UserController::class, 'userManagementSuggestions'])->name('user-management.suggestions');
         Route::get('/approver-matrix', [ApproverMatrixController::class, 'index'])->name('approver-matrix.index');
         Route::get('/user-group-access-rights', [AdminController::class, 'userGroupAccessRights'])->name('user-group-access-rights.index');
         Route::get('/user-access-rights', [AdminController::class, 'userAccessRights'])->name('user-access-rights.index');
