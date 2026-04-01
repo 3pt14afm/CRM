@@ -17,6 +17,11 @@ function Names() {
     return usersById?.[String(id)]?.name ?? fallback;
   };
 
+  const positionOf = (id, fallback = '—') => {
+    if (!id) return fallback;
+    return usersById?.[String(id)]?.position ?? fallback;
+  };
+
   const snapSigns = projectData?.metadata?.signatories ?? {};
   const fromSnap = (key) => snapSigns?.[key] ?? '—';
 
@@ -26,25 +31,11 @@ function Names() {
     ? (project?.user?.name ?? nameOf(project?.user_id, '—'))
     : fromSnap('preparedBy');
 
-  const reviewedBy = hasPageProject
-    ? nameOf(project?.reviewed_by)
-    : fromSnap('reviewedBy');
-
-  const checkedBy = hasPageProject
-    ? nameOf(project?.checked_by)
-    : fromSnap('checkedBy');
-
-  const endorsedBy = hasPageProject
-    ? nameOf(project?.endorsed_by)
-    : fromSnap('endorsedBy');
-
-  const confirmedBy = hasPageProject
-    ? nameOf(project?.confirmed_by)
-    : fromSnap('confirmedBy');
-
-  const approvedBy = hasPageProject
-    ? nameOf(project?.approved_by)
-    : fromSnap('approvedBy');
+  const reviewedBy = hasPageProject ? nameOf(project?.reviewed_by) : fromSnap('reviewedBy');
+  const checkedBy = hasPageProject ? nameOf(project?.checked_by) : fromSnap('checkedBy');
+  const endorsedBy = hasPageProject ? nameOf(project?.endorsed_by) : fromSnap('endorsedBy');
+  const confirmedBy = hasPageProject ? nameOf(project?.confirmed_by) : fromSnap('confirmedBy');
+  const approvedBy = hasPageProject ? nameOf(project?.approved_by) : fromSnap('approvedBy');
 
   const rejectedBy = hasPageProject
     ? (isRejected ? nameOf(project?.rejected_by) : '—')
@@ -52,34 +43,46 @@ function Names() {
 
   const rejectedLevel = Number(project?.rejected_by_level ?? 0);
 
+  // Positions
+  const preparedByPosition = hasPageProject
+    ? (project?.user?.position ?? positionOf(project?.user_id))
+    : fromSnap('preparedByPosition');
+
+  const reviewedByPosition = hasPageProject ? positionOf(project?.reviewed_by) : fromSnap('reviewedByPosition');
+  const checkedByPosition = hasPageProject ? positionOf(project?.checked_by) : fromSnap('checkedByPosition');
+  const endorsedByPosition = hasPageProject ? positionOf(project?.endorsed_by) : fromSnap('endorsedByPosition');
+  const confirmedByPosition = hasPageProject ? positionOf(project?.confirmed_by) : fromSnap('confirmedByPosition');
+  const approvedByPosition = hasPageProject ? positionOf(project?.approved_by) : fromSnap('approvedByPosition');
+  const rejectedByPosition = hasPageProject ? positionOf(project?.rejected_by) : fromSnap('rejectedByPosition');
+
   return (
     <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-12">
       <div className="grid grid-cols-4 gap-y-12 gap-x-8 px-2 print:px-1">
-        <Signatory label="PREPARED BY:" name={preparedBy} title="Account Manager" />
+        <Signatory label="PREPARED BY:" name={preparedBy} title={preparedByPosition} />
 
         <Signatory
           label="REVIEWED BY:"
           name={isRejected && rejectedLevel === 2 ? rejectedBy : reviewedBy}
-          title="Sales Manager"
+          title={isRejected && rejectedLevel === 2 ? rejectedByPosition : reviewedByPosition}
         />
 
         <Signatory
           label="CHECKED BY:"
           name={isRejected && rejectedLevel === 3 ? rejectedBy : checkedBy}
-          title="Sales Director"
+          title={isRejected && rejectedLevel === 3 ? rejectedByPosition : checkedByPosition}
         />
 
         <Signatory
           label="ENDORSED BY:"
           name={isRejected && rejectedLevel === 4 ? rejectedBy : endorsedBy}
-          title="VP - Sales & Marketing"
+          title={isRejected && rejectedLevel === 4 ? rejectedByPosition : endorsedByPosition}
         />
 
         <div className="col-start-3">
           <Signatory
             label="CONFIRMED BY:"
             name={isRejected && rejectedLevel === 5 ? rejectedBy : confirmedBy}
-            title="Executive Admin Officer"
+            title={isRejected && rejectedLevel === 5 ? rejectedByPosition : confirmedByPosition}
           />
         </div>
 
@@ -87,7 +90,7 @@ function Names() {
           <Signatory
             label="APPROVED BY:"
             name={isRejected && rejectedLevel === 6 ? rejectedBy : approvedBy}
-            title="CEO/President"
+            title={isRejected && rejectedLevel === 6 ? rejectedByPosition : approvedByPosition}
           />
         </div>
       </div>

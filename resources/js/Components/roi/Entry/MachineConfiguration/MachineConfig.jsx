@@ -3,6 +3,65 @@ import { useProjectData } from '@/Context/ProjectContext';
 import { usePage } from '@inertiajs/react';
 import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculations';
 
+// ── Stable ID generator ────────────────────────────────────────────────────
+const genId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`;
+
+// ── Hydration helper ───────────────────────────────────────────────────────
+// IMPORTANT FIX:
+// Keep persisted ids instead of regenerating them.
+// This preserves linkedMachineRowId after draft reload.
+function buildHydratedRows(
+  { machine = [], consumable = [] },
+  { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable, enforceRowQty }
+) {
+  const hydratedMachines = machine.map((r) => {
+    const base = {
+      ...r,
+      id: r.id ?? genId(),
+      cost: r.inputtedCost ?? r.cost ?? '',
+      mode: r.mode || '',
+      selectedMachineId: r.selectedMachineId || '',
+      selectedConsumableId: '',
+      linkedMachineRowId: null,
+      autoAdded: false,
+      qty: 1,
+    };
+
+    Object.assign(base, hydrateMachineFields(base));
+    return enforceRowQty(base);
+  });
+
+  const hydratedConsumables = consumable.map((r) => {
+    const base = {
+      ...r,
+      id: r.id ?? genId(),
+      cost: r.inputtedCost ?? r.cost ?? '',
+      mode: r.mode || '',
+      selectedMachineId: '',
+      selectedConsumableId: r.selectedConsumableId || '',
+      linkedMachineRowId: r.linkedMachineRowId ?? null,
+      autoAdded: Boolean(r.autoAdded) || isPersistedAutoConsumable(r),
+      qty: 1,
+    };
+
+    if (
+      base.type === 'consumable' &&
+      !base.selectedConsumableId &&
+      (base.mode === 'mono' || base.mode === 'color')
+    ) {
+      base.selectedConsumableId = inferSelectedConsumableId(base);
+    }
+
+    return enforceRowQty(base);
+  });
+
+  return [...hydratedMachines, ...hydratedConsumables];
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 function MachineConfig({ readOnly }) {
   const {
     auth,
@@ -29,13 +88,10 @@ function MachineConfig({ readOnly }) {
   const sanitize2dp = (v) => {
     let s = String(v ?? '').replace(/,/g, '').trim();
     s = s.replace(/[^\d.]/g, '');
-
     const parts = s.split('.');
     if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
-
     const [a, b] = s.split('.');
     if (b !== undefined) s = `${a}.${b.slice(0, 2)}`;
-
     return s;
   };
 
@@ -95,12 +151,25 @@ function MachineConfig({ readOnly }) {
     (row?.mode === 'mono' || row?.mode === 'color') &&
     row?.linkedMachineRowId != null;
 
+const isLockedLinkedConsumable = (row) => {
+  if (row?.type !== 'consumable') return false;
+  if (row?.mode !== 'mono' && row?.mode !== 'color') return false;
+
+  const hasChosenCatalogConsumable = Boolean(row?.selectedConsumableId);
+  const hasPersistedPrinterConsumableSku = Boolean(String(row?.sku || '').trim());
+
+  return Boolean(
+    row?.linkedMachineRowId != null ||
+      row?.autoAdded ||
+      hasChosenCatalogConsumable ||
+      hasPersistedPrinterConsumableSku
+  );
+};
+
   const hydrateMachineFields = (row) => {
     if (row?.type !== 'machine') return row;
-
     const machineId = row.selectedMachineId || inferSelectedMachineId(row);
     const machine = findMachineById(machineId);
-
     return {
       ...row,
       selectedMachineId: machineId || '',
@@ -121,8 +190,15 @@ function MachineConfig({ readOnly }) {
     return row;
   };
 
+  const hydrateHelpers = {
+    hydrateMachineFields,
+    inferSelectedConsumableId,
+    isPersistedAutoConsumable,
+    enforceRowQty,
+  };
+
   const makeBlankRow = () => ({
-    id: Date.now() + Math.random(),
+    id: genId(),
     sku: '',
     cost: '',
     qty: 1,
@@ -138,7 +214,7 @@ function MachineConfig({ readOnly }) {
   });
 
   const makeAutoConsumableRow = (machineRowId, consumable) => ({
-    id: Date.now() + Math.random() + Math.random(),
+    id: genId(),
     sku: consumable.name,
     cost: normalize2dp(consumable.unitCost),
     qty: 1,
@@ -154,37 +230,12 @@ function MachineConfig({ readOnly }) {
   });
 
   const [rows, setRows] = useState(() => {
-    const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
-    const combined = [...machine, ...consumable];
-
-    return combined.length > 0
-      ? combined
-          .map((r) => {
-            const base = {
-              ...r,
-              cost: r.inputtedCost || r.cost,
-              mode: r.mode || '',
-              selectedMachineId: r.selectedMachineId || '',
-              selectedConsumableId: r.selectedConsumableId || '',
-              linkedMachineRowId: r.linkedMachineRowId || null,
-              autoAdded: Boolean(r.autoAdded) || isPersistedAutoConsumable(r),
-              qty: 1,
-            };
-
-            Object.assign(base, hydrateMachineFields(base));
-
-            if (
-              base.type === 'consumable' &&
-              !base.selectedConsumableId &&
-              (base.mode === 'mono' || base.mode === 'color')
-            ) {
-              base.selectedConsumableId = inferSelectedConsumableId(base);
-            }
-
-            return base;
-          })
-          .map(enforceRowQty)
-      : [makeBlankRow()];
+    const mc = projectData.machineConfiguration || {};
+    const combined = buildHydratedRows(
+      { machine: mc.machine || [], consumable: mc.consumable || [] },
+      hydrateHelpers
+    );
+    return combined.length > 0 ? combined : [makeBlankRow()];
   });
 
   useEffect(() => {
@@ -194,41 +245,9 @@ function MachineConfig({ readOnly }) {
     const mc = projectData.machineConfiguration || {};
     const machine = Array.isArray(mc.machine) ? mc.machine : [];
     const consumable = Array.isArray(mc.consumable) ? mc.consumable : [];
-    const combined = [...machine, ...consumable];
 
-    if (combined.length > 0) {
-      setRows(
-        combined
-          .map((r) => {
-            const base = {
-              ...r,
-              cost: r.inputtedCost ?? r.cost ?? '',
-              mode: r.mode || '',
-              selectedMachineId: r.selectedMachineId || '',
-              selectedConsumableId: r.selectedConsumableId || '',
-              linkedMachineRowId: r.linkedMachineRowId || null,
-              autoAdded: Boolean(r.autoAdded) || isPersistedAutoConsumable(r),
-              qty: 1,
-            };
-
-            Object.assign(base, hydrateMachineFields(base));
-
-            if (
-              base.type === 'consumable' &&
-              !base.selectedConsumableId &&
-              (base.mode === 'mono' || base.mode === 'color')
-            ) {
-              base.selectedConsumableId = inferSelectedConsumableId(base);
-            }
-
-            return base;
-          })
-          .map(enforceRowQty)
-      );
-    } else {
-      setRows([makeBlankRow()]);
-    }
-
+    const combined = buildHydratedRows({ machine, consumable }, hydrateHelpers);
+    setRows(combined.length > 0 ? combined : [makeBlankRow()]);
     setFocusedField(null);
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
@@ -273,62 +292,90 @@ function MachineConfig({ readOnly }) {
     );
   };
 
-  const handleMachineSelect = (id, selectedId) => {
-    const selectedMachine = findMachineById(selectedId);
+const handleMachineSelect = (id, selectedId) => {
+  const selectedMachine = findMachineById(selectedId);
 
-    setRows((prev) => {
-      const machineRowIndex = prev.findIndex((r) => r.id === id);
-      if (machineRowIndex === -1) return prev;
+  setRows((prev) => {
+    const currentMachineRow = prev.find((r) => r.id === id);
+    if (!currentMachineRow) return prev;
 
-      const rowsWithoutOldConsumables = prev.filter(
-        (r) => !(r.type === 'consumable' && r.autoAdded && r.linkedMachineRowId === id)
-      );
+    const oldMachine = findMachineById(currentMachineRow.selectedMachineId);
 
-      const updatedRows = rowsWithoutOldConsumables.map((r) => {
-        if (r.id !== id) return r;
+    const oldConsumableSkus = new Set(
+      (oldMachine?.consumables || []).map((c) => String(c.name).trim())
+    );
 
-        if (!selectedMachine) {
-          return {
-            ...r,
-            selectedMachineId: '',
-            sku: '',
-            cost: '',
-            price: '',
-            qty: 1,
-          };
-        }
+    const oldConsumableIds = new Set(
+      (oldMachine?.consumables || []).map((c) => String(c.id))
+    );
 
-        return {
-          ...r,
-          selectedMachineId: selectedMachine.id,
-          sku: selectedMachine.name,
-          cost: normalize2dp(selectedMachine.unitCost),
-          price: normalize2dp(selectedMachine.sellingPrice),
-          qty: 1,
-        };
-      });
+    const remainingRows = prev.filter((r) => {
+      // always remove the machine row itself, then reinsert updated row below
+      if (r.id === id) return false;
 
-      if (!selectedMachine) return updatedRows;
+      if (r.type !== 'consumable') return true;
 
-      const newConsumableRows = (selectedMachine.consumables || []).map((consumable) =>
-        makeAutoConsumableRow(id, consumable)
-      );
+      // primary: properly linked consumables
+      if (r.linkedMachineRowId === id) return false;
 
-      const newMachineIndex = updatedRows.findIndex((r) => r.id === id);
-      const result = [...updatedRows];
-      result.splice(newMachineIndex + 1, 0, ...newConsumableRows);
+      // fallback after draft reload:
+      // remove mono/color consumables that match the OLD machine's consumables
+      // even if linkedMachineRowId / autoAdded were lost in persistence
+      const isMonoColor = r.mode === 'mono' || r.mode === 'color';
+      const skuMatch = oldConsumableSkus.has(String(r.sku || '').trim());
+      const idMatch =
+        r.selectedConsumableId != null &&
+        oldConsumableIds.has(String(r.selectedConsumableId));
 
-      return result;
+      if (isMonoColor && (skuMatch || idMatch)) return false;
+
+      return true;
     });
-  };
+
+    if (!selectedMachine) {
+      const clearedMachineRow = {
+        ...currentMachineRow,
+        type: 'machine',
+        selectedMachineId: '',
+        sku: '',
+        cost: '',
+        price: '',
+        qty: 1,
+      };
+
+      const machineIndex = prev.findIndex((r) => r.id === id);
+      const result = [...remainingRows];
+      result.splice(machineIndex, 0, clearedMachineRow);
+      return result;
+    }
+
+    const updatedMachineRow = {
+      ...currentMachineRow,
+      type: 'machine',
+      selectedMachineId: selectedMachine.id,
+      sku: selectedMachine.name,
+      cost: normalize2dp(selectedMachine.unitCost),
+      price: normalize2dp(selectedMachine.sellingPrice),
+      qty: 1,
+    };
+
+    const newConsumableRows = (selectedMachine.consumables || []).map((consumable) =>
+      makeAutoConsumableRow(id, consumable)
+    );
+
+    const machineIndex = prev.findIndex((r) => r.id === id);
+    const result = [...remainingRows];
+    result.splice(machineIndex, 0, updatedMachineRow, ...newConsumableRows);
+
+    return result;
+  });
+};
 
   const handleConsumableSelect = (id, selectedId) => {
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
-
         const selectedConsumable = findConsumableById(row.mode, selectedId);
-
         if (!selectedConsumable) {
           return {
             ...row,
@@ -340,7 +387,6 @@ function MachineConfig({ readOnly }) {
             qty: 1,
           };
         }
-
         return {
           ...row,
           selectedConsumableId: selectedConsumable.id,
@@ -357,12 +403,11 @@ function MachineConfig({ readOnly }) {
   const toggleMachine = (id, isMachine) => {
     setRows((prev) => {
       const withoutLinkedAutoRows = prev.filter(
-        (r) => !(r.type === 'consumable' && r.autoAdded && r.linkedMachineRowId === id)
+        (r) => !(r.type === 'consumable' && r.linkedMachineRowId === id)
       );
 
       return withoutLinkedAutoRows.map((r) => {
         if (r.id !== id) return r;
-
         if (isMachine) {
           return {
             ...r,
@@ -380,7 +425,6 @@ function MachineConfig({ readOnly }) {
             autoAdded: false,
           };
         }
-
         return {
           ...r,
           type: 'consumable',
@@ -403,7 +447,6 @@ function MachineConfig({ readOnly }) {
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r;
-
         if (mode === 'mono' || mode === 'color' || mode === 'others') {
           return {
             ...r,
@@ -416,7 +459,6 @@ function MachineConfig({ readOnly }) {
             qty: 1,
           };
         }
-
         return {
           ...r,
           mode: '',
@@ -431,19 +473,17 @@ function MachineConfig({ readOnly }) {
     );
   };
 
-  const isRowStarted = (row) => {
-    return Boolean(
+  const isRowStarted = (row) =>
+    Boolean(
       String(row?.sku || '').trim() ||
         String(row?.cost || '').trim() ||
         String(row?.yields || '').trim() ||
         String(row?.price || '').trim() ||
         String(row?.remarks || '').trim()
     );
-  };
 
-  const shouldHighlightModeError = (row) => {
-    return row?.type === 'consumable' && isRowStarted(row) && !String(row?.mode || '').trim();
-  };
+  const shouldHighlightModeError = (row) =>
+    row?.type === 'consumable' && isRowStarted(row) && !String(row?.mode || '').trim();
 
   const addRow = () => setRows((prev) => [...prev, makeBlankRow()]);
 
@@ -451,7 +491,7 @@ function MachineConfig({ readOnly }) {
     rows.length > 1 &&
     setRows((prev) =>
       prev.filter(
-        (r) => r.id !== id && !(r.type === 'consumable' && r.autoAdded && r.linkedMachineRowId === id)
+        (r) => r.id !== id && !(r.type === 'consumable' && r.linkedMachineRowId === id)
       )
     );
 
@@ -471,6 +511,8 @@ function MachineConfig({ readOnly }) {
 
       return {
         ...normalizedRow,
+        linkedMachineRowId: r.linkedMachineRowId ?? null,
+        autoAdded: r.autoAdded ?? false,
         inputtedCost: calcs.inputtedCost,
         cost: calcs.computedCost,
         basePerYear: calcs.basePerYear,
@@ -483,8 +525,13 @@ function MachineConfig({ readOnly }) {
       };
     });
 
-    const machines = rowsWithCalculations.filter((r) => r.type === 'machine' && r.sku?.trim() !== '');
-    const consumables = rowsWithCalculations.filter((r) => r.type === 'consumable' && r.sku?.trim() !== '');
+    const machines = rowsWithCalculations.filter(
+      (r) => r.type === 'machine' && r.sku?.trim() !== ''
+    );
+
+    const consumables = rowsWithCalculations.filter(
+      (r) => r.type === 'consumable' && r.sku?.trim() !== ''
+    );
 
     let calculatedBundledPrice = 0;
     if (isMonthlyRental && isBundleChecked) {
@@ -549,7 +596,8 @@ function MachineConfig({ readOnly }) {
     'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
 
   const footerCellClass = 'bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ';
-  const disabledInputClass = 'border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed';
+  const disabledInputClass =
+    'border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed';
 
   return (
     <div className="mx-10 mb-5">
@@ -601,9 +649,7 @@ function MachineConfig({ readOnly }) {
                 const isMachineRow = row.type === 'machine';
 
                 const isOtherConsumable =
-                  row.type === 'consumable' &&
-                  row.mode === 'others' &&
-                  !row.autoAdded;
+                  row.type === 'consumable' && row.mode === 'others' && !row.autoAdded;
 
                 const shouldShowReadonlyConsumableSku =
                   row.type === 'consumable' &&
@@ -719,7 +765,9 @@ function MachineConfig({ readOnly }) {
                       <input
                         type="text"
                         inputMode="decimal"
-                        disabled={readOnly || isMachineRow || row.autoAdded}
+                        disabled={
+                          readOnly || isMachineRow || row.autoAdded || isLockedLinkedConsumable(row)
+                        }
                         value={
                           focusedField === keyOf(row.id, 'cost')
                             ? row.cost || ''
@@ -731,9 +779,13 @@ function MachineConfig({ readOnly }) {
                           handleInputChange(row.id, 'cost', normalize2dp(row.cost));
                         }}
                         onKeyDown={onlyNumericKeys(true)}
-                        onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
+                        onChange={(e) =>
+                          handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))
+                        }
                         className={`${inputClass} ${
-                          readOnly || isMachineRow || row.autoAdded ? disabledInputClass : ''
+                          readOnly || isMachineRow || row.autoAdded || isLockedLinkedConsumable(row)
+                            ? disabledInputClass
+                            : ''
                         }`}
                         placeholder="0.00"
                       />
@@ -772,10 +824,16 @@ function MachineConfig({ readOnly }) {
                         onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
-                        onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
-                        disabled={isMachineRow || row.autoAdded || readOnly}
+                        onChange={(e) =>
+                          handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))
+                        }
+                        disabled={
+                          isMachineRow || row.autoAdded || isLockedLinkedConsumable(row) || readOnly
+                        }
                         className={`${inputClass} ${
-                          isMachineRow || row.autoAdded || readOnly ? disabledInputClass : ''
+                          isMachineRow || row.autoAdded || isLockedLinkedConsumable(row) || readOnly
+                            ? disabledInputClass
+                            : ''
                         }`}
                         placeholder="0"
                       />
@@ -800,7 +858,9 @@ function MachineConfig({ readOnly }) {
                           handleInputChange(row.id, 'price', normalize2dp(row.price));
                         }}
                         onKeyDown={onlyNumericKeys(true)}
-                        onChange={(e) => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
+                        onChange={(e) =>
+                          handleInputChange(row.id, 'price', sanitize2dp(e.target.value))
+                        }
                         disabled={readOnly}
                         className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
                         placeholder="0.00"

@@ -550,13 +550,14 @@ private function buildConsumableCatalog()
         ])->filter()->unique()->values();
 
         $usersById = User::query()
-            ->whereIn('id', $userIds)
-            ->get(['id', 'first_name', 'last_name'])
-            ->keyBy(fn ($u) => (string) $u->id)
-            ->map(fn ($u) => [
-                'id' => $u->id,
-                'name' => trim($u->first_name . ' ' . $u->last_name),
-            ]);
+        ->whereIn('id', $userIds)
+        ->get(['id', 'first_name', 'last_name', 'position'])  // ← add position
+        ->keyBy(fn ($u) => (string) $u->id)
+        ->map(fn ($u) => [
+            'id' => $u->id,
+            'name' => trim($u->first_name . ' ' . $u->last_name),
+            'position' => $u->position ?? '—',  // ← add this line
+        ]);
 
         $project->notes = $this->sortTimelineEntries($project->notes);
         $project->comments = $this->sortTimelineEntries($project->comments);

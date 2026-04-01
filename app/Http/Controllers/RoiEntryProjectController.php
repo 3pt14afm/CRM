@@ -13,6 +13,7 @@ use App\Models\RoiEntryFee;
 use App\Models\RoiEntryItem;
 use App\Models\RoiEntryProject;
 use App\Models\Supply;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -104,6 +105,25 @@ class RoiEntryProjectController extends Controller
             'yields' => (string) ($supply->yield ?? ''),
         ];
     }
+
+    $userIds = collect([
+    $project->user_id,
+    $project->reviewed_by,
+    $project->checked_by,
+    $project->endorsed_by,
+    $project->confirmed_by,
+    $project->approved_by,
+])->filter()->unique()->values();
+
+$usersById = User::query()
+    ->whereIn('id', $userIds)
+    ->get(['id', 'first_name', 'last_name', 'position'])
+    ->keyBy(fn ($u) => (string) $u->id)
+    ->map(fn ($u) => [
+        'id' => $u->id,
+        'name' => trim($u->first_name . ' ' . $u->last_name),
+        'position' => $u->position ?? '—',
+    ]);
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
         'activeTab' => 'Machine Configuration',
