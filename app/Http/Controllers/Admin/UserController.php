@@ -21,6 +21,17 @@ class UserController extends Controller
         $departmentLookup = CompanyDepartment::orderBy('name')->get(['id', 'name']);
 
         $users = User::query()
+            ->when($request->search, function ($q) use ($request) {
+                $search = trim((string) $request->search);
+
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('employee_id', 'like', "%{$search}%")
+                        ->orWhere('position', 'like', "%{$search}%");
+                });
+            })
             ->when($request->status === 'active', fn ($q) =>
                 $q->where('is_banned', false)
             )
@@ -87,7 +98,7 @@ class UserController extends Controller
             'departments'    => $departmentLookup,
             'locationLookup' => $locationLookup,
             'stats'          => $stats,
-            'filters'        => $request->only(['status', 'location', 'department', 'position']),
+            'filters'        => $request->only(['search', 'status', 'location', 'department', 'position']),
         ]);
     }
 
@@ -348,5 +359,49 @@ class UserController extends Controller
         ]);
 
         return back()->with('success', 'User created successfully.');
+    }
+
+    public function userManagementSuggestions(Request $request)
+    {
+        $search = trim((string) $request->get('search', ''));
+
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $users = User::query()
+            ->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('position', 'like', "%{$search}%");
+            })
+            ->select(
+                'id',
+                'first_name',
+                'last_name',
+                'email',
+                'employee_id',
+                'position'
+            )
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit(8)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'label' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: '—',
+                    'subLabel' => $user->email ?: ($user->employee_id ?: '—'),
+                    'value' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                    'employee_id' => $user->employee_id,
+                    'email' => $user->email,
+                    'position' => $user->position,
+                ];
+            })
+            ->values();
+
+        return response()->json($users);
     }
 }

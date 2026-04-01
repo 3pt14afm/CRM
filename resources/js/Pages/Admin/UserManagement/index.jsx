@@ -1,6 +1,12 @@
 // resources/js/Pages/Admin/UserManagement.jsx
 
-import React, { useCallback, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
@@ -15,9 +21,36 @@ import usePositions from "./hooks/usePositions";
 import useDepartments from "./hooks/useDepartments";
 import { BsPersonFillAdd } from "react-icons/bs";
 import { FaUsers } from "react-icons/fa";
+import { FiSearch } from "react-icons/fi";
 
-function UserManagement({ users, locations, departments: departmentOptionsProp = [], filters = {} }) {
+function UserManagement({
+  users,
+  locations,
+  departments: departmentOptionsProp = [],
+  filters = {},
+}) {
   const formattedDate = formatShortDate();
+
+  const [searchQuery, setSearchQuery] = useState(filters.search ?? "");
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [userSuggestions, setUserSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const searchBoxRef = useRef(null);
+
+  useEffect(() => {
+    setSearchQuery(filters.search ?? "");
+  }, [filters.search]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(event.target)) {
+        setShowSearchSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const locationOptions = useMemo(() => {
     const rows = locations?.data ?? [];
@@ -44,6 +77,7 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
           location: nextFilters.location ?? filters.location ?? "",
           position: nextFilters.position ?? filters.position ?? "",
           department: nextFilters.department ?? filters.department ?? "",
+          search: nextFilters.search ?? filters.search ?? "",
           page: nextFilters.page ?? 1,
         },
         {
@@ -55,6 +89,63 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
     },
     [filters]
   );
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchQuery !== (filters.search ?? "")) {
+        applyFilters({ search: searchQuery, page: 1 });
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery, filters.search, applyFilters]);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+
+    if (!showSearchSuggestions || q.length < 1) {
+      setUserSuggestions([]);
+      setLoadingSuggestions(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        setLoadingSuggestions(true);
+
+        const response = await fetch(
+          `${route("admin.user-management.suggestions")}?search=${encodeURIComponent(q)}`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              "X-Requested-With": "XMLHttpRequest",
+            },
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load suggestions.");
+        }
+
+        const data = await response.json();
+        setUserSuggestions(Array.isArray(data) ? data : []);
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          setUserSuggestions([]);
+        }
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 200);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [searchQuery, showSearchSuggestions]);
 
   const goToPage = useCallback(
     (p) => {
@@ -87,6 +178,16 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
   const handleDepartmentChange = useCallback(
     (value) => {
       applyFilters({ department: value, page: 1 });
+    },
+    [applyFilters]
+  );
+
+  const handleSelectSuggestion = useCallback(
+    (item) => {
+      setSearchQuery(item.value ?? "");
+      setShowSearchSuggestions(false);
+      setUserSuggestions([]);
+      applyFilters({ search: item.value ?? "", page: 1 });
     },
     [applyFilters]
   );
@@ -129,8 +230,8 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
       Array.isArray(departmentOptionsProp) && departmentOptionsProp.length
         ? departmentOptionsProp
         : Array.isArray(departments)
-        ? departments
-        : [];
+          ? departments
+          : [];
 
     return [
       { label: "All", value: "" },
@@ -193,7 +294,8 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
                   User Management
                 </h1>
                 <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
-                  Manage user accounts, assigned positions, and reporting locations.
+                  Manage user accounts, assigned positions, and reporting
+                  locations.
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -240,37 +342,86 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
                 <ProjectListSection
                   tiles={[]}
                   tableTitle={
-                  <div className="flex items-center gap-2">
-                    <FaUsers className="h-5 w-5" />
-                    <span>User Management</span>
-                  </div>
-                }
+                    <div className="flex items-center gap-2">
+                      <FaUsers className="h-5 w-5" />
+                      <span>User Management</span>
+                    </div>
+                  }
                   columns={userColumns}
                   rows={userRows}
                   rowKey={(r) => String(r.id)}
                   pagination={userPagination}
                   rightControls={
-                    <button
-                      type="button"
-                      title="Add User"
-                      aria-label="Add User"
-                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
-                      onClick={assignModal.openAssignModal}
-                    >
-                      <BsPersonFillAdd className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div ref={searchBoxRef} className="relative">
+                        <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+
+                        <input
+                          className="w-64 rounded-full border border-black/10 bg-white px-3 py-1 pl-9 text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
+                          value={searchQuery}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSearchQuery(value);
+                            setShowSearchSuggestions(Boolean(value.trim()));
+                          }}
+                          onFocus={() => setShowSearchSuggestions(Boolean(searchQuery.trim()))}
+                          placeholder="Type name, email, employee ID..."
+                        />
+
+                        {/* {showSearchSuggestions && (
+                          <div className="absolute right-0 z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg">
+                            {loadingSuggestions ? (
+                              <div className="px-3 py-2 text-sm text-slate-500">
+                                Loading...
+                              </div>
+                            ) : userSuggestions.length > 0 ? (
+                              userSuggestions.map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  className="block w-full px-3 py-2 text-left text-sm hover:bg-[#FBFFFA]"
+                                  onClick={() => handleSelectSuggestion(item)}
+                                >
+                                  <div className="font-medium text-slate-800">
+                                    {item.label}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {item.subLabel}
+                                    {item.position ? ` • ${item.position}` : ""}
+                                  </div>
+                                </button>
+                              ))
+                            ) : searchQuery.trim() ? (
+                              <div className="px-3 py-2 text-sm text-slate-500">
+                                No matches found.
+                              </div>
+                            ) : null}
+                          </div>
+                        )} */}
+                      </div>
+
+                      <button
+                        type="button"
+                        title="Add User"
+                        aria-label="Add User"
+                        className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                        onClick={assignModal.openAssignModal}
+                      >
+                        <BsPersonFillAdd className="w-6 h-6" />
+                      </button>
+                    </div>
                   }
                 />
               </div>
             </div>
           </div>
         </div>
-
-        
       </div>
     </>
   );
 }
 
 export default UserManagement;
-UserManagement.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+UserManagement.layout = (page) => (
+  <AuthenticatedLayout>{page}</AuthenticatedLayout>
+);

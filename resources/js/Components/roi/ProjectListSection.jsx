@@ -107,7 +107,7 @@ export default function ProjectListSection({
             <tbody>
               {hasRows ? (
                 rows.map((r) => (
-                  <tr key={rowKey(r)} className="border-t border-black/5">
+                  <tr key={rowKey(r)} className="border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] border-black/5">
                     {columns.map((c) => (
                       <td key={c.key} className="px-8 py-2 md:px-3 md:text-xs lg:text-sm lg:px-4 xl:px-6">
                         {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
