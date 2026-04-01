@@ -22,10 +22,10 @@ function CompanyInfoSum() {
     const purpose = companyInfo.purpose || "No purpose provided for this contract.";
 
     return (
-        <div className='grid grid-cols-[70%_30%] items-stretch shadow-md rounded-md overflow-hidden border border-white/60 print:ml-0 print:border-gray-300 print:grid-cols-[70%_30%] print:shadow-md'>
+        <div className='grid grid-cols-[70%_30%] items-stretch shadow rounded-md overflow-hidden border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 print:ml-0 print:border-gray-300 print:grid-cols-[70%_30%] print:shadow-md'>
             
             {/* Left Side: White Card Content */}
-            <div className='flex flex-col bg-white px-9 pr-10 py-6 gap-2 print:px-5 print:pr-5 print:py-4'>
+            <div className='flex flex-col bg-[#FBFFFA] px-9 pr-10 py-6 gap-2 print:px-5 print:pr-5 print:py-4'>
                 <div className='flex gap-2 items-center'>
                     <FaFileContract color='green' />
                     <p className='font-bold text-xs text-gray-500 tracking-tight uppercase'>Contract Info</p>
@@ -46,7 +46,7 @@ function CompanyInfoSum() {
             </div>
 
             {/* Right Side: Purpose Section */}
-            <div className='flex flex-col gap-2 p-6 bg-[#F9FBF9] border-l border-gray-100 print:p-4'>
+            <div className='flex flex-col gap-2 p-6 bg-[#f2fcef] border-l border-gray-100 print:p-4'>
                 <p className='text-[10px] text-gray-600 font-bold uppercase tracking-wider'>Purpose</p>
                 <p className='text-[11px] font-medium leading-relaxed text-gray-600 '>
                     {purpose}
