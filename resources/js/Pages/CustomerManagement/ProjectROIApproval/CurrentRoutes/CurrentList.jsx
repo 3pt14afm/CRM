@@ -192,11 +192,7 @@ console.log({ currentProjects, stats });
         </div>
 
         {/* Keep footer spacing consistent with your pages if needed */}
-        <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className="px-10 py-3 flex items-center justify-end">
-            {/* No actions for list footer right now (intentionally empty) */}
-          </div>
-        </div>
+        
       </div>
       </>
   );
