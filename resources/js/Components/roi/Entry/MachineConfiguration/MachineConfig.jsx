@@ -80,6 +80,8 @@ function MachineConfig({ readOnly }) {
   const canEditRemarks = !readOnly && isEntryOwner;
 
   const [focusedField, setFocusedField] = useState(null);
+  const [activeSearchRowId, setActiveSearchRowId] = useState(null);
+
   const keyOf = (rowId, field) => `${rowId}:${field}`;
   const hydratedProjectKeyRef = useRef(null);
 
@@ -151,20 +153,20 @@ function MachineConfig({ readOnly }) {
     (row?.mode === 'mono' || row?.mode === 'color') &&
     row?.linkedMachineRowId != null;
 
-const isLockedLinkedConsumable = (row) => {
-  if (row?.type !== 'consumable') return false;
-  if (row?.mode !== 'mono' && row?.mode !== 'color') return false;
+  const isLockedLinkedConsumable = (row) => {
+    if (row?.type !== 'consumable') return false;
+    if (row?.mode !== 'mono' && row?.mode !== 'color') return false;
 
-  const hasChosenCatalogConsumable = Boolean(row?.selectedConsumableId);
-  const hasPersistedPrinterConsumableSku = Boolean(String(row?.sku || '').trim());
+    const hasChosenCatalogConsumable = Boolean(row?.selectedConsumableId);
+    const hasPersistedPrinterConsumableSku = Boolean(String(row?.sku || '').trim());
 
-  return Boolean(
-    row?.linkedMachineRowId != null ||
-      row?.autoAdded ||
-      hasChosenCatalogConsumable ||
-      hasPersistedPrinterConsumableSku
-  );
-};
+    return Boolean(
+      row?.linkedMachineRowId != null ||
+        row?.autoAdded ||
+        hasChosenCatalogConsumable ||
+        hasPersistedPrinterConsumableSku
+    );
+  };
 
   const hydrateMachineFields = (row) => {
     if (row?.type !== 'machine') return row;
@@ -249,6 +251,7 @@ const isLockedLinkedConsumable = (row) => {
     const combined = buildHydratedRows({ machine, consumable }, hydrateHelpers);
     setRows(combined.length > 0 ? combined : [makeBlankRow()]);
     setFocusedField(null);
+    setActiveSearchRowId(null);
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
@@ -292,91 +295,129 @@ const isLockedLinkedConsumable = (row) => {
     );
   };
 
-const handleMachineSelect = (id, selectedId) => {
-  const selectedMachine = findMachineById(selectedId);
+  const getMachineSuggestions = (query) => {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return [];
 
-  setRows((prev) => {
-    const currentMachineIndex = prev.findIndex((r) => r.id === id);
-    if (currentMachineIndex === -1) return prev;
+    return machineCatalog
+      .filter((item) => String(item.name || '').toLowerCase().includes(q))
+      .slice(0, 8);
+  };
 
-    const currentMachineRow = prev[currentMachineIndex];
-    const oldMachine = findMachineById(currentMachineRow.selectedMachineId);
+  const handleMachineSearchChange = (id, typedValue) => {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== id) return row;
 
-    const oldConsumableSkus = new Set(
-      (oldMachine?.consumables || []).map((c) => String(c.name).trim())
+        if (row.selectedMachineId) {
+          return {
+            ...row,
+            selectedMachineId: '',
+            sku: typedValue,
+            cost: '',
+            price: '',
+            qty: 1,
+          };
+        }
+
+        return {
+          ...row,
+          sku: typedValue,
+        };
+      })
     );
 
-    const oldConsumableIds = new Set(
-      (oldMachine?.consumables || []).map((c) => String(c.id))
-    );
+    setActiveSearchRowId(id);
+  };
 
-    // Find the next machine row so removal is scoped only to this machine block
-    let nextMachineIndex = prev.findIndex(
-      (r, index) => index > currentMachineIndex && r.type === 'machine'
-    );
-    if (nextMachineIndex === -1) nextMachineIndex = prev.length;
+  const handleMachineInputBlur = () => {
+    setTimeout(() => setActiveSearchRowId(null), 150);
+  };
 
-    const result = [];
+  const handleMachineSelect = (id, selectedId) => {
+    const selectedMachine = findMachineById(selectedId);
 
-    for (let i = 0; i < prev.length; i++) {
-      const r = prev[i];
+    setRows((prev) => {
+      const currentMachineIndex = prev.findIndex((r) => r.id === id);
+      if (currentMachineIndex === -1) return prev;
 
-      // remove current machine row itself, will reinsert updated one later
-      if (r.id === id) continue;
+      const currentMachineRow = prev[currentMachineIndex];
+      const oldMachine = findMachineById(currentMachineRow.selectedMachineId);
 
-      const isInsideCurrentMachineBlock =
-        i > currentMachineIndex && i < nextMachineIndex;
+      const oldConsumableSkus = new Set(
+        (oldMachine?.consumables || []).map((c) => String(c.name).trim())
+      );
 
-      if (isInsideCurrentMachineBlock && r.type === 'consumable') {
-        // primary: remove properly linked rows for this machine
-        if (r.linkedMachineRowId === id) continue;
+      const oldConsumableIds = new Set(
+        (oldMachine?.consumables || []).map((c) => String(c.id))
+      );
 
-        // fallback: only remove rows inside this machine's own block
-        const isMonoColor = r.mode === 'mono' || r.mode === 'color';
-        const skuMatch = oldConsumableSkus.has(String(r.sku || '').trim());
-        const idMatch =
-          r.selectedConsumableId != null &&
-          oldConsumableIds.has(String(r.selectedConsumableId));
+      let nextMachineIndex = prev.findIndex(
+        (r, index) => index > currentMachineIndex && r.type === 'machine'
+      );
+      if (nextMachineIndex === -1) nextMachineIndex = prev.length;
 
-        if (isMonoColor && (skuMatch || idMatch)) continue;
+      const result = [];
+
+      for (let i = 0; i < prev.length; i++) {
+        const r = prev[i];
+
+        if (r.id === id) continue;
+
+        const isInsideCurrentMachineBlock =
+          i > currentMachineIndex && i < nextMachineIndex;
+
+        if (isInsideCurrentMachineBlock && r.type === 'consumable') {
+          if (r.linkedMachineRowId === id) continue;
+
+          const isMonoColor = r.mode === 'mono' || r.mode === 'color';
+          const skuMatch = oldConsumableSkus.has(String(r.sku || '').trim());
+          const idMatch =
+            r.selectedConsumableId != null &&
+            oldConsumableIds.has(String(r.selectedConsumableId));
+
+          if (isMonoColor && (skuMatch || idMatch)) continue;
+        }
+
+        result.push(r);
       }
 
-      result.push(r);
-    }
+      if (!selectedMachine) {
+        const manualMachineRow = {
+          ...currentMachineRow,
+          type: 'machine',
+          selectedMachineId: '',
+          qty: 1,
+        };
 
-    if (!selectedMachine) {
-      const clearedMachineRow = {
+        result.splice(currentMachineIndex, 0, manualMachineRow);
+        return result;
+      }
+
+      const updatedMachineRow = {
         ...currentMachineRow,
         type: 'machine',
-        selectedMachineId: '',
-        sku: '',
-        cost: '',
-        price: '',
+        selectedMachineId: selectedMachine.id,
+        sku: selectedMachine.name,
+        cost: normalize2dp(selectedMachine.unitCost),
+        price: normalize2dp(selectedMachine.sellingPrice),
         qty: 1,
       };
 
-      result.splice(currentMachineIndex, 0, clearedMachineRow);
+      const newConsumableRows = (selectedMachine.consumables || []).map((consumable) =>
+        makeAutoConsumableRow(id, consumable)
+      );
+
+      result.splice(currentMachineIndex, 0, updatedMachineRow, ...newConsumableRows);
       return result;
-    }
+    });
 
-    const updatedMachineRow = {
-      ...currentMachineRow,
-      type: 'machine',
-      selectedMachineId: selectedMachine.id,
-      sku: selectedMachine.name,
-      cost: normalize2dp(selectedMachine.unitCost),
-      price: normalize2dp(selectedMachine.sellingPrice),
-      qty: 1,
-    };
+    setActiveSearchRowId(null);
+  };
 
-    const newConsumableRows = (selectedMachine.consumables || []).map((consumable) =>
-      makeAutoConsumableRow(id, consumable)
-    );
-
-    result.splice(currentMachineIndex, 0, updatedMachineRow, ...newConsumableRows);
-    return result;
-  });
-};
+  const handleMachineSuggestionSelect = (id, machine) => {
+    handleMachineSelect(id, machine.id);
+  };
 
   const handleConsumableSelect = (id, selectedId) => {
     setRows((prev) =>
@@ -597,7 +638,7 @@ const handleMachineSelect = (id, selectedId) => {
     'w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
 
   const selectClass =
-    'w-full min-w-0 h-8 text-[11px] print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-left cursor-pointer leading-tight';
+    'w-full min-w-0 h-8 text-[11px] print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-left leading-tight';
 
   const readonlyClass =
     'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
@@ -669,6 +710,13 @@ const handleMachineSelect = (id, selectedId) => {
                   !row.autoAdded &&
                   !shouldShowReadonlyConsumableSku;
 
+                const machineSuggestions =
+                  isMachineRow && activeSearchRowId === row.id
+                    ? getMachineSuggestions(row.sku)
+                    : [];
+
+                const isSelectedCatalogMachine = isMachineRow && Boolean(row.selectedMachineId);
+
                 return (
                   <tr key={row.id} className="border-b">
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
@@ -708,20 +756,42 @@ const handleMachineSelect = (id, selectedId) => {
 
                     <td className="border-b border-r border-darkgreen/15 p-1 text-black">
                       {isMachineRow ? (
-                        <select
-                          value={row.selectedMachineId || ''}
-                          onChange={(e) => handleMachineSelect(row.id, e.target.value)}
-                          disabled={readOnly}
-                          className={selectClass}
-                          title={row.sku || ''}
-                        >
-                          <option value="">Select Printer</option>
-                          {machineCatalog.map((machine) => (
-                            <option key={machine.id} value={machine.id}>
-                              {machine.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={row.sku || ''}
+                            disabled={readOnly}
+                            onChange={(e) => handleMachineSearchChange(row.id, e.target.value)}
+                            onFocus={() => setActiveSearchRowId(row.id)}
+                            onBlur={handleMachineInputBlur}
+                            className={selectClass}
+                            placeholder="Search printer or type manually"
+                            title={row.sku || ''}
+                            autoComplete="off"
+                          />
+
+                          {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
+                            <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-48 overflow-auto">
+                              {machineSuggestions.length > 0 ? (
+                                machineSuggestions.map((machine) => (
+                                  <button
+                                    key={machine.id}
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleMachineSuggestionSelect(row.id, machine)}
+                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-green-50"
+                                  >
+                                    {machine.name}
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="px-3 py-2 text-[12px] text-slate-500">
+                                  No printer found. Continue typing for manual entry.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ) : shouldShowConsumableDropdown ? (
                         <select
                           value={row.selectedConsumableId || ''}
@@ -773,7 +843,10 @@ const handleMachineSelect = (id, selectedId) => {
                         type="text"
                         inputMode="decimal"
                         disabled={
-                          readOnly || isMachineRow || row.autoAdded || isLockedLinkedConsumable(row)
+                          readOnly ||
+                          row.autoAdded ||
+                          isLockedLinkedConsumable(row) ||
+                          isSelectedCatalogMachine
                         }
                         value={
                           focusedField === keyOf(row.id, 'cost')
@@ -790,7 +863,10 @@ const handleMachineSelect = (id, selectedId) => {
                           handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))
                         }
                         className={`${inputClass} ${
-                          readOnly || isMachineRow || row.autoAdded || isLockedLinkedConsumable(row)
+                          readOnly ||
+                          row.autoAdded ||
+                          isLockedLinkedConsumable(row) ||
+                          isSelectedCatalogMachine
                             ? disabledInputClass
                             : ''
                         }`}
@@ -819,32 +895,38 @@ const handleMachineSelect = (id, selectedId) => {
                       </div>
                     </td>
 
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={
-                          focusedField === keyOf(row.id, 'yields')
-                            ? row.yields || ''
-                            : formatIntWithCommas(row.yields)
-                        }
-                        onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
-                        onBlur={() => setFocusedField(null)}
-                        onKeyDown={onlyNumericKeys(false)}
-                        onChange={(e) =>
-                          handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))
-                        }
-                        disabled={
-                          isMachineRow || row.autoAdded || isLockedLinkedConsumable(row) || readOnly
-                        }
-                        className={`${inputClass} ${
-                          isMachineRow || row.autoAdded || isLockedLinkedConsumable(row) || readOnly
-                            ? disabledInputClass
-                            : ''
-                        }`}
-                        placeholder="0"
-                      />
-                    </td>
+                   <td className="border-b border-r border-darkgreen/15 p-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={
+                        focusedField === keyOf(row.id, 'yields')
+                          ? row.yields || ''
+                          : formatIntWithCommas(row.yields)
+                      }
+                      onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
+                      onBlur={() => setFocusedField(null)}
+                      onKeyDown={onlyNumericKeys(false)}
+                      onChange={(e) =>
+                        handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))
+                      }
+                      disabled={
+                        readOnly ||
+                        row.autoAdded ||
+                        isLockedLinkedConsumable(row) ||
+                        (isMachineRow && Boolean(row.selectedMachineId))
+                      }
+                      className={`${inputClass} ${
+                        readOnly ||
+                        row.autoAdded ||
+                        isLockedLinkedConsumable(row) ||
+                        (isMachineRow && Boolean(row.selectedMachineId))
+                          ? disabledInputClass
+                          : ''
+                      }`}
+                      placeholder="0"
+                    />
+                  </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className={readonlyClass}>{formatNum(calcs.costCpp)}</div>
