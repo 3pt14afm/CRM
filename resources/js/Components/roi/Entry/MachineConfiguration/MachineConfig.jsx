@@ -296,9 +296,10 @@ const handleMachineSelect = (id, selectedId) => {
   const selectedMachine = findMachineById(selectedId);
 
   setRows((prev) => {
-    const currentMachineRow = prev.find((r) => r.id === id);
-    if (!currentMachineRow) return prev;
+    const currentMachineIndex = prev.findIndex((r) => r.id === id);
+    if (currentMachineIndex === -1) return prev;
 
+    const currentMachineRow = prev[currentMachineIndex];
     const oldMachine = findMachineById(currentMachineRow.selectedMachineId);
 
     const oldConsumableSkus = new Set(
@@ -309,28 +310,39 @@ const handleMachineSelect = (id, selectedId) => {
       (oldMachine?.consumables || []).map((c) => String(c.id))
     );
 
-    const remainingRows = prev.filter((r) => {
-      // always remove the machine row itself, then reinsert updated row below
-      if (r.id === id) return false;
+    // Find the next machine row so removal is scoped only to this machine block
+    let nextMachineIndex = prev.findIndex(
+      (r, index) => index > currentMachineIndex && r.type === 'machine'
+    );
+    if (nextMachineIndex === -1) nextMachineIndex = prev.length;
 
-      if (r.type !== 'consumable') return true;
+    const result = [];
 
-      // primary: properly linked consumables
-      if (r.linkedMachineRowId === id) return false;
+    for (let i = 0; i < prev.length; i++) {
+      const r = prev[i];
 
-      // fallback after draft reload:
-      // remove mono/color consumables that match the OLD machine's consumables
-      // even if linkedMachineRowId / autoAdded were lost in persistence
-      const isMonoColor = r.mode === 'mono' || r.mode === 'color';
-      const skuMatch = oldConsumableSkus.has(String(r.sku || '').trim());
-      const idMatch =
-        r.selectedConsumableId != null &&
-        oldConsumableIds.has(String(r.selectedConsumableId));
+      // remove current machine row itself, will reinsert updated one later
+      if (r.id === id) continue;
 
-      if (isMonoColor && (skuMatch || idMatch)) return false;
+      const isInsideCurrentMachineBlock =
+        i > currentMachineIndex && i < nextMachineIndex;
 
-      return true;
-    });
+      if (isInsideCurrentMachineBlock && r.type === 'consumable') {
+        // primary: remove properly linked rows for this machine
+        if (r.linkedMachineRowId === id) continue;
+
+        // fallback: only remove rows inside this machine's own block
+        const isMonoColor = r.mode === 'mono' || r.mode === 'color';
+        const skuMatch = oldConsumableSkus.has(String(r.sku || '').trim());
+        const idMatch =
+          r.selectedConsumableId != null &&
+          oldConsumableIds.has(String(r.selectedConsumableId));
+
+        if (isMonoColor && (skuMatch || idMatch)) continue;
+      }
+
+      result.push(r);
+    }
 
     if (!selectedMachine) {
       const clearedMachineRow = {
@@ -343,9 +355,7 @@ const handleMachineSelect = (id, selectedId) => {
         qty: 1,
       };
 
-      const machineIndex = prev.findIndex((r) => r.id === id);
-      const result = [...remainingRows];
-      result.splice(machineIndex, 0, clearedMachineRow);
+      result.splice(currentMachineIndex, 0, clearedMachineRow);
       return result;
     }
 
@@ -363,10 +373,7 @@ const handleMachineSelect = (id, selectedId) => {
       makeAutoConsumableRow(id, consumable)
     );
 
-    const machineIndex = prev.findIndex((r) => r.id === id);
-    const result = [...remainingRows];
-    result.splice(machineIndex, 0, updatedMachineRow, ...newConsumableRows);
-
+    result.splice(currentMachineIndex, 0, updatedMachineRow, ...newConsumableRows);
     return result;
   });
 };
