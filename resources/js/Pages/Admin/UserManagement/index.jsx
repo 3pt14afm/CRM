@@ -203,7 +203,7 @@ function UserManagement({ users, locations, departments: departmentOptionsProp =
 
             <div className="mt-4">
               <div className="-mx-4 md:-mx-6 lg:-mx-10">
-                <div className="-mb-2 mx-6 lg:mx-10 rounded-lg border border-b-black/20 border-black/10 bg-white px-4 py-2 shadow">
+                <div className="-mb-2 mx-6 lg:mx-10 rounded-lg border border-[#00000010] border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterPill
                       label="Status"
