@@ -86,7 +86,7 @@ export default function ProjectListSection({
       </div>
 
       {/* Table */}
-      <div className="mt-6 bg-white rounded-xl border border-b-black/20 border-black/10 shadow-md">
+      <div className="mt-6 bg-white rounded-xl border border-[#00000012] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
         <div className="flex items-center justify-between px-8 py-4 border-b border-black/10 md:px-3 md:py-3 lg:px-4 xl:px-6">
           <h2 className="font-semibold text-xs md:text-sm lg:text-base xl:text-lg">{tableTitle}</h2>
           <div className="flex items-center gap-2">{rightControls}</div>
