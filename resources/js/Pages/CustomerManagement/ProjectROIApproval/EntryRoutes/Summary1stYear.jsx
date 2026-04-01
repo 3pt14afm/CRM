@@ -20,7 +20,7 @@ function Summary1stYear() {
   const reviewerRoles = ['reviewer', 'checker', 'endorser', 'confirmer', 'approver'];
  
   return (
-    <div className='mx-5 print:mx-0 bg-white border rounded-r-lg rounded-b-xl border-t-0 border-b-[#2c2c2e]/30 border-[#2c2c2e]/20 shadow-md print:border-none print:bg-transparent'>
+    <div className='mx-5 print:mx-0 bg-[#f8f8f8] border rounded-r-lg rounded-b-xl border-t-[#2c2c2e]/10 border-b-[#2c2c2e]/30 border-[#2c2c2e]/20 shadow-md print:border-none print:bg-transparent'>
       <div className='mx-10 print:mx-0 print:pt-0 pt-8'>
 
         {/* ================= PAGE 1 ================= */}

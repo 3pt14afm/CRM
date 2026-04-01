@@ -6,6 +6,7 @@ import NewPreferenceModal from "@/Components/admin/modals/NewPreferenceModal";
 import EditPreferenceModal from "@/Components/admin/modals/EditPreferenceModal";
 import { MdEdit } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
+import { RiSettingsFill } from "react-icons/ri";
 
 function Preferences({ stats, preferences }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -325,7 +326,12 @@ function Preferences({ stats, preferences }) {
             <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
               <ProjectListSection
                 tiles={[]}
-                tableTitle="Preferences"
+                tableTitle={
+                  <div className="flex items-center gap-2">
+                    <RiSettingsFill className="h-4 w-4" />
+                    <span>Preferences</span>
+                  </div>
+                }
                 columns={preferenceColumns}
                 rows={preferenceRows}
                 rowKey={(r, i) => String(r.id ?? i)}

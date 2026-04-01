@@ -568,10 +568,10 @@ export default function Entry({
             <div className="flex gap-[2px]">
               <button
                 onClick={() => setTab('Machine')}
-                className={`px-7 text-sm py-2 ${
+                className={`px-7 text-sm py-1 ${
                   tab === 'Machine'
-                    ? 'bg-white border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
-                    : 'bg-[#B5EBA2]/80 rounded-t-xl'
+                    ? 'bg-[#f8f8f8] border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
+                    : 'bg-[#B5EBA2]/50 mt-2 pt-2 rounded-t-xl'
                 }`}
               >
                 Machine Configuration
@@ -579,10 +579,10 @@ export default function Entry({
 
               <button
                 onClick={() => setTab('Summary')}
-                className={`px-7 text-sm py-2 ${
+                className={`px-7 text-sm py-1 ${
                   tab === 'Summary'
-                    ? 'bg-white border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
-                    : 'bg-[#B5EBA2]/80 rounded-t-xl'
+                    ? 'bg-[#f8f8f8] border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
+                    : 'bg-[#B5EBA2]/50 mt-2 pt-2 rounded-t-xl'
                 }`}
               >
                 Summary

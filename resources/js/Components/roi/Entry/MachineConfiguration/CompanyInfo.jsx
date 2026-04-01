@@ -58,12 +58,12 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const showBundledInk = contractType === "Rental + Supplies";
 
   const baseInput =
-    "rounded-sm border px-2 text-sm outline-none focus:outline-none focus:ring-0 h-10";
+    "rounded-xl border px-2 text-sm outline-none focus:outline-none focus:ring-0 h-10";
   const okBorder = "border-darkgreen/10 focus:border-[#289800]";
   const errBorder = "border-red-500 focus:border-red-500";
 
   return (
-    <div className="flex flex-col bg-lightgreen/5 shadow-md border border-slate-300 rounded-md p-8 gap-1 w-full lg:w-[60%] min-w-96">
+    <div className="flex flex-col bg-[#FBFFFA] shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 rounded-xl p-8 gap-1 w-full lg:w-[60%] min-w-96">
       <div className="flex justify-between items-center">
         <div className="flex flex-col gap-1 w-[70%]">
           <p className="font-bold text-[11px] uppercase">Company Name</p>
@@ -112,7 +112,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             {/* left column (same width as company name input) */}
             <div className="w-[70%]">
               <select
-                className={`w-full rounded-sm border px-2 text-sm h-10 outline-none focus:outline-none focus:ring-0 bg-white ${
+                className={`w-full rounded-xl border px-2 text-sm h-10 outline-none focus:outline-none focus:ring-0 bg-white ${
                   !projectData?.companyInfo?.contractType ? "text-slate-400" : "text-black"
                 } ${showContractTypeError ? "border-red-500 focus:border-red-500 bg-red-50" : "border-darkgreen/10 focus:border-[#289800]"}`}
                 disabled={readOnly}
@@ -170,7 +170,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
         <div className="flex flex-col">
           <p className="font-bold text-[11px] uppercase ">Purpose</p>
           <input
-            className="rounded-sm border px-2 text-sm border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800]"
+            className="rounded-xl border px-2 text-sm border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800]"
             type="text"
             value={projectData?.companyInfo?.purpose ?? ""}
             disabled={readOnly}
