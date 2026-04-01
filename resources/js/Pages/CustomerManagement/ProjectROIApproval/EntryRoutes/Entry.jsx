@@ -611,8 +611,8 @@ export default function Entry({
           ) : null}
         </div>
 
-        <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className="px-10 py-3 flex items-center justify-between relative">
+        <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
+          <div className="px-10 py-2 flex items-center justify-between relative">
             {showMachineDraftActions && (
               <>
                 <button
