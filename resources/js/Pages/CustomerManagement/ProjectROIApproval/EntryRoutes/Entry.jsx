@@ -407,21 +407,21 @@ export default function Entry({
     }
 
     const payload = buildPayload();
-    const toastId = toast.loading("Submitting...");
+    // const toastId = toast.loading("Submitting...");
 
     router.patch(ziggyRoute("roi.entry.projects.submit", projectId), payload, {
       preserveScroll: true,
-      onSuccess: (page) => {
-        const flashError = page?.props?.flash?.error;
-        const flashSuccess = page?.props?.flash?.success;
+      // onSuccess: (page) => {
+      //   const flashError = page?.props?.flash?.error;
+      //   const flashSuccess = page?.props?.flash?.success;
 
-        if (flashError) {
-          toast.error(flashError, { id: toastId });
-          return;
-        }
+      //   if (flashError) {
+      //     toast.error(flashError);
+      //     return;
+      //   }
 
-        toast.success(flashSuccess || "Project submitted!", { id: toastId });
-      },
+      //   toast.success(flashSuccess || "Project submitted!", { id: toastId });
+      // },
       onError: (errors) => {
         const message = Object.values(errors)[0] || "Failed to submit.";
         toast.error(message, { id: toastId });

@@ -349,11 +349,12 @@ Route::middleware(['auth', 'verified'])
             });
         });
 
-        Route::post('/roi/chat/message', [RoiChatController::class, 'message'])
-    ->name('roi.chat.message');
+        // Route::post('/roi/chat/message', [RoiChatController::class, 'message'])
+        //     ->name('roi.chat.message');
 
-Route::post('/roi/chat/reset', [RoiChatController::class, 'reset'])
-    ->name('roi.chat.reset');
-    });
+        // Route::post('/roi/chat/reset', [RoiChatController::class, 'reset'])
+        //     ->name('roi.chat.reset');
+
+            });
 
 require __DIR__ . '/auth.php';

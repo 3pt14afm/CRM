@@ -4,7 +4,14 @@ import { usePage } from '@inertiajs/react';
 import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculations';
 
 function MachineConfig({ readOnly }) {
-  const { auth, entryProject, project: inertiaProject } = usePage().props;
+  const {
+    auth,
+    entryProject,
+    project: inertiaProject,
+    machineCatalog = [],
+    consumableCatalog = { mono: [], color: [], others: [] },
+  } = usePage().props;
+
   const { setProjectData, projectData } = useProjectData();
 
   const currentUserId = auth?.user?.id ?? auth?.id ?? null;
@@ -67,78 +74,45 @@ function MachineConfig({ readOnly }) {
     e.preventDefault();
   };
 
-  // ------------------------------------
-  // FAKE DATABASE
-  // ------------------------------------
-  const machineOptions = [
-    {
-      id: 'm1',
-      name: 'HP LaserJet Enterprise M612',
-      unitCost: '125000.00',
-      sellingPrice: '145000.00',
-      consumables: [
-        { id: 'm1-mono-1', mode: 'mono', name: 'HP 147A Black Toner', unitCost: '6500.00', yields: '10500' },
-        { id: 'm1-mono-2', mode: 'mono', name: 'HP 147X High Yield Black Toner', unitCost: '8900.00', yields: '25200' },
-      ],
-    },
-    {
-      id: 'm2',
-      name: 'Canon imageRUNNER 2630i',
-      unitCost: '98000.00',
-      sellingPrice: '112000.00',
-      consumables: [
-        { id: 'm2-mono-1', mode: 'mono', name: 'Canon NPG-59 Black Toner', unitCost: '4200.00', yields: '10000' },
-      ],
-    },
-    {
-      id: 'm3',
-      name: 'HP Color LaserJet Pro M454dn',
-      unitCost: '76000.00',
-      sellingPrice: '84500.00',
-      consumables: [
-        { id: 'm3-mono-1', mode: 'mono', name: 'HP 415A Black Toner', unitCost: '5000.00', yields: '2400' },
-        { id: 'm3-color-1', mode: 'color', name: 'HP 415A Cyan Toner', unitCost: '4800.00', yields: '2100' },
-        { id: 'm3-color-2', mode: 'color', name: 'HP 415A Magenta Toner', unitCost: '4800.00', yields: '2100' },
-        { id: 'm3-color-3', mode: 'color', name: 'HP 415A Yellow Toner', unitCost: '4800.00', yields: '2100' },
-      ],
-    },
-    {
-      id: 'm4',
-      name: 'Brother MFC-L6900DW',
-      unitCost: '87500.00',
-      sellingPrice: '96500.00',
-      consumables: [
-        { id: 'm4-mono-1', mode: 'mono', name: 'Brother TN-3448 Black Toner', unitCost: '3900.00', yields: '8000' },
-        { id: 'm4-others-1', mode: 'others', name: 'Brother DR-3455 Drum Unit', unitCost: '5200.00', yields: '30000' },
-      ],
-    },
-  ];
+  const findMachineById = (id) =>
+    machineCatalog.find((item) => String(item.id) === String(id));
 
-  const generalConsumables = {
-    mono: [
-      { id: 'mono1', name: 'HP 147A Black Toner', unitCost: '6500.00', yields: '10500' },
-      { id: 'mono2', name: 'Canon NPG-59 Black Toner', unitCost: '4200.00', yields: '10000' },
-      { id: 'mono3', name: 'Brother TN-3448 Black Toner', unitCost: '3900.00', yields: '8000' },
-    ],
-    color: [
-      { id: 'color1', name: 'HP 415A Cyan Toner', unitCost: '4800.00', yields: '2100' },
-      { id: 'color2', name: 'HP 415A Magenta Toner', unitCost: '4800.00', yields: '2100' },
-      { id: 'color3', name: 'HP 415A Yellow Toner', unitCost: '4800.00', yields: '2100' },
-      { id: 'color4', name: 'Canon Cyan Toner C-EXV', unitCost: '5200.00', yields: '1900' },
-    ],
-  };
-
-  const findMachineById = (id) => machineOptions.find((item) => item.id === id);
-  const findConsumableById = (mode, id) => (generalConsumables[mode] || []).find((item) => item.id === id);
+  const findConsumableById = (mode, id) =>
+    (consumableCatalog[mode] || []).find((item) => String(item.id) === String(id));
 
   const inferSelectedMachineId = (row) => {
-    const matched = machineOptions.find((item) => item.name === row.sku);
+    const matched = machineCatalog.find((item) => item.name === row.sku);
     return matched?.id || '';
   };
 
   const inferSelectedConsumableId = (row) => {
-    const matched = (generalConsumables[row.mode] || []).find((item) => item.name === row.sku);
+    const matched = (consumableCatalog[row.mode] || []).find((item) => item.name === row.sku);
     return matched?.id || '';
+  };
+
+  const isPersistedAutoConsumable = (row) =>
+    row?.type === 'consumable' &&
+    (row?.mode === 'mono' || row?.mode === 'color') &&
+    row?.linkedMachineRowId != null;
+
+  const hydrateMachineFields = (row) => {
+    if (row?.type !== 'machine') return row;
+
+    const machineId = row.selectedMachineId || inferSelectedMachineId(row);
+    const machine = findMachineById(machineId);
+
+    return {
+      ...row,
+      selectedMachineId: machineId || '',
+      cost:
+        row.cost !== '' && row.cost != null
+          ? row.cost
+          : normalize2dp(machine?.unitCost),
+      price:
+        row.price !== '' && row.price != null
+          ? row.price
+          : normalize2dp(machine?.sellingPrice),
+    };
   };
 
   const enforceRowQty = (row) => {
@@ -169,7 +143,7 @@ function MachineConfig({ readOnly }) {
     cost: normalize2dp(consumable.unitCost),
     qty: 1,
     yields: consumable.yields,
-    price: '',
+    price: normalize2dp(consumable.sellingPrice),
     remarks: '',
     type: 'consumable',
     mode: consumable.mode || '',
@@ -193,13 +167,11 @@ function MachineConfig({ readOnly }) {
               selectedMachineId: r.selectedMachineId || '',
               selectedConsumableId: r.selectedConsumableId || '',
               linkedMachineRowId: r.linkedMachineRowId || null,
-              autoAdded: Boolean(r.autoAdded),
+              autoAdded: Boolean(r.autoAdded) || isPersistedAutoConsumable(r),
               qty: 1,
             };
 
-            if (base.type === 'machine' && !base.selectedMachineId) {
-              base.selectedMachineId = inferSelectedMachineId(base);
-            }
+            Object.assign(base, hydrateMachineFields(base));
 
             if (
               base.type === 'consumable' &&
@@ -235,13 +207,11 @@ function MachineConfig({ readOnly }) {
               selectedMachineId: r.selectedMachineId || '',
               selectedConsumableId: r.selectedConsumableId || '',
               linkedMachineRowId: r.linkedMachineRowId || null,
-              autoAdded: Boolean(r.autoAdded),
+              autoAdded: Boolean(r.autoAdded) || isPersistedAutoConsumable(r),
               qty: 1,
             };
 
-            if (base.type === 'machine' && !base.selectedMachineId) {
-              base.selectedMachineId = inferSelectedMachineId(base);
-            }
+            Object.assign(base, hydrateMachineFields(base));
 
             if (
               base.type === 'consumable' &&
@@ -365,6 +335,7 @@ function MachineConfig({ readOnly }) {
             selectedConsumableId: '',
             sku: '',
             cost: '',
+            price: '',
             yields: '',
             qty: 1,
           };
@@ -375,6 +346,7 @@ function MachineConfig({ readOnly }) {
           selectedConsumableId: selectedConsumable.id,
           sku: selectedConsumable.name,
           cost: normalize2dp(selectedConsumable.unitCost),
+          price: normalize2dp(selectedConsumable.sellingPrice),
           yields: selectedConsumable.yields,
           qty: 1,
         };
@@ -439,6 +411,7 @@ function MachineConfig({ readOnly }) {
             selectedConsumableId: '',
             sku: '',
             cost: '',
+            price: '',
             yields: '',
             qty: 1,
           };
@@ -450,6 +423,7 @@ function MachineConfig({ readOnly }) {
           selectedConsumableId: '',
           sku: '',
           cost: '',
+          price: '',
           yields: '',
           qty: 1,
         };
@@ -571,7 +545,9 @@ function MachineConfig({ readOnly }) {
   const selectClass =
     'w-full min-w-0 h-8 text-[11px] print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-left cursor-pointer leading-tight';
 
-  const readonlyClass = 'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
+  const readonlyClass =
+    'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
+
   const footerCellClass = 'bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ';
   const disabledInputClass = 'border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed';
 
@@ -624,15 +600,21 @@ function MachineConfig({ readOnly }) {
                 const calcs = getRowCalculations(normalizedRow, projectData);
                 const isMachineRow = row.type === 'machine';
 
-                const isDbConsumable =
-                  row.type === 'consumable' &&
-                  (row.mode === 'mono' || row.mode === 'color') &&
-                  !row.autoAdded;
-
                 const isOtherConsumable =
                   row.type === 'consumable' &&
                   row.mode === 'others' &&
                   !row.autoAdded;
+
+                const shouldShowReadonlyConsumableSku =
+                  row.type === 'consumable' &&
+                  (row.mode === 'mono' || row.mode === 'color') &&
+                  Boolean(row.selectedConsumableId || row.sku);
+
+                const shouldShowConsumableDropdown =
+                  row.type === 'consumable' &&
+                  (row.mode === 'mono' || row.mode === 'color') &&
+                  !row.autoAdded &&
+                  !shouldShowReadonlyConsumableSku;
 
                 return (
                   <tr key={row.id} className="border-b">
@@ -681,13 +663,13 @@ function MachineConfig({ readOnly }) {
                           title={row.sku || ''}
                         >
                           <option value="">Select Printer</option>
-                          {machineOptions.map((machine) => (
+                          {machineCatalog.map((machine) => (
                             <option key={machine.id} value={machine.id}>
                               {machine.name}
                             </option>
                           ))}
                         </select>
-                      ) : isDbConsumable ? (
+                      ) : shouldShowConsumableDropdown ? (
                         <select
                           value={row.selectedConsumableId || ''}
                           onChange={(e) => handleConsumableSelect(row.id, e.target.value)}
@@ -696,12 +678,21 @@ function MachineConfig({ readOnly }) {
                           title={row.sku || ''}
                         >
                           <option value="">Select Consumable</option>
-                          {(generalConsumables[row.mode] || []).map((item) => (
+                          {(consumableCatalog[row.mode] || []).map((item) => (
                             <option key={item.id} value={item.id}>
                               {item.name}
                             </option>
                           ))}
                         </select>
+                      ) : shouldShowReadonlyConsumableSku ? (
+                        <input
+                          type="text"
+                          value={row.sku || ''}
+                          disabled
+                          className={`${inputClass} ${disabledInputClass}`}
+                          placeholder="Consumable"
+                          title={row.sku || ''}
+                        />
                       ) : (
                         <input
                           type="text"
@@ -728,7 +719,7 @@ function MachineConfig({ readOnly }) {
                       <input
                         type="text"
                         inputMode="decimal"
-                        disabled={readOnly || isMachineRow || isDbConsumable || row.autoAdded}
+                        disabled={readOnly || isMachineRow || row.autoAdded}
                         value={
                           focusedField === keyOf(row.id, 'cost')
                             ? row.cost || ''
@@ -741,7 +732,9 @@ function MachineConfig({ readOnly }) {
                         }}
                         onKeyDown={onlyNumericKeys(true)}
                         onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
-                        className={`${inputClass} ${isMachineRow || isDbConsumable || row.autoAdded ? disabledInputClass : ''}`}
+                        className={`${inputClass} ${
+                          readOnly || isMachineRow || row.autoAdded ? disabledInputClass : ''
+                        }`}
                         placeholder="0.00"
                       />
                     </td>
@@ -780,8 +773,10 @@ function MachineConfig({ readOnly }) {
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
-                        disabled={isMachineRow || isDbConsumable || row.autoAdded || readOnly}
-                        className={`${inputClass} ${isMachineRow || isDbConsumable || row.autoAdded ? disabledInputClass : ''}`}
+                        disabled={isMachineRow || row.autoAdded || readOnly}
+                        className={`${inputClass} ${
+                          isMachineRow || row.autoAdded || readOnly ? disabledInputClass : ''
+                        }`}
                         placeholder="0"
                       />
                     </td>
@@ -806,8 +801,8 @@ function MachineConfig({ readOnly }) {
                         }}
                         onKeyDown={onlyNumericKeys(true)}
                         onChange={(e) => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
-                        disabled={isMachineRow || readOnly}
-                        className={`${inputClass} ${isMachineRow ? disabledInputClass : ''}`}
+                        disabled={readOnly}
+                        className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
                         placeholder="0.00"
                       />
                     </td>
@@ -850,7 +845,9 @@ function MachineConfig({ readOnly }) {
                         onChange={(e) => handleInputChange(row.id, 'remarks', e.target.value)}
                         placeholder="Enter remarks"
                         disabled={!canEditRemarks}
-                        className={`${inputClass} normal-case text-start ${!canEditRemarks ? disabledInputClass : ''}`}
+                        className={`${inputClass} normal-case text-start ${
+                          !canEditRemarks ? disabledInputClass : ''
+                        }`}
                       />
                     </td>
                   </tr>

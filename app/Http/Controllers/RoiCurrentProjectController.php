@@ -462,6 +462,75 @@ class RoiCurrentProjectController extends Controller
         ]);
     }
 
+    private function buildMachineCatalog()
+{
+    return \App\Models\PrinterModel::query()
+        ->with([
+            'printerModelSupplies.supply:id,category,print_type,supply_name,yield,unit_cost,selling_price,status',
+        ])
+        ->where('status', 'Active')
+        ->orderBy('printer_name')
+        ->get()
+        ->map(function ($printer) {
+            return [
+                'id' => (string) $printer->id,
+                'name' => $printer->printer_name,
+                'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
+                'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
+                'consumables' => $printer->printerModelSupplies
+                    ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
+                    ->map(function ($link) {
+                        $supply = $link->supply;
+
+                        $mode = strtolower($supply->category ?? '') === 'part'
+                            ? 'others'
+                            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+                        return [
+                            'id' => (string) $supply->id,
+                            'mode' => $mode,
+                            'name' => $supply->supply_name,
+                            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                            'yields' => (string) ($supply->yield ?? ''),
+                        ];
+                    })
+                    ->values(),
+            ];
+        })
+        ->values();
+}
+
+private function buildConsumableCatalog()
+{
+    $catalog = [
+        'mono' => [],
+        'color' => [],
+        'others' => [],
+    ];
+
+    $supplies = \App\Models\Supply::query()
+        ->where('status', 'Active')
+        ->orderBy('supply_name')
+        ->get();
+
+    foreach ($supplies as $supply) {
+        $mode = strtolower($supply->category ?? '') === 'part'
+            ? 'others'
+            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+        $catalog[$mode][] = [
+            'id' => (string) $supply->id,
+            'name' => $supply->supply_name,
+            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+            'yields' => (string) ($supply->yield ?? ''),
+        ];
+    }
+
+    return $catalog;
+}
+
     public function show($id)
     {
         $user = $this->getAuthenticatedUser();
@@ -492,19 +561,23 @@ class RoiCurrentProjectController extends Controller
         $project->notes = $this->sortTimelineEntries($project->notes);
         $project->comments = $this->sortTimelineEntries($project->comments);
 
-        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-            'project' => $project,
-            'entryProject' => $project,
-            'readOnly' => true,
-            'route' => 'current',
-            'createdBy' => $project->user?->name ?? '—',
-            'viewerLevel' => (int) $project->current_level,
-            'canActOnCurrentProject' => $this->currentProjectAssignedToUser($project, (int) $user->id),
-            'usersById' => $usersById,
-            'projectNotes' => $project->notes ?? [],
-            'projectComments' => $project->comments ?? [],
-            'requiredSendBackType' => $this->requiredSendBackTypeForLevel((int) $project->current_level),
-        ]);
+     return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+    'project' => $project,
+    'entryProject' => $project,
+    'readOnly' => true,
+    'route' => 'current',
+    'createdBy' => $project->user?->name ?? '—',
+    'viewerLevel' => (int) $project->current_level,
+    'canActOnCurrentProject' => $this->currentProjectAssignedToUser($project, (int) $user->id),
+    'usersById' => $usersById,
+    'projectNotes' => $project->notes ?? [],
+    'projectComments' => $project->comments ?? [],
+    'requiredSendBackType' => $this->requiredSendBackTypeForLevel((int) $project->current_level),
+
+    // ✅ ADD THESE
+    'machineCatalog' => $this->buildMachineCatalog(),
+    'consumableCatalog' => $this->buildConsumableCatalog(),
+    ]);
     }
 
     public function sendBack(Request $request, $id)

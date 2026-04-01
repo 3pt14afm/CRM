@@ -44,6 +44,7 @@ export const get1YrPotential = (projectData) => {
       qty: fixedQty,
       totalCost: fixedQty * unitCost,
       totalSell: fixedQty * unitSell
+      // totalSell: 0
     };
   });
 
@@ -91,8 +92,10 @@ export const get1YrPotential = (projectData) => {
   // 4. CALCULATION LOGIC
   const totalMachineQty = processedMachines.reduce((sum, m) => sum + (Number(m.qty) || 0), 0);
   const totalMachineCost = rawMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
-  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
+  
 
+  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
+  
   const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
   const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (Number(c.totalSell) || 0), 0);

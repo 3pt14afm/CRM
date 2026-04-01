@@ -82,13 +82,78 @@ class RoiController extends Controller
         return $this->entryList($request);
     }
 
-    public function entryCreate()
-    {
-        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-            'activeTab' => 'Machine Configuration',
-            'entryProject' => null,
-        ]);
+public function entryCreate()
+{
+    $machineCatalog = \App\Models\PrinterModel::query()
+        ->with([
+            'printerModelSupplies.supply:id,category,print_type,supply_name,yield,unit_cost,selling_price,status',
+        ])
+        ->where('status', 'Active')
+        ->orderBy('printer_name')
+        ->get()
+        ->map(function ($printer) {
+            return [
+                'id' => (string) $printer->id,
+                'name' => $printer->printer_name,
+                'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
+                'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
+                'consumables' => $printer->printerModelSupplies
+                    ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
+                    ->map(function ($link) {
+                        $supply = $link->supply;
+
+                        $mode = strtolower($supply->category ?? '') === 'part'
+                            ? 'others'
+                            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+                        return [
+                            'id' => (string) $supply->id,
+                            'mode' => $mode,
+                            'name' => $supply->supply_name,
+                            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                            'yields' => (string) ($supply->yield ?? ''),
+                        ];
+                    })
+                    ->values(),
+            ];
+        })
+        ->values();
+
+    $consumableCatalog = [
+        'mono' => [],
+        'color' => [],
+        'others' => [],
+    ];
+
+    $supplies = \App\Models\Supply::query()
+        ->where('status', 'Active')
+        ->orderBy('supply_name')
+        ->get();
+
+    foreach ($supplies as $supply) {
+        $mode = strtolower($supply->category ?? '') === 'part'
+            ? 'others'
+            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+        $consumableCatalog[$mode][] = [
+            'id' => (string) $supply->id,
+            'name' => $supply->supply_name,
+            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+            'yields' => (string) ($supply->yield ?? ''),
+        ];
     }
+
+    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+        'activeTab' => 'Machine Configuration',
+        'entryProject' => null,
+        'project' => null,
+        'createdBy' => Auth::user()->name,
+        'machineCatalog' => $machineCatalog,
+        'consumableCatalog' => $consumableCatalog,
+    ]);
+}
 
     public function entryMachine()
     {
@@ -181,40 +246,112 @@ class RoiController extends Controller
             'archiveProjects' => $archiveProjects,
             'stats' => $stats,
         ]);
+
     }
 
-    public function archiveShow($id)
-    {
-        $project = RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
+    private function buildMachineCatalog()
+{
+    return \App\Models\PrinterModel::query()
+        ->with([
+            'printerModelSupplies.supply:id,category,print_type,supply_name,yield,unit_cost,selling_price,status',
+        ])
+        ->where('status', 'Active')
+        ->orderBy('printer_name')
+        ->get()
+        ->map(function ($printer) {
+            return [
+                'id' => (string) $printer->id,
+                'name' => $printer->printer_name,
+                'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
+                'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
+                'consumables' => $printer->printerModelSupplies
+                    ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
+                    ->map(function ($link) {
+                        $supply = $link->supply;
 
-        $userIds = collect([
-            $project->user_id,
-            $project->approved_by,
-            $project->rejected_by,
-            $project->reviewed_by,
-            $project->checked_by,
-            $project->endorsed_by,
-            $project->confirmed_by,
-        ])->filter()->unique()->values();
+                        $mode = strtolower($supply->category ?? '') === 'part'
+                            ? 'others'
+                            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
 
-        $usersById = User::query()
-            ->whereIn('id', $userIds)
-            ->get(['id', 'first_name', 'last_name'])
-            ->mapWithKeys(fn ($u) => [
-                (string) $u->id => [
-                    'id' => $u->id,
-                    'name' => trim($u->first_name . ' ' . $u->last_name),
-                ],
-            ]);
+                        return [
+                            'id' => (string) $supply->id,
+                            'mode' => $mode,
+                            'name' => $supply->supply_name,
+                            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                            'yields' => (string) ($supply->yield ?? ''),
+                        ];
+                    })
+                    ->values(),
+            ];
+        })
+        ->values();
+}
 
-        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-            'project' => $project,
-            'entryProject' => $project,
-            'readOnly' => true,
-            'route' => 'archive',
-            'createdBy' => $project->user?->name ?? '—',
-            'role' => Auth::user()->workflow_role,
-            'usersById' => $usersById,
+private function buildConsumableCatalog()
+{
+    $catalog = [
+        'mono' => [],
+        'color' => [],
+        'others' => [],
+    ];
+
+    $supplies = \App\Models\Supply::query()
+        ->where('status', 'Active')
+        ->orderBy('supply_name')
+        ->get();
+
+    foreach ($supplies as $supply) {
+        $mode = strtolower($supply->category ?? '') === 'part'
+            ? 'others'
+            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+        $catalog[$mode][] = [
+            'id' => (string) $supply->id,
+            'name' => $supply->supply_name,
+            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+            'yields' => (string) ($supply->yield ?? ''),
+        ];
+    }
+
+    return $catalog;
+}
+
+   public function archiveShow($id)
+{
+    $project = RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+    $userIds = collect([
+        $project->user_id,
+        $project->approved_by,
+        $project->rejected_by,
+        $project->reviewed_by,
+        $project->checked_by,
+        $project->endorsed_by,
+        $project->confirmed_by,
+    ])->filter()->unique()->values();
+
+    $usersById = User::query()
+        ->whereIn('id', $userIds)
+        ->get(['id', 'first_name', 'last_name'])
+        ->mapWithKeys(fn ($u) => [
+            (string) $u->id => [
+                'id' => $u->id,
+                'name' => trim($u->first_name . ' ' . $u->last_name),
+            ],
         ]);
-    }
+
+    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+        'project' => $project,
+        'entryProject' => $project,
+        'readOnly' => true,
+        'route' => 'archive',
+        'createdBy' => $project->user?->name ?? '—',
+        'role' => Auth::user()->workflow_role,
+        'usersById' => $usersById,
+        'machineCatalog' => $this->buildMachineCatalog(),
+        'consumableCatalog' => $this->buildConsumableCatalog(),
+    ]);
+}
 }
