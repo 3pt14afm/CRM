@@ -10,7 +10,7 @@ export default function AuthenticatedLayout({ children }) {
     return (
         <>
             <div className="flex h-screen bg-[#f5f5f7] pl-2">
-                <div className="relative z-20">
+                <div className="relative z-50">
                     <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
                 </div>
 

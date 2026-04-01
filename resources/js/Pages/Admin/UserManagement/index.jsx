@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/UserManagement.jsx
-
 import React, {
   useCallback,
   useEffect,
@@ -15,6 +13,7 @@ import EditUserModal from "@/Components/admin/modals/EditUserModal";
 import { getUserColumns } from "./columns";
 import { isUserActive, formatShortDate } from "./helpers";
 import FilterPill from "./FilterPill";
+import PerPageFilterPill from "./PerPageFilterPill";
 import useAssignUserModal from "./hooks/useAssignUserModal";
 import useEditUserModal from "./hooks/useEditUserModal";
 import usePositions from "./hooks/usePositions";
@@ -35,11 +34,25 @@ function UserManagement({
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [userSuggestions, setUserSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [perPageInput, setPerPageInput] = useState(
+    filters.perPage === "all"
+      ? "all"
+      : String(filters.perPage ?? users?.per_page ?? 10)
+  );
+
   const searchBoxRef = useRef(null);
 
   useEffect(() => {
     setSearchQuery(filters.search ?? "");
   }, [filters.search]);
+
+  useEffect(() => {
+    setPerPageInput(
+      filters.perPage === "all"
+        ? "all"
+        : String(filters.perPage ?? users?.per_page ?? 10)
+    );
+  }, [filters.perPage, users?.per_page]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -78,6 +91,7 @@ function UserManagement({
           position: nextFilters.position ?? filters.position ?? "",
           department: nextFilters.department ?? filters.department ?? "",
           search: nextFilters.search ?? filters.search ?? "",
+          perPage: nextFilters.perPage ?? filters.perPage ?? "10",
           page: nextFilters.page ?? 1,
         },
         {
@@ -181,6 +195,24 @@ function UserManagement({
     },
     [applyFilters]
   );
+
+  const handleApplyPerPage = useCallback(() => {
+    const value = String(perPageInput).trim().toLowerCase();
+
+    if (value === "all") {
+      applyFilters({ perPage: "all", page: 1 });
+      return;
+    }
+
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setPerPageInput(String(filters.perPage ?? users?.per_page ?? 10));
+      return;
+    }
+
+    applyFilters({ perPage: String(Math.floor(parsed)), page: 1 });
+  }, [perPageInput, applyFilters, filters.perPage, users?.per_page]);
 
   const handleSelectSuggestion = useCallback(
     (item) => {
@@ -335,6 +367,12 @@ function UserManagement({
                       options={positionFilterOptions}
                       onChange={handlePositionChange}
                       disabled={loadingPositions}
+                    />
+
+                    <PerPageFilterPill
+                      label="Show"
+                      value={String(filters.perPage ?? users?.per_page ?? 10)}
+                      onChange={(value) => applyFilters({ perPage: value, page: 1 })}
                     />
                   </div>
                 </div>

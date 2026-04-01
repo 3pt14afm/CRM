@@ -20,7 +20,9 @@ class UserController extends Controller
         $locationLookup = Location::orderBy('name')->get(['id', 'name']);
         $departmentLookup = CompanyDepartment::orderBy('name')->get(['id', 'name']);
 
-        $users = User::query()
+        $perPageInput = strtolower(trim((string) $request->input('perPage', '10')));
+
+        $usersQuery = User::query()
             ->when($request->search, function ($q) use ($request) {
                 $search = trim((string) $request->search);
 
@@ -60,8 +62,20 @@ class UserController extends Controller
                 'created_at'
             )
             ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->paginate(10)
+            ->orderBy('last_name');
+
+        if ($perPageInput === 'all') {
+            $perPage = max((clone $usersQuery)->count(), 1);
+        } else {
+            $perPage = (int) $perPageInput;
+
+            if ($perPage <= 0) {
+                $perPage = 10;
+            }
+        }
+
+        $users = $usersQuery
+            ->paginate($perPage)
             ->through(function ($u) use ($locationLookup, $departmentLookup) {
                 $u->status = $u->is_banned ? 'Inactive' : 'Active';
                 $u->created_display = optional($u->created_at)->format('m/d/y');
@@ -98,19 +112,28 @@ class UserController extends Controller
             'departments'    => $departmentLookup,
             'locationLookup' => $locationLookup,
             'stats'          => $stats,
-            'filters'        => $request->only(['search', 'status', 'location', 'department', 'position']),
+            'filters'        => $request->only([
+                'search',
+                'status',
+                'location',
+                'department',
+                'position',
+                'perPage',
+            ]),
         ]);
     }
 
     public function userIndex(Request $request)
     {
-        $users = User::query()
+        $perPageInput = strtolower(trim((string) $request->input('perPage', '10')));
+
+        $usersQuery = User::query()
             ->when($request->search, fn ($q) =>
                 $q->where(function ($inner) use ($request) {
                     $inner->where('first_name', 'like', "%{$request->search}%")
-                          ->orWhere('last_name', 'like', "%{$request->search}%")
-                          ->orWhere('email', 'like', "%{$request->search}%")
-                          ->orWhere('position', 'like', "%{$request->search}%");
+                        ->orWhere('last_name', 'like', "%{$request->search}%")
+                        ->orWhere('email', 'like', "%{$request->search}%")
+                        ->orWhere('position', 'like', "%{$request->search}%");
                 })
             )
             ->when($request->status === 'active', fn ($q) =>
@@ -141,15 +164,34 @@ class UserController extends Controller
                 'created_at'
             )
             ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->paginate(10)
+            ->orderBy('last_name');
+
+        if ($perPageInput === 'all') {
+            $perPage = max((clone $usersQuery)->count(), 1);
+        } else {
+            $perPage = (int) $perPageInput;
+
+            if ($perPage <= 0) {
+                $perPage = 10;
+            }
+        }
+
+        $users = $usersQuery
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('Admin/Users/Index', [
             'users'       => $users,
             'locations'   => Location::orderBy('name')->get(['id', 'name']),
             'departments' => CompanyDepartment::orderBy('name')->get(['id', 'name']),
-            'filters'     => $request->only(['search', 'status', 'location', 'department', 'position']),
+            'filters'     => $request->only([
+                'search',
+                'status',
+                'location',
+                'department',
+                'position',
+                'perPage',
+            ]),
         ]);
     }
 
