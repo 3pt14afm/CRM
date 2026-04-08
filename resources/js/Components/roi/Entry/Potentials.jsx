@@ -4,11 +4,8 @@ import { useProjectData } from '@/Context/ProjectContext';
 function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
   const { projectData } = useProjectData();
 
-  // Get data directly from the yearlyBreakdown in context
-  // Fallback to an empty object if the year hasn't been calculated/saved yet
   const yearData = projectData?.yearlyBreakdown?.[yearNumber] || {};
 
-  // Destructure with defaults to prevent "undefined" errors in UI
   const {
     totalMachineQty = 0,
     totalMachineCost = 0,
@@ -39,7 +36,6 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
     normalizedContractType === "fix click" ||
     normalizedContractType === "fixed click";
 
-  // ✅ Rental + Click and Fix Click share the same display formatting for qty
   const usesExactClickQtyDisplay = isRentalClick || isFixClick;
 
   const format = (val) => (Number(val) || 0).toLocaleString(undefined, {
@@ -47,8 +43,6 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
     maximumFractionDigits: 2
   });
 
-  // ✅ For Rental + Click / Fix Click:
-  // keep exact qty in calculations, but DISPLAY with 2 decimals only
   const formatConsumableQty = (val) => {
     const num = Number(val);
     if (!Number.isFinite(num)) return usesExactClickQtyDisplay ? "0.00" : 0;
@@ -59,9 +53,17 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
         maximumFractionDigits: 2,
       });
     }
-
     return val;
   };
+
+  // Separate machines: Normal vs Others
+  const normalMachines = machines.filter(m => 
+    m.mode !== 'others' && m.type !== 'others'
+  );
+
+  const othersMachines = machines.filter(m => 
+    m.mode === 'others' || m.type === 'others'
+  );
 
   return (
     <div className="pr-4 pt-0 print:px-2">
@@ -83,12 +85,15 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
             </tr>
           </thead>
           <tbody>
+            {/* MACHINE SECTION */}
             <tr className="bg-[#E2F4D8]/40 border-b h-[27px] print:h-[24px]">
-              <td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td>
+              <td className="py-3 print:py-2"></td>
+              <td className="py-3 print:py-2"></td>
+              <td className="py-3 print:py-2"></td>
             </tr>
-            
-            {machines.length > 0 ? (
-              machines.map((m, index) => (
+
+            {normalMachines.length > 0 ? (
+              normalMachines.map((m, index) => (
                 <tr key={`m-${index}`} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center print:py-2">{m.qty}</td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-2 flex flex-col gap-1 print:py-2.5">
@@ -106,10 +111,14 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
               </tr>
             )}
 
+            {/* CONSUMABLES SECTION */}
             <tr className="bg-[#E2F4D8]/40 border-b h-[27px] print:h-[24px]">
-              <td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td><td className="py-3 print:py-2"></td>
+              <td className="py-3 print:py-2"></td>
+              <td className="py-3 print:py-2"></td>
+              <td className="py-3 print:py-2"></td>
             </tr>
 
+            {/* Regular Consumables */}
             {consumables.length > 0 ? (
               consumables.map((c, index) => (
                 <tr key={`c-${index}`} className="border-b border-gray-100 last:border-b-0">
@@ -134,12 +143,33 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
               </tr>
             )}
 
+            {/* OTHERS SECTION - Under Consumables */}
+            {othersMachines.length > 0 && (
+              <>
+                <tr className="bg-[#E2F4D8]/30 border-t border-gray-200">
+                  <td className="py-3 print:py-2"></td>
+                  <td className="py-3 print:py-2"></td>
+                  <td className="py-3 print:py-2"></td>
+                </tr>
+
+                {othersMachines.map((m, index) => (
+                  <tr key={`o-${index}`} className="border-b border-gray-100 last:border-b-0">
+                    <td className="px-1 py-3 text-[12px] text-center print:py-2">{m.qty}</td>
+                    <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 flex flex-col gap-1 print:py-2.5">
+                      <p>{format(m.totalCost)}</p>
+                    </td>
+                    <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">{format(m.totalSell)}</td>
+                  </tr>
+                ))}
+              </>
+            )}
+
+            {/* TOTAL ROW */}
             <tr className="bg-[#E2F4D8]/70 font-medium last:border-b-0">
               <td className="px-1 py-3 text-[12px] border-t border-gray-300 text-center "></td>
               <td className="border-l border-t text-[12px] border-gray-300 text-center px-1 py-3 ">
                 <p>{format(firstYearTotalCost)}</p>
                 
-                {/* Only show if bundleDeduction exists and is greater than 0 */}
                 {bundleDeduction > 0 && (
                   <p className='text-[10px] text-red-700'>
                     -{format(bundleDeduction)}

@@ -6,9 +6,18 @@ function MachConSucce() {
 
   const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
 
-  // Only include rows with SKU/label
+  // Only include rows with SKU
   const filteredMachine = machine.filter((m) => m.sku && m.sku.trim() !== '');
   const filteredConsumable = consumable.filter((c) => c.sku && c.sku.trim() !== '');
+
+  // Separate machines: Normal vs Others
+  const normalMachines = filteredMachine.filter((m) => 
+    m.mode !== 'others' && m.type !== 'others'
+  );
+
+  const othersMachines = filteredMachine.filter((m) => 
+    m.mode === 'others' || m.type === 'others'
+  );
 
   const formatNum = (val, decimals = 2) =>
     (Number(val) || 0).toLocaleString(undefined, {
@@ -37,7 +46,7 @@ function MachConSucce() {
           </thead>
 
           <tbody>
-            {/* Machine Section */}
+            {/* ==================== MACHINE SECTION ==================== */}
             <tr className="bg-[#E2F4D8]/40 border-b border-gray-200">
               <td className="px-4 py-1 font-semibold text-[12px] print:font-semibold border-r border-gray-300">
                 MACHINE
@@ -45,26 +54,25 @@ function MachConSucce() {
               <td className="px-4 py-1"></td>
             </tr>
 
-            {filteredMachine.length > 0 ? (
-              filteredMachine.map((m, index) => (
+            {normalMachines.length > 0 ? (
+              normalMachines.map((m, index) => (
                 <tr key={m.id || `m-${index}`} className="border-b py-5 border-gray-100 last:border-b-0 print:py-2">
                   <td className="px-7 text-[12px] break-words uppercase border-r border-gray-300 print:py-2">
                     {m.sku}
                   </td>
                   <td className="px-3 py-5 text-[12px] text-center print:py-2">
                     <p>{formatNum(0)}</p>
-                    <p className='text-[11px] text-blue-700 italic'></p>
                   </td>
                 </tr>
               ))
             ) : (
               <tr className="border-b border-gray-100 last:border-b-0 print:py-2">
-                <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">x</td>
+                <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">—</td>
                 <td className="px-3 py-3 text-[12px] text-center print:py-2">{formatNum(0)}</td>
               </tr>
             )}
 
-            {/* Consumable Section */}
+            {/* ==================== CONSUMABLES + OTHERS SECTION ==================== */}
             <tr className="bg-[#E2F4D8]/40 border-b border-gray-200">
               <td className="px-4 py-1 font-semibold text-[12px] print:font-semibold border-r border-gray-300">
                 CONSUMABLES
@@ -72,7 +80,8 @@ function MachConSucce() {
               <td className="px-4 py-1"></td>
             </tr>
 
-            {filteredConsumable.length > 0 ? (
+            {/* Regular Consumables */}
+            {filteredConsumable.length > 0 &&
               filteredConsumable.map((c, index) => (
                 <tr key={c.id || `c-${index}`} className="border-b border-gray-100 last:border-b-0 print:py-2">
                   <td className="px-7 py-3 text-[12px] break-words border-r border-gray-300 print:py-2">
@@ -82,10 +91,35 @@ function MachConSucce() {
                     {formatNum(c.cost)}
                   </td>
                 </tr>
-              ))
-            ) : (
+              ))}
+
+            {/* OTHERS Section - Under Consumables */}
+            {othersMachines.length > 0 && (
+              <>
+                <tr className="bg-[#E2F4D8]/30 border-t border-gray-200">
+                  <td className="px-4 py-1 font-semibold text-[12px] print:font-semibold border-r border-gray-300">
+                    OTHERS
+                  </td>
+                  <td className="px-4 py-1"></td>
+                </tr>
+
+                {othersMachines.map((m, index) => (
+                  <tr key={m.id || `o-${index}`} className="border-b border-gray-100 last:border-b-0 print:py-2">
+                    <td className="px-7 py-3 text-[12px] break-words uppercase border-r border-gray-300 print:py-2">
+                      {m.sku}
+                    </td>
+                    <td className="px-3 py-3 text-[12px] text-center print:py-2">
+                      {formatNum(0)}
+                    </td>
+                  </tr>
+                ))}
+              </>
+            )}
+
+            {/* Empty row if no consumables and no others */}
+            {filteredConsumable.length === 0 && othersMachines.length === 0 && (
               <tr className="border-b border-gray-100 last:border-b-0 print:py-2">
-                <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">x</td>
+                <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">—</td>
                 <td className="px-3 py-3 text-[12px] text-center print:py-2">{formatNum(0)}</td>
               </tr>
             )}

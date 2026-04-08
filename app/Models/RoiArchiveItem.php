@@ -19,6 +19,7 @@ class RoiArchiveItem extends Model
 
         'cost','price','base_per_year','total_cost','cost_cpp',
         'total_sell','sell_cpp','machine_margin','machine_margin_total',
+        'auto_added',
     ];
 
     public function project(): BelongsTo

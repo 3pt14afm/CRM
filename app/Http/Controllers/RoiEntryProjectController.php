@@ -23,117 +23,114 @@ use Inertia\Inertia;
 
 class RoiEntryProjectController extends Controller
 {
- public function show(RoiEntryProject $project)
-{
-    abort_unless($project->user_id === Auth::id(), 403);
+    public function show(RoiEntryProject $project)
+    {
+        abort_unless($project->user_id === Auth::id(), 403);
 
-    $project->load([
-        'items' => fn ($q) => $q->orderBy('id'),
-        'fees'  => fn ($q) => $q->orderBy('id'),
-        'user',
-    ]);
-
-    $project->notes = $this->sortTimelineEntries($project->notes);
-    $project->comments = $this->sortTimelineEntries($project->comments);
-
-    $machineCatalog = \App\Models\PrinterModel::query()
-        ->with([
-            'printerModelSupplies.supply:id,category,print_type,supply_name,yield,unit_cost,selling_price,status',
-        ])
-        ->where('status', 'Active')
-        ->orderBy('printer_name')
-        ->get()
-        ->map(function ($printer) {
-            return [
-                'id' => (string) $printer->id,
-                'name' => $printer->printer_name,
-                'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
-                'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
-                'consumables' => $printer->printerModelSupplies
-                    ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
-                    ->map(function ($link) {
-                        $supply = $link->supply;
-
-                        $mode = strtolower($supply->category ?? '') === 'part'
-                            ? 'others'
-                            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
-
-                        return [
-                            'id' => (string) $supply->id,
-                            'mode' => $mode,
-                            'name' => $supply->supply_name,
-                            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
-                            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-                            'yields' => (string) ($supply->yield ?? ''),
-                        ];
-                    })
-                    ->values(),
-            ];
-        })
-        ->values();
-
-    $consumableCatalog = [
-        'mono' => [],
-        'color' => [],
-        'others' => [],
-    ];
-
-    $supplies = \App\Models\Supply::query()
-        ->where('status', 'Active')
-        ->orderBy('supply_name')
-        ->get([
-            'id',
-            'category',
-            'print_type',
-            'supply_name',
-            'yield',
-            'unit_cost',
-            'selling_price',
-            'status',
+        $project->load([
+            'items' => fn ($q) => $q->orderBy('id'),
+            'fees'  => fn ($q) => $q->orderBy('id'),
+            'user',
         ]);
 
-    foreach ($supplies as $supply) {
-        $mode = strtolower($supply->category ?? '') === 'part'
-            ? 'others'
-            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+        $project->notes = $this->sortTimelineEntries($project->notes);
+        $project->comments = $this->sortTimelineEntries($project->comments);
 
-        $consumableCatalog[$mode][] = [
-            'id' => (string) $supply->id,
-            'name' => $supply->supply_name,
-            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
-            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-            'yields' => (string) ($supply->yield ?? ''),
+        // --- Map existing items to include the auto_added flag for React hydration ---
+        $projectItems = $project->items->map(function ($item) {
+            return [
+                'id' => $item->client_row_id ?? (string)$item->id,
+                'type' => $item->kind,
+                'sku' => $item->sku,
+                'qty' => (float)$item->qty,
+                'yields' => (string)$item->yields,
+                'mode' => $item->mode,
+                'remarks' => $item->remarks,
+                'inputtedCost' => $item->inputted_cost,
+                'cost' => $item->cost,
+                'price' => $item->price,
+                'basePerYear' => $item->base_per_year,
+                'totalCost' => $item->total_cost,
+                'costCpp' => $item->cost_cpp,
+                'totalSell' => $item->total_sell,
+                'sellCpp' => $item->sell_cpp,
+                'machineMargin' => $item->machine_margin,
+                'machineMarginTotal' => $item->machine_margin_total,
+                'autoAdded' => (bool)$item->auto_added, // Logic: ensure UI stays locked
+            ];
+        });
+
+        $machineCatalog = \App\Models\PrinterModel::query()
+            ->with([
+                'printerModelSupplies.supply:id,category,print_type,supply_name,yield,unit_cost,selling_price,status',
+            ])
+            ->where('status', 'Active')
+            ->orderBy('printer_name')
+            ->get()
+            ->map(function ($printer) {
+                return [
+                    'id' => (string) $printer->id,
+                    'name' => $printer->printer_name,
+                    'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
+                    'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
+                    'consumables' => $printer->printerModelSupplies
+                        ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
+                        ->map(function ($link) {
+                            $supply = $link->supply;
+
+                            $mode = strtolower($supply->category ?? '') === 'part'
+                                ? 'others'
+                                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+                            return [
+                                'id' => (string) $supply->id,
+                                'mode' => $mode,
+                                'name' => $supply->supply_name,
+                                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                                'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                                'yields' => (string) ($supply->yield ?? ''),
+                            ];
+                        })
+                        ->values(),
+                ];
+            })
+            ->values();
+
+        $consumableCatalog = [
+            'mono' => [],
+            'color' => [],
+            'others' => [],
         ];
+
+        $supplies = \App\Models\Supply::query()
+            ->where('status', 'Active')
+            ->orderBy('supply_name')
+            ->get(['id', 'category', 'print_type', 'supply_name', 'yield', 'unit_cost', 'selling_price', 'status']);
+
+        foreach ($supplies as $supply) {
+            $mode = strtolower($supply->category ?? '') === 'part'
+                ? 'others'
+                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+            $consumableCatalog[$mode][] = [
+                'id' => (string) $supply->id,
+                'name' => $supply->supply_name,
+                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                'yields' => (string) ($supply->yield ?? ''),
+            ];
+        }
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+            'activeTab' => 'Machine Configuration',
+            'entryProject' => $project,
+            'project' => $project,
+            'projectItems' => $projectItems, // Send the mapped items with autoAdded flags
+            'createdBy' => $project->user->name,
+            'machineCatalog' => $machineCatalog,
+            'consumableCatalog' => $consumableCatalog,
+        ]);
     }
-
-    $userIds = collect([
-    $project->user_id,
-    $project->reviewed_by,
-    $project->checked_by,
-    $project->endorsed_by,
-    $project->confirmed_by,
-    $project->approved_by,
-])->filter()->unique()->values();
-
-$usersById = User::query()
-    ->whereIn('id', $userIds)
-    ->get(['id', 'first_name', 'last_name', 'position'])
-    ->keyBy(fn ($u) => (string) $u->id)
-    ->map(fn ($u) => [
-        'id' => $u->id,
-        'name' => trim($u->first_name . ' ' . $u->last_name),
-        'position' => $u->position ?? '—',
-    ]);
-
-    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-        'activeTab' => 'Machine Configuration',
-        'entryProject' => $project,
-        'project' => $project,
-        'createdBy' => $project->user->name,
-        'machineCatalog' => $machineCatalog,
-        'consumableCatalog' => $consumableCatalog,
-    ]);
-}
 
     public function saveDraft(Request $request)
     {
@@ -203,11 +200,7 @@ $usersById = User::query()
                         $driverCode = $errorInfo[1] ?? null;
                         $message = strtolower($errorInfo[2] ?? $e->getMessage());
 
-                        $isDuplicateKey =
-                            $sqlState === '23000' ||
-                            $sqlState === '23505' ||
-                            in_array($driverCode, [1062, 1555, 2067], true);
-
+                        $isDuplicateKey = $sqlState === '23000' || $sqlState === '23505' || in_array($driverCode, [1062, 1555, 2067], true);
                         $isReferenceConflict = str_contains($message, 'reference');
 
                         if (!($isDuplicateKey && $isReferenceConflict) || $attempt === 2) {
@@ -224,8 +217,7 @@ $usersById = User::query()
             return $project->fresh();
         });
 
-        return redirect()
-            ->route('roi.entry.projects.show', $project);
+        return redirect()->route('roi.entry.projects.show', $project);
     }
 
     public function submit(Request $request, RoiEntryProject $project)
@@ -243,7 +235,6 @@ $usersById = User::query()
         }
 
         $submitter = Auth::user();
-
         if (!$submitter?->primary_location_id || !$submitter?->department_id) {
             return back()->with('error', 'Your account must have both a primary location and department before submitting.');
         }
@@ -313,6 +304,7 @@ $usersById = User::query()
                     'yields' => $item->yields,
                     'mode' => $item->mode,
                     'remarks' => $item->remarks,
+                    'auto_added' => $item->auto_added, // Sync flag to Current Project
                     'inputted_cost' => $item->inputted_cost,
                     'cost' => $item->cost,
                     'price' => $item->price,
@@ -352,9 +344,7 @@ $usersById = User::query()
     public function destroy(RoiEntryProject $project)
     {
         abort_unless($project->user_id === Auth::id(), 403);
-
         $allowedStatuses = ['draft', 'returned'];
-
         if (!in_array($project->status, $allowedStatuses, true)) {
             return back()->with('error', 'Only drafts or returned projects can be deleted.');
         }
@@ -396,7 +386,6 @@ $usersById = User::query()
     public function persistDraft(Request $request, RoiEntryProject $project, ?array $data = null): void
     {
         $data = $data ?? $this->validateDraftPayload($request);
-
         $company = $data['companyInfo'] ?? [];
         $interest = $data['interest'] ?? [];
         $yield = $data['yield'] ?? [];
@@ -438,13 +427,10 @@ $usersById = User::query()
             'last_saved_at' => now(),
         ]);
 
-        $hasMachinePayload =
-            $request->exists('machineConfiguration.machine') ||
-            $request->exists('machineConfiguration.consumable');
+        $hasMachinePayload = $request->exists('machineConfiguration.machine') || $request->exists('machineConfiguration.consumable');
 
         if ($hasMachinePayload) {
             RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
-
             $itemRows = [];
             foreach ($data['machineConfiguration']['machine'] ?? [] as $row) {
                 $itemRows[] = $this->mapItemRow($project->id, $row, 'machine');
@@ -452,30 +438,16 @@ $usersById = User::query()
             foreach ($data['machineConfiguration']['consumable'] ?? [] as $row) {
                 $itemRows[] = $this->mapItemRow($project->id, $row, 'consumable');
             }
-
-            if (!empty($itemRows)) {
-                RoiEntryItem::insert($itemRows);
-            }
+            if (!empty($itemRows)) { RoiEntryItem::insert($itemRows); }
         }
 
-        $hasFeePayload =
-            $request->exists('additionalFees.company') ||
-            $request->exists('additionalFees.customer');
-
+        $hasFeePayload = $request->exists('additionalFees.company') || $request->exists('additionalFees.customer');
         if ($hasFeePayload) {
             RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
-
             $feeRows = [];
-            foreach ($data['additionalFees']['company'] ?? [] as $row) {
-                $feeRows[] = $this->mapFeeRow($project->id, $row, 'company');
-            }
-            foreach ($data['additionalFees']['customer'] ?? [] as $row) {
-                $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer');
-            }
-
-            if (!empty($feeRows)) {
-                RoiEntryFee::insert($feeRows);
-            }
+            foreach ($data['additionalFees']['company'] ?? [] as $row) { $feeRows[] = $this->mapFeeRow($project->id, $row, 'company'); }
+            foreach ($data['additionalFees']['customer'] ?? [] as $row) { $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer'); }
+            if (!empty($feeRows)) { RoiEntryFee::insert($feeRows); }
         }
     }
 
@@ -490,6 +462,7 @@ $usersById = User::query()
             'yields' => (float) ($row['yields'] ?? 0),
             'mode' => $row['mode'] ?? null,
             'remarks' => $row['remarks'] ?? null,
+            'auto_added' => isset($row['autoAdded']) ? (bool)$row['autoAdded'] : false, // Persistence Logic Fix
             'inputted_cost' => (float) ($row['inputtedCost'] ?? 0),
             'cost' => (float) ($row['cost'] ?? 0),
             'price' => (float) ($row['price'] ?? 0),
@@ -526,178 +499,87 @@ $usersById = User::query()
     public function storeNote(Request $request, RoiEntryProject $project)
     {
         abort_unless($this->canNoteOnEntryProject($project), 403);
-
-        $validated = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
-        ]);
-
+        $validated = $request->validate(['body' => ['required', 'string', 'max:5000']]);
         $user = Auth::user();
-
-        $notes = $project->notes ?? [];
-        if (!is_array($notes)) {
-            $notes = [];
-        }
-
+        $notes = is_array($project->notes) ? $project->notes : [];
         $notes[] = [
             'id' => (string) Str::ulid(),
             'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
-            'author' => [
-                'id' => Auth::id(),
-                'name' => $user?->name ?? 'Unknown',
-                'role' => $user?->role,
-            ],
+            'author' => ['id' => Auth::id(), 'name' => $user?->name ?? 'Unknown', 'role' => $user?->role],
         ];
-
-        $project->update([
-            'notes' => $this->sortTimelineEntries($notes),
-            'last_saved_at' => now(),
-        ]);
-
-        $project->update([
-            'notes' => $notes,
-            'last_saved_at' => now(),
-        ]);
-
+        $project->update(['notes' => $this->sortTimelineEntries($notes), 'last_saved_at' => now()]);
         return back()->with('success', 'Note added.');
     }
 
     public function storeComment(Request $request, RoiCurrentProject $project)
     {
         abort_unless($this->canCommentOnCurrentProject($project), 403);
-
-        $validated = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
-        ]);
-
+        $validated = $request->validate(['body' => ['required', 'string', 'max:5000']]);
         $user = Auth::user();
-
-        $comments = $project->comments ?? [];
-        if (!is_array($comments)) {
-            $comments = [];
-        }
-
+        $comments = is_array($project->comments) ? $project->comments : [];
         $comments[] = [
             'id' => (string) Str::ulid(),
             'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
-            'author' => [
-                'id' => Auth::id(),
-                'name' => $user?->name ?? 'Unknown',
-                'role' => $user?->role,
-            ],
+            'author' => ['id' => Auth::id(), 'name' => $user?->name ?? 'Unknown', 'role' => $user?->role],
         ];
-
-        $project->update([
-            'comments' => $this->sortTimelineEntries($comments),
-            'last_saved_at' => now(),
-        ]);
-
+        $project->update(['comments' => $this->sortTimelineEntries($comments), 'last_saved_at' => now()]);
         return back()->with('success', 'Comment added.');
     }
 
     private function canNoteOnEntryProject(RoiEntryProject $project): bool
     {
         $user = Auth::user();
-        if (!$user) {
-            return false;
-        }
-
-        if (!in_array($project->status, ['draft', 'returned'], true)) {
-            return false;
-        }
-
+        if (!$user) return false;
+        if (!in_array($project->status, ['draft', 'returned'], true)) return false;
         $userId = (int) $user->id;
-
-        if ((int) $project->user_id === $userId) {
-            return true;
-        }
-
-        $currentProject = RoiCurrentProject::query()
-            ->where('project_uid', $project->project_uid)
-            ->first();
-
-        if (!$currentProject) {
-            return false;
-        }
-
-        return
-            (int) $currentProject->reviewed_by === $userId ||
-            (int) $currentProject->checked_by === $userId ||
-            (int) $currentProject->endorsed_by === $userId;
+        if ((int) $project->user_id === $userId) return true;
+        $currentProject = RoiCurrentProject::where('project_uid', $project->project_uid)->first();
+        if (!$currentProject) return false;
+        return (int) $currentProject->reviewed_by === $userId || (int) $currentProject->checked_by === $userId || (int) $currentProject->endorsed_by === $userId;
     }
 
     private function canCommentOnCurrentProject(RoiCurrentProject $project): bool
     {
         $user = Auth::user();
-        if (!$user) {
-            return false;
-        }
-
+        if (!$user) return false;
         $userId = (int) $user->id;
-
-        return
-            (int) $project->confirmed_by === $userId ||
-            (int) $project->approved_by === $userId;
+        return (int) $project->confirmed_by === $userId || (int) $project->approved_by === $userId;
     }
 
     private function generateReferenceForUser($user): string
     {
-        if (!$user?->primary_location_id) {
-            abort(422, 'Your account has no primary location.');
-        }
-
+        if (!$user?->primary_location_id) abort(422, 'Your account has no primary location.');
         $location = Location::find($user->primary_location_id);
-
-        if (!$location || empty($location->code)) {
-            abort(422, 'Primary location has no code.');
-        }
-
+        if (!$location || empty($location->code)) abort(422, 'Primary location has no code.');
         $prefix = strtoupper(trim($location->code));
-
         return $this->generateNextReferenceFromPrefix($prefix);
     }
 
     private function generateNextReferenceFromPrefix(string $prefix): string
     {
-        $allReferences = RoiEntryProject::query()
-            ->where('reference', 'like', $prefix . '-%')
-            ->pluck('reference')
-            ->merge(
-                RoiCurrentProject::query()
-                    ->where('reference', 'like', $prefix . '-%')
-                    ->pluck('reference')
-            )
-            ->merge(
-                RoiArchiveProject::query()
-                    ->where('reference', 'like', $prefix . '-%')
-                    ->pluck('reference')
-            );
-
+        $allReferences = RoiEntryProject::where('reference', 'like', $prefix . '-%')->pluck('reference')
+            ->merge(RoiCurrentProject::where('reference', 'like', $prefix . '-%')->pluck('reference'))
+            ->merge(RoiArchiveProject::where('reference', 'like', $prefix . '-%')->pluck('reference'));
         $maxNumber = 0;
-
         foreach ($allReferences as $reference) {
             if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $reference, $matches)) {
                 $maxNumber = max($maxNumber, (int) $matches[1]);
             }
         }
-
         $nextNumber = $maxNumber + 1;
-
         return $prefix . '-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 
     private function sortTimelineEntries(?array $entries): array
     {
         $rows = is_array($entries) ? $entries : [];
-
         usort($rows, function ($a, $b) {
             $aTime = strtotime($a['created_at'] ?? '') ?: 0;
             $bTime = strtotime($b['created_at'] ?? '') ?: 0;
-
             return $bTime <=> $aTime;
         });
-
         return array_values($rows);
     }
 }

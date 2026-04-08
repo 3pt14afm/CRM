@@ -4,7 +4,6 @@ import { useProjectData } from '@/Context/ProjectContext';
 function SucceedingYearsPotential({ yearNumber = 2 }) {
   const { projectData } = useProjectData();
 
-  // Always use the selected succeeding-year data (default: 2nd year)
   const yearData = projectData?.yearlyBreakdown?.[yearNumber] || {};
 
   const {
@@ -22,11 +21,10 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
     normalizedContractType === "fix click" ||
     normalizedContractType === "fixed click";
 
-  // ✅ Rental + Click and Fix Click share the same display formatting for qty
   const usesExactClickQtyDisplay = isRentalClick || isFixClick;
 
   const contractYears = parseInt(projectData?.companyInfo?.contractYears, 10) || 0;
-  const succeedingYearCount = Math.max(contractYears - 1, 0); // starts at 2nd year
+  const succeedingYearCount = Math.max(contractYears - 1, 0);
 
   const format = (val) =>
     (Number(val) || 0).toLocaleString(undefined, {
@@ -36,7 +34,6 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
 
   const formatQty = (val) => (Number(val) || 0).toLocaleString();
 
-  // ✅ For Rental + Click / Fix Click consumables: display qty with 2 decimals (display only)
   const formatConsumableQty = (val) => {
     const num = Number(val);
     if (!Number.isFinite(num)) return usesExactClickQtyDisplay ? "0.00" : 0;
@@ -47,7 +44,6 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
         maximumFractionDigits: 2,
       });
     }
-
     return (Number(val) || 0).toLocaleString();
   };
 
@@ -68,7 +64,16 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
       ? `2nd-${getOrdinal(contractYears)} Year Potential`
       : '2nd Year Potential';
 
-  // Succeeding years totals should only use consumables
+  // Separate machines into normal and others
+  const normalMachines = machines.filter(m => 
+    m.mode !== 'others' && m.type !== 'others'
+  );
+  
+  const othersMachines = machines.filter(m => 
+    m.mode === 'others' || m.type === 'others'
+  );
+
+  // Consumables only totals
   const consumablesOnlyTotalCost = consumables.reduce(
     (sum, c) => sum + (Number(c.totalCost) || 0),
     0
@@ -81,14 +86,12 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
 
   const renderTable = ({ title, multiplier = 1 }) => (
     <div className="flex-1 min-w-0">
-      {/* TITLE SECTION */}
       <div className="text-center mb-2 pr-1">
         <span className="text-[17px] print:text-sm print:font-medium font-bold uppercase tracking-tight text-gray-700">
           {title}
         </span>
       </div>
 
-      {/* MAIN DATA TABLE */}
       <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
         <table className="w-full bg-white border-collapse table-fixed">
           <thead className="bg-[#E2F4D8] border-b border-gray-300">
@@ -106,20 +109,17 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
           </thead>
 
           <tbody>
-            {/* Blank row for machines section */}
+            {/* MACHINE SECTION */}
             <tr className="bg-[#E2F4D8]/40 border-b h-[27px] print:h-[24px]">
               <td className="py-3 print:py-2"></td>
               <td className="py-3 print:py-2"></td>
               <td className="py-3 print:py-2"></td>
             </tr>
 
-            {/* Machines are shown for reference only in succeeding years (all values = 0) */}
-            {machines.length > 0 ? (
-              machines.map((_, index) => (
+            {normalMachines.length > 0 ? (
+              normalMachines.map((_, index) => (
                 <tr key={`m-${index}`} className="border-b border-gray-100 last:border-b-0">
-                  <td className="px-1 py-3 text-[12px] text-center print:py-2">
-                    {formatQty(0)}
-                  </td>
+                  <td className="px-1 py-3 text-[12px] text-center print:py-2">{formatQty(0)}</td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-5 flex flex-col gap-1 print:py-2">
                     <p>{format(0)}</p>
                   </td>
@@ -140,14 +140,15 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
               </tr>
             )}
 
-            {/* Blank row for consumables section (same style as Potentials) */}
+            {/* CONSUMABLES SECTION */}
             <tr className="bg-[#E2F4D8]/40 border-b h-[27px] print:h-[24px]">
               <td className="py-3 print:py-2"></td>
               <td className="py-3 print:py-2"></td>
               <td className="py-3 print:py-2"></td>
             </tr>
 
-            {consumables.length > 0 ? (
+            {/* Regular Consumables */}
+            {consumables.length > 0 &&
               consumables.map((c, index) => (
                 <tr key={`c-${index}`} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center print:py-2">
@@ -160,8 +161,35 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
                     {format(n(c.totalSell) * multiplier)}
                   </td>
                 </tr>
-              ))
-            ) : (
+              ))}
+
+            {/* OTHERS SECTION - Under Consumables */}
+            {othersMachines.length > 0 && (
+              <>
+                <tr className="bg-[#E2F4D8]/30 border-t border-gray-200">
+                  <td className="py-3 print:py-2"></td>
+                  <td className="py-3 print:py-2"></td>
+                  <td className="py-3 print:py-2"></td>
+                </tr>
+
+                {othersMachines.map((_, index) => (
+                  <tr key={`o-${index}`} className="border-b border-gray-100 last:border-b-0">
+                    <td className="px-1 py-3 text-[12px] text-center print:py-2">
+                      {formatQty(0)}
+                    </td>
+                    <td className="border-l text-[12px] border-gray-100 text-center px-1 py-5 flex flex-col gap-1 print:py-2">
+                      <p>{format(0)}</p>
+                    </td>
+                    <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
+                      {format(0)}
+                    </td>
+                  </tr>
+                ))}
+              </>
+            )}
+
+            {/* Empty row if no consumables and no others */}
+            {consumables.length === 0 && othersMachines.length === 0 && (
               <tr className="border-b border-gray-100">
                 <td className="px-1 py-3 text-[12px] text-center print:py-2">
                   {formatConsumableQty(0)}
@@ -175,6 +203,7 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
               </tr>
             )}
 
+            {/* TOTAL ROW */}
             <tr className="bg-[#E2F4D8] border-b font-semibold print:font-normal border-gray-100 last:border-b-0">
               <td className="px-1 py-3 text-[12px] text-center font-bold"></td>
               <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 font-bold">
@@ -193,15 +222,8 @@ function SucceedingYearsPotential({ yearNumber = 2 }) {
   return (
     <div className="pt-0 print:px-1">
       <div className="flex flex-row gap-4 items-start print:gap-2.5">
-        {renderTable({
-          title: rangeTitle,
-          multiplier: 1,
-        })}
-
-        {renderTable({
-          title: 'Total Succeeding Years',
-          multiplier: succeedingYearCount,
-        })}
+        {renderTable({ title: rangeTitle, multiplier: 1 })}
+        {renderTable({ title: 'Total Succeeding Years', multiplier: succeedingYearCount })}
       </div>
     </div>
   );

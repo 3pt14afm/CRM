@@ -36,7 +36,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
     }));
   };
 
-  // ✅ Required fields: companyName, contractYears, contractType
+  // ✅ Required fields logic
   const companyNameVal = String(projectData?.companyInfo?.companyName ?? "").trim();
   const contractTypeVal = String(projectData?.companyInfo?.contractType ?? "").trim();
 
@@ -53,9 +53,6 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const showCompanyNameError = !readOnly && showErrors && companyNameInvalid;
   const showContractYearsError = !readOnly && showErrors && contractYearsInvalid;
   const showContractTypeError = !readOnly && showErrors && contractTypeInvalid;
-
-  const contractType = projectData?.companyInfo?.contractType || "";
-  const showBundledInk = contractType === "Rental + Supplies";
 
   const baseInput =
     "rounded-xl border px-2 text-sm outline-none focus:outline-none focus:ring-0 h-10";
@@ -89,8 +86,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                 : projectData?.companyInfo?.contractYears ?? ""
             }
             onChange={(e) => {
-              const v = e.target.value; // string
-              // store "" when empty so placeholder shows
+              const v = e.target.value;
               handleChange("contractYears", v === "" ? "" : Number(v));
             }}
             className={`${baseInput} md:w-24 xl:w-32 bg-green-50/30 text-center border
@@ -104,12 +100,10 @@ function CompanyInfo({ readOnly, showErrors = false }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        {/* Contract Type + checkbox aligned under Contract Years */}
         <div className="flex flex-col mt-2 gap-1">
           <p className="font-bold text-[11px] uppercase ">Contract Type</p>
 
           <div className="flex justify-between items-start">
-            {/* left column (same width as company name input) */}
             <div className="w-[70%]">
               <select
                 className={`w-full rounded-xl border px-2 text-sm h-10 outline-none focus:outline-none focus:ring-0 bg-white ${
@@ -119,10 +113,8 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                 value={projectData?.companyInfo?.contractType ?? ""}
                 onChange={(e) => {
                   const nextType = e.target.value;
-
                   handleChange("contractType", nextType);
 
-                  // auto-clear when switching away from Monthly Rental
                   if (nextType !== "Rental + Supplies") {
                     handleChange("bundledStdInk", false);
                   }
@@ -131,51 +123,36 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                 <option value="" disabled>
                   Select contract type
                 </option>
-                <option className="text-black" value="Free Use">
-                  Free Use
-                </option>
-                <option className="text-black" value="Rental + Click">
-                  Rental + Click
-                </option>
-                <option className="text-black" value="Fix Click">
-                  Fix Click
-                </option>
-                <option className="text-black" value="Rental + Supplies">
-                  Rental + Supplies
-                </option>
+                <option value="Free Use + per Cartridge">Free Use + per Cartridge</option>
+                <option value="Rental + Click Charge">Rental + Click Charge</option>
+                <option value="Free Use + Click Charge">Free Use + Click Charge</option>
+                <option value="Rental + per Cartridge">Rental + per Cartridge</option>
+                <option value="Fixed Monthly Only">Fixed Monthly Only</option>
+                <option value="Outright + Click Charge">Outright + Click Charge</option>
+                <option value=" Outright + per Cartridge">Outright + per Cartridge</option>
+                <option value=" Outright Only (1 year)">Outright Only (1 year)</option>
               </select>
             </div>
-
-            {/* right column (matches contract years width) */}
-            {/* <div className="w-32 flex justify-start pt-2">
-              {showBundledInk && (
-                <label className="flex items-center gap-3 select-none">
-                  <input
-                    type="checkbox"
-                    checked={!!projectData.companyInfo.bundledStdInk}
-                    onChange={(e) =>
-                      handleChange("bundledStdInk", e.target.checked)
-                    }
-                    className="h-4 w-4 checkboxes cursor-pointer border-darkgreen/15 focus:outline-none focus:ring-0 focus:border-darkgreen/35"
-                  />
-                  <span className="text-[11px] font-bold uppercase text-slate-700 leading-tight">
-                    With bundled std ink bottles
-                  </span>
-                </label>
-              )}
-            </div> */}
           </div>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <p className="font-bold text-[11px] uppercase ">Purpose</p>
-          <input
-            className="rounded-xl border px-2 text-sm border-darkgreen/10 h-10 outline-none focus:outline-none focus:ring-0 focus:border-[#289800]"
-            type="text"
-            value={projectData?.companyInfo?.purpose ?? ""}
+          <select
+            className={`w-full rounded-xl border px-2 text-sm h-10 outline-none focus:outline-none focus:ring-0 bg-white ${
+              !projectData?.companyInfo?.purpose ? "text-slate-400" : "text-black"
+            } border-darkgreen/10 focus:border-[#289800]`}
             disabled={readOnly}
+            value={projectData?.companyInfo?.purpose ?? ""}
             onChange={(e) => handleChange("purpose", e.target.value)}
-          />
+          >
+            <option value="" disabled>
+              Select purpose
+            </option>
+            <option value="additional">Additional</option>
+            <option value="upgrade">Upgrade</option>
+            <option value="new deployment">New Deployment</option>
+          </select>
         </div>
       </div>
     </div>

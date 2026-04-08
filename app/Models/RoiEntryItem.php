@@ -31,6 +31,7 @@ class RoiEntryItem extends Model
         'sell_cpp',
         'machine_margin',
         'machine_margin_total',
+        'auto_added',
     ];
 
     protected $casts = [

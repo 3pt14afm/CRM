@@ -10,9 +10,6 @@ const genId = () =>
     : `${Date.now()}-${Math.random()}`;
 
 // ── Hydration helper ───────────────────────────────────────────────────────
-// IMPORTANT FIX:
-// Keep persisted ids instead of regenerating them.
-// This preserves linkedMachineRowId after draft reload.
 function buildHydratedRows(
   { machine = [], consumable = [] },
   { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable, enforceRowQty }
@@ -35,6 +32,8 @@ function buildHydratedRows(
   });
 
   const hydratedConsumables = consumable.map((r) => {
+    const wasAutoAdded = r.autoAdded === true || r.autoAdded === 1 || isPersistedAutoConsumable(r);
+
     const base = {
       ...r,
       id: r.id ?? genId(),
@@ -43,7 +42,7 @@ function buildHydratedRows(
       selectedMachineId: '',
       selectedConsumableId: r.selectedConsumableId || '',
       linkedMachineRowId: r.linkedMachineRowId ?? null,
-      autoAdded: Boolean(r.autoAdded) || isPersistedAutoConsumable(r),
+      autoAdded: wasAutoAdded,
       qty: 1,
     };
 
@@ -60,7 +59,6 @@ function buildHydratedRows(
 
   return [...hydratedMachines, ...hydratedConsumables];
 }
-// ──────────────────────────────────────────────────────────────────────────
 
 function MachineConfig({ readOnly }) {
   const {
@@ -81,6 +79,7 @@ function MachineConfig({ readOnly }) {
 
   const [focusedField, setFocusedField] = useState(null);
   const [activeSearchRowId, setActiveSearchRowId] = useState(null);
+  const [manuallyEdited, setManuallyEdited] = useState({});
 
   const keyOf = (rowId, field) => `${rowId}:${field}`;
   const hydratedProjectKeyRef = useRef(null);
@@ -151,22 +150,7 @@ function MachineConfig({ readOnly }) {
   const isPersistedAutoConsumable = (row) =>
     row?.type === 'consumable' &&
     (row?.mode === 'mono' || row?.mode === 'color') &&
-    row?.linkedMachineRowId != null;
-
-  const isLockedLinkedConsumable = (row) => {
-    if (row?.type !== 'consumable') return false;
-    if (row?.mode !== 'mono' && row?.mode !== 'color') return false;
-
-    const hasChosenCatalogConsumable = Boolean(row?.selectedConsumableId);
-    const hasPersistedPrinterConsumableSku = Boolean(String(row?.sku || '').trim());
-
-    return Boolean(
-      row?.linkedMachineRowId != null ||
-        row?.autoAdded ||
-        hasChosenCatalogConsumable ||
-        hasPersistedPrinterConsumableSku
-    );
-  };
+    (row?.linkedMachineRowId != null || row?.autoAdded === true);
 
   const hydrateMachineFields = (row) => {
     if (row?.type !== 'machine') return row;
@@ -175,22 +159,12 @@ function MachineConfig({ readOnly }) {
     return {
       ...row,
       selectedMachineId: machineId || '',
-      cost:
-        row.cost !== '' && row.cost != null
-          ? row.cost
-          : normalize2dp(machine?.unitCost),
-      price:
-        row.price !== '' && row.price != null
-          ? row.price
-          : normalize2dp(machine?.sellingPrice),
+      cost: row.cost !== '' && row.cost != null ? row.cost : normalize2dp(machine?.unitCost),
+      price: row.price !== '' && row.price != null ? row.price : normalize2dp(machine?.sellingPrice),
     };
   };
 
-  const enforceRowQty = (row) => {
-    if (row?.type === 'machine') return { ...row, qty: 1 };
-    if (row?.type === 'consumable') return { ...row, qty: 1 };
-    return row;
-  };
+  const enforceRowQty = (row) => ({ ...row, qty: 1 });
 
   const hydrateHelpers = {
     hydrateMachineFields,
@@ -245,13 +219,12 @@ function MachineConfig({ readOnly }) {
     if (hydratedProjectKeyRef.current === projectKey) return;
 
     const mc = projectData.machineConfiguration || {};
-    const machine = Array.isArray(mc.machine) ? mc.machine : [];
-    const consumable = Array.isArray(mc.consumable) ? mc.consumable : [];
-
-    const combined = buildHydratedRows({ machine, consumable }, hydrateHelpers);
+    const combined = buildHydratedRows({ machine: mc.machine || [], consumable: mc.consumable || [] }, hydrateHelpers);
+    
     setRows(combined.length > 0 ? combined : [makeBlankRow()]);
     setFocusedField(null);
     setActiveSearchRowId(null);
+    setManuallyEdited({});
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
@@ -285,10 +258,16 @@ function MachineConfig({ readOnly }) {
   const tableTotals = computeTotals(rows);
 
   const handleInputChange = (id, field, value) => {
+    if (field === 'cost' || field === 'yields') {
+      setManuallyEdited((prev) => ({
+        ...prev,
+        [`${id}:${field}`]: true,
+      }));
+    }
+
     setRows((prevRows) =>
       prevRows.map((row) => {
         if (row.id !== id) return row;
-        if (field === 'qty') return { ...row, qty: 1 };
         if (field === 'remarks' && !canEditRemarks) return row;
         return enforceRowQty({ ...row, [field]: value });
       })
@@ -298,7 +277,6 @@ function MachineConfig({ readOnly }) {
   const getMachineSuggestions = (query) => {
     const q = String(query || '').trim().toLowerCase();
     if (!q) return [];
-
     return machineCatalog
       .filter((item) => String(item.name || '').toLowerCase().includes(q))
       .slice(0, 8);
@@ -308,25 +286,18 @@ function MachineConfig({ readOnly }) {
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
-
-        if (row.selectedMachineId) {
-          return {
-            ...row,
-            selectedMachineId: '',
-            sku: typedValue,
-            cost: '',
-            price: '',
-            qty: 1,
-          };
-        }
-
-        return {
-          ...row,
-          sku: typedValue,
-        };
+        return row.selectedMachineId
+          ? {
+              ...row,
+              selectedMachineId: '',
+              sku: typedValue,
+              cost: '',
+              price: '',
+              qty: 1,
+            }
+          : { ...row, sku: typedValue };
       })
     );
-
     setActiveSearchRowId(id);
   };
 
@@ -336,7 +307,6 @@ function MachineConfig({ readOnly }) {
 
   const handleMachineSelect = (id, selectedId) => {
     const selectedMachine = findMachineById(selectedId);
-
     setRows((prev) => {
       const currentMachineIndex = prev.findIndex((r) => r.id === id);
       if (currentMachineIndex === -1) return prev;
@@ -344,41 +314,27 @@ function MachineConfig({ readOnly }) {
       const currentMachineRow = prev[currentMachineIndex];
       const oldMachine = findMachineById(currentMachineRow.selectedMachineId);
 
-      const oldConsumableSkus = new Set(
-        (oldMachine?.consumables || []).map((c) => String(c.name).trim())
-      );
+      const oldConsumableSkus = new Set((oldMachine?.consumables || []).map((c) => String(c.name).trim()));
+      const oldConsumableIds = new Set((oldMachine?.consumables || []).map((c) => String(c.id)));
 
-      const oldConsumableIds = new Set(
-        (oldMachine?.consumables || []).map((c) => String(c.id))
-      );
-
-      let nextMachineIndex = prev.findIndex(
-        (r, index) => index > currentMachineIndex && r.type === 'machine'
-      );
+      let nextMachineIndex = prev.findIndex((r, index) => index > currentMachineIndex && r.type === 'machine');
       if (nextMachineIndex === -1) nextMachineIndex = prev.length;
 
       const result = [];
 
       for (let i = 0; i < prev.length; i++) {
         const r = prev[i];
-
         if (r.id === id) continue;
 
-        const isInsideCurrentMachineBlock =
-          i > currentMachineIndex && i < nextMachineIndex;
+        const isInsideCurrentMachineBlock = i > currentMachineIndex && i < nextMachineIndex;
 
         if (isInsideCurrentMachineBlock && r.type === 'consumable') {
           if (r.linkedMachineRowId === id) continue;
-
           const isMonoColor = r.mode === 'mono' || r.mode === 'color';
           const skuMatch = oldConsumableSkus.has(String(r.sku || '').trim());
-          const idMatch =
-            r.selectedConsumableId != null &&
-            oldConsumableIds.has(String(r.selectedConsumableId));
-
+          const idMatch = r.selectedConsumableId && oldConsumableIds.has(String(r.selectedConsumableId));
           if (isMonoColor && (skuMatch || idMatch)) continue;
         }
-
         result.push(r);
       }
 
@@ -389,7 +345,6 @@ function MachineConfig({ readOnly }) {
           selectedMachineId: '',
           qty: 1,
         };
-
         result.splice(currentMachineIndex, 0, manualMachineRow);
         return result;
       }
@@ -456,66 +411,44 @@ function MachineConfig({ readOnly }) {
 
       return withoutLinkedAutoRows.map((r) => {
         if (r.id !== id) return r;
-        if (isMachine) {
-          return {
-            ...r,
-            type: 'machine',
-            prevMode: r.mode || '',
-            mode: '',
-            qty: 1,
-            yields: '',
-            selectedConsumableId: '',
-            sku: '',
-            cost: '',
-            price: '',
-            selectedMachineId: '',
-            linkedMachineRowId: null,
-            autoAdded: false,
-          };
-        }
+
         return {
           ...r,
-          type: 'consumable',
-          mode: r.prevMode || '',
-          qty: 1,
-          selectedMachineId: '',
-          sku: '',
-          cost: '',
-          price: '',
-          yields: '',
+          type: isMachine ? 'machine' : 'consumable',
+          mode: r.mode || '',
+          selectedMachineId: isMachine ? '' : '',
           selectedConsumableId: '',
           linkedMachineRowId: null,
           autoAdded: false,
+          sku: r.sku,
+          cost: r.cost,
+          yields: r.yields,
+          price: r.price,
         };
       });
     });
   };
 
   const setMode = (id, mode) => {
-    setRows((prev) =>
-      prev.map((r) => {
+    setManuallyEdited(prev => {
+      const newEdited = { ...prev };
+      delete newEdited[`${id}:cost`];
+      delete newEdited[`${id}:yields`];
+      return newEdited;
+    });
+
+    setRows(prev =>
+      prev.map(r => {
         if (r.id !== id) return r;
-        if (mode === 'mono' || mode === 'color' || mode === 'others') {
-          return {
-            ...r,
-            mode,
-            selectedConsumableId: '',
-            sku: '',
-            cost: '',
-            price: '',
-            yields: '',
-            qty: 1,
-          };
-        }
+        const isSwitchingToOthers = mode === 'others';
         return {
           ...r,
-          mode: '',
+          type: isSwitchingToOthers ? 'consumable' : r.type,
+          mode,
+          selectedMachineId: '',
           selectedConsumableId: '',
-          sku: '',
-          cost: '',
-          price: '',
-          yields: '',
-          qty: 1,
+          linkedMachineRowId: null,
+          autoAdded: false,
         };
       })
     );
@@ -538,9 +471,7 @@ function MachineConfig({ readOnly }) {
   const removeRow = (id) =>
     rows.length > 1 &&
     setRows((prev) =>
-      prev.filter(
-        (r) => r.id !== id && !(r.type === 'consumable' && r.linkedMachineRowId === id)
-      )
+      prev.filter((r) => r.id !== id && !(r.type === 'consumable' && r.linkedMachineRowId === id))
     );
 
   const formatNum = (num) =>
@@ -556,7 +487,6 @@ function MachineConfig({ readOnly }) {
     const rowsWithCalculations = rows.map((r) => {
       const normalizedRow = enforceRowQty(r);
       const calcs = getRowCalculations(normalizedRow, projectData);
-
       return {
         ...normalizedRow,
         linkedMachineRowId: r.linkedMachineRowId ?? null,
@@ -573,13 +503,8 @@ function MachineConfig({ readOnly }) {
       };
     });
 
-    const machines = rowsWithCalculations.filter(
-      (r) => r.type === 'machine' && r.sku?.trim() !== ''
-    );
-
-    const consumables = rowsWithCalculations.filter(
-      (r) => r.type === 'consumable' && r.sku?.trim() !== ''
-    );
+    const machines = rowsWithCalculations.filter((r) => r.type === 'machine' && r.sku?.trim() !== '');
+    const consumables = rowsWithCalculations.filter((r) => r.type === 'consumable' && r.sku?.trim() !== '');
 
     let calculatedBundledPrice = 0;
     if (isMonthlyRental && isBundleChecked) {
@@ -638,14 +563,11 @@ function MachineConfig({ readOnly }) {
     'w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
 
   const selectClass =
-    'w-full min-w-0 h-8 text-[11px] print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-left leading-tight';
+    'w-full min-w-0 h-8 text-[13px] print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-center leading-tight';
 
-  const readonlyClass =
-    'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
-
+  const readonlyClass = 'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
   const footerCellClass = 'bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ';
-  const disabledInputClass =
-    'border-none disabled:bg-lightgreen/5 text-slate-500 cursor-not-allowed';
+  const disabledInputClass = 'border-none disabled:bg-lightgreen/5  cursor-not-allowed';
 
   return (
     <div className="mx-10 mb-5">
@@ -695,9 +617,8 @@ function MachineConfig({ readOnly }) {
                 const normalizedRow = enforceRowQty(row);
                 const calcs = getRowCalculations(normalizedRow, projectData);
                 const isMachineRow = row.type === 'machine';
-
-                const isOtherConsumable =
-                  row.type === 'consumable' && row.mode === 'others' && !row.autoAdded;
+                const isOthersMode = row.mode === 'others';
+                const isOtherConsumable = row.type === 'consumable' && isOthersMode && !row.autoAdded;
 
                 const shouldShowReadonlyConsumableSku =
                   row.type === 'consumable' &&
@@ -711,38 +632,47 @@ function MachineConfig({ readOnly }) {
                   !shouldShowReadonlyConsumableSku;
 
                 const machineSuggestions =
-                  isMachineRow && activeSearchRowId === row.id
-                    ? getMachineSuggestions(row.sku)
-                    : [];
-
-                const isSelectedCatalogMachine = isMachineRow && Boolean(row.selectedMachineId);
+                  isMachineRow && activeSearchRowId === row.id ? getMachineSuggestions(row.sku) : [];
 
                 return (
                   <tr key={row.id} className="border-b">
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
                       <input
-                        disabled={readOnly || row.autoAdded}
                         type="checkbox"
                         className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
-                        checked={row.type === 'machine'}
+                        checked={isMachineRow}
                         onChange={(e) => toggleMachine(row.id, e.target.checked)}
+                        disabled={
+                          readOnly || 
+                          !!row.autoAdded || 
+                          row.mode === 'mono' || 
+                          row.mode === 'color'
+                        }
                       />
                     </td>
 
                     <td className="border-r border-b border-darkgreen/15 px-1">
                       <div className="flex items-center justify-center">
                         <select
-                          value={row.type === 'machine' ? '' : row.mode || ''}
+                          value={isMachineRow && !isOthersMode ? '' : row.mode || ''}
                           onChange={(e) => setMode(row.id, e.target.value)}
-                          disabled={row.type === 'machine' || readOnly || row.autoAdded}
+                          disabled={
+                            readOnly || 
+                            !!row.autoAdded || 
+                            row.mode === 'mono' || 
+                            row.mode === 'color'
+                          }
                           className={`w-[90%] min-w-0 h-6 text-[10px] sm:text-[11px] pl-2 pr-5 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0 ${
-                            row.type === 'machine'
+                            isMachineRow && !isOthersMode
                               ? 'border-darkgreen/20 cursor-not-allowed bg-slate-100'
                               : shouldHighlightModeError(row)
-                              ? 'border-red-400 focus:border-red-400 bg-red-50 text-red-700 cursor-pointer'
+                              ? 'border-red-400 bg-red-50 text-red-700 cursor-pointer'
                               : 'border-darkgreen/20 focus:border-[#289800] cursor-pointer'
-                          } ${row.autoAdded ? 'opacity-100 cursor-not-allowed bg-slate-50' : ''}`}
-                          aria-label="Select mode: Mono / Color / Others"
+                          } ${
+                            (!!row.autoAdded || row.mode === 'mono' || row.mode === 'color') 
+                              ? ' cursor-not-allowed bg-slate-100 border-slate-200' 
+                              : ''
+                          }`}
                         >
                           <option className="text-gray-400" value="">
                             Select
@@ -755,7 +685,7 @@ function MachineConfig({ readOnly }) {
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1 text-black">
-                      {isMachineRow ? (
+                      {isMachineRow && !isOthersMode ? (
                         <div className="relative">
                           <input
                             type="text"
@@ -765,11 +695,9 @@ function MachineConfig({ readOnly }) {
                             onFocus={() => setActiveSearchRowId(row.id)}
                             onBlur={handleMachineInputBlur}
                             className={selectClass}
-                            placeholder="Search printer or type manually"
-                            title={row.sku || ''}
+                            placeholder="Search printer..."
                             autoComplete="off"
                           />
-
                           {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
                             <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-48 overflow-auto">
                               {machineSuggestions.length > 0 ? (
@@ -785,20 +713,28 @@ function MachineConfig({ readOnly }) {
                                   </button>
                                 ))
                               ) : (
-                                <div className="px-3 py-2 text-[12px] text-slate-500">
-                                  No printer found. Continue typing for manual entry.
+                                <div className="px-3 py-2 text-[12px] text-slate-500 italic">
+                                  No results. Switch to "Others" for manual entry.
                                 </div>
                               )}
                             </div>
                           )}
                         </div>
+                      ) : isOthersMode || isOtherConsumable ? (
+                        <input
+                          type="text"
+                          value={row.sku || ''}
+                          disabled={readOnly || row.autoAdded}
+                          onChange={(e) => handleInputChange(row.id, 'sku', e.target.value)}
+                          className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''} ${row.autoAdded ? ' bg-slate-100' : ''}`}
+                          placeholder="Enter machine/item name"
+                        />
                       ) : shouldShowConsumableDropdown ? (
                         <select
                           value={row.selectedConsumableId || ''}
                           onChange={(e) => handleConsumableSelect(row.id, e.target.value)}
                           disabled={readOnly || row.autoAdded || !row.mode}
-                          className={selectClass}
-                          title={row.sku || ''}
+                          className={`${selectClass} ${row.autoAdded ? ' bg-slate-100' : ''}`}
                         >
                           <option value="">Select Consumable</option>
                           {(consumableCatalog[row.mode] || []).map((item) => (
@@ -807,33 +743,61 @@ function MachineConfig({ readOnly }) {
                             </option>
                           ))}
                         </select>
-                      ) : shouldShowReadonlyConsumableSku ? (
+                      ) : (
                         <input
                           type="text"
                           value={row.sku || ''}
                           disabled
-                          className={`${inputClass} ${disabledInputClass}`}
-                          placeholder="Consumable"
-                          title={row.sku || ''}
+                          className={`${inputClass} ${disabledInputClass} ${row.autoAdded ? '' : ''}`}
+                          placeholder={row.autoAdded ? 'Auto-added' : 'Select mode first'}
                         />
+                      )}
+                    </td>
+
+                    {/* Updated Unit Cost Column: Hidden if 0, reveals on hover */}
+                    <td className="group border-b border-r border-darkgreen/15 p-1">
+                      {(Number(row.cost) === 0 || row.cost === '' || row.cost === '0') ? (
+                        <div className="relative w-full h-8">
+                          <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
+                            {/* Empty column when not hovered */}
+                          </div>
+                          <div className="hidden group-hover:block">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              disabled={readOnly}
+                              value={
+                                focusedField === keyOf(row.id, 'cost') ? row.cost || '' : format2dpWithCommas(row.cost)
+                              }
+                              onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
+                              onBlur={() => {
+                                setFocusedField(null);
+                                handleInputChange(row.id, 'cost', normalize2dp(row.cost));
+                              }}
+                              onKeyDown={onlyNumericKeys(true)}
+                              onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
+                              className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
                       ) : (
                         <input
                           type="text"
-                          value={row.sku}
-                          disabled={readOnly || row.autoAdded || (!isOtherConsumable && !row.mode)}
-                          onChange={(e) => handleInputChange(row.id, 'sku', e.target.value)}
-                          className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''} ${
-                            readOnly || row.autoAdded || (!isOtherConsumable && !row.mode)
-                              ? disabledInputClass
-                              : ''
-                          }`}
-                          placeholder={
-                            row.autoAdded
-                              ? 'Auto-added consumable'
-                              : row.mode === 'others'
-                              ? 'Enter item name'
-                              : 'Select mode first'
+                          inputMode="decimal"
+                          disabled={readOnly}
+                          value={
+                            focusedField === keyOf(row.id, 'cost') ? row.cost || '' : format2dpWithCommas(row.cost)
                           }
+                          onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
+                          onBlur={() => {
+                            setFocusedField(null);
+                            handleInputChange(row.id, 'cost', normalize2dp(row.cost));
+                          }}
+                          onKeyDown={onlyNumericKeys(true)}
+                          onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
+                          className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                          placeholder="0.00"
                         />
                       )}
                     </td>
@@ -841,128 +805,114 @@ function MachineConfig({ readOnly }) {
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <input
                         type="text"
-                        inputMode="decimal"
-                        disabled={
-                          readOnly ||
-                          row.autoAdded ||
-                          isLockedLinkedConsumable(row) ||
-                          isSelectedCatalogMachine
-                        }
-                        value={
-                          focusedField === keyOf(row.id, 'cost')
-                            ? row.cost || ''
-                            : format2dpWithCommas(row.cost)
-                        }
-                        onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
-                        onBlur={() => {
-                          setFocusedField(null);
-                          handleInputChange(row.id, 'cost', normalize2dp(row.cost));
-                        }}
-                        onKeyDown={onlyNumericKeys(true)}
-                        onChange={(e) =>
-                          handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))
-                        }
-                        className={`${inputClass} ${
-                          readOnly ||
-                          row.autoAdded ||
-                          isLockedLinkedConsumable(row) ||
-                          isSelectedCatalogMachine
-                            ? disabledInputClass
-                            : ''
-                        }`}
-                        placeholder="0.00"
+                        value="1"
+                        disabled
+                        className={`${inputClass} ${disabledInputClass}`}
                       />
                     </td>
 
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value="1"
-                        disabled={true}
-                        className={`${inputClass} ${disabledInputClass}`}
-                        placeholder="1"
-                      />
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                  <div className={readonlyClass}>
+                    {calcs.totalCost !== 0 ? formatNum(isMachineRow ? Number(row.cost) || 0 : Number(calcs.totalCost) || 0) : ''}
+                  </div>
+                </td>
+
+                   <td className="group border-b border-r border-darkgreen/15 p-1">
+                      {(Number(row.yields) === 0 || row.yields === '' || row.yields === '0') ? (
+                        <div className="relative w-full h-8">
+                          <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
+                            {/* Empty when not hovered */}
+                          </div>
+                          <div className="hidden group-hover:block">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={focusedField === keyOf(row.id, 'yields') ? row.yields || '' : formatIntWithCommas(row.yields)}
+                              onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
+                              onBlur={() => setFocusedField(null)}
+                              onKeyDown={onlyNumericKeys(false)}
+                              onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
+                              disabled={readOnly}
+                              className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={focusedField === keyOf(row.id, 'yields') ? row.yields || '' : formatIntWithCommas(row.yields)}
+                          onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
+                          onBlur={() => setFocusedField(null)}
+                          onKeyDown={onlyNumericKeys(false)}
+                          onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
+                          disabled={readOnly}
+                          className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                          placeholder="0"
+                        />
+                      )}
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className={readonlyClass}>
-                        {formatNum(
-                          isMachineRow
-                            ? (Number(row.cost) || 0) * 1
-                            : (Number(calcs.totalCost) || 0) * 1
-                        )}
+                        {calcs.costCpp !== 0 ? formatNum(calcs.costCpp) : ''}
                       </div>
                     </td>
-
-                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={
-                        focusedField === keyOf(row.id, 'yields')
-                          ? row.yields || ''
-                          : formatIntWithCommas(row.yields)
-                      }
-                      onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
-                      onBlur={() => setFocusedField(null)}
-                      onKeyDown={onlyNumericKeys(false)}
-                      onChange={(e) =>
-                        handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))
-                      }
-                      disabled={
-                        readOnly ||
-                        row.autoAdded ||
-                        isLockedLinkedConsumable(row) ||
-                        (isMachineRow && Boolean(row.selectedMachineId))
-                      }
-                      className={`${inputClass} ${
-                        readOnly ||
-                        row.autoAdded ||
-                        isLockedLinkedConsumable(row) ||
-                        (isMachineRow && Boolean(row.selectedMachineId))
-                          ? disabledInputClass
-                          : ''
-                      }`}
-                      placeholder="0"
-                    />
-                  </td>
-
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <div className={readonlyClass}>{formatNum(calcs.costCpp)}</div>
+                    <td className="group border-b border-r border-darkgreen/15 p-1">
+                      {(Number(row.price) === 0 || row.price === '' || row.price === '0') ? (
+                        <div className="relative w-full h-8">
+                          <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
+                            {/* Empty when not hovered */}
+                          </div>
+                          <div className="hidden group-hover:block">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={focusedField === keyOf(row.id, 'price') ? row.price || '' : format2dpWithCommas(row.price)}
+                              onFocus={() => setFocusedField(keyOf(row.id, 'price'))}
+                              onBlur={() => {
+                                setFocusedField(null);
+                                handleInputChange(row.id, 'price', normalize2dp(row.price));
+                              }}
+                              onKeyDown={onlyNumericKeys(true)}
+                              onChange={(e) => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
+                              disabled={readOnly}
+                              className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={focusedField === keyOf(row.id, 'price') ? row.price || '' : format2dpWithCommas(row.price)}
+                          onFocus={() => setFocusedField(keyOf(row.id, 'price'))}
+                          onBlur={() => {
+                            setFocusedField(null);
+                            handleInputChange(row.id, 'price', normalize2dp(row.price));
+                          }}
+                          onKeyDown={onlyNumericKeys(true)}
+                          onChange={(e) => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
+                          disabled={readOnly}
+                          className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                          placeholder="0.00"
+                        />
+                      )}
                     </td>
 
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={
-                          focusedField === keyOf(row.id, 'price')
-                            ? row.price || ''
-                            : format2dpWithCommas(row.price)
-                        }
-                        onFocus={() => setFocusedField(keyOf(row.id, 'price'))}
-                        onBlur={() => {
-                          setFocusedField(null);
-                          handleInputChange(row.id, 'price', normalize2dp(row.price));
-                        }}
-                        onKeyDown={onlyNumericKeys(true)}
-                        onChange={(e) =>
-                          handleInputChange(row.id, 'price', sanitize2dp(e.target.value))
-                        }
-                        disabled={readOnly}
-                        className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
-                        placeholder="0.00"
-                      />
-                    </td>
+                 <td className="border-b border-r border-darkgreen/15 p-1">
+                  <div className={readonlyClass}>
+                    {Number(calcs.totalSell) !== 0 ? formatNum(calcs.totalSell) : ''}
+                  </div>
+                </td>
 
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <div className={readonlyClass}>{formatNum(calcs.totalSell)}</div>
-                    </td>
-
-                    <td className="border-b border-r border-darkgreen/15 p-1">
-                      <div className={readonlyClass}>{formatNum(calcs.sellCpp)}</div>
-                    </td>
+                <td className="border-b border-r border-darkgreen/15 p-1">
+                  <div className={readonlyClass}>
+                    {Number(calcs.sellCpp) !== 0 ? formatNum(calcs.sellCpp) : ''}
+                  </div>
+                </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className="flex gap-1 justify-center">
@@ -970,7 +920,7 @@ function MachineConfig({ readOnly }) {
                           onClick={addRow}
                           disabled={readOnly}
                           className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${
-                            readOnly ? 'opacity-30 cursor-not-allowed' : ''
+                            readOnly ? ' cursor-not-allowed' : ''
                           }`}
                         >
                           +
@@ -979,7 +929,7 @@ function MachineConfig({ readOnly }) {
                           onClick={() => removeRow(row.id)}
                           disabled={readOnly}
                           className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${
-                            readOnly ? 'opacity-30 cursor-not-allowed' : ''
+                            readOnly ? ' cursor-not-allowed' : ''
                           }`}
                         >
                           -
