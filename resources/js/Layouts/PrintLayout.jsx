@@ -67,7 +67,7 @@ export default function PrintLayout({ children, showDraftWatermark = false }) {
         }
 
         @media print {
-          html, body { width: 210mm; }
+          html, body { width: 210mm; margin: 0 auto; }
           .print-shell { padding: 0; background: transparent; }
           .paper {
             width: auto;
@@ -75,6 +75,7 @@ export default function PrintLayout({ children, showDraftWatermark = false }) {
             box-shadow: none;
             border-radius: 0;
             position: relative;
+            margin: 0 auto;
           }
 
           .print-watermark {

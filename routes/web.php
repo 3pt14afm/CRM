@@ -190,6 +190,8 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])
                     ->name('roi.entry.projects.notes.store');
 
+                Route::get('/companies/search', [RoiEntryProjectController::class, 'getCompanySuggestions'])->name('companies.search');
+
                 Route::get('/projects/{project}/print', function ($project) {
                     $p = \App\Models\RoiEntryProject::with(['items', 'fees', 'user'])->findOrFail($project);
 
@@ -223,6 +225,9 @@ Route::middleware(['auth', 'verified'])
                         'route' => 'entry',
                     ]);
                 })->name('roi.entry.projects.print');
+
+                Route::get('/projects/{project}/attachments/{attachmentId}', [RoiEntryProjectController::class, 'showAttachment'])
+                    ->name('roi.entry.projects.attachments.show');
             });
 
             /*
@@ -289,6 +294,9 @@ Route::middleware(['auth', 'verified'])
                         'route' => 'current',
                     ]);
                 })->name('roi.current.print');
+            
+                Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])
+                    ->name('roi.current.attachments.show');
             });
 
             /*
@@ -335,6 +343,9 @@ Route::middleware(['auth', 'verified'])
                     'route' => 'archive',
                 ]);
             })->name('roi.archive.print');
+
+            Route::get('/archive/{id}/attachments/{attachmentId}', [RoiController::class, 'showArchiveAttachment'])
+                ->name('roi.archive.attachments.show');
 
             /*
             |--------------------------------------------------------------------------
