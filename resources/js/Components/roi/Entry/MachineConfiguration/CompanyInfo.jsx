@@ -34,10 +34,16 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   ]);
 
   // Using updateSection ensures companyInfo.bundledStdInk stays a boolean
-  const handleChange = (field, value) => {
-    updateSection("companyInfo", { [field]: value });
-  };
+ const handleChange = (field, value) => {
+  let updates = { [field]: value };
 
+  // Check if we are changing the contract type to the specific 1-year type
+  if (field === "contractType" && value === "Outright Only (1 year)") {
+    updates.contractYears = 1;
+  }
+
+  updateSection("companyInfo", updates);
+};
   const fetchSuggestions = useCallback(
     debounce(async (query) => {
       if (query.length < 1) {
@@ -119,7 +125,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             <ul className="absolute top-[62px] left-0 z-[100] [&::-webkit-scrollbar]:hidden w-full bg-[#ffffff01]  backdrop-blur-lg border border-gray-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto py-1 border-t-0 rounded-t-none">
               {isSearching && suggestions.length === 0 && (
                 <li className="px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
-                    <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-3 h-3 border-2 border-darkgreen border-t-transparent rounded-full animate-spin"></div>
                     Searching database...
                 </li>
               )}
@@ -145,19 +151,24 @@ function CompanyInfo({ readOnly, showErrors = false }) {
           )}
         </div>
 
-        <div className="flex flex-col gap-1">
-          <p className="font-bold text-[11px] uppercase">Contract Years</p>
-          <input
-            type="number"
-            value={projectData?.companyInfo?.contractYears || ""}
-            onChange={(e) => {
-                const val = e.target.value === "" ? 0 : Number(e.target.value);
-                handleChange("contractYears", val);
-            }}
-            className={`${baseInput} md:w-24 xl:w-32 bg-green-50/30 text-center border [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-            disabled={readOnly}
-          />
-        </div>
+     <div className="flex flex-col gap-1">
+        <p className="font-bold text-[11px] uppercase">Contract Years</p>
+        <input
+          type="number"
+          // Disable if it's "Outright Only (1 year)" OR if the whole form is readOnly
+          disabled={readOnly || projectData?.companyInfo?.contractType === "Outright Only (1 year)"}
+          value={projectData?.companyInfo?.contractYears || ""}
+          onChange={(e) => {
+            const val = e.target.value === "" ? 0 : Number(e.target.value);
+            handleChange("contractYears", val);
+          }}
+          className={`${baseInput} md:w-24 xl:w-32 bg-green-50/30 text-center border outline-none focus:border-[#289800] [appearance:textfield] 
+            [&::-webkit-outer-spin-button]:appearance-none 
+            [&::-webkit-inner-spin-button]:appearance-none ... ${
+            projectData?.companyInfo?.contractType === "Outright Only (1 year)" ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+        />
+    </div>
       </div>
 
       <div className="flex flex-col gap-2 mt-4">

@@ -33,6 +33,33 @@ const FIXED_FEE_LABELS_MONTHLY_RENTAL = [
   "Rental + Supplies",
 ];
 
+const FIXED_FEE_LABELS_OUTRIGHT_CLICK = [
+  "Shipping",
+  "Rebate",
+  "Support Services",
+  "A4/A3 MONO CLICK",
+  "A4/LGL COLOR CLICK",
+  "A3 COLOR CLICK",
+];
+
+const FIXED_FEE_LABELS_OUTRIGHT_CARTRIDGE = [
+  "Shipping",
+  "Rebate",
+  "Support Services",
+];
+
+const FIXED_FEE_LABELS_FIXED_MONTHLY = [
+  "Shipping",
+  "Rebate",
+  "Support Services",
+  "Rental + Supplies", // Example for Fixed Monthly
+];
+
+const FIXED_FEE_LABELS_OUTRIGHT_ONLY = [
+  "Shipping",
+  "Support Services",
+];
+
 const CONTRACT_SPECIFIC_LABELS = [
   "Rental + Supplies",
   "A4/A3 MONO CLICK",
@@ -44,6 +71,7 @@ const CLICK_LABELS = [
   "A4/A3 MONO CLICK",
   "A4/LGL COLOR CLICK",
   "A3 COLOR CLICK",
+  "Rental + Supplies"
 ];
 
 const makeId = () =>
@@ -109,9 +137,15 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
   const fixedRows = fixedLabels.map((fixedLabel) => {
     const idx = remaining.findIndex(r => normalize(r.label) === normalize(fixedLabel));
     
-    // Logic: If it's a fixed row but NOT a click label, it defaults to Customer (isMachine: true)
+    // Check if the label is a Click label
     const isClickLabel = CLICK_LABELS.some(c => normalize(c) === normalize(fixedLabel));
-    const defaultIsMachine = !isClickLabel;
+
+    /**
+     * UPDATED LOGIC:
+     * If it IS a click label, it defaults to Customer (isMachine: true).
+     * If it is NOT a click label (Shipping, Support, etc.), it defaults to Company (isMachine: false).
+     */
+    const defaultIsMachine = isClickLabel; 
 
     if (idx >= 0) {
       const existing = remaining.splice(idx, 1)[0];
@@ -119,7 +153,8 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
         ...existing, 
         label: fixedLabel, 
         __fixed: true,
-        isMachine: defaultIsMachine ? true : existing.isMachine 
+        // Force the machine status based on the new logic
+        isMachine: defaultIsMachine 
       }, monoAnnual, colorAnnual);
     }
 
@@ -130,7 +165,7 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
       qty: 0,
       total: 0,
       remarks: '',
-      isMachine: defaultIsMachine, 
+      isMachine: defaultIsMachine, // Defaults to false for Shipping/Support
       __fixed: true,
     }, monoAnnual, colorAnnual);
   });
@@ -138,7 +173,6 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
   const nonFixed = remaining.map(r => ({ ...r, __fixed: false }));
   return [...fixedRows, ...nonFixed];
 };
-
 const stripLocalFields = (row) => {
   const { __fixed, ...clean } = row;
   return clean;
@@ -163,10 +197,16 @@ const Fees = ({ readOnly }) => {
   const isMonthlyRental = contractType === "Rental + per Cartridge";
 
   const activeFixedLabels =
-    isFreeUse ? FIXED_FEE_LABELS_FREE_USE :
-    isRentalClick ? FIXED_FEE_LABELS_RENTAL_CLICK :
-    isFixClick ? FIXED_FEE_LABELS_FIX_CLICK :
-    isMonthlyRental ? FIXED_FEE_LABELS_MONTHLY_RENTAL : null;
+  isFreeUse ? FIXED_FEE_LABELS_FREE_USE :
+  isRentalClick ? FIXED_FEE_LABELS_RENTAL_CLICK :
+  isFixClick ? FIXED_FEE_LABELS_FIX_CLICK :
+  isMonthlyRental ? FIXED_FEE_LABELS_MONTHLY_RENTAL :
+  // ADD THE NEW TYPES HERE:
+  contractType === "Fixed Monthly Only" ? FIXED_FEE_LABELS_FIXED_MONTHLY :
+  contractType === "Outright + Click Charge" ? FIXED_FEE_LABELS_OUTRIGHT_CLICK :
+  contractType === "Outright + per Cartridge" ? FIXED_FEE_LABELS_OUTRIGHT_CARTRIDGE :
+  contractType === "Outright Only (1 year)" ? FIXED_FEE_LABELS_OUTRIGHT_ONLY :
+  null;
 
   const hasFixedRows = Array.isArray(activeFixedLabels);
 
@@ -301,7 +341,7 @@ const Fees = ({ readOnly }) => {
               
               // LOGIC: Show checkbox only if it's NOT a fixed row, OR if it's one of the 3 specific CLICK labels
               const isClickRow = CLICK_LABELS.some(c => normalize(c) === normalize(row.label));
-              const showCheckbox = !row.__fixed || isClickRow;
+              const showCheckbox = !row.__fixed;
 
               return (
                 <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">

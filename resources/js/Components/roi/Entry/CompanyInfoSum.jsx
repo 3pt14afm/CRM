@@ -48,7 +48,7 @@ function CompanyInfoSum() {
             {/* Right Side: Purpose Section */}
             <div className='flex flex-col gap-2 p-6 bg-[#f2fcef] border-l border-gray-100 print:p-4'>
                 <p className='text-[10px] text-gray-600 font-bold uppercase tracking-wider'>Purpose</p>
-                <p className='text-[11px] font-medium leading-relaxed text-gray-600 '>
+                <p className='text-[11px] font-semibold uppercase leading-relaxed text-gray-600 '>
                     {purpose}
                 </p>
             </div>

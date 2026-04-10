@@ -725,7 +725,7 @@ const removeRow = (id) => {
                                     type="button"
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => handleMachineSuggestionSelect(row.id, machine)}
-                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-green-600 hover:text-white transition-colors"
+                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-green-600 hover:text-black transition-colors"
                                   >
                                     {machine.name}
                                   </button>
