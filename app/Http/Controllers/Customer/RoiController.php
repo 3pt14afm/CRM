@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\RoiArchiveProject;
 use App\Models\RoiEntryProject;
 use App\Models\User;
-use App\Http\Controllers\Concerns\StreamsEntryRemarkAttachments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -14,7 +13,6 @@ use Inertia\Inertia;
 
 class RoiController extends Controller
 {
-    use StreamsEntryRemarkAttachments;
 
     public function entryList(Request $request)
     {
@@ -254,77 +252,79 @@ public function entryCreate()
     }
 
     private function buildMachineCatalog()
-{
-    return \App\Models\PrinterModel::query()
-        ->with([
-            'printerModelSupplies.supply:id,category,print_type,supply_name,yield,unit_cost,selling_price,status',
-        ])
-        ->where('status', 'Active')
-        ->orderBy('printer_name')
-        ->get()
-        ->map(function ($printer) {
-            return [
-                'id' => (string) $printer->id,
-                'name' => $printer->printer_name,
-                'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
-                'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
-                'consumables' => $printer->printerModelSupplies
-                    ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
-                    ->map(function ($link) {
-                        $supply = $link->supply;
+    {
+        return \App\Models\PrinterModel::query()
+            ->with([
+                'printerModelSupplies.supply:id,category,print_type,supply_name,yield,unit_cost,selling_price,status',
+            ])
+            ->where('status', 'Active')
+            ->orderBy('printer_name')
+            ->get()
+            ->map(function ($printer) {
+                return [
+                    'id' => (string) $printer->id,
+                    'name' => $printer->printer_name,
+                    'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
+                    'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
+                    'consumables' => $printer->printerModelSupplies
+                        ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
+                        ->map(function ($link) {
+                            $supply = $link->supply;
 
-                        $mode = strtolower($supply->category ?? '') === 'part'
-                            ? 'others'
-                            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+                            $mode = strtolower($supply->category ?? '') === 'part'
+                                ? 'others'
+                                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
 
-                        return [
-                            'id' => (string) $supply->id,
-                            'mode' => $mode,
-                            'name' => $supply->supply_name,
-                            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
-                            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-                            'yields' => (string) ($supply->yield ?? ''),
-                        ];
-                    })
-                    ->values(),
-            ];
-        })
-        ->values();
-}
-
-private function buildConsumableCatalog()
-{
-    $catalog = [
-        'mono' => [],
-        'color' => [],
-        'others' => [],
-    ];
-
-    $supplies = \App\Models\Supply::query()
-        ->where('status', 'Active')
-        ->orderBy('supply_name')
-        ->get();
-
-    foreach ($supplies as $supply) {
-        $mode = strtolower($supply->category ?? '') === 'part'
-            ? 'others'
-            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
-
-        $catalog[$mode][] = [
-            'id' => (string) $supply->id,
-            'name' => $supply->supply_name,
-            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
-            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-            'yields' => (string) ($supply->yield ?? ''),
-        ];
+                            return [
+                                'id' => (string) $supply->id,
+                                'mode' => $mode,
+                                'name' => $supply->supply_name,
+                                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                                'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                                'yields' => (string) ($supply->yield ?? ''),
+                            ];
+                        })
+                        ->values(),
+                ];
+            })
+            ->values();
     }
 
-    return $catalog;
-}
+    private function buildConsumableCatalog()
+    {
+        $catalog = [
+            'mono' => [],
+            'color' => [],
+            'others' => [],
+        ];
 
-   public function archiveShow($id)
+        $supplies = \App\Models\Supply::query()
+            ->where('status', 'Active')
+            ->orderBy('supply_name')
+            ->get();
+
+        foreach ($supplies as $supply) {
+            $mode = strtolower($supply->category ?? '') === 'part'
+                ? 'others'
+                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
+            $catalog[$mode][] = [
+                'id' => (string) $supply->id,
+                'name' => $supply->supply_name,
+                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                'yields' => (string) ($supply->yield ?? ''),
+            ];
+        }
+
+        return $catalog;
+    }
+
+    public function archiveShow($id)
     {
         $project = RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+        $this->ensureCanViewArchive($project);
 
         $userIds = collect([
             $project->user_id,
@@ -359,16 +359,43 @@ private function buildConsumableCatalog()
         ]);
     }
 
-    public function showArchiveAttachment($id, string $attachmentId)
+    public function showArchiveAttachment($id, int $attachmentIndex)
     {
         $project = RoiArchiveProject::findOrFail($id);
 
-        abort_unless((int) $project->user_id === (int) Auth::id(), 403);
+        $this->ensureCanViewArchive($project);
 
         $attachments = is_array($project->entry_remarks_attachments)
-            ? $project->entry_remarks_attachments
+            ? array_values($project->entry_remarks_attachments)
             : [];
 
-        return $this->streamEntryRemarkAttachment($attachments, $attachmentId);
+        abort_unless(array_key_exists($attachmentIndex, $attachments), 404);
+
+        $attachment = $attachments[$attachmentIndex];
+
+        abort_unless(!empty($attachment['path']), 404);
+        abort_unless(Storage::disk('local')->exists($attachment['path']), 404);
+
+        return response()->file(Storage::disk('local')->path($attachment['path']));
+    }
+
+    private function ensureCanViewArchive(RoiArchiveProject $project): void
+    {
+        $user = Auth::user();
+
+        abort_unless($user, 403);
+
+        $userId = (int) $user->id;
+
+        $canView =
+            (int) $project->user_id === $userId
+            || (int) ($project->reviewed_by ?? 0) === $userId
+            || (int) ($project->checked_by ?? 0) === $userId
+            || (int) ($project->endorsed_by ?? 0) === $userId
+            || (int) ($project->confirmed_by ?? 0) === $userId
+            || (int) ($project->approved_by ?? 0) === $userId
+            || (int) ($project->rejected_by ?? 0) === $userId;
+            
+        abort_unless($canView, 403);
     }
 }

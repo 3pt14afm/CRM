@@ -7,7 +7,9 @@
         <title inertia>{{ config('app.name', 'CRM') }}</title>
 
         <!-- Fonts -->
-        <link rel="icon" type="image.png" href="/images/logoSmall.webp">
+        <link rel="icon" type="image/webp" href="{{ asset('images/logoSmall.webp') }}">
+        <link rel="shortcut icon" href="{{ asset('images/logoSmall.webp') }}">
+        <link rel="apple-touch-icon" href="{{ asset('images/logoSmall.webp') }}">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->

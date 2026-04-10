@@ -60,6 +60,7 @@ export default function EntryRemarksSummary() {
                   onClick={() =>
                     openRoiAttachment({
                       item,
+                      index,
                       projectId,
                       pageRoute,
                     })
