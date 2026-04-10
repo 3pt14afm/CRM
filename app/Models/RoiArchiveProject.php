@@ -38,6 +38,8 @@ class RoiArchiveProject extends Model
         'mono_yield_annual',
         'color_yield_monthly',
         'color_yield_annual',
+        'entry_remarks',
+        'entry_remarks_attachments',
         'mc_unit_cost',
         'mc_qty',
         'mc_total_cost',
@@ -63,6 +65,7 @@ class RoiArchiveProject extends Model
         'rejected_at' => 'datetime',
         'bundled_std_ink' => 'boolean',
         'yearly_breakdown' => 'array',
+        'entry_remarks_attachments' => 'array',
         'notes' => 'array',
         'comments' => 'array',
         'user_id' => 'integer',
@@ -125,8 +128,9 @@ class RoiArchiveProject extends Model
     {
         return $this->hasMany(Proposal::class, 'roi_archive_project_id');
     }
+
     public function approver()
-{
-    return $this->belongsTo(\App\Models\User::class, 'approved_by');
-}
+    {
+        return $this->belongsTo(\App\Models\User::class, 'approved_by');
+    }
 }

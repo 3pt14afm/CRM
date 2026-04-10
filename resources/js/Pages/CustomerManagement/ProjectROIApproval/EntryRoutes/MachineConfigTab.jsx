@@ -6,11 +6,11 @@ import InterestCalculator from '@/Components/roi/Entry/MachineConfiguration/Inte
 import CompanyInfo from '@/Components/roi/Entry/MachineConfiguration/CompanyInfo';
 import Yields from '@/Components/roi/Entry/MachineConfiguration/Yields';
 import Fees from '@/Components/roi/Entry/MachineConfiguration/Fees';
+import EntryRemarks from '@/Components/roi/Entry/EntryRemarks';
 
 function MachineConfigTab({ buttonClicked, readOnly, showCompanyInfoErrors = false }) {
   return (
     <div className='mx-5 bg-[#f8f8f8] border rounded-r-lg rounded-b-xl border-b-[#2c2c2e]/30 border-t-[#2c2c2e]/10 border-[#2c2c2e]/20 shadow-md'>
-      {/* COMPANY INFO + INTEREST */}
       <div className='flex items-center px-10 pt-5 gap-5 mb-5 md:flex-col lg:flex-row'>
         <CompanyInfo
           buttonClicked={buttonClicked}
@@ -26,9 +26,9 @@ function MachineConfigTab({ buttonClicked, readOnly, showCompanyInfoErrors = fal
 
       <MachineConfig buttonClicked={buttonClicked} readOnly={readOnly} />
 
-      {/* FEES */}
-      <div className='grid grid-cols-[75%_25%] mx-7 items-center pt-5 mb-9'>
+      <div className='grid grid-cols-[minmax(0,3fr)_minmax(320px,1fr)] gap-5 px-10 items-start pt-5 mb-9'>
         <Fees buttonClicked={buttonClicked} readOnly={readOnly} />
+        <EntryRemarks readOnly={readOnly} />
       </div>
     </div>
   );

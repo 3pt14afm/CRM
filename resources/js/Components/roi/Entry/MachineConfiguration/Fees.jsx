@@ -269,7 +269,7 @@ const Fees = ({ readOnly }) => {
   const currentGrandTotal = rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
   return (
-    <div className="h-full overflow-hidden rounded-md border border-darkgreen/15 shadow-md bg-lightgreen/5">
+    <div className="flex-1 overflow-hidden rounded-md border border-darkgreen/15 shadow-md bg-lightgreen/5">
       <div className="w-full">
         <table className="w-full table-fixed border-separate border-spacing-0">
           <colgroup>

@@ -375,9 +375,46 @@ export default function Sidebar() {
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
                       Sales Activities Log
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
-                      Contract Generation
-                    </Link>
+                  </>
+                )}
+
+                {(activeSubMenu === null || activeSubMenu === 'contract') && (
+                  <div className="relative">
+                    <div className="flex items-center -mt-3 -mb-3 py-2">
+                      <Link
+                        href="#"
+                        onClick={() => handleSubToggle('contract')}
+                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen font-medium hover:font-semibold transition-opacity lg:text-xs ${
+                          activeSubMenu === 'contract' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-3 mb-2' : 'text-darkgreen/70 opacity-80'
+                        }`}
+                      >
+                        Contract Generation
+                      </Link>
+                      <button onClick={() => handleSubToggle('contract')} className="px-6 py-2" type="button">
+                        <span className={`inline-block transition-transform duration-300 ${activeSubMenu === 'contract' ? 'rotate-90' : 'opacity-80'}`}>
+                          <IoIosArrowForward size={12} color={activeSubMenu === 'contract' ? 'rgba(19, 51, 7, 0.85)' : 'rgba(19, 51, 7, 0.7)'} />
+                        </span>
+                      </button>
+                    </div>
+
+                    {activeSubMenu === 'contract' && (
+                      <div className="relative ml-6 pb-2 mt-2">
+                        <NavSubLink href="#">
+                          New Contract
+                        </NavSubLink>
+                        <NavSubLink href="#">
+                          Contract Renewal
+                        </NavSubLink>
+                        <NavSubLink href="#">
+                          Business Review
+                        </NavSubLink>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!activeSubMenu && (
+                  <>
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
                       Client Leads & Alerts
                     </Link>
@@ -394,7 +431,7 @@ export default function Sidebar() {
                   <div className="relative">
                     <div className="flex items-center -mt-3 -mb-3 py-2">
                       <Link
-                        href={route('roi.current')}
+                        href="#"
                         onClick={() => handleSubToggle('reports')}
                         className={`flex-1 pl-8 py-2 text-[11px] font-medium tracking-tight transition-opacity hover:text-darkgreen hover:font-semibold lg:text-xs ${
                           activeSubMenu === 'reports' ? 'text-darkgreen/85 font-semibold' : 'text-darkgreen/70 opacity-80'
@@ -411,17 +448,20 @@ export default function Sidebar() {
 
                     {activeSubMenu === 'reports' && (
                       <div className="relative ml-7 pb-2">
-                        <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>
-                          Stocks Inventory (BN/RF)
+                        <NavSubLink href="#">
+                          Inventory Stocks
                         </NavSubLink>
-                        <NavSubLink href={route('roi.archive')} active={route().current('roi.archive')}>
-                          Sales Transaction per AM
+                        <NavSubLink href="#">
+                          Machine Deliveries
                         </NavSubLink>
-                        <NavSubLink href={route('roi.entry')} active={route().current('roi.entry')}>
-                          Sales Summary Report <br /> MTD/YTD
+                        <NavSubLink href="#">
+                          Machine Receipts
                         </NavSubLink>
-                        <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>
-                          All Reports of Others <br /> Systems
+                        <NavSubLink href="#">
+                          Refurbished IN/OUT Stocks
+                        </NavSubLink>
+                        <NavSubLink href="#">
+                          Sales Summary per Account Manager
                         </NavSubLink>
                       </div>
                     )}
