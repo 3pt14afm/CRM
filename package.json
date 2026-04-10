@@ -27,6 +27,7 @@
         "@tiptap/pm": "^3.21.0",
         "@tiptap/react": "^3.21.0",
         "@tiptap/starter-kit": "^3.21.0",
+        "lodash": "^4.18.1",
         "lucide-react": "^0.563.0",
         "react-hot-toast": "^2.6.0",
         "react-icons": "^5.5.0",

@@ -1,6 +1,4 @@
 export const get1YrPotential = (projectData) => {
-  // CALCULATES THE 1ST YEAR POTENTIAL
-
   // 1. DATA DESTRUCTURING with defaults
   const config = projectData?.machineConfiguration || {};
   const rawMachines = config.machine || [];
@@ -9,15 +7,13 @@ export const get1YrPotential = (projectData) => {
   const contractType = projectData?.companyInfo?.contractType || "";
   const normalizedContractType = String(contractType).trim().toLowerCase();
 
-  const isMonthlyRental = normalizedContractType === "monthly rental";
-  const isRentalClick =
-    normalizedContractType === "rental + click" ||
-    normalizedContractType === "rental+click";
-  const isFixClick =
-    normalizedContractType === "fix click" ||
-    normalizedContractType === "fixed click";
+  // Rule: Only Outright contracts allow a Machine selling price
+  const isOutright = normalizedContractType.includes("outright");
 
-  // ✅ Rental + Click and Fix Click share the same exact-qty behavior
+  const isMonthlyRental = normalizedContractType === "fixed monthly only";
+  const isRentalClick = normalizedContractType.includes("rental + click");
+  const isFixClick = normalizedContractType.includes("free use + click");
+
   const usesExactClickQty = isRentalClick || isFixClick;
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
@@ -25,43 +21,43 @@ export const get1YrPotential = (projectData) => {
     ? (Number(config.totals?.totalBundledPrice) || 0)
     : 0;
 
-  // Get BOTH Annual Yields FROM PROJECT DATA CONTEXT
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
-  const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
+  const addFeesObj = projectData?.additionalFees || { company: [], customer: [] };
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
 
-  // 2. PROCESS MACHINES (Force Qty to 1) --> FOR FREE USE MACHINE
+  // 2. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
     const unitCost = Number(m.cost) || 0;
-    const unitSell = Number(m.price) || 0;
+    
+    /** * SELLING PRICE LOGIC FOR MACHINES:
+     * If contract is NOT outright, force unitSell to 0.
+     */
+    const unitSell = isOutright ? (Number(m.price) || 0) : 0;
     const fixedQty = 1;
 
     return {
       ...m,
       qty: fixedQty,
+      price: unitSell, // Added to keep track of individual price
       totalCost: fixedQty * unitCost,
       totalSell: fixedQty * unitSell
-      // totalSell: 0
     };
   });
 
-  // Helper: Rental + Click / Fix Click use exact qty, otherwise round up
   const getQtyFromYields = (annualYields, itemYields) => {
     const safeItemYields = Number(itemYields) || 1;
     const exactQty = annualYields / safeItemYields;
     return usesExactClickQty ? exactQty : Math.ceil(exactQty);
   };
 
-  // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
-  // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP
+  // 3. MAP CONSUMABLES
   const processedConsumables = rawConsumables.map(c => {
     const itemYields = Number(c.yields) || 1;
     let dynamicQty = 0;
 
-    // Logic based on the new 'mode' selection
     switch (c.mode?.toLowerCase()) {
       case 'mono':
         dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
@@ -70,20 +66,18 @@ export const get1YrPotential = (projectData) => {
         dynamicQty = getQtyFromYields(annualColorYields, itemYields);
         break;
       case 'others':
-        // For 'others', keep the manually entered qty
         dynamicQty = Number(c.qty) || 1;
         break;
       default:
-        // Fallback to mono if no mode is selected
         dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
     }
 
     const unitCost = Number(c.cost) || 0;
-    const unitSell = Number(c.price) || 0;
+    const unitSell = Number(c.price) || 0; // Consumables keep their price
 
     return {
       ...c,
-      qty: dynamicQty, // exact value for Rental + Click / Fix Click (no round up)
+      qty: dynamicQty,
       totalCost: dynamicQty * unitCost,
       totalSell: dynamicQty * unitSell
     };
@@ -92,15 +86,12 @@ export const get1YrPotential = (projectData) => {
   // 4. CALCULATION LOGIC
   const totalMachineQty = processedMachines.reduce((sum, m) => sum + (Number(m.qty) || 0), 0);
   const totalMachineCost = rawMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
-  
-
   const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
   
   const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
   const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (Number(c.totalSell) || 0), 0);
 
-  const totalFeesQty = [...companyFees, ...customerFees].reduce((sum, f) => sum + (Number(f.qty) || 0), 0);
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
   const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
 
@@ -110,9 +101,6 @@ export const get1YrPotential = (projectData) => {
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-  const firstYearTotalCost = totalMachineCost + totalConsumableCost;
-  const fistYearTotalSell = totalMachineSales + totalConsumableSales;
-
   // 5. RETURN ALL VALUES
   return {
     totalMachineQty,
@@ -121,21 +109,18 @@ export const get1YrPotential = (projectData) => {
     totalConsumableQty,
     totalConsumableCost,
     totalConsumableSales,
-    totalFeesQty,
     totalCompanyFeesAmount,
     totalCustomerFeesAmount,
-    grandtotalCost,
-    grandtotalSell,
-    grossProfit,
+    grandtotalCost: Number(grandtotalCost || 0),
+    grandtotalSell: Number(grandtotalSell || 0),
+    grossProfit: grossProfit || 0,
     roiPercentage,
-    config,
     machines: processedMachines,
     consumables: processedConsumables,
-    addFeesObj,
-    companyFees,
-    customerFees,
+    companyFees, // Explicitly return as array for .map() in Totals.jsx
+    customerFees, // Explicitly return as array for .map() in Totals.jsx
     bundleDeduction,
-    firstYearTotalCost,
-    fistYearTotalSell
+    firstYearTotalCost: totalMachineCost + totalConsumableCost,
+    fistYearTotalSell: totalMachineSales + totalConsumableSales
   };
 };

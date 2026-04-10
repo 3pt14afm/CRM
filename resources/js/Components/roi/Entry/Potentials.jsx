@@ -123,7 +123,7 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
               consumables.map((c, index) => (
                 <tr key={`c-${index}`} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center">
-                    {formatConsumableQty(c.qty)}
+                    {formatConsumableQty(c.qty.toFixed(2))}
                   </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
                     {format(c.totalCost)}

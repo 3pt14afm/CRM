@@ -9,12 +9,8 @@ export const succeedingYears = (projectData) => {
   const contractType = projectData?.companyInfo?.contractType || "";
   const normalizedContractType = String(contractType).trim().toLowerCase();
 
-  const isRentalClick =
-    normalizedContractType === "rental + click" ||
-    normalizedContractType === "rental+click";
-  const isFixClick =
-    normalizedContractType === "fix click" ||
-    normalizedContractType === "fixed click";
+  const isRentalClick = normalizedContractType === "rental + click charge" || normalizedContractType === "rental + click charge"; 
+  const isFixClick = normalizedContractType === "free use + click charge" || normalizedContractType === "free use + click charge"; 
 
   // ✅ Rental + Click and Fix Click share the same exact-qty behavior
   const usesExactClickQty = isRentalClick || isFixClick;
@@ -32,14 +28,16 @@ export const succeedingYears = (projectData) => {
   // 2. PROCESS MACHINES --> FOR FREE USE MACHINE
   const processedMachines = rawMachines.map(m => {
     const unitCost = Number(m.cost) || 0;
-    const unitSell = Number(m.price) || 0;
+    // FIX: Forced unitSell to 0 because machines are not sold again in succeeding years
+    const unitSell = 0; 
     const fixedQty = 1;
 
     return {
       ...m,
       qty: fixedQty,
-      totalCost: 0 * 0, // this should be zero in succeeding years (NO MACHINE COST DISTRIBUTIONS)
-      totalSell: fixedQty * unitSell
+      price: unitSell,
+      totalCost: 0, // this should be zero in succeeding years
+      totalSell: fixedQty * unitSell // Results in 0
     };
   });
 
@@ -51,12 +49,10 @@ export const succeedingYears = (projectData) => {
   };
 
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
-  // TO GET THE QTY OF CONSUMABLE --> CONSUMABLE YIELDS / ANNUAL MONO/COLOR AMVP
   const processedConsumables = rawConsumables.map(c => {
     const itemYields = Number(c.yields) || 1;
     let dynamicQty = 0;
 
-    // Apply the same Mode logic as Year 1
     switch (c.mode?.toLowerCase()) {
       case 'mono':
         dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
@@ -65,11 +61,9 @@ export const succeedingYears = (projectData) => {
         dynamicQty = getQtyFromYields(annualColorYields, itemYields);
         break;
       case 'others':
-        // Respect manual qty for non-toner items
         dynamicQty = Number(c.qty) || 1;
         break;
       default:
-        // Default fallback to Mono
         dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
     }
 
@@ -78,7 +72,7 @@ export const succeedingYears = (projectData) => {
 
     return {
       ...c,
-      qty: dynamicQty, // exact for Rental + Click / Fix Click
+      qty: dynamicQty, 
       totalCost: dynamicQty * unitCost,
       totalSell: dynamicQty * unitSell
     };
@@ -97,14 +91,15 @@ export const succeedingYears = (projectData) => {
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
   const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
 
-  const grandtotalCost = totalMachineCost + totalConsumableCost + totalCompanyFeesAmount;
-  const grandtotalSell = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
+  // FIX: Forced numerical addition with Number() to prevent string concatenation (Trillion error)
+  const grandtotalCost = Number(totalMachineCost) + Number(totalConsumableCost) + Number(totalCompanyFeesAmount);
+  const grandtotalSell = Number(totalMachineSales) + Number(totalConsumableSales) + Number(totalCustomerFeesAmount);
 
-  const grossProfit = grandtotalSell - grandtotalCost;
+  const grossProfit = Number(grandtotalSell) - Number(grandtotalCost);
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-  const succeedingYearsTotalCost = totalMachineCost + totalConsumableCost;
-  const succeedingYearsTotalSales = totalMachineSales + totalConsumableSales;
+  const succeedingYearsTotalCost = Number(totalMachineCost) + Number(totalConsumableCost);
+  const succeedingYearsTotalSales = Number(totalMachineSales) + Number(totalConsumableSales);
 
   // 5. RETURN ALL VALUES
   return {
@@ -117,9 +112,9 @@ export const succeedingYears = (projectData) => {
     totalFeesQty,
     totalCompanyFeesAmount,
     totalCustomerFeesAmount,
-    grandtotalCost,
-    grandtotalSell,
-    grossProfit,
+    grandtotalCost: Number(grandtotalCost) || 0,
+    grandtotalSell: Number(grandtotalSell) || 0,
+    grossProfit: Number(grossProfit) || 0,
     roiPercentage,
     config,
     machines: processedMachines,

@@ -13,6 +13,7 @@ const InterestCalcuSum = () => {
   const totalCost = Number(totals.grandTotalCost || 0);
   const totalROI = Number(totals.grandROI || 0);
   const roiPct = Number(totals.grandROIPercentage || 0);
+  const totalSales = Number(totals.grandTotalRevenue || 0)
 
   const f = (num) =>
     new Intl.NumberFormat("en-US", {
@@ -61,7 +62,7 @@ const InterestCalcuSum = () => {
                   Total Gross Sales
                 </td>
                 <td className="px-4 py-2.5 bg-white text-right border-l border-gray-300">
-                  
+                  {f(totalSales)}
                 </td>
               </tr>
               <tr className="border-b border-gray-200">

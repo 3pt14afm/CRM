@@ -468,11 +468,29 @@ function MachineConfig({ readOnly }) {
 
   const addRow = () => setRows((prev) => [...prev, makeBlankRow()]);
 
-  const removeRow = (id) =>
-    rows.length > 1 &&
-    setRows((prev) =>
-      prev.filter((r) => r.id !== id && !(r.type === 'consumable' && r.linkedMachineRowId === id))
-    );
+const removeRow = (id) => {
+  if (rows.length > 1) {
+    setRows((prev) => {
+      // Find the row we are about to delete
+      const targetRow = prev.find((r) => r.id === id);
+      
+      // If we are deleting a machine, we must also kill its children
+      const isMachine = targetRow?.type === 'machine';
+
+      return prev.filter((r) => {
+        // Remove the machine itself
+        if (r.id === id) return false;
+
+        // Remove any row linked to this machine (auto-added consumables)
+        if (isMachine && String(r.linkedMachineRowId) === String(id)) {
+          return false;
+        }
+
+        return true;
+      });
+    });
+  }
+};
 
   const formatNum = (num) =>
     (Number(num) || 0).toLocaleString(undefined, {
@@ -699,7 +717,7 @@ function MachineConfig({ readOnly }) {
                             autoComplete="off"
                           />
                           {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
-                            <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-48 overflow-auto">
+                            <div className="absolute z-20 mt-1 w-full rounded-md bg-white/70 backdrop-blur-xl border border-gray-100 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] max-h-48 overflow-auto no-scrollbar">
                               {machineSuggestions.length > 0 ? (
                                 machineSuggestions.map((machine) => (
                                   <button
@@ -707,14 +725,14 @@ function MachineConfig({ readOnly }) {
                                     type="button"
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => handleMachineSuggestionSelect(row.id, machine)}
-                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-green-50"
+                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-green-600 hover:text-white transition-colors"
                                   >
                                     {machine.name}
                                   </button>
                                 ))
                               ) : (
-                                <div className="px-3 py-2 text-[12px] text-slate-500 italic">
-                                  No results. Switch to "Others" for manual entry.
+                                <div className="px-3 py-2 text-[12px] text-slate-500 ">
+                                  No results. Switch to "Others".
                                 </div>
                               )}
                             </div>
@@ -727,7 +745,7 @@ function MachineConfig({ readOnly }) {
                           disabled={readOnly || row.autoAdded}
                           onChange={(e) => handleInputChange(row.id, 'sku', e.target.value)}
                           className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''} ${row.autoAdded ? ' bg-slate-100' : ''}`}
-                          placeholder="Enter machine/item name"
+                          placeholder="Enter name"
                         />
                       ) : shouldShowConsumableDropdown ? (
                         <select
@@ -748,58 +766,30 @@ function MachineConfig({ readOnly }) {
                           type="text"
                           value={row.sku || ''}
                           disabled
-                          className={`${inputClass} ${disabledInputClass} ${row.autoAdded ? '' : ''}`}
-                          placeholder={row.autoAdded ? 'Auto-added' : 'Select mode first'}
+                          className={`${inputClass} ${disabledInputClass}`}
+                          placeholder={row.autoAdded ? 'Auto-added' : 'Select mode'}
                         />
                       )}
                     </td>
 
-                    {/* Updated Unit Cost Column: Hidden if 0, reveals on hover */}
-                    <td className="group border-b border-r border-darkgreen/15 p-1">
-                      {(Number(row.cost) === 0 || row.cost === '' || row.cost === '0') ? (
-                        <div className="relative w-full h-8">
-                          <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
-                            {/* Empty column when not hovered */}
-                          </div>
-                          <div className="hidden group-hover:block">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              disabled={readOnly}
-                              value={
-                                focusedField === keyOf(row.id, 'cost') ? row.cost || '' : format2dpWithCommas(row.cost)
-                              }
-                              onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
-                              onBlur={() => {
-                                setFocusedField(null);
-                                handleInputChange(row.id, 'cost', normalize2dp(row.cost));
-                              }}
-                              onKeyDown={onlyNumericKeys(true)}
-                              onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
-                              className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          disabled={readOnly}
-                          value={
-                            focusedField === keyOf(row.id, 'cost') ? row.cost || '' : format2dpWithCommas(row.cost)
-                          }
-                          onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
-                          onBlur={() => {
-                            setFocusedField(null);
-                            handleInputChange(row.id, 'cost', normalize2dp(row.cost));
-                          }}
-                          onKeyDown={onlyNumericKeys(true)}
-                          onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
-                          className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
-                          placeholder="0.00"
-                        />
-                      )}
+                    <td className="border-b border-r border-darkgreen/15 p-1">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        disabled={readOnly}
+                        value={
+                          focusedField === keyOf(row.id, 'cost') ? row.cost || '' : format2dpWithCommas(row.cost)
+                        }
+                        onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
+                        onBlur={() => {
+                          setFocusedField(null);
+                          handleInputChange(row.id, 'cost', normalize2dp(row.cost));
+                        }}
+                        onKeyDown={onlyNumericKeys(true)}
+                        onChange={(e) => handleInputChange(row.id, 'cost', sanitize2dp(e.target.value))}
+                        className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                        placeholder="0.00"
+                      />
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
@@ -811,108 +801,92 @@ function MachineConfig({ readOnly }) {
                       />
                     </td>
 
-                  <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {calcs.totalCost !== 0 ? formatNum(isMachineRow ? Number(row.cost) || 0 : Number(calcs.totalCost) || 0) : ''}
-                  </div>
-                </td>
+                    <td className="border-b border-r border-darkgreen/15 p-1">
+                      <div className={readonlyClass}>
+                        {calcs.totalCost !== 0 ? formatNum(isMachineRow ? Number(row.cost) || 0 : Number(calcs.totalCost) || 0) : '0.00'}
+                      </div>
+                    </td>
 
-                   <td className="group border-b border-r border-darkgreen/15 p-1">
-                      {(Number(row.yields) === 0 || row.yields === '' || row.yields === '0') ? (
-                        <div className="relative w-full h-8">
-                          <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
-                            {/* Empty when not hovered */}
-                          </div>
-                          <div className="hidden group-hover:block">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={focusedField === keyOf(row.id, 'yields') ? row.yields || '' : formatIntWithCommas(row.yields)}
-                              onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
-                              onBlur={() => setFocusedField(null)}
-                              onKeyDown={onlyNumericKeys(false)}
-                              onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
-                              disabled={readOnly}
-                              className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={focusedField === keyOf(row.id, 'yields') ? row.yields || '' : formatIntWithCommas(row.yields)}
-                          onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
-                          onBlur={() => setFocusedField(null)}
-                          onKeyDown={onlyNumericKeys(false)}
-                          onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
-                          disabled={readOnly}
-                          className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
-                          placeholder="0"
-                        />
-                      )}
+                    <td className="border-b border-r border-darkgreen/15 p-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={focusedField === keyOf(row.id, 'yields') ? row.yields || '' : formatIntWithCommas(row.yields)}
+                        onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
+                        onBlur={() => setFocusedField(null)}
+                        onKeyDown={onlyNumericKeys(false)}
+                        onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
+                        disabled={readOnly}
+                        className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                        placeholder="0"
+                      />
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className={readonlyClass}>
-                        {calcs.costCpp !== 0 ? formatNum(calcs.costCpp) : ''}
+                        {calcs.costCpp !== 0 ? formatNum(calcs.costCpp) : '0.00'}
                       </div>
                     </td>
-                    <td className="group border-b border-r border-darkgreen/15 p-1">
-                      {(Number(row.price) === 0 || row.price === '' || row.price === '0') ? (
-                        <div className="relative w-full h-8">
-                          <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
-                            {/* Empty when not hovered */}
-                          </div>
-                          <div className="hidden group-hover:block">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={focusedField === keyOf(row.id, 'price') ? row.price || '' : format2dpWithCommas(row.price)}
-                              onFocus={() => setFocusedField(keyOf(row.id, 'price'))}
-                              onBlur={() => {
-                                setFocusedField(null);
-                                handleInputChange(row.id, 'price', normalize2dp(row.price));
-                              }}
-                              onKeyDown={onlyNumericKeys(true)}
-                              onChange={(e) => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
-                              disabled={readOnly}
-                              className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-                      ) : (
+
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    {(() => {
+                      // 1. Identify if this is a machine and if it should be disabled
+                      const isMachine = row?.type === 'machine';
+                      const contractType = projectData?.companyInfo?.contractType || "";
+                      const isOutright = contractType.toLowerCase().includes("outright");
+
+                      // Logic: Disable if it's a machine AND NOT an outright contract
+                      const isPriceDisabled = isMachine && !isOutright;
+
+                      // Determine what value to actually show
+                      // If disabled, we force show 0. Otherwise, we show the row.price
+                      const displayValue = isPriceDisabled ? 0 : row.price;
+
+                      return (
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={focusedField === keyOf(row.id, 'price') ? row.price || '' : format2dpWithCommas(row.price)}
-                          onFocus={() => setFocusedField(keyOf(row.id, 'price'))}
+                          // Force displayValue if disabled
+                          value={
+                            focusedField === keyOf(row.id, 'price') 
+                              ? (isPriceDisabled ? "0" : (row.price || '')) 
+                              : format2dpWithCommas(displayValue)
+                          }
+                          onFocus={() => !isPriceDisabled && setFocusedField(keyOf(row.id, 'price'))}
                           onBlur={() => {
                             setFocusedField(null);
-                            handleInputChange(row.id, 'price', normalize2dp(row.price));
+                            if (!isPriceDisabled) {
+                              handleInputChange(row.id, 'price', normalize2dp(row.price));
+                            }
                           }}
                           onKeyDown={onlyNumericKeys(true)}
-                          onChange={(e) => handleInputChange(row.id, 'price', sanitize2dp(e.target.value))}
-                          disabled={readOnly}
-                          className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                          onChange={(e) => {
+                            if (!isPriceDisabled) {
+                              handleInputChange(row.id, 'price', sanitize2dp(e.target.value));
+                            }
+                          }}
+                          // The input is disabled if readOnly prop is true OR our logic says so
+                          disabled={readOnly || isPriceDisabled}
+                          className={`${inputClass} ${
+                            (readOnly || isPriceDisabled) ? "bg-gray-100 cursor-not-allowed opacity-70" : ""
+                          }`}
                           placeholder="0.00"
                         />
-                      )}
+                      );
+                    })()}
+                  </td>
+
+                    <td className="border-b border-r border-darkgreen/15 p-1">
+                      <div className={readonlyClass}>
+                        {Number(calcs.totalSell) !== 0 ? formatNum(calcs.totalSell) : '0.00'}
+                      </div>
                     </td>
 
-                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {Number(calcs.totalSell) !== 0 ? formatNum(calcs.totalSell) : ''}
-                  </div>
-                </td>
-
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {Number(calcs.sellCpp) !== 0 ? formatNum(calcs.sellCpp) : ''}
-                  </div>
-                </td>
+                    <td className="border-b border-r border-darkgreen/15 p-1">
+                      <div className={readonlyClass}>
+                        {Number(calcs.sellCpp) !== 0 ? formatNum(calcs.sellCpp) : '0.00'}
+                      </div>
+                    </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className="flex gap-1 justify-center">
