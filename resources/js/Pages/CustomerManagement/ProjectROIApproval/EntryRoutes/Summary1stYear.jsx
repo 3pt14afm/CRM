@@ -3,17 +3,14 @@ import AddNotes from '@/Components/roi/Entry/AddNotes';
 import CompanyInfoSum from '@/Components/roi/Entry/CompanyInfoSum';
 import ContractDetails from '@/Components/roi/Entry/Summary1stYear/ContractDetails';
 import InterestCalcuSum from '@/Components/roi/Entry/InterestCalcuSum';
-import MachCon1stY from '@/Components/roi/Entry/Summary1stYear/MachCon1stY';
 import Names from '@/Components/roi/Entry/Names';
 import TotalMVP from '@/Components/roi/Entry/TotalMVP';
-import Totals from '@/Components/roi/Entry/Summary1stYear/Totals';
 import React from 'react';
-import Potentials from '@/Components/roi/Entry/Potentials';
-import SucceedingYearsPotential from '@/Components/roi/Entry/SucceedingYear/SuccedingYearsPotential';
-import MachConSucce from '@/Components/roi/Entry/SucceedingYear/MachConSucce';
 import SucceTotals from '@/Components/roi/Entry/SucceedingYear/succeTotals';
 import { usePage } from '@inertiajs/react';
 import EntryRemarksSummary from '@/Components/roi/Entry/Summary1stYear/EntryRemarksSummary';
+import MachCon1stYearMerged from '@/Components/roi/Entry/Summary1stYear/MachCon1stYearMerged';
+import MachConSucceMerged from '@/Components/roi/Entry/SucceedingYear/MachConSucceMerged';
 
 function Summary1stYear() {
   const { auth } = usePage().props;
@@ -37,29 +34,17 @@ function Summary1stYear() {
             </div>
           </div>
 
-          <div className='grid grid-cols-[70%_30%] items-start gap-4 mt-2 print:mx-0 print:-mt-2 print:gap-0'>
-            <div className='flex flex-col gap-2 pt-8 print:pt-7 print:gap-0'>
-              <MachCon1stY />
-            </div>
-            <div>
-              <Potentials />
-            </div>
+          <div className='mt-2 pt-8 print:mx-0 print:-mt-2 print:pt-7'>
+            <MachCon1stYearMerged />
           </div>
-
-          <Totals />
         </div>
 
         <div className="print-page-break" />
 
         {/* ================= PAGE 2 ================= */}
         <div>
-          <div className='grid grid-cols-[40%_60%] items-start gap-4 mt-8 print:mt-0 print:mx-0 print:gap-2'>
-            <div className='flex flex-col gap-2 pt-8 print:pt-7 print:gap-0'>
-              <MachConSucce />
-            </div>
-            <div className="pr-4">
-              <SucceedingYearsPotential />
-            </div>
+          <div className='mt-8 pt-8 print:mt-0 print:mx-0 print:pt-7'>
+            <MachConSucceMerged />
           </div>
 
           <SucceTotals />
@@ -71,21 +56,19 @@ function Summary1stYear() {
             <EntryRemarksSummary />
           </div>
 
-       {/* ADD NOTES / COMMENTS */}
-              <div className='lg:mx-20 print:mx-0 pt-5'>
-          <div className='mb-4 grid grid-cols-2 gap-4 items-start'>
-           
-            <div>
-              <AddNotes />
+          {/* ADD NOTES / COMMENTS */}
+          <div className='lg:mx-20 print:mx-0 pt-5'>
+            <div className='mb-4 grid grid-cols-2 gap-4 items-start'>
+              <div>
+                <AddNotes />
+              </div>
+              <div>
+                <AddComments />
+              </div>
             </div>
-             <div>
-              <AddComments />
-            </div>
+
+            <Names />
           </div>
-
-          <Names />
-        </div>
-
         </div>
       </div>
     </div>
