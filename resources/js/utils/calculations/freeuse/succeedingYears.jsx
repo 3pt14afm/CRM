@@ -7,37 +7,61 @@ export const succeedingYears = (projectData) => {
   const rawConsumables = config.consumable || [];
 
   const contractType = projectData?.companyInfo?.contractType || "";
+  const contractYears = parseInt(projectData?.companyInfo?.contractYears, 10) || 0;
+  const succeedingYearCount = Math.max(contractYears - 1, 0);
+
   const normalizedContractType = String(contractType).trim().toLowerCase();
 
-  const isRentalClick = normalizedContractType === "rental + click charge" || normalizedContractType === "rental + click charge"; 
-  const isFixClick = normalizedContractType === "free use + click charge" || normalizedContractType === "free use + click charge"; 
+  const isRentalClick = normalizedContractType === "rental + click charge";
+  const isFixClick = normalizedContractType === "free use + click charge";
+  const isOutrightClick = normalizedContractType === "outright + click charge";
+  const usesExactClickQty = isRentalClick || isFixClick || isOutrightClick;
 
-  // ✅ Rental + Click and Fix Click share the same exact-qty behavior
-  const usesExactClickQty = isRentalClick || isFixClick;
-
-  // Get BOTH Annual Yields (Mono and Color)
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
-
-  // 1.5 FILTER OUT ONE-TIME FEES (Recurring years only)
   const companyFees = (addFeesObj.company || []).filter(f => f.category !== "one-time-fee");
   const customerFees = (addFeesObj.customer || []).filter(f => f.category !== "one-time-fee");
 
-  // 2. PROCESS MACHINES --> FOR FREE USE MACHINE
+  // EARLY RETURN — no succeeding years when contract is only 1 year
+  if (succeedingYearCount === 0) {
+    return {
+      totalMachineQty: 0,
+      totalMachineCost: 0,
+      totalMachineSales: 0,
+      totalConsumableQty: 0,
+      totalConsumableCost: 0,
+      totalConsumableSales: 0,
+      totalFeesQty: 0,
+      totalCompanyFeesAmount: 0,
+      totalCustomerFeesAmount: 0,
+      grandtotalCost: 0,
+      grandtotalSell: 0,
+      grossProfit: 0,
+      roiPercentage: 0,
+      config,
+      machines: [],
+      consumables: [],
+      addFeesObj,
+      companyFees: [],
+      customerFees: [],
+      succeedingYearsTotalCost: 0,
+      succeedingYearsTotalSales: 0,
+    };
+  }
+
+  // 2. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
-    const unitCost = Number(m.cost) || 0;
-    // FIX: Forced unitSell to 0 because machines are not sold again in succeeding years
-    const unitSell = 0; 
+    const unitSell = 0;
     const fixedQty = 1;
 
     return {
       ...m,
       qty: fixedQty,
       price: unitSell,
-      totalCost: 0, // this should be zero in succeeding years
-      totalSell: fixedQty * unitSell // Results in 0
+      totalCost: 0,
+      totalSell: fixedQty * unitSell
     };
   });
 
@@ -45,7 +69,9 @@ export const succeedingYears = (projectData) => {
   const getQtyFromYields = (annualYields, itemYields) => {
     const safeItemYields = Number(itemYields) || 1;
     const exactQty = annualYields / safeItemYields;
-    return usesExactClickQty ? exactQty : Math.ceil(exactQty);
+     return usesExactClickQty 
+    ? Math.round(exactQty * 100) / 100  // Returns a number with max 2 decimals
+    : Math.ceil(exactQty);
   };
 
   // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
@@ -72,7 +98,7 @@ export const succeedingYears = (projectData) => {
 
     return {
       ...c,
-      qty: dynamicQty, 
+      qty: dynamicQty,
       totalCost: dynamicQty * unitCost,
       totalSell: dynamicQty * unitSell
     };
@@ -91,7 +117,6 @@ export const succeedingYears = (projectData) => {
   const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
   const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
 
-  // FIX: Forced numerical addition with Number() to prevent string concatenation (Trillion error)
   const grandtotalCost = Number(totalMachineCost) + Number(totalConsumableCost) + Number(totalCompanyFeesAmount);
   const grandtotalSell = Number(totalMachineSales) + Number(totalConsumableSales) + Number(totalCustomerFeesAmount);
 

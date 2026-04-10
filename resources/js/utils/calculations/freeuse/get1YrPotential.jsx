@@ -11,10 +11,11 @@ export const get1YrPotential = (projectData) => {
   const isOutright = normalizedContractType.includes("outright");
 
   const isMonthlyRental = normalizedContractType === "fixed monthly only";
-  const isRentalClick = normalizedContractType.includes("rental + click");
-  const isFixClick = normalizedContractType.includes("free use + click");
 
-  const usesExactClickQty = isRentalClick || isFixClick;
+  const isRentalClick = normalizedContractType === "rental + click charge";
+  const isFixClick = normalizedContractType === "free use + click charge";
+  const isOutrightClick = normalizedContractType === "outright + click charge";
+  const usesExactClickQty = isRentalClick || isFixClick || isOutrightClick;
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
   const bundleDeduction = (isMonthlyRental && isBundleChecked)
@@ -52,7 +53,9 @@ const processedMachines = rawMachines.map(m => {
   const getQtyFromYields = (annualYields, itemYields) => {
     const safeItemYields = Number(itemYields) || 1;
     const exactQty = annualYields / safeItemYields;
-    return usesExactClickQty ? exactQty : Math.ceil(exactQty);
+    return usesExactClickQty 
+    ? Math.round(exactQty * 100) / 100  // Returns a number with max 2 decimals
+    : Math.ceil(exactQty);
   };
 
   // 3. MAP CONSUMABLES
