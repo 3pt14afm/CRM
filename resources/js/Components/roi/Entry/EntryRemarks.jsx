@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState } from "react";
 import { useProjectData } from "@/Context/ProjectContext";
 import { FiX, FiPaperclip } from "react-icons/fi";
 import { FaFileCirclePlus } from "react-icons/fa6";
+import { usePage } from "@inertiajs/react";
+import { getRoiAttachmentKey, getRoiAttachmentName, openRoiAttachment } from "@/utils/openRoiAttachment";
 
 const MAX_ATTACHMENTS = 3;
 const MAX_FILE_SIZE_MB = 10;
@@ -15,6 +17,19 @@ export default function EntryRemarks({ readOnly = false }) {
 
   const monoMonthly = Number(projectData?.yield?.monoAmvpYields?.monthly || 0);
   const colorMonthly = Number(projectData?.yield?.colorAmvpYields?.monthly || 0);
+
+  const { url } = usePage();
+
+  const projectId =
+    projectData?.metadata?.projectId ??
+    projectData?.id ??
+    null;
+
+  const pageRoute = url.includes("/archive/")
+    ? "archive"
+    : url.includes("/current/")
+    ? "current"
+    : "entry";
 
   const requiresRemarks = monoMonthly >= 5000 || colorMonthly >= 2500;
 
@@ -67,7 +82,8 @@ export default function EntryRemarks({ readOnly = false }) {
     const existingAttachments = attachments;
     const existingKeys = new Set(
       existingAttachments.map(
-        (item) => `${item.name}-${item.size}-${item.lastModified || 0}`
+        (item) =>
+          `${item?.original_name || item?.name}-${item?.size}-${item?.lastModified || item?.id || 0}`
       )
     );
 
@@ -182,23 +198,37 @@ export default function EntryRemarks({ readOnly = false }) {
 
             {attachments.map((item, index) => (
               <div
-                key={`${item.name}-${item.size}-${item.lastModified || index}`}
+                key={getRoiAttachmentKey(item, index)}
                 className="inline-flex max-w-full items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-3 py-[2px] text-[10px] text-slate-700"
               >
                 <FiPaperclip className="shrink-0 text-[12px]" />
-                <span className="max-w-[70px] truncate sm:max-w-[60px]">
-                  {item.name}
-                </span>
+
                 <button
                   type="button"
-                  onClick={() => handleRemoveFile(index)}
-                  disabled={readOnly}
-                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label={`Remove ${item.name}`}
-                  title="Remove attached file"
+                  onClick={() =>
+                    openRoiAttachment({
+                      item,
+                      projectId,
+                      pageRoute,
+                    })
+                  }
+                  className="max-w-[120px] truncate text-left"
+                  title={getRoiAttachmentName(item, index)}
                 >
-                  <FiX className="text-[13px]" />
+                  {getRoiAttachmentName(item, index)}
                 </button>
+
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFile(index)}
+                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                    aria-label={`Remove ${getRoiAttachmentName(item, index)}`}
+                    title="Remove attached file"
+                  >
+                    <FiX className="text-[13px]" />
+                  </button>
+                )}
               </div>
             ))}
 

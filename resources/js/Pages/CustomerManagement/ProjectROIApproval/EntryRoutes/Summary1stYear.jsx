@@ -13,6 +13,7 @@ import SucceedingYearsPotential from '@/Components/roi/Entry/SucceedingYear/Succ
 import MachConSucce from '@/Components/roi/Entry/SucceedingYear/MachConSucce';
 import SucceTotals from '@/Components/roi/Entry/SucceedingYear/succeTotals';
 import { usePage } from '@inertiajs/react';
+import EntryRemarksSummary from '@/Components/roi/Entry/Summary1stYear/EntryRemarksSummary';
 
 function Summary1stYear() {
   const { auth } = usePage().props;
@@ -20,7 +21,7 @@ function Summary1stYear() {
   const reviewerRoles = ['reviewer', 'checker', 'endorser', 'confirmer', 'approver'];
  
   return (
-    <div className='mx-5 print:mx-0 bg-[#f8f8f8] border rounded-r-lg rounded-b-xl border-t-[#2c2c2e]/10 border-b-[#2c2c2e]/30 border-[#2c2c2e]/20 shadow-md print:border-none print:bg-transparent'>
+    <div className='mx-5 print:mx-0 bg-[#f8f8f8] border rounded-r-lg rounded-b-xl border-t-[#2c2c2e]/10 border-b-[#2c2c2e]/30 border-[#2c2c2e]/20 shadow-md print:shadow-none print:justify-center print:border-none print:bg-transparent'>
       <div className='mx-10 print:mx-0 print:pt-0 pt-8'>
 
         {/* ================= PAGE 1 ================= */}
@@ -65,9 +66,11 @@ function Summary1stYear() {
 
           <div className="print-page-break" />
 
-          <ContractDetails />
+          <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-5 items-start">
+            <ContractDetails />
+            <EntryRemarksSummary />
+          </div>
 
-          {/* ADD NOTES / COMMENTS */}
        {/* ADD NOTES / COMMENTS */}
               <div className='lg:mx-20 print:mx-0 pt-5'>
           <div className='mb-4 grid grid-cols-2 gap-4 items-start'>

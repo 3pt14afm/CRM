@@ -6,12 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\RoiArchiveProject;
 use App\Models\RoiEntryProject;
 use App\Models\User;
+use App\Http\Controllers\Concerns\StreamsEntryRemarkAttachments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class RoiController extends Controller
 {
+    use StreamsEntryRemarkAttachments;
+
     public function entryList(Request $request)
     {
         $userId = Auth::id();
@@ -319,39 +323,52 @@ private function buildConsumableCatalog()
 }
 
    public function archiveShow($id)
-{
-    $project = RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
+    {
+        $project = RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-    $userIds = collect([
-        $project->user_id,
-        $project->approved_by,
-        $project->rejected_by,
-        $project->reviewed_by,
-        $project->checked_by,
-        $project->endorsed_by,
-        $project->confirmed_by,
-    ])->filter()->unique()->values();
+        $userIds = collect([
+            $project->user_id,
+            $project->approved_by,
+            $project->rejected_by,
+            $project->reviewed_by,
+            $project->checked_by,
+            $project->endorsed_by,
+            $project->confirmed_by,
+        ])->filter()->unique()->values();
 
-    $usersById = User::query()
-        ->whereIn('id', $userIds)
-        ->get(['id', 'first_name', 'last_name'])
-        ->mapWithKeys(fn ($u) => [
-            (string) $u->id => [
-                'id' => $u->id,
-                'name' => trim($u->first_name . ' ' . $u->last_name),
-            ],
+        $usersById = User::query()
+            ->whereIn('id', $userIds)
+            ->get(['id', 'first_name', 'last_name'])
+            ->mapWithKeys(fn ($u) => [
+                (string) $u->id => [
+                    'id' => $u->id,
+                    'name' => trim($u->first_name . ' ' . $u->last_name),
+                ],
+            ]);
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+            'project' => $project,
+            'entryProject' => $project,
+            'readOnly' => true,
+            'route' => 'archive',
+            'createdBy' => $project->user?->name ?? '—',
+            'role' => Auth::user()->workflow_role,
+            'usersById' => $usersById,
+            'machineCatalog' => $this->buildMachineCatalog(),
+            'consumableCatalog' => $this->buildConsumableCatalog(),
         ]);
+    }
 
-    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-        'project' => $project,
-        'entryProject' => $project,
-        'readOnly' => true,
-        'route' => 'archive',
-        'createdBy' => $project->user?->name ?? '—',
-        'role' => Auth::user()->workflow_role,
-        'usersById' => $usersById,
-        'machineCatalog' => $this->buildMachineCatalog(),
-        'consumableCatalog' => $this->buildConsumableCatalog(),
-    ]);
-}
+    public function showArchiveAttachment($id, string $attachmentId)
+    {
+        $project = RoiArchiveProject::findOrFail($id);
+
+        abort_unless((int) $project->user_id === (int) Auth::id(), 403);
+
+        $attachments = is_array($project->entry_remarks_attachments)
+            ? $project->entry_remarks_attachments
+            : [];
+
+        return $this->streamEntryRemarkAttachment($attachments, $attachmentId);
+    }
 }

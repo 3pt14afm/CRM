@@ -10,7 +10,7 @@ import EntryRemarks from '@/Components/roi/Entry/EntryRemarks';
 
 function MachineConfigTab({ buttonClicked, readOnly, showCompanyInfoErrors = false }) {
   return (
-    <div className='mx-5 bg-[#f8f8f8] border rounded-r-lg rounded-b-xl border-b-[#2c2c2e]/30 border-t-[#2c2c2e]/10 border-[#2c2c2e]/20 shadow-md'>
+    <div className='mx-5 bg-[#f8f8f8] border rounded-r-lg rounded-b-xl border-b-[#2c2c2e]/30 border-t-[#2c2c2e]/10 border-[#2c2c2e]/20 shadow-md print:shadow-none print:border-0'>
       <div className='flex items-center px-10 pt-5 gap-5 mb-5 md:flex-col lg:flex-row'>
         <CompanyInfo
           buttonClicked={buttonClicked}

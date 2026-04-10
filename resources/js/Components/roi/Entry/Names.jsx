@@ -56,7 +56,7 @@ function Names() {
   const rejectedByPosition = hasPageProject ? positionOf(project?.rejected_by) : fromSnap('rejectedByPosition');
 
   return (
-    <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-12">
+    <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-0">
       <div className="grid grid-cols-4 gap-y-12 gap-x-8 px-2 print:px-1">
         <Signatory label="PREPARED BY:" name={preparedBy} title={preparedByPosition} />
 

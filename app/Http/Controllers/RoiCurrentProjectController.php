@@ -8,6 +8,7 @@ use App\Models\RoiEntryFee;
 use App\Models\RoiEntryItem;
 use App\Models\RoiEntryProject;
 use App\Models\User;
+use App\Http\Controllers\Concerns\StreamsEntryRemarkAttachments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,8 @@ use Inertia\Inertia;
 
 class RoiCurrentProjectController extends Controller
 {
+    use StreamsEntryRemarkAttachments;
+
     private const LEVEL_TO_LABEL = [
         1 => 'Prepared By',
         2 => 'Reviewed By',
@@ -821,5 +824,19 @@ class RoiCurrentProjectController extends Controller
         ]);
 
         return back()->with('success', 'Note added.');
+    }
+
+    public function showAttachment($id, string $attachmentId)
+    {
+        $project = RoiCurrentProject::findOrFail($id);
+
+        $user = $this->getAuthenticatedUser();
+        $this->ensureCanView($project, $user);
+
+        $attachments = is_array($project->entry_remarks_attachments)
+            ? $project->entry_remarks_attachments
+            : [];
+
+        return $this->streamEntryRemarkAttachment($attachments, $attachmentId);
     }
 }
