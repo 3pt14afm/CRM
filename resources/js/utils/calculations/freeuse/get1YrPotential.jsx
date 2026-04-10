@@ -28,24 +28,26 @@ export const get1YrPotential = (projectData) => {
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
 
-  // 2. PROCESS MACHINES
-  const processedMachines = rawMachines.map(m => {
-    const unitCost = Number(m.cost) || 0;
-    
-    /** * SELLING PRICE LOGIC FOR MACHINES:
-     * If contract is NOT outright, force unitSell to 0.
-     */
-    const unitSell = isOutright ? (Number(m.price) || 0) : 0;
-    const fixedQty = 1;
+ // 2. PROCESS MACHINES
+const processedMachines = rawMachines.map(m => {
+  const machineQty = Number(m.qty) || 1;
+  const unitCost = Number(m.cost) || 0;
+  const unitMargin = Number(m.margin) || 0; // Ensure 'margin' exists in your data
+  
+  // Combine them here if that is your requirement
+  const loadedCost = unitCost + unitMargin;
+  
+  const unitSell = isOutright ? (Number(m.price) || 0) : 0;
 
-    return {
-      ...m,
-      qty: fixedQty,
-      price: unitSell, // Added to keep track of individual price
-      totalCost: fixedQty * unitCost,
-      totalSell: fixedQty * unitSell
-    };
-  });
+  return {
+    ...m,
+    qty: machineQty,
+    price: unitSell,
+    // totalCost now includes the margin
+    totalCost: machineQty * loadedCost, 
+    totalSell: machineQty * unitSell
+  };
+});
 
   const getQtyFromYields = (annualYields, itemYields) => {
     const safeItemYields = Number(itemYields) || 1;
