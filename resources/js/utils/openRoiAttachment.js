@@ -11,7 +11,12 @@ export function getRoiAttachmentKey(item, index = 0) {
   );
 }
 
-export function openRoiAttachment({ item, projectId, pageRoute = "entry" }) {
+export function openRoiAttachment({
+  item,
+  index,
+  projectId,
+  pageRoute = "entry",
+}) {
   if (item?.file instanceof File) {
     const url = URL.createObjectURL(item.file);
     window.open(url, "_blank", "noopener,noreferrer");
@@ -19,24 +24,29 @@ export function openRoiAttachment({ item, projectId, pageRoute = "entry" }) {
     return;
   }
 
-  if (!projectId || !item?.id) return;
+  if (projectId == null || index == null) return;
+
+  const filename = item?.original_name || item?.name || "attachment";
 
   let href;
 
   if (pageRoute === "current") {
     href = ziggyRoute("roi.current.attachments.show", {
       id: projectId,
-      attachmentId: item.id,
+      attachmentIndex: index,
+      filename,
     });
   } else if (pageRoute === "archive") {
     href = ziggyRoute("roi.archive.attachments.show", {
       id: projectId,
-      attachmentId: item.id,
+      attachmentIndex: index,
+      filename,
     });
   } else {
     href = ziggyRoute("roi.entry.projects.attachments.show", {
       project: projectId,
-      attachmentId: item.id,
+      attachmentIndex: index,
+      filename,
     });
   }
 

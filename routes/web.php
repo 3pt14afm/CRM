@@ -226,7 +226,7 @@ Route::middleware(['auth', 'verified'])
                     ]);
                 })->name('roi.entry.projects.print');
 
-                Route::get('/projects/{project}/attachments/{attachmentId}', [RoiEntryProjectController::class, 'showAttachment'])
+                Route::get('/projects/{project}/attachments/{attachmentIndex}/{filename?}', [RoiEntryProjectController::class, 'showAttachment'])
                     ->name('roi.entry.projects.attachments.show');
             });
 
@@ -295,7 +295,10 @@ Route::middleware(['auth', 'verified'])
                     ]);
                 })->name('roi.current.print');
             
-                Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])
+                // Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])
+                //     ->name('roi.current.attachments.show');
+
+                Route::get('/{id}/attachments/{attachmentIndex}/{filename?}', [RoiCurrentProjectController::class, 'showAttachment'])
                     ->name('roi.current.attachments.show');
             });
 
@@ -344,8 +347,11 @@ Route::middleware(['auth', 'verified'])
                 ]);
             })->name('roi.archive.print');
 
-            Route::get('/archive/{id}/attachments/{attachmentId}', [RoiController::class, 'showArchiveAttachment'])
-                ->name('roi.archive.attachments.show');
+            // Route::get('/archive/{id}/attachments/{attachmentId}', [RoiController::class, 'showArchiveAttachment'])
+            //     ->name('roi.archive.attachments.show');
+            
+            Route::get('/archive/{id}/attachments/{attachmentIndex}/{filename?}', [RoiController::class, 'showArchiveAttachment'])
+               ->name('roi.archive.attachments.show');
 
             /*
             |--------------------------------------------------------------------------

@@ -8,17 +8,16 @@ use App\Models\RoiEntryFee;
 use App\Models\RoiEntryItem;
 use App\Models\RoiEntryProject;
 use App\Models\User;
-use App\Http\Controllers\Concerns\StreamsEntryRemarkAttachments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class RoiCurrentProjectController extends Controller
 {
-    use StreamsEntryRemarkAttachments;
 
     private const LEVEL_TO_LABEL = [
         1 => 'Prepared By',
@@ -826,7 +825,7 @@ class RoiCurrentProjectController extends Controller
         return back()->with('success', 'Note added.');
     }
 
-    public function showAttachment($id, string $attachmentId)
+    public function showAttachment($id, int $attachmentIndex)
     {
         $project = RoiCurrentProject::findOrFail($id);
 
@@ -834,9 +833,16 @@ class RoiCurrentProjectController extends Controller
         $this->ensureCanView($project, $user);
 
         $attachments = is_array($project->entry_remarks_attachments)
-            ? $project->entry_remarks_attachments
+            ? array_values($project->entry_remarks_attachments)
             : [];
 
-        return $this->streamEntryRemarkAttachment($attachments, $attachmentId);
+        abort_unless(array_key_exists($attachmentIndex, $attachments), 404);
+
+        $attachment = $attachments[$attachmentIndex];
+
+        abort_unless(!empty($attachment['path']), 404);
+        abort_unless(Storage::disk('local')->exists($attachment['path']), 404);
+
+        return response()->file(Storage::disk('local')->path($attachment['path']));
     }
 }
