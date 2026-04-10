@@ -93,6 +93,13 @@ function mapEntryProjectToContext(entryProject) {
       },
     },
 
+    entryRemarks: {
+      remarks: entryProject.entry_remarks ?? "",
+      attachments: Array.isArray(entryProject.entry_remarks_attachments)
+        ? entryProject.entry_remarks_attachments
+        : [],
+    },
+
     machineConfiguration: {
       machine,
       consumable,
@@ -179,6 +186,29 @@ export default function Entry({
     return nameOk && typeOk && yearsOk;
   };
 
+  const requiresEntryRemarks = () => {
+    const monoMonthly = Number(projectData?.yield?.monoAmvpYields?.monthly || 0);
+    const colorMonthly = Number(projectData?.yield?.colorAmvpYields?.monthly || 0);
+
+    return monoMonthly >= 5000 || colorMonthly >= 2500;
+  };
+
+  const hasValidEntryRemarks = () => {
+    return String(projectData?.entryRemarks?.remarks ?? "").trim().length > 0;
+  };
+
+  const validateEntryRemarks = () => {
+    if (requiresEntryRemarks() && !hasValidEntryRemarks()) {
+      toast.error(
+        "Remarks required for Mono AMVP ≥5,000 or Color AMVP ≥2,500."
+      );
+      setTab("Machine");
+      return false;
+    }
+
+    return true;
+  };
+
   const hydratedEntryIdRef = useRef(null);
 
   const summaryRef = useRef(null);
@@ -244,7 +274,6 @@ export default function Entry({
       },
       {
         preserveScroll: true,
-    
         onSuccess: () => {
           setSendBackText("");
           toast.success('Project sent back to sender.', { id: 'sendBack' });
@@ -356,7 +385,80 @@ export default function Entry({
         projectData?.companyInfo?.reference ??
         "",
     },
+    entryRemarks: {
+      remarks: projectData?.entryRemarks?.remarks ?? "",
+      attachments: Array.isArray(projectData?.entryRemarks?.attachments)
+        ? projectData.entryRemarks.attachments
+        : [],
+    },
   });
+
+  const appendToFormData = (formData, value, key) => {
+    if (value === undefined || value === null) {
+      formData.append(key, "");
+      return;
+    }
+
+    if (value instanceof File) {
+      formData.append(key, value);
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        appendToFormData(formData, item, `${key}[${index}]`);
+      });
+      return;
+    }
+
+    if (typeof value === "object") {
+      Object.entries(value).forEach(([childKey, childValue]) => {
+        appendToFormData(formData, childValue, `${key}[${childKey}]`);
+      });
+      return;
+    }
+
+    formData.append(key, value);
+  };
+
+  const buildFormDataPayload = () => {
+    const payload = buildPayload();
+    const formData = new FormData();
+
+    const attachments = Array.isArray(payload.entryRemarks?.attachments)
+      ? payload.entryRemarks.attachments
+      : [];
+
+    const existingAttachmentMeta = attachments
+      .filter((item) => !(item?.file instanceof File))
+      .map((item) => ({
+        id: item?.id ?? "",
+        original_name: item?.original_name ?? item?.name ?? "",
+        stored_name: item?.stored_name ?? "",
+        path: item?.path ?? "",
+        size: item?.size ?? 0,
+      }));
+
+    const payloadForForm = {
+      ...payload,
+      entryRemarks: {
+        ...payload.entryRemarks,
+        attachments: existingAttachmentMeta,
+      },
+    };
+
+    Object.entries(payloadForForm).forEach(([key, value]) => {
+      appendToFormData(formData, value, key);
+    });
+
+    attachments.forEach((item) => {
+      if (item?.file instanceof File) {
+        formData.append("entry_remarks_attachments[]", item.file);
+      }
+    });
+
+    return formData;
+  };
 
   const triggerBlink = () => {
     setButtonClicked(true);
@@ -372,11 +474,18 @@ export default function Entry({
       return;
     }
 
+    if (!validateEntryRemarks()) {
+      return;
+    }
+
     const payload = buildPayload();
     saveDraft(payload);
 
-    router.post(ziggyRoute("roi.entry.draft.save"), payload, {
+    const formData = buildFormDataPayload();
+
+    router.post(ziggyRoute("roi.entry.draft.save"), formData, {
       preserveScroll: true,
+      forceFormData: true,
       onStart: () => {
         toast.loading("Saving Draft...", { id: "saveDraft" });
       },
@@ -385,8 +494,11 @@ export default function Entry({
         toast.success("Draft saved!", { id: "saveDraft" });
         setShowCompanyInfoErrors(false);
       },
-      onError: () => {
-        toast.error("Cannot save draft. All marked fields are required.", { id: "saveDraft" });
+      onError: (errors) => {
+        const message =
+          Object.values(errors ?? {})[0] || "Failed to save draft.";
+        toast.error(message, { id: "saveDraft" });
+        console.log("Save draft errors:", errors);
       },
     });
   };
@@ -406,27 +518,20 @@ export default function Entry({
       return;
     }
 
-    const payload = buildPayload();
-    // const toastId = toast.loading("Submitting...");
+    if (!validateEntryRemarks()) {
+      return;
+    }
 
-    router.patch(ziggyRoute("roi.entry.projects.submit", projectId), payload, {
+    const formData = buildFormDataPayload();
+    formData.append("_method", "patch");
+
+    router.post(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
       preserveScroll: true,
-      // onSuccess: (page) => {
-      //   const flashError = page?.props?.flash?.error;
-      //   const flashSuccess = page?.props?.flash?.success;
-
-      //   if (flashError) {
-      //     toast.error(flashError);
-      //     return;
-      //   }
-
-      //   toast.success(flashSuccess || "Project submitted!", { id: toastId });
-      // },
+      forceFormData: true,
       onError: (errors) => {
         const message = Object.values(errors)[0] || "Failed to submit.";
-        toast.error(message, { id: toastId });
+        toast.error(message);
       },
-      // onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
     });
   };
 

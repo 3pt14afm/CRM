@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Location;
 use App\Models\LocationDepartment;
-use App\Models\PrinterSupplyPagePrinter;
 use App\Models\RoiArchiveProject;
 use App\Models\RoiCurrentFee;
 use App\Models\RoiCurrentItem;
@@ -12,13 +11,13 @@ use App\Models\RoiCurrentProject;
 use App\Models\RoiEntryFee;
 use App\Models\RoiEntryItem;
 use App\Models\RoiEntryProject;
-use App\Models\Supply;
-use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class RoiEntryProjectController extends Controller
@@ -36,14 +35,13 @@ class RoiEntryProjectController extends Controller
         $project->notes = $this->sortTimelineEntries($project->notes);
         $project->comments = $this->sortTimelineEntries($project->comments);
 
-        // --- Map existing items to include the auto_added flag for React hydration ---
         $projectItems = $project->items->map(function ($item) {
             return [
-                'id' => $item->client_row_id ?? (string)$item->id,
+                'id' => $item->client_row_id ?? (string) $item->id,
                 'type' => $item->kind,
                 'sku' => $item->sku,
-                'qty' => (float)$item->qty,
-                'yields' => (string)$item->yields,
+                'qty' => (float) $item->qty,
+                'yields' => (string) $item->yields,
                 'mode' => $item->mode,
                 'remarks' => $item->remarks,
                 'inputtedCost' => $item->inputted_cost,
@@ -56,7 +54,7 @@ class RoiEntryProjectController extends Controller
                 'sellCpp' => $item->sell_cpp,
                 'machineMargin' => $item->machine_margin,
                 'machineMarginTotal' => $item->machine_margin_total,
-                'autoAdded' => (bool)$item->auto_added, // Logic: ensure UI stays locked
+                'autoAdded' => (bool) $item->auto_added,
             ];
         });
 
@@ -125,7 +123,7 @@ class RoiEntryProjectController extends Controller
             'activeTab' => 'Machine Configuration',
             'entryProject' => $project,
             'project' => $project,
-            'projectItems' => $projectItems, // Send the mapped items with autoAdded flags
+            'projectItems' => $projectItems,
             'createdBy' => $project->user->name,
             'machineCatalog' => $machineCatalog,
             'consumableCatalog' => $consumableCatalog,
@@ -200,7 +198,10 @@ class RoiEntryProjectController extends Controller
                         $driverCode = $errorInfo[1] ?? null;
                         $message = strtolower($errorInfo[2] ?? $e->getMessage());
 
-                        $isDuplicateKey = $sqlState === '23000' || $sqlState === '23505' || in_array($driverCode, [1062, 1555, 2067], true);
+                        $isDuplicateKey = $sqlState === '23000'
+                            || $sqlState === '23505'
+                            || in_array($driverCode, [1062, 1555, 2067], true);
+
                         $isReferenceConflict = str_contains($message, 'reference');
 
                         if (!($isDuplicateKey && $isReferenceConflict) || $attempt === 2) {
@@ -275,6 +276,8 @@ class RoiEntryProjectController extends Controller
                 'mono_yield_annual' => $project->mono_yield_annual,
                 'color_yield_monthly' => $project->color_yield_monthly,
                 'color_yield_annual' => $project->color_yield_annual,
+                'entry_remarks' => $project->entry_remarks,
+                'entry_remarks_attachments' => $project->entry_remarks_attachments ?? [],
                 'mc_unit_cost' => $project->mc_unit_cost,
                 'mc_qty' => $project->mc_qty,
                 'mc_total_cost' => $project->mc_total_cost,
@@ -304,7 +307,7 @@ class RoiEntryProjectController extends Controller
                     'yields' => $item->yields,
                     'mode' => $item->mode,
                     'remarks' => $item->remarks,
-                    'auto_added' => $item->auto_added, // Sync flag to Current Project
+                    'auto_added' => $item->auto_added,
                     'inputted_cost' => $item->inputted_cost,
                     'cost' => $item->cost,
                     'price' => $item->price,
@@ -337,19 +340,30 @@ class RoiEntryProjectController extends Controller
             $project->fees()->delete();
             $project->delete();
 
-            return redirect()->route('roi.entry.list')->with('success', 'Draft successfully sumbitted.');
+            return redirect()->route('roi.entry.list')->with('success', 'Draft successfully submitted.');
         });
     }
 
     public function destroy(RoiEntryProject $project)
     {
         abort_unless($project->user_id === Auth::id(), 403);
+
         $allowedStatuses = ['draft', 'returned'];
         if (!in_array($project->status, $allowedStatuses, true)) {
             return back()->with('error', 'Only drafts or returned projects can be deleted.');
         }
 
         DB::transaction(function () use ($project) {
+            $attachments = is_array($project->entry_remarks_attachments)
+                ? $project->entry_remarks_attachments
+                : [];
+
+            foreach ($attachments as $item) {
+                if (!empty($item['path']) && Storage::disk('local')->exists($item['path'])) {
+                    Storage::disk('local')->delete($item['path']);
+                }
+            }
+
             RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
             RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
             $project->delete();
@@ -367,17 +381,33 @@ class RoiEntryProjectController extends Controller
             'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
             'companyInfo.contractType' => ['required', 'string', 'max:255'],
             'companyInfo.purpose' => ['nullable', 'string', 'max:5000'],
-            'companyInfo.bundledStdInk' => ['nullable', 'boolean'],
+            'companyInfo.bundledStdInk' => ['nullable'],
+
             'interest.annualInterest' => ['nullable'],
             'interest.percentMargin' => ['nullable'],
+
             'yield.monoAmvpYields.monthly' => ['nullable'],
             'yield.colorAmvpYields.monthly' => ['nullable'],
+
+            'entryRemarks' => ['nullable', 'array'],
+            'entryRemarks.remarks' => ['nullable', 'string', 'max:5000'],
+            'entryRemarks.attachments' => ['nullable', 'array'],
+
+            'entry_remarks_attachments' => ['nullable', 'array', 'max:3'],
+            'entry_remarks_attachments.*' => [
+                'file',
+                'max:10240',
+                'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
+            ],
+
             'machineConfiguration.machine' => ['nullable', 'array'],
             'machineConfiguration.consumable' => ['nullable', 'array'],
             'machineConfiguration.totals' => ['nullable', 'array'],
+
             'additionalFees.company' => ['nullable', 'array'],
             'additionalFees.customer' => ['nullable', 'array'],
             'additionalFees.total' => ['nullable'],
+
             'totalProjectCost' => ['nullable', 'array'],
             'yearlyBreakdown' => ['nullable', 'array'],
         ]);
@@ -386,9 +416,11 @@ class RoiEntryProjectController extends Controller
     public function persistDraft(Request $request, RoiEntryProject $project, ?array $data = null): void
     {
         $data = $data ?? $this->validateDraftPayload($request);
+
         $company = $data['companyInfo'] ?? [];
         $interest = $data['interest'] ?? [];
         $yield = $data['yield'] ?? [];
+        $entryRemarks = $data['entryRemarks'] ?? [];
 
         $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
         $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
@@ -396,6 +428,8 @@ class RoiEntryProjectController extends Controller
         $mcTotals = $data['machineConfiguration']['totals'] ?? [];
         $feesTotal = (float) ($data['additionalFees']['total'] ?? 0);
         $grand = $data['totalProjectCost'] ?? [];
+
+        $attachments = $this->storeEntryRemarkAttachments($request, $project);
 
         $project->update([
             'company_name' => (string) ($company['companyName'] ?? ''),
@@ -409,6 +443,8 @@ class RoiEntryProjectController extends Controller
             'mono_yield_annual' => $monoMonthly * 12,
             'color_yield_monthly' => $colorMonthly,
             'color_yield_annual' => $colorMonthly * 12,
+            'entry_remarks' => (string) ($entryRemarks['remarks'] ?? ''),
+            'entry_remarks_attachments' => $attachments,
             'mc_unit_cost' => (float) ($mcTotals['unitCost'] ?? 0),
             'mc_qty' => (float) ($mcTotals['qty'] ?? 0),
             'mc_total_cost' => (float) ($mcTotals['totalCost'] ?? 0),
@@ -427,10 +463,12 @@ class RoiEntryProjectController extends Controller
             'last_saved_at' => now(),
         ]);
 
-        $hasMachinePayload = $request->exists('machineConfiguration.machine') || $request->exists('machineConfiguration.consumable');
+        $hasMachinePayload = $request->exists('machineConfiguration.machine')
+            || $request->exists('machineConfiguration.consumable');
 
         if ($hasMachinePayload) {
             RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
+
             $itemRows = [];
             foreach ($data['machineConfiguration']['machine'] ?? [] as $row) {
                 $itemRows[] = $this->mapItemRow($project->id, $row, 'machine');
@@ -438,17 +476,84 @@ class RoiEntryProjectController extends Controller
             foreach ($data['machineConfiguration']['consumable'] ?? [] as $row) {
                 $itemRows[] = $this->mapItemRow($project->id, $row, 'consumable');
             }
-            if (!empty($itemRows)) { RoiEntryItem::insert($itemRows); }
+
+            if (!empty($itemRows)) {
+                RoiEntryItem::insert($itemRows);
+            }
         }
 
-        $hasFeePayload = $request->exists('additionalFees.company') || $request->exists('additionalFees.customer');
+        $hasFeePayload = $request->exists('additionalFees.company')
+            || $request->exists('additionalFees.customer');
+
         if ($hasFeePayload) {
             RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
+
             $feeRows = [];
-            foreach ($data['additionalFees']['company'] ?? [] as $row) { $feeRows[] = $this->mapFeeRow($project->id, $row, 'company'); }
-            foreach ($data['additionalFees']['customer'] ?? [] as $row) { $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer'); }
-            if (!empty($feeRows)) { RoiEntryFee::insert($feeRows); }
+            foreach ($data['additionalFees']['company'] ?? [] as $row) {
+                $feeRows[] = $this->mapFeeRow($project->id, $row, 'company');
+            }
+            foreach ($data['additionalFees']['customer'] ?? [] as $row) {
+                $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer');
+            }
+
+            if (!empty($feeRows)) {
+                RoiEntryFee::insert($feeRows);
+            }
         }
+    }
+
+    private function storeEntryRemarkAttachments(Request $request, RoiEntryProject $project): array
+    {
+        $existing = is_array($project->entry_remarks_attachments)
+            ? $project->entry_remarks_attachments
+            : [];
+
+        $keptIds = collect($request->input('entryRemarks.attachments', []))
+            ->map(fn ($item) => is_array($item) ? ($item['id'] ?? null) : null)
+            ->filter()
+            ->values()
+            ->all();
+
+        $kept = collect($existing)
+            ->filter(fn ($item) => in_array($item['id'] ?? null, $keptIds, true))
+            ->values()
+            ->all();
+
+        $removed = collect($existing)
+            ->filter(fn ($item) => !in_array($item['id'] ?? null, $keptIds, true))
+            ->values()
+            ->all();
+
+        foreach ($removed as $item) {
+            if (!empty($item['path']) && Storage::disk('local')->exists($item['path'])) {
+                Storage::disk('local')->delete($item['path']);
+            }
+        }
+
+        $uploaded = $request->file('entry_remarks_attachments', []);
+
+        foreach ($uploaded as $file) {
+            $id = (string) Str::ulid();
+            $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
+            $storedName = "{$id}.{$extension}";
+            $path = $file->storeAs('roi-entry-remarks', $storedName, 'local');
+
+            $kept[] = [
+                'id' => $id,
+                'original_name' => $file->getClientOriginalName(),
+                'stored_name' => $storedName,
+                'path' => $path,
+                'size' => $file->getSize(),
+            ];
+        }
+
+        if (count($kept) > 3) {
+            throw ValidationException::withMessages([
+                'entry_remarks_attachments' => 'You may attach up to 3 files only.',
+            ]);
+        }
+
+        return array_values($kept);
     }
 
     private function mapItemRow(int $projectId, array $row, string $kind): array
@@ -462,7 +567,7 @@ class RoiEntryProjectController extends Controller
             'yields' => (float) ($row['yields'] ?? 0),
             'mode' => $row['mode'] ?? null,
             'remarks' => $row['remarks'] ?? null,
-            'auto_added' => isset($row['autoAdded']) ? (bool)$row['autoAdded'] : false, // Persistence Logic Fix
+            'auto_added' => isset($row['autoAdded']) ? (bool) $row['autoAdded'] : false,
             'inputted_cost' => (float) ($row['inputtedCost'] ?? 0),
             'cost' => (float) ($row['cost'] ?? 0),
             'price' => (float) ($row['price'] ?? 0),
@@ -499,32 +604,60 @@ class RoiEntryProjectController extends Controller
     public function storeNote(Request $request, RoiEntryProject $project)
     {
         abort_unless($this->canNoteOnEntryProject($project), 403);
-        $validated = $request->validate(['body' => ['required', 'string', 'max:5000']]);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
         $user = Auth::user();
         $notes = is_array($project->notes) ? $project->notes : [];
+
         $notes[] = [
             'id' => (string) Str::ulid(),
             'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
-            'author' => ['id' => Auth::id(), 'name' => $user?->name ?? 'Unknown', 'role' => $user?->role],
+            'author' => [
+                'id' => Auth::id(),
+                'name' => $user?->name ?? 'Unknown',
+                'role' => $user?->role,
+            ],
         ];
-        $project->update(['notes' => $this->sortTimelineEntries($notes), 'last_saved_at' => now()]);
+
+        $project->update([
+            'notes' => $this->sortTimelineEntries($notes),
+            'last_saved_at' => now(),
+        ]);
+
         return back()->with('success', 'Note added.');
     }
 
     public function storeComment(Request $request, RoiCurrentProject $project)
     {
         abort_unless($this->canCommentOnCurrentProject($project), 403);
-        $validated = $request->validate(['body' => ['required', 'string', 'max:5000']]);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
         $user = Auth::user();
         $comments = is_array($project->comments) ? $project->comments : [];
+
         $comments[] = [
             'id' => (string) Str::ulid(),
             'body' => trim($validated['body']),
             'created_at' => now()->toISOString(),
-            'author' => ['id' => Auth::id(), 'name' => $user?->name ?? 'Unknown', 'role' => $user?->role],
+            'author' => [
+                'id' => Auth::id(),
+                'name' => $user?->name ?? 'Unknown',
+                'role' => $user?->role,
+            ],
         ];
-        $project->update(['comments' => $this->sortTimelineEntries($comments), 'last_saved_at' => now()]);
+
+        $project->update([
+            'comments' => $this->sortTimelineEntries($comments),
+            'last_saved_at' => now(),
+        ]);
+
         return back()->with('success', 'Comment added.');
     }
 
@@ -533,27 +666,42 @@ class RoiEntryProjectController extends Controller
         $user = Auth::user();
         if (!$user) return false;
         if (!in_array($project->status, ['draft', 'returned'], true)) return false;
+
         $userId = (int) $user->id;
         if ((int) $project->user_id === $userId) return true;
+
         $currentProject = RoiCurrentProject::where('project_uid', $project->project_uid)->first();
         if (!$currentProject) return false;
-        return (int) $currentProject->reviewed_by === $userId || (int) $currentProject->checked_by === $userId || (int) $currentProject->endorsed_by === $userId;
+
+        return (int) $currentProject->reviewed_by === $userId
+            || (int) $currentProject->checked_by === $userId
+            || (int) $currentProject->endorsed_by === $userId;
     }
 
     private function canCommentOnCurrentProject(RoiCurrentProject $project): bool
     {
         $user = Auth::user();
         if (!$user) return false;
+
         $userId = (int) $user->id;
-        return (int) $project->confirmed_by === $userId || (int) $project->approved_by === $userId;
+
+        return (int) $project->confirmed_by === $userId
+            || (int) $project->approved_by === $userId;
     }
 
     private function generateReferenceForUser($user): string
     {
-        if (!$user?->primary_location_id) abort(422, 'Your account has no primary location.');
+        if (!$user?->primary_location_id) {
+            abort(422, 'Your account has no primary location.');
+        }
+
         $location = Location::find($user->primary_location_id);
-        if (!$location || empty($location->code)) abort(422, 'Primary location has no code.');
+        if (!$location || empty($location->code)) {
+            abort(422, 'Primary location has no code.');
+        }
+
         $prefix = strtoupper(trim($location->code));
+
         return $this->generateNextReferenceFromPrefix($prefix);
     }
 
@@ -562,24 +710,30 @@ class RoiEntryProjectController extends Controller
         $allReferences = RoiEntryProject::where('reference', 'like', $prefix . '-%')->pluck('reference')
             ->merge(RoiCurrentProject::where('reference', 'like', $prefix . '-%')->pluck('reference'))
             ->merge(RoiArchiveProject::where('reference', 'like', $prefix . '-%')->pluck('reference'));
+
         $maxNumber = 0;
+
         foreach ($allReferences as $reference) {
             if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $reference, $matches)) {
                 $maxNumber = max($maxNumber, (int) $matches[1]);
             }
         }
+
         $nextNumber = $maxNumber + 1;
+
         return $prefix . '-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 
     private function sortTimelineEntries(?array $entries): array
     {
         $rows = is_array($entries) ? $entries : [];
+
         usort($rows, function ($a, $b) {
             $aTime = strtotime($a['created_at'] ?? '') ?: 0;
             $bTime = strtotime($b['created_at'] ?? '') ?: 0;
             return $bTime <=> $aTime;
         });
+
         return array_values($rows);
     }
 }

@@ -43,6 +43,8 @@ class RoiEntryProject extends Model
         'grand_roi',
         'grand_roi_percentage',
         'yearly_breakdown',
+        'entry_remarks',
+        'entry_remarks_attachments',
         'notes',
         'comments',
     ];
@@ -53,6 +55,7 @@ class RoiEntryProject extends Model
         'yearly_breakdown' => 'array',
         'notes' => 'array',
         'comments' => 'array',
+        'entry_remarks_attachments' => 'array',
         'user_id' => 'integer',
         'location_id' => 'integer',
     ];

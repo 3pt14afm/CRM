@@ -32,6 +32,10 @@ const defaultInitialState = {
     monoAmvpYields: { monthly: 0, annual: 0 },
     colorAmvpYields: { monthly: 0, annual: 0 },
   },
+  entryRemarks: {
+    remarks: "",
+    attachments: [],
+  },
   machineConfiguration: {
     machine: [],
     consumable: [],

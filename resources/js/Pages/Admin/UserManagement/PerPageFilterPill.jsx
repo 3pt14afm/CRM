@@ -60,6 +60,9 @@ function PerPageFilterPill({
     setOpen(false);
   };
 
+  const displayText = inputValue || "Enter number";
+  const inputWidth = `${Math.max(displayText.length, 8)}ch`;
+
   return (
     <div ref={wrapperRef} className="relative">
       <button
@@ -81,23 +84,26 @@ function PerPageFilterPill({
               Users to show
             </label>
 
-            <input
-              type="number"
-              min="1"
-              step="1"
-              inputMode="numeric"
-              className="w-full rounded-md border border-black/10 px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#289800] focus:ring-0"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleApply();
-                }
-              }}
-              placeholder="Enter number"
-            />
+            
 
             <div className="mt-3 flex items-center gap-2">
+              <input
+  type="number"
+  min="1"
+  step="1"
+  inputMode="numeric"
+  style={{ width: inputWidth }}
+  className="rounded-md border border-black/10 px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#289800] focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+  value={inputValue}
+  onChange={(e) => setInputValue(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      handleApply();
+    }
+  }}
+  placeholder="Enter number"
+/>
+              
               <button
                 type="button"
                 onClick={handleApply}

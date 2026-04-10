@@ -20,7 +20,7 @@ function TotalMVP() {
     
 
     return (
-        <div className="overflow-hidden rounded-md border border-gray-200 shadow-sm font-sans text-gray-800">
+        <div className="overflow-hidden rounded-xl shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 font-sans text-gray-800">
             <table className="w-full text-left border-collapse bg-white">
                 <thead>
                     <tr className="bg-[#E2F4D8]/60 border-b border-gray-200">

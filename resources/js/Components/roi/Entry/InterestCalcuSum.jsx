@@ -23,7 +23,7 @@ const InterestCalcuSum = () => {
   return (
     <div className="grid [grid-template-columns:40%_60%] items-start gap-4 mx-2 p-2 font-sans print:gap-2 print:p-0">
       {/* Left Table: Static Values */}
-      <div className="overflow-hidden rounded-md border border-slate-300 min-w-44 shadow-sm">
+      <div className="overflow-hidden rounded-xl shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 min-w-44 ">
         <table className="w-full border-collapse">
           <tbody>
             <tr className="border-b border-slate-200">
@@ -48,7 +48,7 @@ const InterestCalcuSum = () => {
 
       {/* Right Column: Summary ROI Box */}
       <div className="flex justify-end w-full print:ml-2">
-        <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm w-full mr-4 bg-white">
+        <div className="shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 rounded-xl overflow-hidden w-full mr-4 bg-white">
           <table className="w-full text-[11px]">
             <colgroup>
             <col className="w-[40%] " />
@@ -56,6 +56,14 @@ const InterestCalcuSum = () => {
           </colgroup>
 
             <tbody>
+              <tr className="border-b border-gray-200">
+                <td className="px-4 py-2.5 font-bold bg-[#E2F4D8]/20 text-[11px]">
+                  Total Gross Sales
+                </td>
+                <td className="px-4 py-2.5 bg-white text-right border-l border-gray-300">
+                  
+                </td>
+              </tr>
               <tr className="border-b border-gray-200">
                 <td className="px-4 py-2.5 font-bold bg-[#E2F4D8]/20 text-[11px]">
                   Total Cost
@@ -72,7 +80,7 @@ const InterestCalcuSum = () => {
                 </td>
               </tr>
 
-              <tr className="border-b border-gray-100">
+              <tr>
                 <td className="py-2 text-[10px] text-gray-400 italic px-4"></td>
                 <td
                   className={`px-4 py-2 bg-white text-right border-l border-gray-300 ${
