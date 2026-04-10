@@ -708,15 +708,22 @@ public function show(RoiEntryProject $project, Request $request)
         return array_values($rows);
     }
 
-    public function showAttachment(RoiEntryProject $project, string $attachmentId)
+    public function showAttachment(RoiEntryProject $project, int $attachmentIndex)
     {
         abort_unless((int) $project->user_id === (int) Auth::id(), 403);
 
         $attachments = is_array($project->entry_remarks_attachments)
-            ? $project->entry_remarks_attachments
+            ? array_values($project->entry_remarks_attachments)
             : [];
 
-        return $this->streamEntryRemarkAttachment($attachments, $attachmentId);
+        abort_unless(array_key_exists($attachmentIndex, $attachments), 404);
+
+        $attachment = $attachments[$attachmentIndex];
+
+        abort_unless(!empty($attachment['path']), 404);
+        abort_unless(Storage::disk('local')->exists($attachment['path']), 404);
+
+        return response()->file(Storage::disk('local')->path($attachment['path']));
     }
 }
 

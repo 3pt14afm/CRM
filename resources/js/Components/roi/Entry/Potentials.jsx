@@ -66,7 +66,7 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
   );
 
   return (
-    <div className="pr-4 pt-0 print:px-2">
+    <div className="pr-3 pt-0 print:px-2 h-full flex flex-col">
       {/* TITLE SECTION */}
       <div className="text-center mb-2 pr-1">
         <span className="text-[17px] font-bold print:font-medium print:text-sm uppercase tracking-tight text-gray-700">
@@ -75,13 +75,13 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
       </div>
 
       {/* MAIN DATA TABLE */}
-      <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
-        <table className="w-full bg-white border-collapse table-fixed">
+      <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm flex-1">
+        <table className="w-full bg-white border-collapse table-fixed ">
           <thead className="bg-[#E2F4D8] border-b border-gray-200">
-            <tr>
+            <tr className="h-14">
               <th className="w-1/4 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold uppercase">Qty</th>
-              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold border-l border-gray-300 uppercase">Total Cost</th>
-              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold border-l border-gray-300 uppercase ">Gross Sales</th>
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold border-l border-gray-300 uppercase">Total <br /> Cost</th>
+              <th className="w-3/8 px-1 py-2.5 text-[13px] text-center font-medium print:font-semibold border-l border-gray-300 uppercase ">Gross <br /> Sales</th>
             </tr>
           </thead>
           <tbody>
@@ -123,7 +123,7 @@ function Potentials({ title = "1st Year Potential", yearNumber = 1 }) {
               consumables.map((c, index) => (
                 <tr key={`c-${index}`} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-1 py-3 text-[12px] text-center">
-                    {formatConsumableQty(c.qty.toFixed(2))}
+                    {formatConsumableQty(c.qty)}
                   </td>
                   <td className="border-l text-[12px] border-gray-100 text-center px-1 py-3 print:py-2">
                     {format(c.totalCost)}

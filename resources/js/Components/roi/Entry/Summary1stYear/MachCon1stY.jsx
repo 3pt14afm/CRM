@@ -41,8 +41,8 @@ function MachCon1stY() {
         });
 
     return (
-        <div className="gap-4 font-sans tracking-tight">
-            <div className="flex-[3] border border-gray-300 rounded-md overflow-hidden shadow-sm">
+        <div className="h-full font-sans tracking-tight">
+            <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm h-full">
                 <table className="w-full bg-white border-collapse table-fixed">
                     {/* ... colgroup remains same ... */}
                     <colgroup>
@@ -56,12 +56,12 @@ function MachCon1stY() {
 
                     <thead className="bg-[#E2F4D8] border-b border-gray-300">
                         {/* ... thead remains same ... */}
-                        <tr>
+                        <tr className="h-14">
                             <th className="px-3 py-2.5 text-[13px] font-medium border-l text-center print:font-semibold">MACHINE & CONSUMABLES</th>
                             <th className="px-2 py-2.5 text-[13px] font-medium text-center border-l border-gray-300 print:font-semibold">COST</th>
                             <th className="px-2 py-2.5 text-[13px] font-medium text-center border-l border-gray-300 print:font-semibold">YIELDS</th>
-                            <th className="px-2 py-2.5 text-[13px] font-medium text-center border-l border-gray-300 print:font-semibold">COST CPP</th>
-                            <th className="px-2 py-2.5 text-[13px] font-medium text-center border-l border-gray-300 print:font-semibold">SELLING PRICE</th>
+                            <th className="px-2 py-2.5 text-[13px] font-medium text-center border-l border-gray-300 xl:py-2 print:font-semibold">COST <br /> CPP</th>
+                            <th className="px-2 py-2.5 text-[13px] font-medium text-center border-l border-gray-300 xl:px-3 print:font-semibold">SELLING <br /> PRICE</th>
                             <th className="px-2 py-2.5 text-[13px] font-medium text-center border-l border-gray-300 print:font-semibold">SELL CPP</th>
                         </tr>
                     </thead>
@@ -75,7 +75,7 @@ function MachCon1stY() {
                             const effectivePrice = isOutright ? (m.price || 0) : 0;
                             const effectiveSellCpp = m.yields > 0 ? effectivePrice / m.yields : 0;
                             return (
-                                <tr key={m.id || `m-${index}`} className="border-b border-gray-100 last:border-b-0">
+                                <tr key={m.id || `m-${index}`} className="border-b border-gray-100 last:border-b-0 h-14">
                                     <td className="px-7 py-3 border-r border-gray-300 uppercase">{m.sku}</td>
                                     <td className="text-center py-4">{formatNum(m.inputtedCost || m.cost)}</td>
                                     <td className="text-center border-l border-gray-100">{Number(m.yields || 0).toLocaleString()}</td>
@@ -88,7 +88,7 @@ function MachCon1stY() {
 
                         {/* ... Consumables Section remains same ... */}
                         <tr className="bg-[#E2F4D8]/40 border border-gray-200">
-                            <td colSpan={6} className="px-4 py-1 border font-semibold border-r-gray-300">CONSUMABLES</td>
+                            <td colSpan={6} className="px-4 py-1 border font-semibold">CONSUMABLES</td>
                         </tr>
                         {filteredConsumable.map((c, index) => (
                             <tr key={c.id || `c-${index}`} className="border-b border-gray-100 last:border-b-0">
