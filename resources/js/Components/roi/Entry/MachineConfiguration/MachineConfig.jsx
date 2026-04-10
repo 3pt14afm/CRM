@@ -269,6 +269,16 @@ function MachineConfig({ readOnly }) {
       prevRows.map((row) => {
         if (row.id !== id) return row;
         if (field === 'remarks' && !canEditRemarks) return row;
+        
+        if (field === 'sku') {
+          return enforceRowQty({ 
+            ...row, 
+            sku: value, 
+            selectedMachineId: '', 
+            selectedConsumableId: '' 
+          });
+        }
+
         return enforceRowQty({ ...row, [field]: value });
       })
     );
@@ -279,25 +289,23 @@ function MachineConfig({ readOnly }) {
     if (!q) return [];
     return machineCatalog
       .filter((item) => String(item.name || '').toLowerCase().includes(q))
-      .slice(0, 8);
+      .slice(0, 15);
   };
 
+ 
+  const getConsumableSuggestions = (mode, query) => {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q || !mode) return [];
+    // Filters the specific mode catalog (Mono or Color)
+    const catalog = consumableCatalog[mode] || [];
+    // Finds all toners that include the typed letter/string
+    return catalog.filter((item) => String(item.name || '').toLowerCase().includes(q)).slice(0, 15);
+
+  };
+
+
   const handleMachineSearchChange = (id, typedValue) => {
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.id !== id) return row;
-        return row.selectedMachineId
-          ? {
-              ...row,
-              selectedMachineId: '',
-              sku: typedValue,
-              cost: '',
-              price: '',
-              qty: 1,
-            }
-          : { ...row, sku: typedValue };
-      })
-    );
+    handleInputChange(id, 'sku', typedValue);
     setActiveSearchRowId(id);
   };
 
@@ -374,11 +382,11 @@ function MachineConfig({ readOnly }) {
     handleMachineSelect(id, machine.id);
   };
 
-  const handleConsumableSelect = (id, selectedId) => {
+  const handleConsumableSelect = (id, selectedId, mode) => {
+    const selectedConsumable = findConsumableById(mode, selectedId);
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
-        const selectedConsumable = findConsumableById(row.mode, selectedId);
         if (!selectedConsumable) {
           return {
             ...row,
@@ -401,6 +409,7 @@ function MachineConfig({ readOnly }) {
         };
       })
     );
+    setActiveSearchRowId(null);
   };
 
   const toggleMachine = (id, isMachine) => {
@@ -445,6 +454,7 @@ function MachineConfig({ readOnly }) {
           ...r,
           type: isSwitchingToOthers ? 'consumable' : r.type,
           mode,
+          sku: '',
           selectedMachineId: '',
           selectedConsumableId: '',
           linkedMachineRowId: null,
@@ -468,29 +478,22 @@ function MachineConfig({ readOnly }) {
 
   const addRow = () => setRows((prev) => [...prev, makeBlankRow()]);
 
-const removeRow = (id) => {
-  if (rows.length > 1) {
-    setRows((prev) => {
-      // Find the row we are about to delete
-      const targetRow = prev.find((r) => r.id === id);
-      
-      // If we are deleting a machine, we must also kill its children
-      const isMachine = targetRow?.type === 'machine';
+  const removeRow = (id) => {
+    if (rows.length > 1) {
+      setRows((prev) => {
+        const targetRow = prev.find((r) => r.id === id);
+        const isMachine = targetRow?.type === 'machine';
 
-      return prev.filter((r) => {
-        // Remove the machine itself
-        if (r.id === id) return false;
-
-        // Remove any row linked to this machine (auto-added consumables)
-        if (isMachine && String(r.linkedMachineRowId) === String(id)) {
-          return false;
-        }
-
-        return true;
+        return prev.filter((r) => {
+          if (r.id === id) return false;
+          if (isMachine && String(r.linkedMachineRowId) === String(id)) {
+            return false;
+          }
+          return true;
+        });
       });
-    });
-  }
-};
+    }
+  };
 
   const formatNum = (num) =>
     (Number(num) || 0).toLocaleString(undefined, {
@@ -589,11 +592,13 @@ const removeRow = (id) => {
 
   return (
     <div className="mx-10 mb-5">
-      <div className="overflow-hidden rounded-md border border-slate-300 shadow-md bg-lightgreen/5">
+      {/* REMOVED overflow-hidden from this wrapper to prevent dropdown clipping */}
+      <div className="rounded-md border border-slate-300 shadow-md bg-lightgreen/5">
         <div className="bg-[#D9F2D0] py-2 text-center border-b border-darkgreen/15">
           <h2 className="text-[14px] font-bold tracking-wider uppercase">Machine Configuration</h2>
         </div>
 
+        {/* Use overflow-x-auto only on the container to handle table width, but allow vertical clipping for dropdowns */}
         <div className="w-full">
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
@@ -636,24 +641,13 @@ const removeRow = (id) => {
                 const calcs = getRowCalculations(normalizedRow, projectData);
                 const isMachineRow = row.type === 'machine';
                 const isOthersMode = row.mode === 'others';
-                const isOtherConsumable = row.type === 'consumable' && isOthersMode && !row.autoAdded;
-
-                const shouldShowReadonlyConsumableSku =
-                  row.type === 'consumable' &&
-                  (row.mode === 'mono' || row.mode === 'color') &&
-                  Boolean(row.selectedConsumableId || row.sku);
-
-                const shouldShowConsumableDropdown =
-                  row.type === 'consumable' &&
-                  (row.mode === 'mono' || row.mode === 'color') &&
-                  !row.autoAdded &&
-                  !shouldShowReadonlyConsumableSku;
-
+                
                 const machineSuggestions =
                   isMachineRow && activeSearchRowId === row.id ? getMachineSuggestions(row.sku) : [];
 
                 return (
-                  <tr key={row.id} className="border-b">
+                  /* Added relative and a z-index management to ensure dropdowns don't hide behind other rows */
+                  <tr key={row.id} className={`border-b relative ${activeSearchRowId === row.id ? 'z-50' : 'z-10'}`}>
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
                       <input
                         type="checkbox"
@@ -676,9 +670,7 @@ const removeRow = (id) => {
                           onChange={(e) => setMode(row.id, e.target.value)}
                           disabled={
                             readOnly || 
-                            !!row.autoAdded || 
-                            row.mode === 'mono' || 
-                            row.mode === 'color'
+                            !!row.autoAdded 
                           }
                           className={`w-[90%] min-w-0 h-6 text-[10px] sm:text-[11px] pl-2 pr-5 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0 ${
                             isMachineRow && !isOthersMode
@@ -717,7 +709,7 @@ const removeRow = (id) => {
                             autoComplete="off"
                           />
                           {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
-                            <div className="absolute z-20 mt-1 w-full rounded-md bg-white/70 backdrop-blur-xl border border-gray-100 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] max-h-48 overflow-auto no-scrollbar">
+                            <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md bg-white/20 backdrop-blur-lg border border-gray-200 shadow-xl max-h-48 overflow-auto no-scrollbar">
                               {machineSuggestions.length > 0 ? (
                                 machineSuggestions.map((machine) => (
                                   <button
@@ -732,41 +724,58 @@ const removeRow = (id) => {
                                 ))
                               ) : (
                                 <div className="px-3 py-2 text-[12px] text-slate-500 ">
-                                  No results. Switch to "Others".
+                                  No results.
                                 </div>
                               )}
                             </div>
                           )}
                         </div>
-                      ) : isOthersMode || isOtherConsumable ? (
+                      ) : (row.mode === 'mono' || row.mode === 'color') && !row.autoAdded ? (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={row.sku || ''}
+                            disabled={readOnly || !row.mode}
+                            onChange={(e) => {
+                                handleInputChange(row.id, 'sku', e.target.value);
+                                setActiveSearchRowId(row.id);
+                            }}
+                            onFocus={() => setActiveSearchRowId(row.id)}
+                            onBlur={handleMachineInputBlur}
+                            className={selectClass}
+                            placeholder={`Search ${row.mode} item...`}
+                            autoComplete="off"
+                          />
+                          {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
+                            <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md bg-white/30 backdrop-blur-lg border border-gray-200 shadow-xl max-h-48 overflow-auto no-scrollbar">
+                              {(() => {
+                                const suggestions = getConsumableSuggestions(row.mode, row.sku);
+                                return suggestions.length > 0 ? (
+                                  suggestions.map((item) => (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={() => handleConsumableSelect(row.id, item.id, row.mode)}
+                                      className="block w-full text-left px-3 py-2 text-[12px] hover:bg-green-600 hover:text-black transition-colors"
+                                    >
+                                      {item.name}
+                                    </button>
+                                  ))
+                                ) : (
+                                  <div className="px-3 py-2 text-[12px] text-slate-500 ">No results.</div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
                         <input
                           type="text"
                           value={row.sku || ''}
                           disabled={readOnly || row.autoAdded}
                           onChange={(e) => handleInputChange(row.id, 'sku', e.target.value)}
-                          className={`${inputClass} ${!row.sku ? 'border-orange-200' : ''} ${row.autoAdded ? ' bg-slate-100' : ''}`}
-                          placeholder="Enter name"
-                        />
-                      ) : shouldShowConsumableDropdown ? (
-                        <select
-                          value={row.selectedConsumableId || ''}
-                          onChange={(e) => handleConsumableSelect(row.id, e.target.value)}
-                          disabled={readOnly || row.autoAdded || !row.mode}
-                          className={`${selectClass} ${row.autoAdded ? ' bg-slate-100' : ''}`}
-                        >
-                          <option value="">Select Consumable</option>
-                          {(consumableCatalog[row.mode] || []).map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={row.sku || ''}
-                          disabled
-                          className={`${inputClass} ${disabledInputClass}`}
+                          className={`${inputClass} ${row.autoAdded ? disabledInputClass : ''}`}
                           placeholder={row.autoAdded ? 'Auto-added' : 'Select mode'}
                         />
                       )}
@@ -830,23 +839,16 @@ const removeRow = (id) => {
 
                   <td className="border-b border-r border-darkgreen/15 p-1">
                     {(() => {
-                      // 1. Identify if this is a machine and if it should be disabled
                       const isMachine = row?.type === 'machine';
                       const contractType = projectData?.companyInfo?.contractType || "";
                       const isOutright = contractType.toLowerCase().includes("outright");
-
-                      // Logic: Disable if it's a machine AND NOT an outright contract
                       const isPriceDisabled = isMachine && !isOutright;
-
-                      // Determine what value to actually show
-                      // If disabled, we force show 0. Otherwise, we show the row.price
                       const displayValue = isPriceDisabled ? 0 : row.price;
 
                       return (
                         <input
                           type="text"
                           inputMode="decimal"
-                          // Force displayValue if disabled
                           value={
                             focusedField === keyOf(row.id, 'price') 
                               ? (isPriceDisabled ? "0" : (row.price || '')) 
@@ -865,7 +867,6 @@ const removeRow = (id) => {
                               handleInputChange(row.id, 'price', sanitize2dp(e.target.value));
                             }
                           }}
-                          // The input is disabled if readOnly prop is true OR our logic says so
                           disabled={readOnly || isPriceDisabled}
                           className={`${inputClass} ${
                             (readOnly || isPriceDisabled) ? "bg-gray-100 cursor-not-allowed opacity-70" : ""
