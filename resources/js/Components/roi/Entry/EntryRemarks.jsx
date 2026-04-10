@@ -208,6 +208,7 @@ export default function EntryRemarks({ readOnly = false }) {
                   onClick={() =>
                     openRoiAttachment({
                       item,
+                      index,
                       projectId,
                       pageRoute,
                     })
