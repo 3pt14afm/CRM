@@ -197,10 +197,27 @@ export default function Entry({
     return String(projectData?.entryRemarks?.remarks ?? "").trim().length > 0;
   };
 
+  const hasRequiredEntryRemarkAttachment = () => {
+    const attachments = projectData?.entryRemarks?.attachments;
+    return Array.isArray(attachments) && attachments.length > 0;
+  };
+
   const validateEntryRemarks = () => {
-    if (requiresEntryRemarks() && !hasValidEntryRemarks()) {
+    if (!requiresEntryRemarks()) {
+      return true;
+    }
+
+    if (!hasValidEntryRemarks()) {
       toast.error(
-        "Remarks required for Mono AMVP ≥5,000 or Color AMVP ≥2,500."
+        "Remarks required if Mono AMVP exceeds 5,000 or Color AMVP exceeds 2,500."
+      );
+      setTab("Machine");
+      return false;
+    }
+
+    if (!hasRequiredEntryRemarkAttachment()) {
+      toast.error(
+        "At least one attachment required."
       );
       setTab("Machine");
       return false;
