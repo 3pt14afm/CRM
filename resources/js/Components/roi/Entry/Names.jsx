@@ -43,9 +43,9 @@ function Names() {
 
   const rejectedLevel = Number(project?.rejected_by_level ?? 0);
 
-  // Positions
+  // Positions — all consistently use positionOf via usersById
   const preparedByPosition = hasPageProject
-    ? (project?.user?.position ?? positionOf(project?.user_id))
+    ? positionOf(project?.user_id)
     : fromSnap('preparedByPosition');
 
   const reviewedByPosition = hasPageProject ? positionOf(project?.reviewed_by) : fromSnap('reviewedByPosition');

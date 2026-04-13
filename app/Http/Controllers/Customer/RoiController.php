@@ -322,7 +322,17 @@ public function entryCreate()
 
     public function archiveShow($id)
     {
-        $project = RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
+       $project = RoiArchiveProject::with([
+            'items',
+            'fees',
+            'user:id,first_name,last_name,position',
+            'reviewedByUser:id,first_name,last_name,position',
+            'checkedByUser:id,first_name,last_name,position',
+            'endorsedByUser:id,first_name,last_name,position',
+            'confirmedByUser:id,first_name,last_name,position',
+            'approvedByUser:id,first_name,last_name,position',
+            'rejectedByUser:id,first_name,last_name,position',
+            ])->findOrFail($id);
 
         $this->ensureCanViewArchive($project);
 

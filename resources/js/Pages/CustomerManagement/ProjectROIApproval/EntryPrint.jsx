@@ -57,7 +57,28 @@ function mapProjectToContext(p) {
       status: p?.status ?? "draft",
       comments: p?.comments ?? [],
       notes: p?.notes ?? [],
-      signatories: p?.signatories ?? undefined,
+     signatories: {
+      preparedBy: p?.user?.name ?? (p?.user ? `${p.user.first_name ?? ''} ${p.user.last_name ?? ''}`.trim() : ''),
+      preparedByPosition: p?.user?.position ?? '',
+
+      reviewedBy: p?.reviewed_by_user?.name ?? `${p?.reviewed_by_user?.first_name ?? ''} ${p?.reviewed_by_user?.last_name ?? ''}`.trim(),
+      reviewedByPosition: p?.reviewed_by_user?.position ?? '',
+
+      checkedBy: p?.checked_by_user?.name ?? `${p?.checked_by_user?.first_name ?? ''} ${p?.checked_by_user?.last_name ?? ''}`.trim(),
+      checkedByPosition: p?.checked_by_user?.position ?? '',
+
+      endorsedBy: p?.endorsed_by_user?.name ?? `${p?.endorsed_by_user?.first_name ?? ''} ${p?.endorsed_by_user?.last_name ?? ''}`.trim(),
+      endorsedByPosition: p?.endorsed_by_user?.position ?? '',
+
+      confirmedBy: p?.confirmed_by_user?.name ?? `${p?.confirmed_by_user?.first_name ?? ''} ${p?.confirmed_by_user?.last_name ?? ''}`.trim(),
+      confirmedByPosition: p?.confirmed_by_user?.position ?? '',
+
+      approvedBy: p?.approved_by_user?.name ?? `${p?.approved_by_user?.first_name ?? ''} ${p?.approved_by_user?.last_name ?? ''}`.trim(),
+      approvedByPosition: p?.approved_by_user?.position ?? '',
+
+      rejectedBy: p?.rejected_by_user?.name ?? `${p?.rejected_by_user?.first_name ?? ''} ${p?.rejected_by_user?.last_name ?? ''}`.trim(),
+      rejectedByPosition: p?.rejected_by_user?.position ?? '',
+    },
       isPrintPreview: true,
       readOnly: true,
     },
@@ -122,6 +143,13 @@ function mapProjectToContext(p) {
       machine: [],
       consumable: [],
       totalInitial: 0,
+    },
+
+    entryRemarks: {
+      remarks: p?.entry_remarks ?? "",
+      attachments: Array.isArray(p?.entry_remarks_attachments)
+        ? p.entry_remarks_attachments
+        : [],
     },
   };
 }

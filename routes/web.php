@@ -313,6 +313,7 @@ Route::middleware(['auth', 'verified'])
             Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])
                 ->name('roi.archive.show');
 
+           // routes/web.php — archive print route
             Route::get('/archive/{id}/print', function ($id) {
                 $p = \App\Models\RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
@@ -329,11 +330,12 @@ Route::middleware(['auth', 'verified'])
 
                 $usersById = \App\Models\User::query()
                     ->whereIn('id', $userIds)
-                    ->get(['id', 'first_name', 'last_name'])
+                    ->get(['id', 'first_name', 'last_name', 'position']) // ← add position
                     ->keyBy(fn ($u) => (string) $u->id)
                     ->map(fn ($u) => [
                         'id' => $u->id,
                         'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+                        'position' => $u->position ?? '—', // ← add position
                     ]);
 
                 return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
