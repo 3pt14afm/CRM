@@ -155,7 +155,7 @@ function MachConSucceMerged() {
       </div>
 
       <div className="rounded-xl overflow-hidden ">
-        <table className="w-full bg-[#f8f8f8] border-collapse table-fixed">
+        <table className="w-full bg-[#f8f8f8] print:bg-white border-collapse table-fixed">
           <colgroup>
             <col className="w-[30.7%]" />
             <col className="w-[9.1%]" />
@@ -177,7 +177,7 @@ function MachConSucceMerged() {
               <th className="px-3 py-2.5 text-[13px] font-medium text-center border-r border-t border-gray-300">
                 COST
               </th>
-              <th className="bg-[#f8f8f8]"></th>
+              <th className="bg-[#f8f8f8] print:bg-white"></th>
               <th className="px-1 py-2.5 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase">
                 Qty
               </th>
@@ -187,7 +187,7 @@ function MachConSucceMerged() {
               <th className="px-1 py-2.5 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">
                 Gross Sales
               </th>
-              <th className="bg-[#f8f8f8]"></th>
+              <th className="bg-[#f8f8f8] print:bg-white"></th>
               <th className="px-1 py-2.5 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase">
                 Qty
               </th>
@@ -205,11 +205,11 @@ function MachConSucceMerged() {
               <td colSpan={2} className="px-4 py-1 font-semibold border border-gray-200 border-x-0 border-l border-l-gray-300">
                 MACHINE
               </td>
-              <td className="bg-[#f8f8f8] border-x border-gray-300"></td>
+              <td className="bg-[#f8f8f8] print:bg-white border-x border-gray-300"></td>
               <td className="py-1 border border-gray-200 border-x-0 border-l border-l-gray-300"></td>
               <td className="py-1 border border-gray-200 border-x-0"></td>
               <td className="py-1 border border-gray-200 border-x-0 border-r border-r-gray-300"></td>
-              <td className="bg-[#f8f8f8]"></td>
+              <td className="bg-[#f8f8f8] print:bg-white"></td>
               <td className="py-1 border border-gray-200 border-x-0 border-l border-l-gray-300"></td>
               <td className="py-1 border border-gray-200 border-x-0"></td>
               <td className="py-1 border border-gray-200 border-x-0 border-r border-r-gray-300"></td>
@@ -230,7 +230,7 @@ function MachConSucceMerged() {
                     <td className="px-3 py-3 text-[12px] text-center border-r border-gray-300">
                       {left ? formatNum(0) : ''}
                     </td>
-                    <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                    <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-[12px] text-center border-x border-gray-200">
                       {formatQty(0)}
@@ -242,7 +242,7 @@ function MachConSucceMerged() {
                       {format(0)}
                     </td>
 
-                    <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                    <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-[12px] text-center border-x border-gray-200">
                       {formatQty(0)}
@@ -262,13 +262,13 @@ function MachConSucceMerged() {
                 <td className="px-3 py-3 text-[12px] text-center border-r border-gray-300">
                   {formatNum(0)}
                 </td>
-                <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                 <td className="px-1 py-3 text-[12px] text-center">0</td>
                 <td className="text-[12px] text-center px-1 py-3">{format(0)}</td>
                 <td className="text-[12px] text-center px-1 py-3 border-r border-gray-300">
                   {format(0)}
                 </td>
-                <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                 <td className="px-1 py-3 text-[12px] text-center">0</td>
                 <td className="text-[12px] text-center px-1 py-3">{format(0)}</td>
                 <td className="text-[12px] text-center px-1 py-3">{format(0)}</td>
@@ -279,11 +279,11 @@ function MachConSucceMerged() {
               <td colSpan={2} className="px-4 py-1 font-semibold border border-gray-200 border-x border-x-gray-300">
                 CONSUMABLES
               </td>
-              <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+              <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
               <td className="py-1 border border-gray-200 border-x-0"></td>
               <td className="py-1 border-y border-gray-200"></td>
               <td className="py-1 border-y border-gray-200 border-r border-r-gray-300"></td>
-              <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+              <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
               <td className="py-1 border border-gray-200 border-x-0"></td>
               <td className="py-1 border-y border-gray-200"></td>
               <td className="py-1 border-y border-gray-200 border-r border-r-gray-300"></td>
@@ -306,7 +306,7 @@ function MachConSucceMerged() {
                     <td className="px-3 py-3 text-[12px] text-center border-r border-r-gray-300 border-b border-gray-200">
                       {left ? formatNum(left.cost) : ''}
                     </td>
-                    <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                    <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-[12px] text-center border-r border-r-gray-200 border-b border-gray-200">
                       {middle ? formatConsumableQty(n(middle.qty)) : ''}
@@ -318,7 +318,7 @@ function MachConSucceMerged() {
                       {middle ? format(n(middle.totalSell)) : ''}
                     </td>
 
-                    <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                    <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-[12px] text-center border-r border-r-gray-200 border-b border-gray-200">
                       {right ? formatConsumableQty(n(right.qty) * succeedingYearCount) : ''}
@@ -338,13 +338,13 @@ function MachConSucceMerged() {
                 <td className="px-3 py-3 text-[12px] text-center border-r border-gray-300">
                   {formatNum(0)}
                 </td>
-                <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                 <td className="px-1 py-3 text-[12px] text-center">{formatConsumableQty(0)}</td>
                 <td className="text-[12px] text-center px-1 py-3">{format(0)}</td>
                 <td className="text-[12px] text-center px-1 py-3 border-r border-gray-300">
                   {format(0)}
                 </td>
-                <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                 <td className="px-1 py-3 text-[12px] text-center">{formatConsumableQty(0)}</td>
                 <td className="text-[12px] text-center px-1 py-3">{format(0)}</td>
                 <td className="text-[12px] text-center px-1 py-3">{format(0)}</td>
@@ -357,11 +357,11 @@ function MachConSucceMerged() {
                   <td colSpan={2} className="px-4 py-1 font-semibold border border-gray-200 border-x border-x-gray-300">
                     OTHERS
                   </td>
-                  <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                  <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                   <td className="py-1 border border-gray-200 border-x-0"></td>
                   <td className="py-1 border-y border-gray-200"></td>
                   <td className="py-1 border-y border-gray-200 border-r border-r-gray-300"></td>
-                  <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                  <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                   <td className="py-1 border border-gray-200 border-x-0"></td>
                   <td className="py-1 border-y border-gray-200"></td>
                   <td className="py-1 border-y border-gray-200 border-r border-r-gray-300"></td>
@@ -381,7 +381,7 @@ function MachConSucceMerged() {
                       <td className="px-3 py-3 text-[12px] text-center border-r border-r-gray-300 border-b border-gray-200">
                         {left ? formatNum(0) : ''}
                       </td>
-                      <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                      <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                       <td className="px-1 py-3 text-[12px] text-center border-r border-r-gray-200 border-b border-gray-200">
                         {formatQty(0)}
@@ -393,7 +393,7 @@ function MachConSucceMerged() {
                         {format(0)}
                       </td>
 
-                      <td className="bg-[#f8f8f8] border-r border-gray-300"></td>
+                      <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                       <td className="px-1 py-3 text-[12px] text-center border-r border-r-gray-200 border-b border-gray-200">
                         {formatQty(0)}
@@ -413,7 +413,7 @@ function MachConSucceMerged() {
             <tr className="bg-[#E2F4D8] border-x border-x-gray-300 font-semibold border-gray-100">
               <td className="px-4 py-3 text-[12px] text-left font-bold border border-gray-300"></td>
               <td className="px-3 py-3 text-[12px] text-center border border-gray-300"></td>
-              <td className="bg-[#f8f8f8] border-r border-gray-300 border-b-0"></td>
+              <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300 border-b-0"></td>
 
               <td className="px-1 py-3 text-[12px] text-center font-bold border border-gray-300"></td>
               <td className="text-[12px] text-center px-1 py-3 font-bold border border-gray-300">
@@ -423,7 +423,7 @@ function MachConSucceMerged() {
                 {format(consumablesOnlyTotalSales)}
               </td>
 
-              <td className="bg-[#f8f8f8] border-r border-gray-300 border-b-0"></td>
+              <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300 border-b-0"></td>
 
               <td className="px-1 py-3 text-[12px] text-center font-bold border border-gray-300"></td>
               <td className="text-[12px] text-center px-1 py-3 font-bold border border-gray-300">

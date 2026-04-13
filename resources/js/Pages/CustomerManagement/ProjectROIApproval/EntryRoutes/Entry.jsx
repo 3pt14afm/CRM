@@ -190,7 +190,7 @@ export default function Entry({
     const monoMonthly = Number(projectData?.yield?.monoAmvpYields?.monthly || 0);
     const colorMonthly = Number(projectData?.yield?.colorAmvpYields?.monthly || 0);
 
-    return monoMonthly >= 5000 || colorMonthly >= 2500;
+    return monoMonthly > 5000 || colorMonthly > 2500;
   };
 
   const hasValidEntryRemarks = () => {
