@@ -525,7 +525,7 @@ export default function Entry({
     const formData = buildFormDataPayload();
     formData.append("_method", "patch");
 
-    router.post(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
+    router.patch(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
       preserveScroll: true,
       forceFormData: true,
       onError: (errors) => {

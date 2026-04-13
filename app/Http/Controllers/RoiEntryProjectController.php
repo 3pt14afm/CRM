@@ -81,6 +81,27 @@ public function show(RoiEntryProject $project, Request $request)
         'user',
     ]);
 
+     // ADD THIS — build usersById with position
+    $userIds = collect([
+        $project->user_id,
+        $project->reviewed_by,
+        $project->checked_by,
+        $project->endorsed_by,
+        $project->confirmed_by,
+        $project->approved_by,
+        $project->rejected_by,
+    ])->filter()->unique()->values();
+
+    $usersById = \App\Models\User::query()
+        ->whereIn('id', $userIds)
+        ->get(['id', 'first_name', 'last_name', 'position'])
+        ->keyBy(fn ($u) => (string) $u->id)
+        ->map(fn ($u) => [
+            'id' => $u->id,
+            'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+            'position' => $u->position ?? '—',
+        ]);
+
     $project->notes = $this->sortTimelineEntries($project->notes);
     $project->comments = $this->sortTimelineEntries($project->comments);
 
@@ -158,6 +179,7 @@ public function show(RoiEntryProject $project, Request $request)
         'machineCatalog' => $machineCatalog,
         'consumableCatalog' => $consumableCatalog,
         'companySuggestions' => $companySuggestions, // Suggestions passed here
+        'usersById' => $usersById, // ← missing
     ]);
 }
 

@@ -22,6 +22,10 @@ function Names() {
     return usersById?.[String(id)]?.position ?? fallback;
   };
 
+    console.log('usersById:', usersById);
+  console.log('user_id:', project?.user_id);
+  console.log('positionOf result:', usersById?.[String(project?.user_id)]);
+
   const snapSigns = projectData?.metadata?.signatories ?? {};
   const fromSnap = (key) => snapSigns?.[key] ?? '—';
 
