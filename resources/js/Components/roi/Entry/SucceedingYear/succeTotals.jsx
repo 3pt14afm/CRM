@@ -77,7 +77,7 @@ const customerTotal = customerFees.reduce(
   }, [lifetime, updateSection]);
 
   return (
-    <div className="my-2 font-sans font-medium tracking-tight text-[10px]">
+    <div className="my-2 font-sans tracking-tight text-[10px]">
       <div className="items-start text-[12px]">
         <div>
           <div className="w-full ">
@@ -86,21 +86,21 @@ const customerTotal = customerFees.reduce(
                 <table className="w-full bg-white table-fixed ">
                   <colgroup>
                     <col className="w-[30.7%]" />
-                    <col className="w-[9.1%]" />
-                    <col className="w-[1.4%]" />
-                    <col className="w-[7.3%]" />
+                    <col className="w-[9.7%]" />
+                    <col className="w-[1.2%]" />
+                    <col className="w-[7.2%]" />
                     <col className="w-[10.7%]" />
                     <col className="w-[10.7%]" />
-                    <col className="w-[1.4%]" />
-                    <col className="w-[7.3%]" />
+                    <col className="w-[1.2%]" />
+                    <col className="w-[7.2%]" />
                     <col className="w-[10.7%]" />
                     <col className="w-[10.7%]" />
                   </colgroup>
 
                   <thead className="bg-[#E2F4D8]/70 text-[11px]">
-                    <tr>
-                      <th className="px-3 py-1 text-center uppercase border border-gray-300">OTHERS</th>
-                      <th className="px-3 py-1 text-center border border-gray-300 uppercase print:text-[10px]">Amount</th>
+                    <tr className=" font-medium">
+                      <th className="px-3 py-1 text-center uppercase border border-gray-300 font-medium">OTHERS</th>
+                      <th className="px-3 py-1 text-center border border-gray-300 uppercase print:text-[10px] font-medium">Amount</th>
                       <th className="px-3 py-1 text-center bg-[#f8f8f8] print:bg-white"></th>
                       <th className="px-3 py-1 text-center border border-gray-300"></th>
                       <th className="px-3 py-1 text-center border border-gray-300"></th>
