@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/FilterPill.jsx
-
 import React, { useEffect, useRef, useState } from "react";
 
 function FilterPill({ label, value = "", options = [], onChange, disabled = false }) {
@@ -40,7 +38,7 @@ function FilterPill({ label, value = "", options = [], onChange, disabled = fals
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-2 min-w-full overflow-hidden rounded-md border border-black/10 bg-white shadow-lg">
+        <div className="absolute left-0 top-full z-20 mt-2 min-w-full max-h-40 overflow-y-auto rounded-md bg-white border border-black/10 shadow-lg [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
           {options.map((option) => {
             const isActive = String(option.value) === String(value);
 
@@ -49,8 +47,10 @@ function FilterPill({ label, value = "", options = [], onChange, disabled = fals
                 key={`${label}-${option.value}`}
                 type="button"
                 onClick={() => handleSelect(option.value)}
-                className={`block w-full px-3 py-2 text-left text-xs hover:bg-slate-50 ${
-                  isActive ? "bg-gray-100 shadow-inner font-semibold text-slate-900" : "text-slate-700"
+                className={`block w-full px-3 py-2 text-left text-xs hover:shadow-[inset_2px_2px_5px_rgba(163,177,198,0.35),inset_-2px_-2px_5px_rgba(0,0,0,0.05)] ${
+                  isActive
+                    ? "bg-[#e7f8e5] text-[#289800] border-l-2 border-[#289800] font-semibold hover:bg-[#e7f8e5] hover:shadow-[inset_2px_2px_5px_rgba(40,152,0,0.2),inset_-2px_-2px_5px_rgba(40,152,0,0.05)]"
+                    : "text-slate-700"
                 }`}
               >
                 {option.label}

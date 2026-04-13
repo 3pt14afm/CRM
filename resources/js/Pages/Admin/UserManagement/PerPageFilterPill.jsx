@@ -78,7 +78,7 @@ function PerPageFilterPill({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-2 min-w-[180px] overflow-hidden rounded-md border border-black/10 bg-white shadow-lg">
+        <div className="absolute left-0 top-full z-20 mt-2 min-w-[100px] overflow-hidden rounded-md border border-black/10 bg-white shadow-lg">
           <div className="p-3">
             <label className="mb-2 block text-xs font-semibold text-slate-700">
               Users to show
@@ -88,29 +88,29 @@ function PerPageFilterPill({
 
             <div className="mt-3 flex items-center gap-2">
               <input
-  type="number"
-  min="1"
-  step="1"
-  inputMode="numeric"
-  style={{ width: inputWidth }}
-  className="rounded-md border border-black/10 px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#289800] focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-  value={inputValue}
-  onChange={(e) => setInputValue(e.target.value)}
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      handleApply();
-    }
-  }}
-  placeholder="Enter number"
-/>
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                style={{ width: inputWidth }}
+                className="rounded-md border border-black/10 px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#289800] focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleApply();
+                  }
+                }}
+                placeholder="Enter number"
+              />
               
-              <button
+              {/* <button
                 type="button"
                 onClick={handleApply}
                 className="rounded-md border border-black/10 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Apply
-              </button>
+              </button> */}
 
               <button
                 type="button"

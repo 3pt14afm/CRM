@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import axios from "axios";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
@@ -41,10 +42,9 @@ function UserManagement({
   );
 
   const searchBoxRef = useRef(null);
-
-  useEffect(() => {
-    setSearchQuery(filters.search ?? "");
-  }, [filters.search]);
+  const isSearchFocusedRef = useRef(false);
+  const suggestionCacheRef = useRef(new Map());
+  const latestSuggestionRequestRef = useRef(0);
 
   useEffect(() => {
     setPerPageInput(
@@ -58,12 +58,19 @@ function UserManagement({
     const handleClickOutside = (event) => {
       if (searchBoxRef.current && !searchBoxRef.current.contains(event.target)) {
         setShowSearchSuggestions(false);
+        isSearchFocusedRef.current = false;
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isSearchFocusedRef.current) {
+      setSearchQuery(filters.search ?? "");
+    }
+  }, [filters.search]);
 
   const locationOptions = useMemo(() => {
     const rows = locations?.data ?? [];
@@ -76,11 +83,6 @@ function UserManagement({
   const assignModal = useAssignUserModal();
   const editModal = useEditUserModal();
 
-  const userColumns = useMemo(
-    () => getUserColumns({ onEdit: editModal.openEditModal, isUserActive }),
-    [editModal.openEditModal]
-  );
-
   const applyFilters = useCallback(
     (nextFilters = {}) => {
       router.get(
@@ -92,6 +94,9 @@ function UserManagement({
           department: nextFilters.department ?? filters.department ?? "",
           search: nextFilters.search ?? filters.search ?? "",
           perPage: nextFilters.perPage ?? filters.perPage ?? "10",
+          sortBy: nextFilters.sortBy ?? filters.sortBy ?? "",
+          sortDirection:
+            nextFilters.sortDirection ?? filters.sortDirection ?? "asc",
           page: nextFilters.page ?? 1,
         },
         {
@@ -104,10 +109,44 @@ function UserManagement({
     [filters]
   );
 
+  const handleSort = useCallback(
+    (columnKey) => {
+      const currentSortBy = filters.sortBy ?? "";
+      const currentSortDirection = filters.sortDirection ?? "asc";
+
+      const nextDirection =
+        currentSortBy === columnKey && currentSortDirection === "asc"
+          ? "desc"
+          : "asc";
+
+      applyFilters({
+        sortBy: columnKey,
+        sortDirection: nextDirection,
+        page: 1,
+      });
+    },
+    [applyFilters, filters.sortBy, filters.sortDirection]
+  );
+
+  const userColumns = useMemo(
+    () =>
+      getUserColumns({
+        onEdit: editModal.openEditModal,
+        isUserActive,
+        sortBy: filters.sortBy ?? "",
+        sortDirection: filters.sortDirection ?? "asc",
+        onSort: handleSort,
+      }),
+    [editModal.openEditModal, filters.sortBy, filters.sortDirection, handleSort]
+  );
+
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (searchQuery !== (filters.search ?? "")) {
-        applyFilters({ search: searchQuery, page: 1 });
+      const normalized = searchQuery.trim();
+      const currentSearch = (filters.search ?? "").trim();
+
+      if (normalized !== currentSearch) {
+        applyFilters({ search: normalized, page: 1 });
       }
     }, 300);
 
@@ -123,37 +162,54 @@ function UserManagement({
       return;
     }
 
+    const cacheKey = q.toLowerCase();
+
+    if (suggestionCacheRef.current.has(cacheKey)) {
+      setUserSuggestions(suggestionCacheRef.current.get(cacheKey));
+      setLoadingSuggestions(false);
+      return;
+    }
+
     const controller = new AbortController();
+    const requestId = ++latestSuggestionRequestRef.current;
+
     const timeout = setTimeout(async () => {
       try {
         setLoadingSuggestions(true);
 
-        const response = await fetch(
-          `${route("admin.user-management.suggestions")}?search=${encodeURIComponent(q)}`,
+        const { data } = await axios.get(
+          route("admin.user-management.suggestions"),
           {
-            method: "GET",
+            params: { search: q },
+            signal: controller.signal,
             headers: {
               Accept: "application/json",
               "X-Requested-With": "XMLHttpRequest",
             },
-            signal: controller.signal,
           }
         );
 
-        if (!response.ok) {
-          throw new Error("Failed to load suggestions.");
+        if (requestId !== latestSuggestionRequestRef.current) {
+          return;
         }
 
-        const data = await response.json();
-        setUserSuggestions(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : [];
+        suggestionCacheRef.current.set(cacheKey, list);
+        setUserSuggestions(list);
       } catch (error) {
-        if (error.name !== "AbortError") {
+        if (
+          requestId === latestSuggestionRequestRef.current &&
+          !axios.isCancel(error) &&
+          error.name !== "CanceledError"
+        ) {
           setUserSuggestions([]);
         }
       } finally {
-        setLoadingSuggestions(false);
+        if (requestId === latestSuggestionRequestRef.current) {
+          setLoadingSuggestions(false);
+        }
       }
-    }, 200);
+    }, 180);
 
     return () => {
       controller.abort();
@@ -196,30 +252,13 @@ function UserManagement({
     [applyFilters]
   );
 
-  const handleApplyPerPage = useCallback(() => {
-    const value = String(perPageInput).trim().toLowerCase();
-
-    if (value === "all") {
-      applyFilters({ perPage: "all", page: 1 });
-      return;
-    }
-
-    const parsed = Number(value);
-
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setPerPageInput(String(filters.perPage ?? users?.per_page ?? 10));
-      return;
-    }
-
-    applyFilters({ perPage: String(Math.floor(parsed)), page: 1 });
-  }, [perPageInput, applyFilters, filters.perPage, users?.per_page]);
-
   const handleSelectSuggestion = useCallback(
     (item) => {
-      setSearchQuery(item.value ?? "");
+      const value = item.value ?? "";
+      setSearchQuery(value);
       setShowSearchSuggestions(false);
       setUserSuggestions([]);
-      applyFilters({ search: item.value ?? "", page: 1 });
+      applyFilters({ search: value, page: 1 });
     },
     [applyFilters]
   );
@@ -337,7 +376,7 @@ function UserManagement({
 
             <div className="mt-4">
               <div className="-mx-4 md:-mx-6 lg:-mx-10">
-                <div className="-mb-2 mx-6 lg:mx-10 rounded-lg border border-[#00000010] border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
+                <div className="-mb-2 mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-[#00000010] border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterPill
                       label="Status"
@@ -402,11 +441,14 @@ function UserManagement({
                             setSearchQuery(value);
                             setShowSearchSuggestions(Boolean(value.trim()));
                           }}
-                          onFocus={() => setShowSearchSuggestions(Boolean(searchQuery.trim()))}
+                          onFocus={() => {
+                            isSearchFocusedRef.current = true;
+                            setShowSearchSuggestions(Boolean(searchQuery.trim()));
+                          }}
                           placeholder="Type name, email, employee ID..."
                         />
 
-                        {/* {showSearchSuggestions && (
+                        {showSearchSuggestions && (
                           <div className="absolute right-0 z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg">
                             {loadingSuggestions ? (
                               <div className="px-3 py-2 text-sm text-slate-500">
@@ -418,7 +460,10 @@ function UserManagement({
                                   key={item.id}
                                   type="button"
                                   className="block w-full px-3 py-2 text-left text-sm hover:bg-[#FBFFFA]"
-                                  onClick={() => handleSelectSuggestion(item)}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSelectSuggestion(item);
+                                  }}
                                 >
                                   <div className="font-medium text-slate-800">
                                     {item.label}
@@ -435,7 +480,7 @@ function UserManagement({
                               </div>
                             ) : null}
                           </div>
-                        )} */}
+                        )}
                       </div>
 
                       <button
