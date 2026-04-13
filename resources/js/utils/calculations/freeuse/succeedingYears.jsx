@@ -20,9 +20,20 @@ export const succeedingYears = (projectData) => {
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
-  const addFeesObj = projectData?.additionalFees || { company: [], customer: [], grandTotal: 0 };
-  const companyFees = (addFeesObj.company || []).filter(f => f.category !== "one-time-fee");
-  const customerFees = (addFeesObj.customer || []).filter(f => f.category !== "one-time-fee");
+const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
+    
+    // --- REPLACE YOUR OLD FILTER LINES WITH THIS ---
+    const companyFees = (addFeesObj.company || []).map(f => ({
+        ...f,
+        total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
+        qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
+    }));
+
+    const customerFees = (addFeesObj.customer || []).map(f => ({
+        ...f,
+        total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
+        qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
+    }));
 
   // EARLY RETURN — no succeeding years when contract is only 1 year
   if (succeedingYearCount === 0) {

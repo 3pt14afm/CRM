@@ -60,13 +60,14 @@ function buildHydratedRows(
   return [...hydratedMachines, ...hydratedConsumables];
 }
 
-function MachineConfig({ readOnly }) {
+function MachineConfig({ readOnly, showOutrightErrors }) {
   const {
     auth,
     entryProject,
     project: inertiaProject,
     machineCatalog = [],
     consumableCatalog = { mono: [], color: [], others: [] },
+    errors,
   } = usePage().props;
 
   const { setProjectData, projectData } = useProjectData();
@@ -292,13 +293,11 @@ function MachineConfig({ readOnly }) {
       .slice(0, 15);
   };
 
- 
+  
   const getConsumableSuggestions = (mode, query) => {
     const q = String(query || '').trim().toLowerCase();
     if (!q || !mode) return [];
-    // Filters the specific mode catalog (Mono or Color)
     const catalog = consumableCatalog[mode] || [];
-    // Finds all toners that include the typed letter/string
     return catalog.filter((item) => String(item.name || '').toLowerCase().includes(q)).slice(0, 15);
 
   };
@@ -592,13 +591,11 @@ function MachineConfig({ readOnly }) {
 
   return (
     <div className="mx-10 mb-5">
-      {/* REMOVED overflow-hidden from this wrapper to prevent dropdown clipping */}
       <div className="rounded-md border border-slate-300 shadow-md bg-lightgreen/5">
         <div className="bg-[#D9F2D0] py-2 text-center border-b border-darkgreen/15">
           <h2 className="text-[14px] font-bold tracking-wider uppercase">Machine Configuration</h2>
         </div>
 
-        {/* Use overflow-x-auto only on the container to handle table width, but allow vertical clipping for dropdowns */}
         <div className="w-full">
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
@@ -642,12 +639,20 @@ function MachineConfig({ readOnly }) {
                 const isMachineRow = row.type === 'machine';
                 const isOthersMode = row.mode === 'others';
                 
+                const contractType = projectData?.companyInfo?.contractType || "";
+                const isOutright = contractType.toLowerCase().includes("outright");
+                
+                const hasValidationError = !!errors?.machineConfiguration || showOutrightErrors;
+                
+                // Logic to check individual fields for machine rows in outright contracts
+                const isYieldInvalid = hasValidationError && isMachineRow && isOutright && (!String(row.yields).trim() || parseFloat(row.yields) <= 0);
+                const isPriceInvalid = hasValidationError && isMachineRow && isOutright && (!String(row.price).trim() || parseFloat(row.price) <= 0);
+
                 const machineSuggestions =
                   isMachineRow && activeSearchRowId === row.id ? getMachineSuggestions(row.sku) : [];
 
                 return (
-                  /* Added relative and a z-index management to ensure dropdowns don't hide behind other rows */
-                  <tr key={row.id} className={`border-b relative ${activeSearchRowId === row.id ? 'z-50' : 'z-10'}`}>
+                  <tr key={row.id} className={`border-b relative transition-all duration-300 ${activeSearchRowId === row.id ? 'z-50' : 'z-10'}`}>
                     <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
                       <input
                         type="checkbox"
@@ -816,7 +821,7 @@ function MachineConfig({ readOnly }) {
                       </div>
                     </td>
 
-                    <td className="border-b border-r border-darkgreen/15 p-1">
+                    <td className={`border-b border-r border-darkgreen/15 p-1 ${isYieldInvalid ? 'bg-red-50' : ''}`}>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -826,7 +831,7 @@ function MachineConfig({ readOnly }) {
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
                         disabled={readOnly}
-                        className={`${inputClass} ${readOnly ? disabledInputClass : ''}`}
+                        className={`${inputClass} ${readOnly ? disabledInputClass : ''} ${isYieldInvalid ? ' ring-1 ring-red-500 border-red-500' : ''}`}
                         placeholder="0"
                       />
                     </td>
@@ -837,14 +842,14 @@ function MachineConfig({ readOnly }) {
                       </div>
                     </td>
 
-                  <td className="border-b border-r border-darkgreen/15 p-1">
+                  <td className={`border-b border-r border-darkgreen/15 p-1 ${isPriceInvalid ? 'bg-red-50' : ''}`}>
                     {(() => {
                       const isMachine = row?.type === 'machine';
                       const contractType = projectData?.companyInfo?.contractType || "";
-                      const isOutright = contractType.toLowerCase().includes("outright");
-                      const isPriceDisabled = isMachine && !isOutright;
+                      const isOutrightCheck = contractType.toLowerCase().includes("outright");
+                      const isPriceDisabled = isMachine && !isOutrightCheck;
                       const displayValue = isPriceDisabled ? 0 : row.price;
-
+                      
                       return (
                         <input
                           type="text"
@@ -870,7 +875,7 @@ function MachineConfig({ readOnly }) {
                           disabled={readOnly || isPriceDisabled}
                           className={`${inputClass} ${
                             (readOnly || isPriceDisabled) ? "bg-gray-100 cursor-not-allowed opacity-70" : ""
-                          }`}
+                          } ${isPriceInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="0.00"
                         />
                       );

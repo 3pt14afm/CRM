@@ -171,6 +171,7 @@ export default function Entry({
   const [buttonClicked, setButtonClicked] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [showCompanyInfoErrors, setShowCompanyInfoErrors] = useState(false);
+  const [showOutrightErrors, setShowOutrightErrors] = useState(false);
 
   const [showSendBackModal, setShowSendBackModal] = useState(false);
   const [sendBackText, setSendBackText] = useState("");
@@ -184,6 +185,29 @@ export default function Entry({
     const yearsOk = Number.isFinite(years) && years > 0;
 
     return nameOk && typeOk && yearsOk;
+  };
+
+  const validateOutrightFields = () => {
+    const ci = projectData?.companyInfo ?? {};
+    const isOutright = String(ci.contractType ?? "").toLowerCase().includes("outright");
+
+    if (isOutright) {
+      const machines = projectData?.machineConfiguration?.machine || [];
+      const hasInvalidMachine = machines.some(m => {
+        const price = parseFloat(m.price || 0);
+        const yields = parseFloat(m.yields || 0);
+        return price <= 0 || yields <= 0;
+      });
+
+      if (hasInvalidMachine) {
+        toast.error("Outright contracts require a Selling Price and Yield for all machines.");
+        setShowOutrightErrors(true);
+        setTab("Machine");
+        return false;
+      }
+    }
+    setShowOutrightErrors(false);
+    return true;
   };
 
   const requiresEntryRemarks = () => {
@@ -491,6 +515,10 @@ export default function Entry({
       return;
     }
 
+    if (!validateOutrightFields()) {
+        return;
+    }
+
     if (!validateEntryRemarks()) {
       return;
     }
@@ -510,6 +538,7 @@ export default function Entry({
         triggerBlink();
         toast.success("Draft saved!", { id: "saveDraft" });
         setShowCompanyInfoErrors(false);
+        setShowOutrightErrors(false);
       },
       onError: (errors) => {
         const message =
@@ -533,6 +562,10 @@ export default function Entry({
         </div>
       ), { duration: 1000 });
       return;
+    }
+
+    if (!validateOutrightFields()) {
+        return;
     }
 
     if (!validateEntryRemarks()) {
@@ -719,6 +752,7 @@ export default function Entry({
               readOnly={readOnly}
               buttonClicked={buttonClicked}
               showCompanyInfoErrors={showCompanyInfoErrors}
+              showOutrightErrors={showOutrightErrors}
             />
           ) : tab === 'Summary' ? (
             <Summary1stYear
