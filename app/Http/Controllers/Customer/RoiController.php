@@ -336,15 +336,17 @@ public function entryCreate()
             $project->confirmed_by,
         ])->filter()->unique()->values();
 
-        $usersById = User::query()
-            ->whereIn('id', $userIds)
-            ->get(['id', 'first_name', 'last_name'])
-            ->mapWithKeys(fn ($u) => [
-                (string) $u->id => [
-                    'id' => $u->id,
-                    'name' => trim($u->first_name . ' ' . $u->last_name),
-                ],
-            ]);
+       $usersById = User::query()
+        ->whereIn('id', $userIds)
+        // 2. ADD 'position' TO THE SELECT HERE
+        ->get(['id', 'first_name', 'last_name', 'position']) 
+        ->mapWithKeys(fn ($u) => [
+            (string) $u->id => [
+                'id' => $u->id,
+                'name' => trim($u->first_name . ' ' . $u->last_name),
+                'position' => $u->position, // 3. MAP IT TO THE KEY
+            ],
+        ]);
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'project' => $project,
