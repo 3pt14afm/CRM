@@ -83,7 +83,7 @@ const customerTotal = customerFees.reduce(
           <div className="w-full ">
             <div className="border-gray-300 rounded-xl overflow-hidden ">
               <div className="overflow-x-auto ">
-                <table className="w-full bg-white table-fixed ">
+                <table className="w-full table-fixed ">
                   <colgroup>
                     <col className="w-[30.7%]" />
                     <col className="w-[9.7%]" />

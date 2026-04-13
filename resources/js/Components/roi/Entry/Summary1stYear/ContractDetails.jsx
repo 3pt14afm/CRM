@@ -149,7 +149,7 @@ function ContractDetails() {
     : ["35%", "7%", "18%", "18%", "22%"];
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-full my-6 print:mx-1">
+    <div className="overflow-hidden rounded-xl border border-gray-300 shadow-sm font-sans max-w-full my-6 print:mx-1">
       <div className="bg-[#E2F4D8] py-2 text-center border-b border-gray-300">
         <h2 className="text-xs font-bold tracking-widest text-gray-800 uppercase">Contract Details</h2>
       </div>

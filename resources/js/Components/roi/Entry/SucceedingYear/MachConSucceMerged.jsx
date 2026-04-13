@@ -333,7 +333,7 @@ function MachConSucceMerged() {
                 );
               })
             ) : (
-              <tr className="border-b border-x border-x-gray-300 border-gray-100 bg-white">
+              <tr className="border-b border-x border-x-gray-300 border-gray-100">
                 <td className="px-7 py-3 text-[12px] border-r border-gray-300">—</td>
                 <td className="px-3 py-3 text-[12px] text-center border-r border-gray-300">
                   {formatNum(0)}
