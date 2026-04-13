@@ -1,11 +1,59 @@
 import React from "react";
 import { MdEdit } from "react-icons/md";
 
-export function getUserColumns({ onEdit, isUserActive }) {
+function SortHeader({
+  label,
+  sortKey,
+  sortBy,
+  sortDirection,
+  onSort,
+  align = "left",
+}) {
+  const active = sortBy === sortKey;
+  const indicator = active ? (sortDirection === "desc" ? "▼" : "▲") : "⇅";
+  const justifyClass =
+    align === "center" ? "justify-center text-center" : "justify-start text-left";
+
+  return (
+    <button
+      type="button"
+      title={`Sort by ${label.toUpperCase()}`}
+      onClick={() => onSort(sortKey)}
+      className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
+    >
+      <span>{label}</span>
+      <span
+        className={`text-[11px] leading-none ${
+          active
+            ? "text-[#289800]"
+            : "text-slate-400 transition-colors group-hover:text-slate-500"
+        }`}
+      >
+        {indicator}
+      </span>
+    </button>
+  );
+}
+
+export function getUserColumns({
+  onEdit,
+  isUserActive,
+  sortBy,
+  sortDirection,
+  onSort,
+}) {
   return [
     {
       key: "first_name",
-      header: "FIRST NAME",
+      header: (
+        <SortHeader
+          label="FIRST NAME"
+          sortKey="first_name"
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+        />
+      ),
       cell: (r) => (
         <div className="w-full flex justify-left items-center">
           <span className="text-[11px] lg:text-sm">{r.first_name ?? "—"}</span>
@@ -14,7 +62,15 @@ export function getUserColumns({ onEdit, isUserActive }) {
     },
     {
       key: "last_name",
-      header: "LAST NAME",
+      header: (
+        <SortHeader
+          label="LAST NAME"
+          sortKey="last_name"
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+        />
+      ),
       cell: (r) => (
         <div className="w-full flex justify-left items-center">
           <span className="text-[11px] lg:text-sm">{r.last_name ?? "—"}</span>
@@ -23,7 +79,16 @@ export function getUserColumns({ onEdit, isUserActive }) {
     },
     {
       key: "employee_id",
-      header: <div className="text-center w-full">EMPLOYEE ID</div>,
+      header: (
+        <SortHeader
+          label="EMPLOYEE ID"
+          sortKey="employee_id"
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
           <span className="text-[11px] lg:text-sm">{r.employee_id ?? "—"}</span>
@@ -35,7 +100,9 @@ export function getUserColumns({ onEdit, isUserActive }) {
       header: <div className="text-center w-full">POSITION</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] text-center lg:text-sm">{r.position ?? "—"}</span>
+          <span className="text-[11px] text-center lg:text-sm">
+            {r.position ?? "—"}
+          </span>
         </div>
       ),
     },
@@ -44,7 +111,9 @@ export function getUserColumns({ onEdit, isUserActive }) {
       header: <div className="text-center w-full">DEPARTMENT</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] text-center lg:text-sm">{r.department_name ?? "—"}</span>
+          <span className="text-[11px] text-center lg:text-sm">
+            {r.department_name ?? "—"}
+          </span>
         </div>
       ),
     },
@@ -53,7 +122,9 @@ export function getUserColumns({ onEdit, isUserActive }) {
       header: <div className="text-center w-full">EMAIL</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] lg:text-sm text-slate-600">{r.email ?? "—"}</span>
+          <span className="text-[11px] lg:text-sm text-slate-600">
+            {r.email ?? "—"}
+          </span>
         </div>
       ),
     },
@@ -62,7 +133,9 @@ export function getUserColumns({ onEdit, isUserActive }) {
       header: <div className="text-center w-full">LOCATION</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] text-center lg:text-sm">{r.location_name ?? "—"}</span>
+          <span className="text-[11px] text-center lg:text-sm">
+            {r.location_name ?? "—"}
+          </span>
         </div>
       ),
     },
