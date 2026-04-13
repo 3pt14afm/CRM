@@ -47,7 +47,7 @@ export default function EntryRemarksSummary() {
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-full my-6 mr-5 print:mr-0">
+    <div className="overflow-hidden rounded-xl border border-gray-300 shadow-sm font-sans max-w-full my-6 mr-5 print:mr-0">
       <div className="bg-[#E2F4D8] py-2 text-center border-b border-gray-300">
         <h2 className="text-[10px] font-bold tracking-widest text-gray-800 uppercase">
           Remarks
