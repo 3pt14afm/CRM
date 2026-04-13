@@ -24,16 +24,15 @@ function Totals() {
     ...customerFees.map((f) => ({ ...f, __source: "customer" })),
   ];
 
-  const companyTotal = companyFees.reduce(
-  (sum, fee) => sum + Number(fee.total || 0),
-  0
+const companyTotal = useMemo(() => 
+  companyFees.reduce((sum, fee) => sum + (Number(fee.total) || 0), 0),
+  [companyFees]
 );
 
-const customerTotal = customerFees.reduce(
-  (sum, fee) => sum + Number(fee.total || 0),
-  0
+const customerTotal = useMemo(() => 
+  customerFees.reduce((sum, fee) => sum + (Number(fee.total) || 0), 0),
+  [customerFees]
 );
-
   // 2. FORMATTING HELPER
   const format = (val) =>
     (Number(val) || 0).toLocaleString(undefined, {
@@ -50,10 +49,10 @@ const customerTotal = customerFees.reduce(
   useEffect(() => {
     if (lifetime) {
       updateSection("totalProjectCost", {
-        grandTotalCost: lifetime.totalCost,
-        grandTotalRevenue: lifetime.totalRevenue,
-        grandROI: lifetime.totalGrossProfit,
-        grandROIPercentage: lifetime.totalRoiPercentage,
+        grandTotalCost: Number(lifetime.totalCost),
+        grandTotalRevenue: Number(lifetime.totalRevenue),
+        grandROI: Number(lifetime.totalGrossProfit),
+        grandROIPercentage: Number(lifetime.totalRoiPercentage),
       });
     }
   }, [lifetime, updateSection]);
