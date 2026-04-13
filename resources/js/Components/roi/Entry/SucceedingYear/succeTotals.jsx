@@ -156,8 +156,8 @@ const customerTotal = customerFees.reduce(
                       })
                     ) : (
                       <tr>
-                        <td className="border border-gray-100 px-4 py-3 text-[11px] text-gray-600 truncate border-r">X</td>
-                        <td className="border border-gray-100 px-3 py-3 text-right text-[11px] font-medium border-r">0.00</td>
+                        <td className="border border-gray-300 px-4 py-3 text-[11px] text-gray-600 truncate border-r">X</td>
+                        <td className="border border-gray-300 px-3 py-3 text-right text-[11px] font-medium border-r">0.00</td>
                         <td className="py-2 border-r border-gray-300 bg-[#f8f8f8] print:bg-white"></td>
                         <td className="py-2 border-r font-bold text-center">0</td>
                         <td className="py-2 border-r font-bold text-center">0.00</td>

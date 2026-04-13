@@ -49,7 +49,7 @@ export default function EntryRemarksSummary() {
   return (
     <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm font-sans max-w-full my-6 mr-5 print:mr-0">
       <div className="bg-[#E2F4D8] py-2 text-center border-b border-gray-300">
-        <h2 className="text-xs font-bold tracking-widest text-gray-800 uppercase">
+        <h2 className="text-[10px] font-bold tracking-widest text-gray-800 uppercase">
           Remarks
         </h2>
       </div>
@@ -59,7 +59,7 @@ export default function EntryRemarksSummary() {
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
             Remarks
           </div>
-          <div className="text-sm text-slate-700 whitespace-pre-wrap break-words min-h-[63px]">
+          <div className="text-[11px] text-slate-700 whitespace-pre-wrap break-words min-h-[63px]">
             {remarks || "—"}
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function EntryRemarksSummary() {
                         pageRoute,
                       })
                     }
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-[11px] text-slate-700 hover:bg-slate-100"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-[10px] text-slate-700 hover:bg-slate-100"
                     title={getRoiAttachmentName(item, index)}
                   >
                     <FiPaperclip className="shrink-0" />

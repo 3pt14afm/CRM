@@ -51,7 +51,7 @@ function Summary1stYear() {
 
           <div className="print-page-break" />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-5 items-start print:grid-cols-[70%_30%] print:gap-0 print:items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-5 items-start print:grid-cols-[70%_30%] print:gap-1 print:items-start">
             <ContractDetails />
             <EntryRemarksSummary />
           </div>

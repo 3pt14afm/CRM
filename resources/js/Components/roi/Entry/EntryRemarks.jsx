@@ -43,12 +43,19 @@ export default function EntryRemarks({ readOnly = false }) {
     : [];
 
   const hasRemarks = String(entryRemarks.remarks || "").trim().length > 0;
+  const hasAttachments = attachments.length > 0;
 
   const remarksErrorMessage = useMemo(() => {
     if (!requiresRemarks) return "";
     if (!hasRemarks) return "Remarks required for this yield level.";
     return "";
   }, [requiresRemarks, hasRemarks]);
+
+  const attachmentRequiredMessage = useMemo(() => {
+    if (!requiresRemarks) return "";
+    if (!hasAttachments) return "Add at least one attachment.";
+    return "";
+  }, [requiresRemarks, hasAttachments]);
 
   const updateRemarks = (patch) => {
     setProjectData((prev) => ({
@@ -137,7 +144,9 @@ export default function EntryRemarks({ readOnly = false }) {
     }
   };
 
-  const hasAnyError = Boolean(remarksErrorMessage || attachmentError);
+  const hasAnyError = Boolean(
+    remarksErrorMessage || attachmentRequiredMessage || attachmentError
+  );
 
   return (
     <div className="w-full min-w-0 h-full flex flex-col">
@@ -232,25 +241,27 @@ export default function EntryRemarks({ readOnly = false }) {
                 )}
               </div>
             ))}
-
-            {/* {requiresRemarks && !remarksErrorMessage ? (
-              <span className="ml-auto text-[11px] text-slate-500">
-                Required based on yield threshold
-              </span>
-            ) : null} */}
           </div>
         </div>
-
-
-        
       </div>
 
-      {!remarksErrorMessage && attachmentError ? (
-          <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
-            {attachmentError}
-          </p>
-        ) : null}
+      {remarksErrorMessage ? (
+        <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
+          {remarksErrorMessage}
+        </p>
+      ) : null}
 
+      {attachmentRequiredMessage ? (
+        <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
+          {attachmentRequiredMessage}
+        </p>
+      ) : null}
+
+      {!attachmentRequiredMessage && attachmentError ? (
+        <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
+          {attachmentError}
+        </p>
+      ) : null}
     </div>
   );
 }

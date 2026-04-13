@@ -227,25 +227,29 @@ export default function AddNotes({ scopeKey = "default" }) {
 
         {serverNotes.length > 0 && (
           <div className="mt-2 print:mt-1">
-            <span className="font-medium text-[11px] text-gray-400 pl-2">NOTES</span>
+            <span className="text-[11px] text-gray-400 pl-2">NOTES</span>
 
             {serverNotes.map((n, idx) => (
               <div
                 key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
-                className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+                className="bg-white border border-gray-200 rounded-xl px-4 py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <FaRegUserCircle className="text-lg text-gray-400" />
-                    <span className="font-semibold text-sm text-gray-900">
+                <div className="flex h-4 items-center justify-between">
+                  <div className="items-start flex gap-2">
+                    <div className="flex items-center">
+                      <FaRegUserCircle className="text-gray-400 text-sm shrink-0" />
+                    </div>
+                    <span className="block text-[11px] font-medium text-gray-900">
                       {n.author?.name ?? "Unknown"}
                     </span>
                   </div>
-                  <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
+                  
+
+                  <div className="text-[10px] text-gray-500 italic whitespace-nowrap">
                     {formatDateTime(n.created_at)}
                   </div>
                 </div>
-                <p className="mt-3 text-gray-900 text-xs leading-relaxed">{n.body}</p>
+                <p className="mt-3 print:mt-1 text-gray-900 text-xs leading-relaxed">{n.body}</p>
               </div>
             ))}
           </div>
@@ -268,7 +272,7 @@ export default function AddNotes({ scopeKey = "default" }) {
 
             <div className="px-10 pb-8">
               <div className="relative bg-white rounded-xl border border-black/10 shadow-sm overflow-hidden">
-                <div className="relative p-6">
+                <div className="relative p-4">
                   <FaRegUserCircle className="absolute left-6 top-6 text-2xl text-gray-400" />
                   <textarea
                     ref={textareaRef}
