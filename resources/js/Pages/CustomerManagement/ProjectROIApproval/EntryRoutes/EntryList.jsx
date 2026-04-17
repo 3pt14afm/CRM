@@ -116,33 +116,49 @@ const handleDelete = (row) => {
             key: "reference",
             header: "REFERENCE",
             cell: (r) => (
-                <span className="text-[#289800] font-semibold">
+                <span className="text-[#195c00] font-semibold">
                 { r.reference }
                 </span>
             ),
             },
             {
             key: "company_name",
-            header: "COMPANY NAME",
-            cell: (r) => r.company_name ?? "—",
+            header: <div className="text-center w-full">COMPANY NAME</div>,
+            cell: (r) => (
+              <span className="font-medium flex justify-center items-center">
+                {r.company_name ?? "—"}
+              </span>
+            ),
             },
             {
             key: "contract_years",
-            header: "CONTRACT TERM",
-            cell: (r) => (r.contract_years != null ? `${r.contract_years}` : "—"),
+            header: <div className="text-center w-full">CONTRACT TERM</div>,
+            cell: (r) => (
+              <span className="font-medium flex justify-center items-center">
+                {r.contract_years != null ? `${r.contract_years}` : "—"}
+              </span>
+            ),
             },
             {
             key: "contract_type",
-            header: "CONTRACT TYPE",
-            cell: (r) => r.contract_type ?? "—",
+            header: <div className="text-center w-full">CONTRACT TYPE</div>,
+            cell: (r) => (
+              <span className="font-medium flex justify-center items-center">
+                {r.contract_type ?? "—"}
+              </span>
+            ),
             },
             {
             key: "last_saved_at",
-            header: "LAST SAVED",
-            cell: (r) => r.last_saved_display ?? "—",
+            header: <div className="text-center w-full">LAST SAVED</div>,
+            cell: (r) => (
+              <span className="text-xs text-slate-600 flex justify-center items-center">
+                {r.last_saved_display ?? "—"}
+              </span> 
+            )
             },
            {
-              header: "STATUS",
+              header: <div className="text-center w-full">STATUS</div>,
               key: "status",
               cell: (row) => {
                 // Define colors based on status value
@@ -150,31 +166,29 @@ const handleDelete = (row) => {
                 const isReturned = row.status?.toLowerCase() === 'returned';
                 
                 return (
-                  <span className={`
-                    px-2 py-1           /* Padding for the background */
-                    rounded-md        /* High radius (capsule shape) */
-                    text-[9px]         /* Smaller font size */
-                    font-bold           /* Bold text */
-                    uppercase           /* Clean look */
-                    tracking-wider      /* Spacing */
-                    md:text-[8px] md:px-1 md:py-1
-                    lg:text-[9px] lg:px-[6px] lg:py-1
-                    xl:text-[10px] xl:px-2 xl:py-1
-                    ${isReturned 
-                      ? "bg-red-100 text-red-700 border border-red-200" : isDraft
-                      ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]" : ""
-                    }
-                  `}>
-                    {row.status}
-                  </span>
+                  <div className="flex justify-center items-center">
+                    <span className={`
+                      px-2 rounded-full text-[9px] font-bold uppercase tracking-wider      
+                      md:text-[8px] md:px-1
+                      lg:text-[9px] lg:px-[6px]
+                      xl:text-[10px] xl:px-2
+                      ${isReturned 
+                        ? "bg-red-100 text-red-700 border border-red-200" : isDraft
+                        ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]" : ""
+                      }
+                    `}>
+                      {row.status}
+                    </span>
+                  </div>
+                  
                 );
               }
             },
             {
             key: "actions",
-            header: "ACTIONS",
+            header: <div className="text-center w-full">ACTIONS</div>,
             cell: (r) => (
-                <div className="flex items-center gap-2 md:gap-1">
+                <div className="flex items-center justify-center gap-2 md:gap-1">
                     <button
                         className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
                         onClick={() => router.visit(route("roi.entry.projects.show", r.id))}

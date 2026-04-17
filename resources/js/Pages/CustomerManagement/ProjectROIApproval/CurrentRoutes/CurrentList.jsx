@@ -61,7 +61,7 @@ console.log({ currentProjects, stats });
       key: "company_name",
       header: <div className="text-center w-full">COMPANY NAME</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
+        <div className="w-full flex justify-center font-medium items-center">
           <span className="text-[11px] lg:text-sm">
             {r.company_name ?? "—"}
           </span>
@@ -72,7 +72,7 @@ console.log({ currentProjects, stats });
       key: "contract_years",
       header: <div className="text-center w-full">CONTRACT TERM</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
+        <div className="w-full flex justify-center font-medium items-center">
           <span className="text-[11px] lg:text-sm">
             {r.contract_years != null ? `${r.contract_years}` : "—"}
           </span>
@@ -83,7 +83,7 @@ console.log({ currentProjects, stats });
       key: "contract_type",
       header: <div className="text-center w-full">CONTRACT TYPE</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
+        <div className="w-full flex justify-center font-medium items-center">
           <span className="text-[11px] lg:text-sm">
             {r.contract_type ?? "—"}
           </span>
@@ -125,7 +125,7 @@ console.log({ currentProjects, stats });
       key: "last_saved_at",
       header: <div className="text-center w-full">LAST SAVED</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
+        <div className="w-full text-slate-600 flex justify-center items-center">
           <span className="text-xs">{r.last_saved_display ?? "—"}</span>
         </div>
       ),

@@ -102,7 +102,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const isInvalid = !readOnly && showErrors && companyNameVal.trim().length === 0;
 
   return (
-    <div className="flex flex-col bg-[#FBFFFA] shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 rounded-xl p-8 gap-1 w-full lg:w-[60%] min-w-96">
+    <div className="flex flex-col bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl p-8 gap-1 w-full lg:w-[60%] min-w-96">
       <div className="flex justify-between items-center">
         
         <div className="flex flex-col gap-1 w-[70%] relative">
@@ -162,7 +162,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             const val = e.target.value === "" ? 0 : Number(e.target.value);
             handleChange("contractYears", val);
           }}
-          className={`${baseInput} md:w-24 xl:w-32 bg-green-50/30 text-center border outline-none focus:border-[#289800] [appearance:textfield] 
+          className={`${baseInput} md:w-24 xl:w-32 bg-green-50/30 text-center border border-gray-200 focus:border-[#289800] 
             [&::-webkit-outer-spin-button]:appearance-none 
             [&::-webkit-inner-spin-button]:appearance-none ... ${
             projectData?.companyInfo?.contractType === "Outright Only (1 year)" ? "opacity-60 cursor-not-allowed" : ""

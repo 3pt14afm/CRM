@@ -150,9 +150,9 @@ export default function EntryRemarks({ readOnly = false }) {
 
   return (
     <div className="w-full min-w-0 h-full flex flex-col">
-      <div className="w-full flex-1">
+      <div className="w-full flex-1 ">
         <div
-          className={`flex-1 h-full flex flex-col overflow-hidden rounded-xl shadow-md bg-white transition border ${
+          className={`flex-1 h-full flex flex-col overflow-hidden rounded-xl shadow-md border border-[#2c2c2e30] border-b-[#2c2c2e]/30 bg-white transition ${
             hasAnyError
               ? "border-red-400"
               : "border-slate-200 focus-within:border-[#2DA300]"

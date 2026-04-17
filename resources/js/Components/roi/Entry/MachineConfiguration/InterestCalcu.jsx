@@ -42,9 +42,9 @@ const InterestCalculator = () => {
   ];
 
   return (
-    <div className='w-full items-start'>
+    <div className='w-full items-start '>
       {/* LEFT: INPUTS */}
-      <div className="overflow-hidden rounded-md border border-slate-300 max-w-60 shadow-md">
+      <div className="overflow-hidden rounded-xl shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 max-w-60">
         <table className="w-full border-collapse">
           <tbody>
             <tr className="border-b border-slate-200">
