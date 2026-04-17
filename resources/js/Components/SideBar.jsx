@@ -63,6 +63,7 @@ export default function Sidebar() {
   const activeByRoute =
     route().current('customers.*') ||
     route().current('roi.*') ||
+    route().current('sprf.*') ||
     route().current('proposals.*')
       ? 'customer'
       : route().current('machine.*')
@@ -334,12 +335,12 @@ export default function Sidebar() {
 
                 {(activeSubMenu === null || activeSubMenu === 'roi') && (
                   <div className="relative">
-                    <div className="flex items-center -mt-3 -mb-3 py-2">
+                    <div className="flex items-center ">
                       <Link
                         href={route('roi.current')}
                         onClick={() => handleSubToggle('roi')}
                         className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen font-medium hover:font-semibold transition-opacity lg:text-xs ${
-                          activeSubMenu === 'roi' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-3 mb-2' : 'text-darkgreen/70 opacity-80'
+                          activeSubMenu === 'roi' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-1 mb-2' : 'text-darkgreen/70 opacity-80'
                         }`}
                       >
                         Project ROI Approval
@@ -352,7 +353,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeSubMenu === 'roi' && (
-                      <div className="relative ml-6 pb-2 mt-2">
+                      <div className="relative ml-6 pb-2">
                         <NavSubLink href={route('roi.current')} active={route().current('roi.current')}>
                           Current
                         </NavSubLink>
@@ -360,6 +361,41 @@ export default function Sidebar() {
                           Archive
                         </NavSubLink>
                         <NavSubLink href={route('roi.entry.list')} active={route().current('roi.entry.list')}>
+                          Entry
+                        </NavSubLink>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(activeSubMenu === null || activeSubMenu === 'sprf') && (
+                  <div className="relative">
+                    <div className="flex items-center -mt-3 -mb-3 py-2">
+                      <Link
+                        href="#"
+                        onClick={() => handleSubToggle('sprf')}
+                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen font-medium hover:font-semibold transition-opacity lg:text-xs ${
+                          activeSubMenu === 'sprf' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-3 mb-2' : 'text-darkgreen/70 opacity-80'
+                        }`}
+                      >
+                        Project SPRF
+                      </Link>
+                      <button onClick={() => handleSubToggle('sprf')} className="px-6 py-2" type="button">
+                        <span className={`inline-block transition-transform duration-300 ${activeSubMenu === 'sprf' ? 'rotate-90' : 'opacity-80'}`}>
+                          <IoIosArrowForward size={12} color={activeSubMenu === 'sprf' ? 'rgba(19, 51, 7, 0.85)' : 'rgba(19, 51, 7, 0.7)'} />
+                        </span>
+                      </button>
+                    </div>
+
+                    {activeSubMenu === 'sprf' && (
+                      <div className="relative ml-6 pb-2 mt-2">
+                        <NavSubLink href={route('sprf.current')} active={route().current('sprf.current')}>
+                          Current
+                        </NavSubLink>
+                        <NavSubLink href={route('sprf.archive')} active={route().current('sprf.archive')}>
+                          Archive
+                        </NavSubLink>
+                        <NavSubLink href={route('sprf.entry.list')} active={route().current('sprf.entry.list')}>
                           Entry
                         </NavSubLink>
                       </div>
@@ -447,7 +483,7 @@ export default function Sidebar() {
                     </div>
 
                     {activeSubMenu === 'reports' && (
-                      <div className="relative ml-7 pb-2">
+                      <div className="relative ml-6 pb-2 mt-2">
                         <NavSubLink href="#">
                           Inventory Stocks
                         </NavSubLink>
