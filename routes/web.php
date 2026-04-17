@@ -377,6 +377,22 @@ Route::middleware(['auth', 'verified'])
         // Route::post('/roi/chat/reset', [RoiChatController::class, 'reset'])
         //     ->name('roi.chat.reset');
 
+        Route::prefix('sprf')->group(function () {
+            Route::get('/current', function () {
+                return Inertia::render('CustomerManagement/ProjectSPRF/Current');
+            })->name('sprf.current');
+
+            Route::get('/archive', function () {
+                return Inertia::render('CustomerManagement/ProjectSPRF/Archive');
+            })->name('sprf.archive');
+
+            Route::prefix('entry')->group(function () {
+                Route::get('/', function () {
+                    return Inertia::render('CustomerManagement/ProjectSPRF/EntryList');
+                })->name('sprf.entry.list');
             });
+        });
+
+    });
 
 require __DIR__ . '/auth.php';

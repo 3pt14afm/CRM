@@ -22,6 +22,61 @@ class UserController extends Controller
         $locationLookup = Location::orderBy('name')->get(['id', 'name']);
         $departmentLookup = CompanyDepartment::orderBy('name')->get(['id', 'name']);
 
+        $users = $this->getUserManagementUsers($request, $locationLookup, $departmentLookup);
+
+        if ($request->header('X-User-Search') === 'true' && ! $request->header('X-Inertia')) {
+            return response()->json([
+                'users' => $users,
+                'filters' => $request->only([
+                    'search',
+                    'status',
+                    'location',
+                    'department',
+                    'position',
+                    'perPage',
+                    'sortBy',
+                    'sortDirection',
+                ]),
+            ]);
+        }
+
+        $locations = Location::query()
+            ->orderBy('name')
+            ->paginate(10)
+            ->through(function ($location) {
+                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
+                $location->status = $location->is_active ? 'Active' : 'Inactive';
+                return $location;
+            })
+            ->withQueryString();
+
+        $stats = [
+            'totalUsers' => User::count(),
+            'recentlyAddedToday' => User::whereDate('created_at', now()->toDateString())->count(),
+            'activeUsers' => User::where('is_banned', false)->count(),
+        ];
+
+        return Inertia::render('Admin/UserManagement', [
+            'users' => $users,
+            'locations' => $locations,
+            'departments' => $departmentLookup,
+            'locationLookup' => $locationLookup,
+            'stats' => $stats,
+            'filters' => $request->only([
+                'search',
+                'status',
+                'location',
+                'department',
+                'position',
+                'perPage',
+                'sortBy',
+                'sortDirection',
+            ]),
+        ]);
+    }
+
+    private function getUserManagementUsers(Request $request, $locationLookup, $departmentLookup)
+    {
         $perPageInput = strtolower(trim((string) $request->input('perPage', '10')));
 
         $usersQuery = User::query()
@@ -74,7 +129,7 @@ class UserController extends Controller
             }
         }
 
-        $users = $usersQuery
+        return $usersQuery
             ->paginate($perPage)
             ->through(function ($u) use ($locationLookup, $departmentLookup) {
                 $u->status = $u->is_banned ? 'Inactive' : 'Active';
@@ -89,40 +144,6 @@ class UserController extends Controller
                 return $u;
             })
             ->withQueryString();
-
-        $locations = Location::query()
-            ->orderBy('name')
-            ->paginate(10)
-            ->through(function ($location) {
-                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
-                $location->status = $location->is_active ? 'Active' : 'Inactive';
-                return $location;
-            })
-            ->withQueryString();
-
-        $stats = [
-            'totalUsers'         => User::count(),
-            'recentlyAddedToday' => User::whereDate('created_at', now()->toDateString())->count(),
-            'activeUsers'        => User::where('is_banned', false)->count(),
-        ];
-
-        return Inertia::render('Admin/UserManagement', [
-            'users'          => $users,
-            'locations'      => $locations,
-            'departments'    => $departmentLookup,
-            'locationLookup' => $locationLookup,
-            'stats'          => $stats,
-            'filters'        => $request->only([
-                'search',
-                'status',
-                'location',
-                'department',
-                'position',
-                'perPage',
-                'sortBy',
-                'sortDirection',
-            ]),
-        ]);
     }
 
     public function userIndex(Request $request)

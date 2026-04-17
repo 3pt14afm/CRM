@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
@@ -31,15 +25,12 @@ function UserManagement({
 }) {
   const formattedDate = formatShortDate();
 
+  const [tableUsers, setTableUsers] = useState(users);
+  const [tableSearch, setTableSearch] = useState((filters.search ?? "").trim());
   const [searchQuery, setSearchQuery] = useState(filters.search ?? "");
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [userSuggestions, setUserSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [perPageInput, setPerPageInput] = useState(
-    filters.perPage === "all"
-      ? "all"
-      : String(filters.perPage ?? users?.per_page ?? 10)
-  );
 
   const searchBoxRef = useRef(null);
   const isSearchFocusedRef = useRef(false);
@@ -47,12 +38,9 @@ function UserManagement({
   const latestSuggestionRequestRef = useRef(0);
 
   useEffect(() => {
-    setPerPageInput(
-      filters.perPage === "all"
-        ? "all"
-        : String(filters.perPage ?? users?.per_page ?? 10)
-    );
-  }, [filters.perPage, users?.per_page]);
+    setTableUsers(users);
+    setTableSearch((filters.search ?? "").trim());
+  }, [users, filters.search]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -83,22 +71,63 @@ function UserManagement({
   const assignModal = useAssignUserModal();
   const editModal = useEditUserModal();
 
+  const buildFilterParams = useCallback(
+    (nextFilters = {}) => ({
+      status: nextFilters.status ?? filters.status ?? "",
+      location: nextFilters.location ?? filters.location ?? "",
+      position: nextFilters.position ?? filters.position ?? "",
+      department: nextFilters.department ?? filters.department ?? "",
+      search: nextFilters.search ?? searchQuery.trim(),
+      perPage:
+        nextFilters.perPage ??
+        (filters.perPage === "all"
+          ? "all"
+          : String(filters.perPage ?? tableUsers?.per_page ?? 10)),
+      sortBy: nextFilters.sortBy ?? filters.sortBy ?? "",
+      sortDirection:
+        nextFilters.sortDirection ?? filters.sortDirection ?? "asc",
+      page: nextFilters.page ?? 1,
+    }),
+    [
+      filters.status,
+      filters.location,
+      filters.position,
+      filters.department,
+      filters.perPage,
+      filters.sortBy,
+      filters.sortDirection,
+      searchQuery,
+      tableUsers?.per_page,
+    ]
+  );
+
+  const replaceBrowserUrl = useCallback((params) => {
+    const url = new URL(route("admin.user-management.index"), window.location.origin);
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === "" || value === null || value === undefined) {
+        return;
+      }
+
+      if (key === "page" && Number(value) === 1) {
+        return;
+      }
+
+      url.searchParams.set(key, String(value));
+    });
+
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}`
+    );
+  }, []);
+
   const applyFilters = useCallback(
     (nextFilters = {}) => {
       router.get(
         route("admin.user-management.index"),
-        {
-          status: nextFilters.status ?? filters.status ?? "",
-          location: nextFilters.location ?? filters.location ?? "",
-          position: nextFilters.position ?? filters.position ?? "",
-          department: nextFilters.department ?? filters.department ?? "",
-          search: nextFilters.search ?? filters.search ?? "",
-          perPage: nextFilters.perPage ?? filters.perPage ?? "10",
-          sortBy: nextFilters.sortBy ?? filters.sortBy ?? "",
-          sortDirection:
-            nextFilters.sortDirection ?? filters.sortDirection ?? "asc",
-          page: nextFilters.page ?? 1,
-        },
+        buildFilterParams(nextFilters),
         {
           preserveScroll: true,
           preserveState: true,
@@ -106,7 +135,31 @@ function UserManagement({
         }
       );
     },
-    [filters]
+    [buildFilterParams]
+  );
+
+  const requestUsers = useCallback(
+    async (rawSearch, signal) => {
+      const normalized = rawSearch.trim();
+      const params = buildFilterParams({ search: normalized, page: 1 });
+
+      const { data } = await axios.get(route("admin.user-management.index"), {
+        params,
+        signal,
+        headers: {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-User-Search": "true",
+        },
+      });
+
+      return {
+        users: data?.users ?? null,
+        params,
+        normalized,
+      };
+    },
+    [buildFilterParams]
   );
 
   const handleSort = useCallback(
@@ -141,17 +194,40 @@ function UserManagement({
   );
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      const normalized = searchQuery.trim();
-      const currentSearch = (filters.search ?? "").trim();
+    const normalized = searchQuery.trim();
 
-      if (normalized !== currentSearch) {
-        applyFilters({ search: normalized, page: 1 });
+    if (normalized === tableSearch) {
+      return;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+
+    const timeout = setTimeout(async () => {
+      try {
+        const result = await requestUsers(normalized, controller.signal);
+
+        if (!active || !result.users) {
+          return;
+        }
+
+        setTableUsers(result.users);
+        setTableSearch(result.normalized);
+        replaceBrowserUrl(result.params);
+      } catch (error) {
+        if (!active || axios.isCancel(error) || error.name === "CanceledError") {
+          return;
+        }
+        console.error("User search failed:", error);
       }
     }, 300);
 
-    return () => clearTimeout(timeout);
-  }, [searchQuery, filters.search, applyFilters]);
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [searchQuery, tableSearch, requestUsers, replaceBrowserUrl]);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -252,24 +328,20 @@ function UserManagement({
     [applyFilters]
   );
 
-  const handleSelectSuggestion = useCallback(
-    (item) => {
-      const value = item.value ?? "";
-      setSearchQuery(value);
-      setShowSearchSuggestions(false);
-      setUserSuggestions([]);
-      applyFilters({ search: value, page: 1 });
-    },
-    [applyFilters]
-  );
+  const handleSelectSuggestion = useCallback((item) => {
+    const value = item.value ?? "";
+    setSearchQuery(value);
+    setShowSearchSuggestions(false);
+    setUserSuggestions([]);
+  }, []);
 
-  const userRows = users?.data ?? [];
+  const userRows = tableUsers?.data ?? [];
   const userPagination =
-    users && typeof users.current_page === "number"
+    tableUsers && typeof tableUsers.current_page === "number"
       ? {
-          page: users.current_page,
-          perPage: users.per_page ?? 10,
-          total: users.total ?? userRows.length,
+          page: tableUsers.current_page,
+          perPage: tableUsers.per_page ?? 10,
+          total: tableUsers.total ?? userRows.length,
           onPageChange: goToPage,
         }
       : null;
@@ -410,8 +482,14 @@ function UserManagement({
 
                     <PerPageFilterPill
                       label="Show"
-                      value={String(filters.perPage ?? users?.per_page ?? 10)}
-                      onChange={(value) => applyFilters({ perPage: value, page: 1 })}
+                      value={String(
+                        filters.perPage === "all"
+                          ? "all"
+                          : filters.perPage ?? tableUsers?.per_page ?? 10
+                      )}
+                      onChange={(value) =>
+                        applyFilters({ perPage: value, page: 1 })
+                      }
                     />
                   </div>
                 </div>
