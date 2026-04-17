@@ -76,45 +76,68 @@ const addFeesObj = projectData?.additionalFees || { company: [], customer: [], t
     };
   });
 
-  // Helper: Rental + Click / Fix Click use exact qty, others use rounded-up qty
-  const getQtyFromYields = (annualYields, itemYields) => {
-    const safeItemYields = Number(itemYields) || 1;
-    const exactQty = annualYields / safeItemYields;
-     return usesExactClickQty 
-    ? Math.round(exactQty * 100) / 100  // Returns a number with max 2 decimals
+ const getQtyFromYields = (annualYields, itemYields) => {
+  const safeItemYields = Number(itemYields);
+
+  // 🚫 Prevent division by 0 or invalid yields
+  if (!safeItemYields || safeItemYields <= 0) {
+    return 0;
+  }
+
+  const exactQty = annualYields / safeItemYields;
+
+  return usesExactClickQty
+    ? Math.round(exactQty * 100) / 100  // max 2 decimals
     : Math.ceil(exactQty);
+};
+
+const getSafeNumber = (val, fallback = 0) => {
+  const num = Number(val);
+  return isNaN(num) ? fallback : num;
+};
+
+const hasValidYield = (y) => {
+  const num = Number(y);
+  return !isNaN(num) && num > 0;
+};
+
+const processedConsumables = rawConsumables.map(c => {
+  const mode = c.mode?.toLowerCase();
+  const itemYields = Number(c.yields);
+
+  let qty = 0;
+
+  // ✅ CASE 1: OTHERS → always manual
+  if (mode === 'others') {
+    qty = getSafeNumber(c.qty, 1);
+  }
+
+  // ✅ CASE 2: MONO / COLOR with valid yields → computed
+  else if ((mode === 'mono' || mode === 'color') && hasValidYield(itemYields)) {
+    const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
+    qty = getQtyFromYields(baseYields, itemYields);
+  }
+
+  // 🚫 CASE 3: MONO / COLOR but ZERO/INVALID yields → FORCE 0
+  else if (mode === 'mono' || mode === 'color') {
+    qty = 0;
+  }
+
+  // ✅ CASE 4: UNKNOWN mode → safe fallback
+  else {
+    qty = getSafeNumber(c.qty, 1);
+  }
+
+  const unitCost = getSafeNumber(c.cost);
+  const unitSell = getSafeNumber(c.price);
+
+  return {
+    ...c,
+    qty,
+    totalCost: qty * unitCost,
+    totalSell: qty * unitSell
   };
-
-  // 3. MAP CONSUMABLES WITH MODE-BASED DYNAMIC QTY
-  const processedConsumables = rawConsumables.map(c => {
-    const itemYields = Number(c.yields) || 1;
-    let dynamicQty = 0;
-
-    switch (c.mode?.toLowerCase()) {
-      case 'mono':
-        dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
-        break;
-      case 'color':
-        dynamicQty = getQtyFromYields(annualColorYields, itemYields);
-        break;
-      case 'others':
-        dynamicQty = Number(c.qty) || 1;
-        break;
-      default:
-        dynamicQty = getQtyFromYields(annualMonoYields, itemYields);
-    }
-
-    const unitCost = Number(c.cost) || 0;
-    const unitSell = Number(c.price) || 0;
-
-    return {
-      ...c,
-      qty: dynamicQty,
-      totalCost: dynamicQty * unitCost,
-      totalSell: dynamicQty * unitSell
-    };
-  });
-
+});
   // 4. CALCULATION LOGIC
   const totalMachineQty = processedMachines.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalMachineCost = processedMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
