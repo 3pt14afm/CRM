@@ -477,41 +477,44 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
               <td className="px-3 py-1 text-center border border-gray-300 border-r-0 border-x-0"></td>
             </tr>
 
-            {allAdditionalFees.length > 0 ? (
-              allAdditionalFees.map((fee, idx) => {
-                const isCompany = companyFees.some((cf) => cf.id === fee.id);
+        {allAdditionalFees.length > 0 ? (
+          allAdditionalFees.map((fee, idx) => {
+            const isCompany = companyFees.some((cf) => cf.id === fee.id);
+            const feeCost = Number(fee.cost) || 0;
+            const feeQty = Number(fee.qty) || 0;
 
-                return (
-                  <tr
-                    key={fee.id || idx}
-                    className="border-x border-x-gray-300 border-gray-100 text-[11px] align-middle bg-white"
-                  >
-                    <td className="px-4 py-2 text-[12px] truncate border-r border-b border-gray-200">
-                      {fee.label}
-                    </td>
-                    <td className="px-3 py-2 text-[11px] text-right border-r border-b border-gray-200">
-                      {format(fee.cost)}
-                    </td>
-                    <td className="px-3 py-2 text-center border-b border-gray-200"></td>
-                    <td className="px-3 py-2 text-center border-b border-gray-200"></td>
-                    <td className="px-3 py-2 text-center border-b border-gray-200"></td>
-                    <td className="px-3 py-2 text-center border-r border-r-gray-300 border-b border-gray-200"></td>
+            return (
+              <tr
+                key={fee.id || idx}
+                className="border-x border-x-gray-300 border-gray-100 text-[11px] align-middle bg-white"
+              >
+                <td className="px-4 py-2 text-[12px] truncate border-r border-b border-gray-200">
+                  {fee.label}
+                </td>
+                <td className="px-3 py-2 text-[11px] text-right border-r border-b border-gray-200">
+                  {format(fee.cost)}
+                </td>
+                <td className="px-3 py-2 text-center border-b border-gray-200"></td>
+                <td className="px-3 py-2 text-center border-b border-gray-200"></td>
+                <td className="px-3 py-2 text-center border-b border-gray-200"></td>
+                <td className="px-3 py-2 text-center border-r border-r-gray-300 border-b border-gray-200"></td>
 
-                    <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
+                <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
-                    <td className="py-2 text-center border-r border-b border-gray-200">
-                      {(fee.qty !== 0 && fee.qty) ? fee.qty : ''}
-                    </td>
-                    <td className="py-2 text-center border-r border-b border-gray-200">
-                      {isCompany ? format(fee.total) : ''}
-                    </td>
-                    <td className="py-2 text-center border-b border-gray-200">
-                      {!isCompany ? format(fee.total) : ''}
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
+                <td className="py-2 text-center border-r border-b border-gray-200">
+                  {/* Change: Blank if cost is 0 OR qty is 0 */}
+                  {feeCost !== 0 && feeQty !== 0 ? feeQty : ''}
+                </td>
+                <td className="py-2 text-center border-r border-b border-gray-200">
+                  {isCompany ? format(fee.total) : ''}
+                </td>
+                <td className="py-2 text-center border-b border-gray-200">
+                  {!isCompany ? format(fee.total) : ''}
+                </td>
+              </tr>
+            );
+          })
+        ): (
               <tr className="border-b border-gray-100 text-[11px]">
                 <td className="px-4 py-3 text-gray-600 truncate border-r border-gray-200">—</td>
                 <td className="px-3 py-3 text-right font-medium border-r border-gray-200"></td>

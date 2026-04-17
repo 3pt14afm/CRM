@@ -108,10 +108,11 @@ function SucceTotals() {
                 </thead>
 
                 <tbody className="text-[10px]">
-                  {allAdditionalFees.length > 0 ? (
+                 {allAdditionalFees.length > 0 ? (
                     allAdditionalFees.map((fee, idx) => {
                       const isCompany = companyFees.some((cf) => cf.id === fee.id);
                       const feeQty = n(fee.qty);
+                      const feeCost = n(fee.cost); // Added to check for zero cost
 
                       return (
                         <tr key={fee.id || idx} className="border-x-gray-300">
@@ -123,8 +124,10 @@ function SucceTotals() {
                           </td>
                           <td className="py-2 border-r border-gray-300 bg-[#f8f8f8] print:bg-white"></td>
 
+                          {/* 1st summary block (per year) */}
                           <td className="border border-x-gray-300 border-gray-100 py-2 border-r text-center">
-                            {nFormat(feeQty)}
+                            {/* Logic: Blank if cost is zero */}
+                            {feeCost !== 0 ? nFormat(feeQty) : ""}
                           </td>
                           <td className="border border-x-gray-300 border-gray-100 py-2 border-r text-center">
                             {isCompany ? format(fee.total) : ""}
@@ -135,8 +138,10 @@ function SucceTotals() {
 
                           <td className="py-2 border-r border-gray-300 bg-[#f8f8f8] print:bg-white"></td>
 
+                          {/* 2nd summary block (overall succeeding years) */}
                           <td className="border border-x-gray-300 border-gray-100 py-2 border-r text-center">
-                            {nFormat(feeQty * succeedingYearCount)}
+                            {/* Logic: Blank if cost is zero */}
+                            {feeCost !== 0 ? nFormat(feeQty * succeedingYearCount) : ""}
                           </td>
                           <td className="border border-x-gray-300 border-gray-100 py-2 border-r text-center">
                             {isCompany ? format(n(fee.total) * succeedingYearCount) : ""}
