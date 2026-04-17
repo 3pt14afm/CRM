@@ -5,19 +5,26 @@ function TotalMVP() {
     const { projectData } = useProjectData();
     const yieldData = projectData.yield || {};
 
-    // Helper for currency/number formatting
-    const formatNum = (val) =>
-        (parseFloat(val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Helper for currency/number formatting - Returns blank if zero
+    const formatNum = (val) => {
+        const num = parseFloat(val) || 0;
+        if (num === 0) return "";
+        return num.toLocaleString(undefined, { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        });
+    };
 
     // Compute annual dynamically
     const getAnnual = (monthly) => (parseFloat(monthly) || 0) * 12;
     
-  const monoAnnual = getAnnual(yieldData.monoAmvpYields?.monthly);
-  const colorAnnual = getAnnual(yieldData.colorAmvpYields?.monthly);
+    const monoMonthly = yieldData.monoAmvpYields?.monthly || 0;
+    const colorMonthly = yieldData.colorAmvpYields?.monthly || 0;
 
-  const periodicTotal = monoAnnual + colorAnnual;
+    const monoAnnual = getAnnual(monoMonthly);
+    const colorAnnual = getAnnual(colorMonthly);
 
-    
+    const periodicTotal = monoAnnual + colorAnnual;
 
     return (
         <div className="overflow-hidden rounded-xl shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 font-sans text-gray-800">
@@ -34,28 +41,26 @@ function TotalMVP() {
                     <tr className="border-b border-gray-100">
                         <td className="px-4 py-2 font-medium border-r border-gray-100 text-xs print:text-xs">Mono AMVP</td>
                         <td className="px-4 py-2 text-right text-xs border-r border-gray-100">
-                            {formatNum(yieldData.monoAmvpYields?.monthly)}
+                            {formatNum(monoMonthly)}
                         </td>
                         <td className="px-4 py-2 text-right text-xs">
-                            {formatNum(getAnnual(yieldData.monoAmvpYields?.monthly))}
+                            {formatNum(monoAnnual)}
                         </td>
                     </tr>
                     
                     <tr className="border-b border-gray-100">
                         <td className="px-4 py-2 font-medium border-r border-gray-100 text-xs print:text-xs">Color AMVP</td>
                         <td className="px-4 py-2 text-right text-xs border-r border-gray-100">
-                            {formatNum(yieldData.colorAmvpYields?.monthly)}
+                            {formatNum(colorMonthly)}
                         </td>
                         <td className="px-4 py-2 text-right text-xs">
-                            {formatNum(getAnnual(yieldData.colorAmvpYields?.monthly))}
+                            {formatNum(colorAnnual)}
                         </td>
                     </tr>
                     
                     <tr>
                         <td className="px-4 py-2 font-medium border-r border-gray-100 text-xs print:text-xs">Periodic Maintenance Supplies Count</td>
-                        <td className="px-4 py-2 ">
-                          
-                        </td>
+                        <td className="px-4 py-2"></td>
                         <td className="px-4 py-2 text-right text-xs">
                             {formatNum(periodicTotal)}
                         </td>

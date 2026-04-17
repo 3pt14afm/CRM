@@ -1,6 +1,6 @@
 import React from "react";
 import { useProjectData } from "@/Context/ProjectContext";
-import { interest as calculateInterest } from "@/Utils/interest"; // adjust if your path is different
+import { interest as calculateInterest } from "@/Utils/interest";
 
 const InterestCalcuSum = () => {
   const { projectData } = useProjectData();
@@ -13,13 +13,24 @@ const InterestCalcuSum = () => {
   const totalCost = Number(totals.grandTotalCost || 0);
   const totalROI = Number(totals.grandROI || 0);
   const roiPct = Number(totals.grandROIPercentage || 0);
-  const totalSales = Number(totals.grandTotalRevenue || 0)
+  const totalSales = Number(totals.grandTotalRevenue || 0);
 
-  const f = (num) =>
-    new Intl.NumberFormat("en-US", {
+  // Updated Formatter: Returns blank string if value is 0
+  const f = (num) => {
+    const val = Number(num) || 0;
+    if (val === 0) return "";
+    return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(Number(num || 0));
+    }).format(val);
+  };
+
+  // Helper for percentage strings
+  const formatPct = (num) => {
+    const val = Number(num) || 0;
+    if (val === 0) return "";
+    return `${val.toFixed(2)}%`;
+  };
 
   return (
     <div className="grid [grid-template-columns:40%_60%] items-start gap-4 mx-2 p-2 font-sans print:gap-2 print:p-0">
@@ -32,7 +43,7 @@ const InterestCalcuSum = () => {
                 Annual Interest
               </td>
               <td className="w-[35%] py-2 px-2 text-center font-medium border-l bg-white border-slate-300 text-xs text-gray-700">
-                {projectData?.interest?.annualInterest}%
+                {projectData?.interest?.annualInterest ? `${projectData.interest.annualInterest}%` : ""}
               </td>
             </tr>
             <tr>
@@ -40,7 +51,7 @@ const InterestCalcuSum = () => {
                 Percent Margin
               </td>
               <td className="w-[35%] py-2 px-2 text-center border-l font-medium bg-white border-slate-300 text-xs text-gray-700">
-                {percentMargin}%
+                {percentMargin ? `${percentMargin}%` : ""}
               </td>
             </tr>
           </tbody>
@@ -52,9 +63,9 @@ const InterestCalcuSum = () => {
         <div className="shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 rounded-xl overflow-hidden w-full mr-4 bg-white">
           <table className="w-full text-[11px]">
             <colgroup>
-            <col className="w-[40%] " />
-            <col className="w-[60%] " />
-          </colgroup>
+              <col className="w-[40%] " />
+              <col className="w-[60%] " />
+            </colgroup>
 
             <tbody>
               <tr className="border-b border-gray-200">
@@ -85,10 +96,10 @@ const InterestCalcuSum = () => {
                 <td className="py-2 text-[10px] text-gray-400 italic px-4"></td>
                 <td
                   className={`px-4 py-2 bg-white text-right border-l border-gray-300 ${
-                    roiPct >= 0 ? "text-green-700" : "text-red-600"
+                    roiPct > 0 ? "text-green-700" : roiPct < 0 ? "text-red-600" : ""
                   }`}
                 >
-                  {roiPct.toFixed(2)}%
+                  {formatPct(roiPct)}
                 </td>
               </tr>
             </tbody>
