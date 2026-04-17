@@ -31,16 +31,26 @@ function ContractDetails() {
   const customerFees = addFeesObj.customer || [];
   const allFees = [...companyFees, ...customerFees];
 
-  const formatCurrency = (val) =>
-    new Intl.NumberFormat('en-PH', {
+  // Updated Formatter: Returns blank string if value is 0
+  const formatCurrency = (val) => {
+    const num = Number(val) || 0;
+    if (num === 0) return ""; 
+    return new Intl.NumberFormat('en-PH', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(Number(val) || 0);
+    }).format(num);
+  };
+
+  // Specifically for Quantities (integers)
+  const formatQty = (val) => {
+    const num = Number(val) || 0;
+    return num === 0 ? "" : num;
+  };
 
   const normalize = (s) => String(s || '').trim().toLowerCase();
 
   const monthlyRentalFee = useMemo(() => {
-    return allFees.find(f => normalize(f.label) === "Rental + Supplies");
+    return allFees.find(f => normalize(f.label) === "rental + supplies");
   }, [allFees]);
 
   const monthlyRentalUnitPrice = Number(monthlyRentalFee?.cost) || 0;
@@ -200,18 +210,18 @@ function ContractDetails() {
 
                   {showContractTypeColumn && (
                     <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-600 text-[10px] font-medium uppercase print:py-1">
-                      {item.contractTypeLabel || '-'}
+                      {item.contractTypeLabel || ''}
                     </td>
                   )}
 
                   <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-600 text-xs print:py-1 print:text-[10px]">
-                    {qty}
+                    {formatQty(qty)}
                   </td>
                   <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-600 text-xs font-mono print:py-1 print:text-[10px]">
-                    {unitPrice > 0 ? formatCurrency(unitPrice) : 'PHP 0.00'}
+                    {unitPrice > 0 ? formatCurrency(unitPrice) : ''}
                   </td>
                   <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-600 text-xs font-mono print:py-1 print:text-[10px]">
-                    {amount > 0 ? formatCurrency(amount) : '-'}
+                    {amount > 0 ? formatCurrency(amount) : ''}
                   </td>
                   <td className="px-4 py-2 text-gray-600 text-[10px] italic text-left uppercase print:py-1 print:text-[10px]">
                     {item.remarks}
@@ -222,13 +232,9 @@ function ContractDetails() {
           ) : (
             <tr className="bg-white">
               <td className="px-4 py-2 border-r border-gray-300 text-left text-gray-400 text-xs">-</td>
-
-              {showContractTypeColumn && (
-                <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-400 text-[10px]">-</td>
-              )}
-
-              <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-400 text-xs">0</td>
-              <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-400 text-xs font-mono">PHP 0.00</td>
+              {showContractTypeColumn && <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-400 text-[10px]">-</td>}
+              <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-400 text-xs"></td>
+              <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-400 text-xs font-mono">-</td>
               <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-400 text-xs font-mono">-</td>
               <td className="px-4 py-2 text-gray-400 text-[10px] text-left">-</td>
             </tr>
@@ -257,12 +263,12 @@ function ContractDetails() {
 
                   {showContractTypeColumn && (
                     <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-600 text-[10px] font-medium uppercase print:py-1">
-                      {item.contractTypeLabel || '-'}
+                      {item.contractTypeLabel || ''}
                     </td>
                   )}
 
                   <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-600 text-xs print:py-1 print:text-[10px]">
-                    {qty}
+                    {formatQty(qty)}
                   </td>
                   <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-600 text-xs font-mono print:py-1 print:text-[10px]">
                     {formatCurrency(price)}
@@ -279,14 +285,10 @@ function ContractDetails() {
           ) : (
             <tr className="bg-white">
               <td className="px-4 py-2 border-r border-gray-300 text-left text-gray-400 text-xs">-</td>
-
-              {showContractTypeColumn && (
-                <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-400 text-[10px]">-</td>
-              )}
-
-              <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-400 text-xs">0</td>
-              <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-400 text-xs font-mono">0.00</td>
-              <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-400 text-xs font-mono">0.00</td>
+              {showContractTypeColumn && <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-400 text-[10px]">-</td>}
+              <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-400 text-xs"></td>
+              <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-400 text-xs font-mono">-</td>
+              <td className="px-4 py-2 border-r border-gray-300 text-right text-gray-400 text-xs font-mono">-</td>
               <td className="px-4 py-2 text-gray-400 text-[10px] text-left">-</td>
             </tr>
           )}
@@ -301,7 +303,7 @@ function ContractDetails() {
               Total Initial
             </td>
             <td className="px-4 py-2 border-r border-gray-300 text-right text-xs font-mono">
-              {formatCurrency(totalInitial)}
+              {formatCurrency(totalInitial) || "PHP 0.00"}
             </td>
             <td className="px-4 py-2"></td>
           </tr>

@@ -34,11 +34,23 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
   const manualTotalSellCpp =
     totals.yields > 0 ? manualTotalSellingPrice / totals.yields : 0;
 
-  const formatNum = (val, decimals = 2) =>
-    (Number(val) || 0).toLocaleString(undefined, {
+  const formatNum = (val, decimals = 2) => {
+    const num = Number(val) || 0;
+    if (num === 0) return '';
+    return num.toLocaleString(undefined, {
       minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
+      maximumFractionDigits: decimals,
     });
+  };
+
+  const format = (val) => {
+    const num = Number(val) || 0;
+    if (num === 0) return '';
+    return num.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
 
   // =========================
   // FROM Potentials
@@ -65,14 +77,9 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
 
   const usesExactClickQtyDisplay = isRentalClick || isFixClick;
 
-  const format = (val) => (Number(val) || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-
   const formatConsumableQty = (val) => {
     const num = Number(val);
-    if (!Number.isFinite(num)) return usesExactClickQtyDisplay ? "0.00" : 0;
+    if (!Number.isFinite(num) || num === 0) return '';
 
     if (usesExactClickQtyDisplay) {
       return num.toLocaleString(undefined, {
@@ -178,7 +185,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
             <col className="w-[10.7%]" />
           </colgroup>
 
-          <thead className="bg-[#E2F4D8] border-x border-gray-300 ">
+          <thead className="bg-[#E2F4D8] border-x border-gray-300">
             <tr className="h-14">
               <th className="px-3 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
                 MACHINE & CONSUMABLES
@@ -212,6 +219,8 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
           </thead>
 
           <tbody className="text-[12px]">
+
+            {/* ==================== MACHINE SECTION ==================== */}
             <tr className="bg-[#E2F4D8]/40 border-x border-x-gray-300 border-gray-200">
               <td colSpan={6} className="px-4 py-1 font-semibold border-r border-b border-gray-300">
                 MACHINE
@@ -227,7 +236,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                 const m = row.left;
                 const p = row.right;
 
-                const effectivePrice = m ? (isOutright ? (m.price || 0) : 0) : 0;
+                const effectivePrice = m ? (isOutright ? (Number(m.price) || 0) : 0) : 0;
                 const effectiveSellCpp = m && m.yields > 0 ? effectivePrice / m.yields : 0;
 
                 return (
@@ -239,7 +248,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                       {m ? formatNum(m.inputtedCost || m.cost) : ''}
                     </td>
                     <td className="text-center border-r border-b border-gray-200">
-                      {m ? Number(m.yields || 0).toLocaleString() : ''}
+                      {m ? (Number(m.yields || 0) !== 0 ? Number(m.yields).toLocaleString() : '') : ''}
                     </td>
                     <td className="text-center border-r border-b border-gray-200">
                       {m ? formatNum(m.costCpp) : ''}
@@ -254,20 +263,22 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                     <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-center border-b border-gray-200">
-                      {p ? p.qty : (normalPotentialMachines.length === 0 && index === 0 ? 0 : '')}
+                      {p ? (p.qty !== 0 ? p.qty : '') : ''}
                     </td>
                     <td className="border border-gray-200 text-center px-1 py-2">
                       {p ? (
                         <div className="flex flex-col gap-1">
                           <p>{format(p.totalCost)}</p>
-                          <p className="text-[11px] text-blue-700 italic">
-                            {format(p.machineMarginTotal || 0)}
-                          </p>
+                          {(Number(p.machineMarginTotal) || 0) !== 0 && (
+                            <p className="text-[11px] text-blue-700 italic">
+                              {format(p.machineMarginTotal)}
+                            </p>
+                          )}
                         </div>
-                      ) : (normalPotentialMachines.length === 0 && index === 0 ? format(0) : '')}
+                      ) : ''}
                     </td>
                     <td className="border border-gray-200 text-center px-1 py-3">
-                      {p ? format(p.totalSell) : (normalPotentialMachines.length === 0 && index === 0 ? format(0) : '')}
+                      {p ? format(p.totalSell) : ''}
                     </td>
                   </tr>
                 );
@@ -281,12 +292,13 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                 <td className="text-center border-r border-gray-300"></td>
                 <td className="text-center border-r border-gray-300"></td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
-                <td className="px-1 py-3 text-center">0</td>
-                <td className="border-l text-center px-1 py-3">{format(0)}</td>
-                <td className="border-l text-center px-1 py-3">{format(0)}</td>
+                <td className="px-1 py-3 text-center"></td>
+                <td className="border-l text-center px-1 py-3"></td>
+                <td className="border-l text-center px-1 py-3"></td>
               </tr>
             )}
 
+            {/* ==================== CONSUMABLES SECTION ==================== */}
             <tr className="bg-[#E2F4D8]/40 border-x border-x-gray-300 border-gray-200">
               <td colSpan={6} className="px-4 py-1 font-semibold border-y border-r border-r-gray-300 border-gray-200">
                 CONSUMABLES
@@ -311,7 +323,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                       {c ? formatNum(c.cost) : ''}
                     </td>
                     <td className="border border-gray-200 text-center">
-                      {c ? Number(c.yields || 0).toLocaleString() : ''}
+                      {c ? (Number(c.yields || 0) !== 0 ? Number(c.yields).toLocaleString() : '') : ''}
                     </td>
                     <td className="border border-gray-200 text-center">
                       {c ? formatNum(c.yields > 0 ? c.cost / c.yields : 0) : ''}
@@ -326,13 +338,13 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                     <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-center border border-gray-200">
-                      {p ? formatConsumableQty(p.qty) : (consumables.length === 0 && index === 0 ? formatConsumableQty(0) : '')}
+                      {p ? formatConsumableQty(p.qty) : ''}
                     </td>
                     <td className="border-l text-center px-1 py-3 border border-gray-200">
-                      {p ? format(p.totalCost) : (consumables.length === 0 && index === 0 ? format(0) : '')}
+                      {p ? format(p.totalCost) : ''}
                     </td>
                     <td className="border-l text-center px-1 py-3 border border-gray-200">
-                      {p ? format(p.totalSell) : (consumables.length === 0 && index === 0 ? format(0) : '')}
+                      {p ? format(p.totalSell) : ''}
                     </td>
                   </tr>
                 );
@@ -346,12 +358,13 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                 <td className="text-center border-r border-gray-300"></td>
                 <td className="text-center border-r border-gray-300"></td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
-                <td className="px-1 py-3 text-center">{formatConsumableQty(0)}</td>
-                <td className="border-l text-center px-1 py-3">{format(0)}</td>
-                <td className="border-l text-center px-1 py-3">{format(0)}</td>
+                <td className="px-1 py-3 text-center"></td>
+                <td className="border-l text-center px-1 py-3"></td>
+                <td className="border-l text-center px-1 py-3"></td>
               </tr>
             )}
 
+            {/* ==================== OTHERS SECTION ==================== */}
             {othersRows.length > 0 && (
               <>
                 <tr className="bg-[#E2F4D8]/30 border-x border-x-gray-300 border-gray-200">
@@ -368,7 +381,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                   const m = row.left;
                   const p = row.right;
 
-                  const effectivePrice = m ? (isOutright ? (m.price || 0) : 0) : 0;
+                  const effectivePrice = m ? (isOutright ? (Number(m.price) || 0) : 0) : 0;
                   const effectiveSellCpp = m && m.yields > 0 ? effectivePrice / m.yields : 0;
 
                   return (
@@ -380,7 +393,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                         {m ? formatNum(m.inputtedCost || m.cost) : ''}
                       </td>
                       <td className="text-center border border-gray-200">
-                        {m ? Number(m.yields || 0).toLocaleString() : ''}
+                        {m ? (Number(m.yields || 0) !== 0 ? Number(m.yields).toLocaleString() : '') : ''}
                       </td>
                       <td className="text-center border border-gray-200">
                         {m ? formatNum(m.costCpp) : ''}
@@ -395,7 +408,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                       <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                       <td className="px-1 py-3 text-center border-b border-gray-200">
-                        {p ? p.qty : ''}
+                        {p ? (p.qty !== 0 ? p.qty : '') : ''}
                       </td>
                       <td className="border-l text-center px-1 py-3 border-b border-gray-200">
                         {p ? format(p.totalCost) : ''}
@@ -409,13 +422,14 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
               </>
             )}
 
+            {/* ==================== TOTALS ROW ==================== */}
             <tr className="bg-[#E2F4D8]/70 font-semibold border-x border-x-gray-300 text-[12px]">
               <td className="px-4 py-3 text-left border border-gray-300">TOTALS</td>
               <td className="text-center border border-gray-300">
                 {formatNum(totals.unitCost)}
               </td>
               <td className="text-center border border-gray-300">
-                {Number(totals.yields || 0).toLocaleString()}
+                {Number(totals.yields || 0) !== 0 ? Number(totals.yields).toLocaleString() : ''}
               </td>
               <td className="text-center border border-gray-300 text-green-700">
                 {formatNum(totals.costCpp)}
@@ -433,7 +447,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
               <td className="border border-gray-300 text-center px-1 py-3">
                 <div>
                   <p>{format(firstYearTotalCost)}</p>
-                  {bundleDeduction > 0 && (
+                  {(Number(bundleDeduction) || 0) > 0 && (
                     <p className="text-[10px] text-red-700">
                       -{format(bundleDeduction)}
                     </p>
@@ -449,6 +463,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
               <td colSpan={10} className="py-2 bg-[#f8f8f8] print:bg-white"></td>
             </tr>
 
+            {/* ==================== ADDITIONAL FEES SECTION ==================== */}
             <tr className="bg-[#E2F4D8] text-[11px] font-medium border-x border-gray-300">
               <td className="px-3 py-1 text-center uppercase border-y border-gray-300 print:text-[11px]">OTHERS</td>
               <td className="px-3 py-1 text-center border border-gray-300 uppercase print:text-[11px] print:px-2">AMOUNT</td>
@@ -469,7 +484,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                 return (
                   <tr
                     key={fee.id || idx}
-                    className=" border-x border-x-gray-300 border-gray-100 text-[11px] align-middle bg-white"
+                    className="border-x border-x-gray-300 border-gray-100 text-[11px] align-middle bg-white"
                   >
                     <td className="px-4 py-2 text-[12px] truncate border-r border-b border-gray-200">
                       {fee.label}
@@ -485,32 +500,33 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                     <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="py-2 text-center border-r border-b border-gray-200">
-                      {fee.qty || 0}
+                      {(fee.qty !== 0 && fee.qty) ? fee.qty : ''}
                     </td>
                     <td className="py-2 text-center border-r border-b border-gray-200">
-                      {isCompany ? format(fee.total) : format(0)}
+                      {isCompany ? format(fee.total) : ''}
                     </td>
                     <td className="py-2 text-center border-b border-gray-200">
-                      {!isCompany ? format(fee.total) : format(0)}
+                      {!isCompany ? format(fee.total) : ''}
                     </td>
                   </tr>
                 );
               })
             ) : (
               <tr className="border-b border-gray-100 text-[11px]">
-                <td className="px-4 py-3 text-gray-600 truncate border-r border-gray-200">X</td>
-                <td className="px-3 py-3 text-right font-medium border-r border-gray-200">0.00</td>
+                <td className="px-4 py-3 text-gray-600 truncate border-r border-gray-200">—</td>
+                <td className="px-3 py-3 text-right font-medium border-r border-gray-200"></td>
                 <td className="px-3 py-3 text-center border-r border-gray-200"></td>
                 <td className="px-3 py-3 text-center border-r border-gray-200"></td>
                 <td className="px-3 py-3 text-center border-r border-gray-200"></td>
                 <td className="px-3 py-3 text-center border-r border-gray-200"></td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
-                <td className="py-2 font-bold text-center border-r border-gray-200">0</td>
-                <td className="py-2 font-bold text-center border-r border-gray-200">0.00</td>
-                <td className="py-2 font-bold text-center">0.00</td>
+                <td className="py-2 text-center border-r border-gray-200"></td>
+                <td className="py-2 text-center border-r border-gray-200"></td>
+                <td className="py-2 text-center"></td>
               </tr>
             )}
 
+            {/* ==================== FEES TOTAL ROW ==================== */}
             <tr className="bg-[#E2F4D8]/70 font-bold border-x border-x-gray-300 text-gray-800 text-[11px]">
               <td className="px-3 py-2 uppercase border border-gray-300">TOTAL</td>
               <td className="px-3 py-2 text-right border-y border-gray-300"></td>
@@ -530,6 +546,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
               </td>
             </tr>
 
+            {/* ==================== SUMMARY ROWS ==================== */}
             <tr className="text-[11px]">
               <td colSpan={6} rowSpan={3} className="border-0 p-0"></td>
               <td className="bg-[#f8f8f8] print:bg-white border-r border-darkgreen/30"></td>
@@ -567,6 +584,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                 {roiPercentage.toFixed(2)}%
               </td>
             </tr>
+
           </tbody>
         </table>
       </div>

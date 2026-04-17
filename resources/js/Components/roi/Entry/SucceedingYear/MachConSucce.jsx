@@ -19,11 +19,14 @@ function MachConSucce() {
     m.mode === 'others' || m.type === 'others'
   );
 
-  const formatNum = (val, decimals = 2) =>
-    (Number(val) || 0).toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
+ const formatNum = (val, decimals = 2) => {
+  const num = Number(val) || 0;
+  if (num === 0) return '';
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+};
 
   return (
     <div className="gap-4 font-sans tracking-tight">
@@ -61,14 +64,14 @@ function MachConSucce() {
                     {m.sku}
                   </td>
                   <td className="px-3 py-5 text-[12px] text-center print:py-2">
-                    <p>{formatNum(0)}</p>
+                    <p></p>
                   </td>
                 </tr>
               ))
             ) : (
               <tr className="border-b border-gray-100 last:border-b-0 print:py-2">
                 <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">—</td>
-                <td className="px-3 py-3 text-[12px] text-center print:py-2">{formatNum(0)}</td>
+                <td className="px-3 py-3 text-[12px] text-center print:py-2"></td>
               </tr>
             )}
 
@@ -109,7 +112,7 @@ function MachConSucce() {
                       {m.sku}
                     </td>
                     <td className="px-3 py-3 text-[12px] text-center print:py-2">
-                      {formatNum(0)}
+                    
                     </td>
                   </tr>
                 ))}
@@ -120,7 +123,7 @@ function MachConSucce() {
             {filteredConsumable.length === 0 && othersMachines.length === 0 && (
               <tr className="border-b border-gray-100 last:border-b-0 print:py-2">
                 <td className="px-7 py-3 text-[12px] border-r border-gray-300 print:py-2">—</td>
-                <td className="px-3 py-3 text-[12px] text-center print:py-2">{formatNum(0)}</td>
+                <td className="px-3 py-3 text-[12px] text-center print:py-2"></td>
               </tr>
             )}
           </tbody>
