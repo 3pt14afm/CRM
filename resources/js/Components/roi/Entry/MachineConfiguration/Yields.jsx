@@ -35,7 +35,7 @@ function Yields() {
   return (
     <div className="w-full">
       {/* stretches to parent; stays readable on big screens */}
-      <div className="w-full sm:max-w-sm md:max-w-md mx-auto overflow-hidden rounded-md border border-slate-300 shadow-md bg-white">
+      <div className="w-full sm:max-w-sm md:max-w-md mx-auto overflow-hidden rounded-xl shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-white">
         <table className="w-full border-separate border-spacing-0 table-fixed">
           {/* responsive column widths */}
           <colgroup>

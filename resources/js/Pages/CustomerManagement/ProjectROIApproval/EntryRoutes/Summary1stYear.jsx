@@ -11,17 +11,22 @@ import { usePage } from '@inertiajs/react';
 import EntryRemarksSummary from '@/Components/roi/Entry/Summary1stYear/EntryRemarksSummary';
 import MachCon1stYearMerged from '@/Components/roi/Entry/Summary1stYear/MachCon1stYearMerged';
 import MachConSucceMerged from '@/Components/roi/Entry/SucceedingYear/MachConSucceMerged';
+import { useProjectData } from '@/Context/ProjectContext';
 
 function Summary1stYear() {
   const { auth } = usePage().props;
+  const { projectData } = useProjectData();
+
   const role = auth.role;
   const reviewerRoles = ['reviewer', 'checker', 'endorser', 'confirmer', 'approver'];
- 
+
+  const contractYears = Number(projectData?.companyInfo?.contractYears ?? 0);
+  const showSucceedingYear = contractYears > 1;
+
   return (
     <div className='mx-5 print:mx-0 bg-[#f8f8f8] print:bg-white border rounded-r-lg rounded-b-xl border-t-[#2c2c2e]/10 border-b-[#2c2c2e]/30 border-[#2c2c2e]/20 shadow-md print:shadow-none print:justify-center print:border-none print:bg-transparent'>
       <div className='mx-10 print:mx-0 print:pt-0 pt-8'>
 
-        {/* ================= PAGE 1 ================= */}
         <div className="print-avoid-break">
           <CompanyInfoSum />
 
@@ -39,24 +44,26 @@ function Summary1stYear() {
           </div>
         </div>
 
-        <div className="print-page-break" />
+        {showSucceedingYear && <div className="print-page-break" />}
 
-        {/* ================= PAGE 2 ================= */}
         <div>
-          <div className='mt-8 pt-8 print:mt-0 print:mx-0 print:pt-7'>
-            <MachConSucceMerged />
-          </div>
+          {showSucceedingYear && (
+            <>
+              <div className='mt-8 pt-8 print:mt-0 print:mx-0 print:pt-7'>
+                <MachConSucceMerged />
+              </div>
 
-          <SucceTotals />
+              <SucceTotals />
 
-          <div className="print-page-break" />
+              <div className="print-page-break" />
+            </>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-5 items-start print:grid-cols-[70%_30%] print:gap-1 print:items-start">
             <ContractDetails />
             <EntryRemarksSummary />
           </div>
 
-          {/* ADD NOTES / COMMENTS */}
           <div className='lg:mx-20 print:mx-0 pt-5'>
             <div className='mb-4 grid grid-cols-2 gap-4 items-start'>
               <div>

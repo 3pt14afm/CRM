@@ -591,8 +591,8 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
 
   return (
     <div className="mx-10 mb-5">
-      <div className="rounded-md border border-slate-300 shadow-md bg-lightgreen/5">
-        <div className="bg-[#D9F2D0] py-2 text-center border-b border-darkgreen/15">
+      <div className="rounded-xl shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-lightgreen/5">
+        <div className="bg-[#D9F2D0] py-2 text-center rounded-t-xl  border-b border-darkgreen/15">
           <h2 className="text-[14px] font-bold tracking-wider uppercase">Machine Configuration</h2>
         </div>
 
@@ -936,7 +936,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
 
             <tfoot>
               <tr>
-                <td className={footerCellClass}></td>
+                <td className={`${footerCellClass} rounded-bl-xl`}></td>
                 <td className={footerCellClass}></td>
                 <td className={footerCellClass}>TOTALS</td>
                 <td className={footerCellClass}>{formatNum(tableTotals.unitCost)}</td>
@@ -947,7 +947,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                 <td className={footerCellClass}>{formatNum(tableTotals.sellingPrice)}</td>
                 <td className={footerCellClass}>{formatNum(tableTotals.totalSell)}</td>
                 <td className={footerCellClass}>{formatNum(tableTotals.sellCpp)}</td>
-                <td colSpan="2" className={footerCellClass}></td>
+                <td colSpan="2" className={`${footerCellClass} rounded-br-xl`}></td>
               </tr>
             </tfoot>
           </table>
