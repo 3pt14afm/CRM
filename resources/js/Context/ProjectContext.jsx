@@ -18,6 +18,7 @@ const defaultInitialState = {
   companyInfo: {
     projectUid: "",
     companyName: "",
+    companySapCode: "", // Add this line here
     contractYears: 0,
     contractType: "",
     reference: "",

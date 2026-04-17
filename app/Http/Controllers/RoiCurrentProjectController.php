@@ -268,6 +268,7 @@ class RoiCurrentProjectController extends Controller
             'entry_remarks',
             'entry_remarks_attachments',
             'company_name',
+            'company_sap_code', // <--- Add this line here
             'contract_years',
             'contract_type',
             'purpose',

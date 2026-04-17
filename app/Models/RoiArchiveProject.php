@@ -28,6 +28,7 @@ class RoiArchiveProject extends Model
         'rejected_by',
         'rejected_by_level',
         'company_name',
+        'company_sap_code',
         'contract_years',
         'contract_type',
         'bundled_std_ink',

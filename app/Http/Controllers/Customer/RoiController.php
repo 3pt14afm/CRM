@@ -37,46 +37,49 @@ class RoiController extends Controller
             ->whereDate('last_saved_at', now()->toDateString())
             ->count();
 
-        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/EntryList', [
-            'drafts' => $drafts->through(function (RoiEntryProject $p) {
-                $last = $p->last_saved_at;
-                $display = null;
+       return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/EntryList', [
+    'drafts' => $drafts->through(function (RoiEntryProject $p) {
+        $last = $p->last_saved_at;
+        $display = null;
 
-                if ($last) {
-                    $now = now();
+        if ($last) {
+            $now = now();
+            $diffMinutes = (int) $last->diffInMinutes($now);
+            $diffHours = (int) $last->diffInHours($now);
+            $diffDays = (int) $last->diffInDays($now);
 
-                    $diffMinutes = (int) $last->diffInMinutes($now);
-                    $diffHours = (int) $last->diffInHours($now);
-                    $diffDays = (int) $last->diffInDays($now);
+            if ($diffDays >= 2) {
+                $display = $last->format('m/d/y');
+            } elseif ($diffDays >= 1) {
+                $display = '1d ago';
+            } elseif ($diffHours >= 1) {
+                $display = $diffHours . 'hr ago';
+            } elseif ($diffMinutes >= 1) {
+                $display = $diffMinutes . ' minute' . ($diffMinutes === 1 ? '' : 's') . ' ago';
+            } else {
+                $display = 'Just now';
+            }
+        }
 
-                    if ($diffDays >= 2) {
-                        $display = $last->format('m/d/y');
-                    } elseif ($diffDays >= 1) {
-                        $display = '1d ago';
-                    } elseif ($diffHours >= 1) {
-                        $display = $diffHours . 'hr ago';
-                    } elseif ($diffMinutes >= 1) {
-                        $display = $diffMinutes . ' minute' . ($diffMinutes === 1 ? '' : 's') . ' ago';
-                    } else {
-                        $display = 'Just now';
-                    }
-                }
-
-                return [
-                    'id' => $p->id,
-                    'reference' => $p->reference,
-                    'company_name' => $p->company_name,
-                    'contract_years' => $p->contract_years,
-                    'contract_type' => $p->contract_type,
-                    'last_saved_display' => $display,
-                    'status' => $p->status,
-                ];
-            }),
-            'stats' => [
-                'totalDrafts' => $totalDrafts,
-                'recentlyModifiedText' => $recentlyModifiedToday . ' Today',
-            ],
-        ]);
+        return [
+            'id' => $p->id,
+            'reference' => $p->reference,
+            'company_name' => $p->company_name,
+            
+            // --- ADD THIS LINE ---
+            'company_sap_code' => $p->company_sap_code, 
+            
+            'contract_years' => $p->contract_years,
+            'contract_type' => $p->contract_type,
+            'last_saved_display' => $display,
+            'status' => $p->status,
+        ];
+    }),
+    'stats' => [
+        'totalDrafts' => $totalDrafts,
+        'recentlyModifiedText' => $recentlyModifiedToday . ' Today',
+    ],
+]);
     }
 
     public function entry(Request $request)

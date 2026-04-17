@@ -112,6 +112,7 @@ const handleDelete = (row) => {
   // --- Table columns ---
     const columns = useMemo(
         () => [
+     
             {
             key: "reference",
             header: "REFERENCE",
@@ -121,6 +122,16 @@ const handleDelete = (row) => {
                 </span>
             ),
             },
+              {
+          key: "company_sap_code",
+          header: <div className="text-center w-full">SAP CODE</div>,
+          cell: (r) => (
+        <span className="font-mono text-sm text-[#33721c] flex justify-center items-center">
+              {r.company_sap_code ?? "—"}
+            </span>
+          ),
+        },
+  
             {
             key: "company_name",
             header: <div className="text-center w-full">COMPANY NAME</div>,

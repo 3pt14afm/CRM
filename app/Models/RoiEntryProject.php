@@ -18,6 +18,7 @@ class RoiEntryProject extends Model
         'last_saved_at',
         'status',
         'company_name',
+        'company_sap_code',
         'contract_years',
         'contract_type',
         'purpose',

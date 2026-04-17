@@ -58,6 +58,15 @@ console.log({ currentProjects, stats });
       ),
     },
     {
+          key: "company_sap_code",
+          header: <div className="text-center w-full">SAP CODE</div>,
+          cell: (r) => (
+        <span className="font-mono text-sm text-[#33721c] flex justify-center items-center">
+              {r.company_sap_code ?? "—"}
+            </span>
+          ),
+        },
+    {
       key: "company_name",
       header: <div className="text-center w-full">COMPANY NAME</div>,
       cell: (r) => (
@@ -99,7 +108,7 @@ console.log({ currentProjects, stats });
             <div className="flex flex-col items-center leading-tight">
               <span
                 className="
-                  inline-block px-2 py-1 rounded-full text-[9px] font-bold tracking-wider
+                  inline-block px-2 py-1 text-center rounded-full text-[9px] font-bold tracking-wider
                   bg-blue-100 text-blue-700 border border-blue-200
                 "
               >

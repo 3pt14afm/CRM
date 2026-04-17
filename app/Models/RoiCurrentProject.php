@@ -29,6 +29,7 @@ class RoiCurrentProject extends Model
         'confirmed_by',
         'approved_by',
         'company_name',
+         'company_sap_code',
         'contract_years',
         'contract_type',
         'bundled_std_ink',

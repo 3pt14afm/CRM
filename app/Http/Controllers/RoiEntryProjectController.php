@@ -29,370 +29,377 @@ class RoiEntryProjectController extends Controller
 {
     use StreamsEntryRemarkAttachments;
 
-    public function getCompanySuggestions(Request $request)
-    {
-        $search = strtolower(trim($request->query('search')));
+   public function getCompanySuggestions(Request $request)
+{
+    $search = strtolower(trim($request->query('search')));
 
-        if (!$search || strlen($search) < 1) {
-            return response()->json([]);
-        }
-
-        $cacheKey = 'company_search_' . $search;
-
-        $suggestions = Cache::remember($cacheKey, now()->addDay(), function () use ($search) {
-            return DB::table('erms.tbl_company')
-                ->where('status', 1)
-                ->where('company_name', 'LIKE', $search . '%')
-                ->select('company_name')
-                ->limit(20)
-                ->get();
-        });
-
-        return response()->json($suggestions);
+    if (!$search || strlen($search) < 1) {
+        return response()->json([]);
     }
+
+    $cacheKey = 'company_search_' . $search;
+
+    $suggestions = Cache::remember($cacheKey, now()->addDay(), function () use ($search) {
+        return DB::table('erms.tbl_company')
+            ->where('status', 1)
+            ->where('company_name', 'LIKE', $search . '%')
+            ->select('company_name', 'sap_code as company_sap_code') // Fetches the SAP code
+            ->limit(20)
+            ->get();
+    });
+
+    return response()->json($suggestions);
+}
 
     public function show(RoiEntryProject $project, Request $request)
-    {
-        abort_unless($project->user_id === Auth::id(), 403);
+{
+    abort_unless($project->user_id === Auth::id(), 403);
 
-        $search = $request->query('company_search');
-        $companySuggestions = [];
+    $search = $request->query('company_search');
+    $companySuggestions = [];
 
-        if ($search && strlen($search) >= 2) {
-            $companySuggestions = DB::table('erms.tbl_company')
-                ->where('company_name', 'LIKE', "{$search}%")
-                ->select('company_name')
-                ->limit(10)
-                ->get();
-        }
-
-        $project->load([
-            'items' => fn ($q) => $q->orderBy('id'),
-            'fees'  => fn ($q) => $q->orderBy('id'),
-            'user',
-        ]);
-
-        $userIds = collect([
-            $project->user_id,
-            $project->reviewed_by,
-            $project->checked_by,
-            $project->endorsed_by,
-            $project->confirmed_by,
-            $project->approved_by,
-            $project->rejected_by,
-        ])->filter()->unique()->values();
-
-        $usersById = \App\Models\User::query()
-            ->whereIn('id', $userIds)
-            ->get(['id', 'first_name', 'last_name', 'position'])
-            ->keyBy(fn ($u) => (string) $u->id)
-            ->map(fn ($u) => [
-                'id' => $u->id,
-                'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
-                'position' => $u->position ?? '—',
-            ]);
-
-        $project->notes = $this->sortTimelineEntries($project->notes);
-        $project->comments = $this->sortTimelineEntries($project->comments);
-
-        $projectItems = $project->items->map(function ($item) {
-            return [
-                'id' => $item->client_row_id ?? (string) $item->id,
-                'type' => $item->kind,
-                'sku' => $item->sku,
-                'qty' => (float) $item->qty,
-                'yields' => (string) $item->yields,
-                'mode' => $item->mode,
-                'remarks' => $item->remarks,
-                'inputtedCost' => $item->inputted_cost,
-                'cost' => $item->cost,
-                'price' => $item->price,
-                'basePerYear' => $item->base_per_year,
-                'totalCost' => $item->total_cost,
-                'costCpp' => $item->cost_cpp,
-                'totalSell' => $item->total_sell,
-                'sellCpp' => $item->sell_cpp,
-                'machineMargin' => $item->machine_margin,
-                'machineMarginTotal' => $item->machine_margin_total,
-                'autoAdded' => (bool) $item->auto_added,
-            ];
-        });
-
-        $machineCatalog = \App\Models\PrinterModel::query()
-            ->with(['printerModelSupplies.supply'])
-            ->where('status', 'Active')
-            ->orderBy('printer_name')
-            ->get()
-            ->map(function ($printer) {
-                return [
-                    'id' => (string) $printer->id,
-                    'name' => $printer->printer_name,
-                    'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
-                    'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
-                    'consumables' => $printer->printerModelSupplies
-                        ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
-                        ->map(function ($link) {
-                            $supply = $link->supply;
-                            $mode = strtolower($supply->category ?? '') === 'part'
-                                ? 'others'
-                                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
-
-                            return [
-                                'id' => (string) $supply->id,
-                                'mode' => $mode,
-                                'name' => $supply->supply_name,
-                                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
-                                'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-                                'yields' => (string) ($supply->yield ?? ''),
-                            ];
-                        })->values(),
-                ];
-            })->values();
-
-        $consumableCatalog = ['mono' => [], 'color' => [], 'others' => []];
-        $supplies = \App\Models\Supply::where('status', 'Active')->orderBy('supply_name')->get();
-
-        foreach ($supplies as $supply) {
-            $mode = strtolower($supply->category ?? '') === 'part'
-                ? 'others'
-                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
-
-            $consumableCatalog[$mode][] = [
-                'id' => (string) $supply->id,
-                'name' => $supply->supply_name,
-                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
-                'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-                'yields' => (string) ($supply->yield ?? ''),
-            ];
-        }
-
-        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-            'activeTab' => 'Machine Configuration',
-            'entryProject' => $project,
-            'project' => $project,
-            'projectItems' => $projectItems,
-            'createdBy' => $project->user->name,
-            'machineCatalog' => $machineCatalog,
-            'consumableCatalog' => $consumableCatalog,
-            'companySuggestions' => $companySuggestions,
-            'usersById' => $usersById,
-        ]);
+    if ($search && strlen($search) >= 2) {
+        $companySuggestions = DB::table('erms.tbl_company')
+            ->where('company_name', 'LIKE', "{$search}%")
+            // Updated: Added sap_code to the selection
+            ->select('company_name', 'sap_code as company_sap_code') 
+            ->limit(10)
+            ->get();
     }
 
-    public function saveDraft(Request $request)
-    {
-        $data = $this->validateDraftPayload($request);
+    $project->load([
+        'items' => fn ($q) => $q->orderBy('id'),
+        'fees'  => fn ($q) => $q->orderBy('id'),
+        'user',
+    ]);
 
-        $user = Auth::user();
-        $userId = $user->id;
+    $userIds = collect([
+        $project->user_id,
+        $project->reviewed_by,
+        $project->checked_by,
+        $project->endorsed_by,
+        $project->confirmed_by,
+        $project->approved_by,
+        $project->rejected_by,
+    ])->filter()->unique()->values();
 
-        $projectUid = $data['companyInfo']['projectUid'] ?? null;
-        $reference = $data['companyInfo']['reference'] ?? null;
+    $usersById = \App\Models\User::query()
+        ->whereIn('id', $userIds)
+        ->get(['id', 'first_name', 'last_name', 'position'])
+        ->keyBy(fn ($u) => (string) $u->id)
+        ->map(fn ($u) => [
+            'id' => $u->id,
+            'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+            'position' => $u->position ?? '—',
+        ]);
 
-        $project = DB::transaction(function () use ($data, $user, $userId, $projectUid, $reference, $request) {
-            $project = null;
+    $project->notes = $this->sortTimelineEntries($project->notes);
+    $project->comments = $this->sortTimelineEntries($project->comments);
 
-            if (!empty($projectUid)) {
-                $project = RoiEntryProject::where('user_id', $userId)
-                    ->where('project_uid', $projectUid)
-                    ->first();
-            }
+    $projectItems = $project->items->map(function ($item) {
+        return [
+            'id' => $item->client_row_id ?? (string) $item->id,
+            'type' => $item->kind,
+            'sku' => $item->sku,
+            'qty' => (float) $item->qty,
+            'yields' => (string) $item->yields,
+            'mode' => $item->mode,
+            'remarks' => $item->remarks,
+            'inputtedCost' => $item->inputted_cost,
+            'cost' => $item->cost,
+            'price' => $item->price,
+            'basePerYear' => $item->base_per_year,
+            'totalCost' => $item->total_cost,
+            'costCpp' => $item->cost_cpp,
+            'totalSell' => $item->total_sell,
+            'sellCpp' => $item->sell_cpp,
+            'machineMargin' => $item->machine_margin,
+            'machineMarginTotal' => $item->machine_margin_total,
+            'autoAdded' => (bool) $item->auto_added,
+        ];
+    });
 
-            if (!$project && !empty($reference)) {
-                $project = RoiEntryProject::where('user_id', $userId)
-                    ->where('reference', $reference)
-                    ->first();
-            }
+    $machineCatalog = \App\Models\PrinterModel::query()
+        ->with(['printerModelSupplies.supply'])
+        ->where('status', 'Active')
+        ->orderBy('printer_name')
+        ->get()
+        ->map(function ($printer) {
+            return [
+                'id' => (string) $printer->id,
+                'name' => $printer->printer_name,
+                'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
+                'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
+                'consumables' => $printer->printerModelSupplies
+                    ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
+                    ->map(function ($link) {
+                        $supply = $link->supply;
+                        $mode = strtolower($supply->category ?? '') === 'part'
+                            ? 'others'
+                            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
 
-            if (!$project) {
-                $company = $data['companyInfo'] ?? [];
-                $interest = $data['interest'] ?? [];
-                $yield = $data['yield'] ?? [];
+                        return [
+                            'id' => (string) $supply->id,
+                            'mode' => $mode,
+                            'name' => $supply->supply_name,
+                            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+                            'yields' => (string) ($supply->yield ?? ''),
+                        ];
+                    })->values(),
+            ];
+        })->values();
 
-                $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
-                $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
+    $consumableCatalog = ['mono' => [], 'color' => [], 'others' => []];
+    $supplies = \App\Models\Supply::where('status', 'Active')->orderBy('supply_name')->get();
 
-                $created = false;
+    foreach ($supplies as $supply) {
+        $mode = strtolower($supply->category ?? '') === 'part'
+            ? 'others'
+            : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
 
-                for ($attempt = 0; $attempt < 3 && !$created; $attempt++) {
-                    try {
-                        $generatedReference = $this->generateReferenceForUser($user);
-                        $generatedProjectUid = (string) Str::ulid();
+        $consumableCatalog[$mode][] = [
+            'id' => (string) $supply->id,
+            'name' => $supply->supply_name,
+            'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+            'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
+            'yields' => (string) ($supply->yield ?? ''),
+        ];
+    }
 
-                        $project = RoiEntryProject::create([
-                            'user_id' => $userId,
-                            'location_id' => $user->primary_location_id,
-                            'project_uid' => $generatedProjectUid,
-                            'reference' => $generatedReference,
-                            'version' => 1,
-                            'status' => 'draft',
-                            'company_name' => (string) ($company['companyName'] ?? ''),
-                            'contract_years' => (int) ($company['contractYears'] ?? 0),
-                            'contract_type' => (string) ($company['contractType'] ?? ''),
-                            'purpose' => (string) ($company['purpose'] ?? ''),
-                            'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
-                            'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
-                            'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
-                            'mono_yield_monthly' => $monoMonthly,
-                            'mono_yield_annual' => $monoMonthly * 12,
-                            'color_yield_monthly' => $colorMonthly,
-                            'color_yield_annual' => $colorMonthly * 12,
-                            'last_saved_at' => now(),
-                        ]);
+    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
+        'activeTab' => 'Machine Configuration',
+        'entryProject' => $project,
+        'project' => $project,
+        'projectItems' => $projectItems,
+        'createdBy' => $project->user->name,
+        'machineCatalog' => $machineCatalog,
+        'consumableCatalog' => $consumableCatalog,
+        'companySuggestions' => $companySuggestions,
+        'usersById' => $usersById,
+    ]);
+}
 
-                        $created = true;
-                    } catch (QueryException $e) {
-                        $errorInfo = $e->errorInfo;
-                        $sqlState = $errorInfo[0] ?? null;
-                        $driverCode = $errorInfo[1] ?? null;
-                        $message = strtolower($errorInfo[2] ?? $e->getMessage());
+public function saveDraft(Request $request)
+{
+    $data = $this->validateDraftPayload($request);
 
-                        $isDuplicateKey = $sqlState === '23000'
-                            || $sqlState === '23505'
-                            || in_array($driverCode, [1062, 1555, 2067], true);
+    $user = Auth::user();
+    $userId = $user->id;
 
-                        $isReferenceConflict = str_contains($message, 'reference');
+    $projectUid = $data['companyInfo']['projectUid'] ?? null;
+    $reference = $data['companyInfo']['reference'] ?? null;
 
-                        if (!($isDuplicateKey && $isReferenceConflict) || $attempt === 2) {
-                            throw $e;
-                        }
+    $project = DB::transaction(function () use ($data, $user, $userId, $projectUid, $reference, $request) {
+        $project = null;
+
+        if (!empty($projectUid)) {
+            $project = RoiEntryProject::where('user_id', $userId)
+                ->where('project_uid', $projectUid)
+                ->first();
+        }
+
+        if (!$project && !empty($reference)) {
+            $project = RoiEntryProject::where('user_id', $userId)
+                ->where('reference', $reference)
+                ->first();
+        }
+
+        if (!$project) {
+            $company = $data['companyInfo'] ?? [];
+            $interest = $data['interest'] ?? [];
+            $yield = $data['yield'] ?? [];
+
+            $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
+            $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
+
+            $created = false;
+
+            for ($attempt = 0; $attempt < 3 && !$created; $attempt++) {
+                try {
+                    $generatedReference = $this->generateReferenceForUser($user);
+                    $generatedProjectUid = (string) Str::ulid();
+
+                    $project = RoiEntryProject::create([
+                        'user_id' => $userId,
+                        'location_id' => $user->primary_location_id,
+                        'project_uid' => $generatedProjectUid,
+                        'reference' => $generatedReference,
+                        'version' => 1,
+                        'status' => 'draft',
+                        'company_name' => (string) ($company['companyName'] ?? ''),
+                        
+                        // Added the SAP Code here for initial creation
+                        'company_sap_code' => $company['companySapCode'] ?? null, 
+                        
+                        'contract_years' => (int) ($company['contractYears'] ?? 0),
+                        'contract_type' => (string) ($company['contractType'] ?? ''),
+                        'purpose' => (string) ($company['purpose'] ?? ''),
+                        'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
+                        'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
+                        'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
+                        'mono_yield_monthly' => $monoMonthly,
+                        'mono_yield_annual' => $monoMonthly * 12,
+                        'color_yield_monthly' => $colorMonthly,
+                        'color_yield_annual' => $colorMonthly * 12,
+                        'last_saved_at' => now(),
+                    ]);
+
+                    $created = true;
+                } catch (QueryException $e) {
+                    $errorInfo = $e->errorInfo;
+                    $sqlState = $errorInfo[0] ?? null;
+                    $driverCode = $errorInfo[1] ?? null;
+                    $message = strtolower($errorInfo[2] ?? $e->getMessage());
+
+                    $isDuplicateKey = $sqlState === '23000'
+                        || $sqlState === '23505'
+                        || in_array($driverCode, [1062, 1555, 2067], true);
+
+                    $isReferenceConflict = str_contains($message, 'reference');
+
+                    if (!($isDuplicateKey && $isReferenceConflict) || $attempt === 2) {
+                        throw $e;
                     }
                 }
-            } else {
-                $project->increment('version');
             }
+        } else {
+            $project->increment('version');
+        }
 
-            $this->persistDraft($request, $project, $data);
+        // This call will also update the SAP code if it changed 
+        // between the initial create and the subsequent save logic
+        $this->persistDraft($request, $project, $data);
 
-            return $project->fresh();
-        });
+        return $project->fresh();
+    });
 
-        return redirect()->route('roi.entry.projects.show', $project);
+    return redirect()->route('roi.entry.projects.show', $project);
+}
+  public function submit(Request $request, RoiEntryProject $project)
+{
+    abort_unless($project->user_id === Auth::id(), 403);
+
+    if ($request->has('companyInfo')) {
+        $data = $this->validateDraftPayload($request);
+        $this->persistDraft($request, $project, $data);
+        $project->refresh()->load(['items', 'fees']);
     }
 
-    public function submit(Request $request, RoiEntryProject $project)
-    {
-        abort_unless($project->user_id === Auth::id(), 403);
+    if (empty($project->company_name) || empty($project->contract_type)) {
+        return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
+    }
 
-        if ($request->has('companyInfo')) {
-            $data = $this->validateDraftPayload($request);
-            $this->persistDraft($request, $project, $data);
-            $project->refresh()->load(['items', 'fees']);
-        }
+    $submitter = Auth::user();
+    if (!$submitter?->primary_location_id || !$submitter?->department_id) {
+        return back()->with('error', 'Your account must have both a primary location and department before submitting.');
+    }
 
-        if (empty($project->company_name) || empty($project->contract_type)) {
-            return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
-        }
+    $matrix = LocationDepartment::query()
+        ->where('location_id', $submitter->primary_location_id)
+        ->where('department_id', $submitter->department_id)
+        ->first();
 
-        $submitter = Auth::user();
+    if (!$matrix) {
+        return back()->with('error', 'No approver matrix found for your location and department.');
+    }
 
-        if (!$submitter?->primary_location_id || !$submitter?->department_id) {
-            return back()->with('error', 'Your account must have both a primary location and department before submitting.');
-        }
+    return DB::transaction(function () use ($project, $submitter, $matrix) {
+        $newProject = RoiCurrentProject::create([
+            'user_id' => $project->user_id,
+            'location_id' => $submitter->primary_location_id,
+            'project_uid' => $project->project_uid,
+            'reference' => $project->reference,
+            'version' => $project->version,
+            'status' => 'For Review',
+            'current_level' => 2,
+            'submitted_at' => now(),
+            'last_saved_at' => now(),
+            'reviewed_by' => $matrix->reviewed_by,
+            'checked_by' => $matrix->checked_by,
+            'endorsed_by' => $matrix->endorsed_by,
+            'confirmed_by' => $matrix->confirmed_by,
+            'approved_by' => $matrix->approved_by,
+            'company_name' => $project->company_name,
+            'company_sap_code' => $project->company_sap_code, // Added this line
+            'contract_years' => $project->contract_years,
+            'contract_type' => $project->contract_type,
+            'purpose' => $project->purpose,
+            'bundled_std_ink' => $project->bundled_std_ink,
+            'annual_interest' => $project->annual_interest,
+            'percent_margin' => $project->percent_margin,
+            'mono_yield_monthly' => $project->mono_yield_monthly,
+            'mono_yield_annual' => $project->mono_yield_annual,
+            'color_yield_monthly' => $project->color_yield_monthly,
+            'color_yield_annual' => $project->color_yield_annual,
+            'entry_remarks' => $project->entry_remarks,
+            'entry_remarks_attachments' => $project->entry_remarks_attachments ?? [],
+            'mc_unit_cost' => $project->mc_unit_cost,
+            'mc_qty' => $project->mc_qty,
+            'mc_total_cost' => $project->mc_total_cost,
+            'mc_yields' => $project->mc_yields,
+            'mc_cost_cpp' => $project->mc_cost_cpp,
+            'mc_selling_price' => $project->mc_selling_price,
+            'mc_total_sell' => $project->mc_total_sell,
+            'mc_sell_cpp' => $project->mc_sell_cpp,
+            'mc_total_bundled_price' => $project->mc_total_bundled_price,
+            'fees_total' => $project->fees_total,
+            'grand_total_cost' => $project->grand_total_cost,
+            'grand_total_revenue' => $project->grand_total_revenue,
+            'grand_roi' => $project->grand_roi,
+            'grand_roi_percentage' => $project->grand_roi_percentage,
+            'yearly_breakdown' => $project->yearly_breakdown,
+            'notes' => $project->notes ?? [],
+            'comments' => $project->comments ?? [],
+        ]);
 
-        $matrix = LocationDepartment::query()
-            ->where('location_id', $submitter->primary_location_id)
-            ->where('department_id', $submitter->department_id)
-            ->first();
-
-        if (!$matrix) {
-            return back()->with('error', 'No approver matrix found for your location and department.');
-        }
-
-        return DB::transaction(function () use ($project, $submitter, $matrix) {
-            $newProject = RoiCurrentProject::create([
-                'user_id' => $project->user_id,
-                'location_id' => $submitter->primary_location_id,
-                'project_uid' => $project->project_uid,
-                'reference' => $project->reference,
-                'version' => $project->version,
-                'status' => 'For Review',
-                'current_level' => 2,
-                'submitted_at' => now(),
-                'last_saved_at' => now(),
-                'reviewed_by' => $matrix->reviewed_by,
-                'checked_by' => $matrix->checked_by,
-                'endorsed_by' => $matrix->endorsed_by,
-                'confirmed_by' => $matrix->confirmed_by,
-                'approved_by' => $matrix->approved_by,
-                'company_name' => $project->company_name,
-                'contract_years' => $project->contract_years,
-                'contract_type' => $project->contract_type,
-                'purpose' => $project->purpose,
-                'bundled_std_ink' => $project->bundled_std_ink,
-                'annual_interest' => $project->annual_interest,
-                'percent_margin' => $project->percent_margin,
-                'mono_yield_monthly' => $project->mono_yield_monthly,
-                'mono_yield_annual' => $project->mono_yield_annual,
-                'color_yield_monthly' => $project->color_yield_monthly,
-                'color_yield_annual' => $project->color_yield_annual,
-                'entry_remarks' => $project->entry_remarks,
-                'entry_remarks_attachments' => $project->entry_remarks_attachments ?? [],
-                'mc_unit_cost' => $project->mc_unit_cost,
-                'mc_qty' => $project->mc_qty,
-                'mc_total_cost' => $project->mc_total_cost,
-                'mc_yields' => $project->mc_yields,
-                'mc_cost_cpp' => $project->mc_cost_cpp,
-                'mc_selling_price' => $project->mc_selling_price,
-                'mc_total_sell' => $project->mc_total_sell,
-                'mc_sell_cpp' => $project->mc_sell_cpp,
-                'mc_total_bundled_price' => $project->mc_total_bundled_price,
-                'fees_total' => $project->fees_total,
-                'grand_total_cost' => $project->grand_total_cost,
-                'grand_total_revenue' => $project->grand_total_revenue,
-                'grand_roi' => $project->grand_roi,
-                'grand_roi_percentage' => $project->grand_roi_percentage,
-                'yearly_breakdown' => $project->yearly_breakdown,
-                'notes' => $project->notes ?? [],
-                'comments' => $project->comments ?? [],
+        // Transfer items and fees to the Current Project tables
+        foreach ($project->items as $item) {
+            RoiCurrentItem::create([
+                'roi_current_project_id' => $newProject->id,
+                'client_row_id' => $item->client_row_id,
+                'kind' => $item->kind,
+                'sku' => $item->sku,
+                'qty' => $item->qty,
+                'yields' => $item->yields,
+                'mode' => $item->mode,
+                'remarks' => $item->remarks,
+                'auto_added' => $item->auto_added,
+                'inputted_cost' => $item->inputted_cost,
+                'cost' => $item->cost,
+                'price' => $item->price,
+                'base_per_year' => $item->base_per_year,
+                'total_cost' => $item->total_cost,
+                'cost_cpp' => $item->cost_cpp,
+                'total_sell' => $item->total_sell,
+                'sell_cpp' => $item->sell_cpp,
+                'machine_margin' => $item->machine_margin,
+                'machine_margin_total' => $item->machine_margin_total,
             ]);
+        }
 
-            foreach ($project->items as $item) {
-                RoiCurrentItem::create([
-                    'roi_current_project_id' => $newProject->id,
-                    'client_row_id' => $item->client_row_id,
-                    'kind' => $item->kind,
-                    'sku' => $item->sku,
-                    'qty' => $item->qty,
-                    'yields' => $item->yields,
-                    'mode' => $item->mode,
-                    'remarks' => $item->remarks,
-                    'auto_added' => $item->auto_added,
-                    'inputted_cost' => $item->inputted_cost,
-                    'cost' => $item->cost,
-                    'price' => $item->price,
-                    'base_per_year' => $item->base_per_year,
-                    'total_cost' => $item->total_cost,
-                    'cost_cpp' => $item->cost_cpp,
-                    'total_sell' => $item->total_sell,
-                    'sell_cpp' => $item->sell_cpp,
-                    'machine_margin' => $item->machine_margin,
-                    'machine_margin_total' => $item->machine_margin_total,
-                ]);
-            }
+        foreach ($project->fees as $fee) {
+            RoiCurrentFee::create([
+                'roi_current_project_id' => $newProject->id,
+                'client_row_id' => $fee->client_row_id,
+                'payer' => $fee->payer,
+                'label' => $fee->label,
+                'category' => $fee->category,
+                'remarks' => $fee->remarks,
+                'cost' => $fee->cost,
+                'qty' => $fee->qty,
+                'total' => $fee->total,
+                'is_machine' => $fee->is_machine,
+            ]);
+        }
 
-            foreach ($project->fees as $fee) {
-                RoiCurrentFee::create([
-                    'roi_current_project_id' => $newProject->id,
-                    'client_row_id' => $fee->client_row_id,
-                    'payer' => $fee->payer,
-                    'label' => $fee->label,
-                    'category' => $fee->category,
-                    'remarks' => $fee->remarks,
-                    'cost' => $fee->cost,
-                    'qty' => $fee->qty,
-                    'total' => $fee->total,
-                    'is_machine' => $fee->is_machine,
-                ]);
-            }
+        $project->items()->delete();
+        $project->fees()->delete();
+        $project->delete();
 
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->delete();
-
-            return redirect()->route('roi.entry.list')->with('success', 'Draft successfully submitted.');
-        });
-    }
+        return redirect()->route('roi.entry.list')->with('success', 'Draft successfully submitted.');
+    });
+}
 
     public function destroy(RoiEntryProject $project)
     {
@@ -412,170 +419,145 @@ class RoiEntryProjectController extends Controller
         return redirect()->route('roi.entry.list');
     }
 
-    private function validateDraftPayload(Request $request): array
-    {
-        $data = $request->validate([
-            'companyInfo.reference' => ['nullable', 'string', 'max:255'],
-            'companyInfo.projectUid' => ['nullable', 'string', 'max:255'],
-            'companyInfo.companyName' => ['required', 'string', 'max:255'],
-            'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
-            'companyInfo.contractType' => ['required', 'string', 'max:255'],
-            'companyInfo.purpose' => ['nullable', 'string', 'max:5000'],
-            'companyInfo.bundledStdInk' => ['nullable'],
+private function validateDraftPayload(Request $request): array
+{
+    $data = $request->validate([
+        'companyInfo.reference' => ['nullable', 'string', 'max:255'],
+        'companyInfo.projectUid' => ['nullable', 'string', 'max:255'],
+        'companyInfo.companyName' => ['required', 'string', 'max:255'],
+        'companyInfo.companySapCode' => ['nullable', 'string', 'max:255'], // Added this line
+        'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
+        'companyInfo.contractType' => ['required', 'string', 'max:255'],
+        'companyInfo.purpose' => ['nullable', 'string', 'max:5000'],
+        'companyInfo.bundledStdInk' => ['nullable'],
 
-            'interest.annualInterest' => ['nullable'],
-            'interest.percentMargin' => ['nullable'],
+        'interest.annualInterest' => ['nullable'],
+        'interest.percentMargin' => ['nullable'],
 
-            'yield.monoAmvpYields.monthly' => ['nullable'],
-            'yield.colorAmvpYields.monthly' => ['nullable'],
+        'yield.monoAmvpYields.monthly' => ['nullable'],
+        'yield.colorAmvpYields.monthly' => ['nullable'],
 
-            'entryRemarks' => ['nullable', 'array'],
-            'entryRemarks.remarks' => ['nullable', 'string', 'max:5000'],
-            'entryRemarks.attachments' => ['nullable', 'array'],
+        'entryRemarks' => ['nullable', 'array'],
+        'entryRemarks.remarks' => ['nullable', 'string', 'max:5000'],
+        'entryRemarks.attachments' => ['nullable', 'array'],
 
-            'entry_remarks_attachments' => ['nullable', 'array', 'max:3'],
-            'entry_remarks_attachments.*' => [
-                'file',
-                'max:10240',
-                'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
-            ],
+        'entry_remarks_attachments' => ['nullable', 'array', 'max:3'],
+        'entry_remarks_attachments.*' => [
+            'file',
+            'max:10240',
+            'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
+        ],
 
-            'machineConfiguration.machine' => ['nullable', 'array'],
-            'machineConfiguration.consumable' => ['nullable', 'array'],
-            'machineConfiguration.totals' => ['nullable', 'array'],
+        'machineConfiguration.machine' => ['nullable', 'array'],
+        'machineConfiguration.consumable' => ['nullable', 'array'],
+        'machineConfiguration.totals' => ['nullable', 'array'],
 
-            'additionalFees.company' => ['nullable', 'array'],
-            'additionalFees.customer' => ['nullable', 'array'],
-            'additionalFees.total' => ['nullable'],
+        'additionalFees.company' => ['nullable', 'array'],
+        'additionalFees.customer' => ['nullable', 'array'],
+        'additionalFees.total' => ['nullable'],
 
-            'totalProjectCost' => ['nullable', 'array'],
-            'yearlyBreakdown' => ['nullable', 'array'],
-        ]);
+        'totalProjectCost' => ['nullable', 'array'],
+        'yearlyBreakdown' => ['nullable', 'array'],
+    ]);
 
-        $monoMonthly = (float) data_get($data, 'yield.monoAmvpYields.monthly', 0);
-        $colorMonthly = (float) data_get($data, 'yield.colorAmvpYields.monthly', 0);
+    $monoMonthly = (float) data_get($data, 'yield.monoAmvpYields.monthly', 0);
+    $colorMonthly = (float) data_get($data, 'yield.colorAmvpYields.monthly', 0);
 
-        $requiresRemarksAttachment = $monoMonthly > 5000 || $colorMonthly > 2500;
+    $requiresRemarksAttachment = $monoMonthly > 5000 || $colorMonthly > 2500;
 
-        if ($requiresRemarksAttachment) {
-            $remarks = trim((string) data_get($data, 'entryRemarks.remarks', ''));
+    if ($requiresRemarksAttachment) {
+        $remarks = trim((string) data_get($data, 'entryRemarks.remarks', ''));
+        $keptAttachmentsCount = collect($request->input('entryRemarks.attachments', []))
+            ->filter(fn ($item) => is_array($item) && !empty($item['id']))
+            ->count();
+        $newAttachmentsCount = count($request->file('entry_remarks_attachments', []) ?? []);
+        $totalAttachmentsCount = $keptAttachmentsCount + $newAttachmentsCount;
 
-            $keptAttachmentsCount = collect($request->input('entryRemarks.attachments', []))
-                ->filter(fn ($item) => is_array($item) && !empty($item['id']))
-                ->count();
-
-            $newAttachmentsCount = count($request->file('entry_remarks_attachments', []) ?? []);
-
-            $totalAttachmentsCount = $keptAttachmentsCount + $newAttachmentsCount;
-
-            $errors = [];
-
-            if ($remarks === '') {
-                $errors['entryRemarks.remarks'] =
-                    'Remarks are required when Mono AMVP is more than 5,000 or Color AMVP is more than 2,500.';
-            }
-
-            if ($totalAttachmentsCount < 1) {
-                $errors['entry_remarks_attachments'] =
-                    'At least one attachment is required when Mono AMVP is more than 5,000 or Color AMVP is more than 2,500.';
-            }
-
-            if (!empty($errors)) {
-                throw ValidationException::withMessages($errors);
-            }
+        $errors = [];
+        if ($remarks === '') {
+            $errors['entryRemarks.remarks'] = 'Remarks are required when Mono AMVP is more than 5,000 or Color AMVP is more than 2,500.';
         }
-
-        return $data;
+        if ($totalAttachmentsCount < 1) {
+            $errors['entry_remarks_attachments'] = 'At least one attachment is required when Mono AMVP is more than 5,000 or Color AMVP is more than 2,500.';
+        }
+        if (!empty($errors)) {
+            throw ValidationException::withMessages($errors);
+        }
     }
+
+    return $data;
+}
 
     public function persistDraft(Request $request, RoiEntryProject $project, ?array $data = null): void
-    {
-        $data = $data ?? $this->validateDraftPayload($request);
+{
+    $data = $data ?? $this->validateDraftPayload($request);
 
-        $company = $data['companyInfo'] ?? [];
-        $interest = $data['interest'] ?? [];
-        $yield = $data['yield'] ?? [];
-        $entryRemarks = $data['entryRemarks'] ?? [];
+    $company = $data['companyInfo'] ?? [];
+    $interest = $data['interest'] ?? [];
+    $yield = $data['yield'] ?? [];
+    $entryRemarks = $data['entryRemarks'] ?? [];
 
-        $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
-        $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
+    $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
+    $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
-        $mcTotals = $data['machineConfiguration']['totals'] ?? [];
-        $feesTotal = (float) ($data['additionalFees']['total'] ?? 0);
-        $grand = $data['totalProjectCost'] ?? [];
+    $mcTotals = $data['machineConfiguration']['totals'] ?? [];
+    $feesTotal = (float) ($data['additionalFees']['total'] ?? 0);
+    $grand = $data['totalProjectCost'] ?? [];
 
-        $attachments = $this->storeEntryRemarkAttachments($request, $project);
+    $attachments = $this->storeEntryRemarkAttachments($request, $project);
 
-        $project->update([
-            'company_name' => (string) ($company['companyName'] ?? ''),
-            'contract_years' => (int) ($company['contractYears'] ?? 0),
-            'contract_type' => (string) ($company['contractType'] ?? ''),
-            'purpose' => (string) ($company['purpose'] ?? ''),
-            'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
-            'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
-            'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
-            'mono_yield_monthly' => $monoMonthly,
-            'mono_yield_annual' => $monoMonthly * 12,
-            'color_yield_monthly' => $colorMonthly,
-            'color_yield_annual' => $colorMonthly * 12,
-            'entry_remarks' => (string) ($entryRemarks['remarks'] ?? ''),
-            'entry_remarks_attachments' => $attachments,
-            'mc_unit_cost' => (float) ($mcTotals['unitCost'] ?? 0),
-            'mc_qty' => (float) ($mcTotals['qty'] ?? 0),
-            'mc_total_cost' => (float) ($mcTotals['totalCost'] ?? 0),
-            'mc_yields' => (float) ($mcTotals['yields'] ?? 0),
-            'mc_cost_cpp' => (float) ($mcTotals['costCpp'] ?? 0),
-            'mc_selling_price' => (float) ($mcTotals['sellingPrice'] ?? 0),
-            'mc_total_sell' => (float) ($mcTotals['totalSell'] ?? 0),
-            'mc_sell_cpp' => (float) ($mcTotals['sellCpp'] ?? 0),
-            'mc_total_bundled_price' => (float) ($mcTotals['totalBundledPrice'] ?? 0),
-            'fees_total' => $feesTotal,
-            'grand_total_cost' => (float) ($grand['grandTotalCost'] ?? 0),
-            'grand_total_revenue' => (float) ($grand['grandTotalRevenue'] ?? 0),
-            'grand_roi' => (float) ($grand['grandROI'] ?? 0),
-            'grand_roi_percentage' => (float) ($grand['grandROIPercentage'] ?? 0),
-            'yearly_breakdown' => $data['yearlyBreakdown'] ?? null,
-            'last_saved_at' => now(),
-        ]);
+    $project->update([
+        'company_name' => (string) ($company['companyName'] ?? ''),
+        'company_sap_code' => $company['companySapCode'] ?? null, // Added this line
+        'contract_years' => (int) ($company['contractYears'] ?? 0),
+        'contract_type' => (string) ($company['contractType'] ?? ''),
+        'purpose' => (string) ($company['purpose'] ?? ''),
+        'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
+        'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
+        'percent_margin' => (float) ($interest['percentMargin'] ?? 0),
+        'mono_yield_monthly' => $monoMonthly,
+        'mono_yield_annual' => $monoMonthly * 12,
+        'color_yield_monthly' => $colorMonthly,
+        'color_yield_annual' => $colorMonthly * 12,
+        'entry_remarks' => (string) ($entryRemarks['remarks'] ?? ''),
+        'entry_remarks_attachments' => $attachments,
+        'mc_unit_cost' => (float) ($mcTotals['unitCost'] ?? 0),
+        'mc_qty' => (float) ($mcTotals['qty'] ?? 0),
+        'mc_total_cost' => (float) ($mcTotals['totalCost'] ?? 0),
+        'mc_yields' => (float) ($mcTotals['yields'] ?? 0),
+        'mc_cost_cpp' => (float) ($mcTotals['costCpp'] ?? 0),
+        'mc_selling_price' => (float) ($mcTotals['sellingPrice'] ?? 0),
+        'mc_total_sell' => (float) ($mcTotals['totalSell'] ?? 0),
+        'mc_sell_cpp' => (float) ($mcTotals['sellCpp'] ?? 0),
+        'mc_total_bundled_price' => (float) ($mcTotals['totalBundledPrice'] ?? 0),
+        'fees_total' => $feesTotal,
+        'grand_total_cost' => (float) ($grand['grandTotalCost'] ?? 0),
+        'grand_total_revenue' => (float) ($grand['grandTotalRevenue'] ?? 0),
+        'grand_roi' => (float) ($grand['grandROI'] ?? 0),
+        'grand_roi_percentage' => (float) ($grand['grandROIPercentage'] ?? 0),
+        'yearly_breakdown' => $data['yearlyBreakdown'] ?? null,
+        'last_saved_at' => now(),
+    ]);
 
-        $hasMachinePayload = $request->exists('machineConfiguration.machine')
-            || $request->exists('machineConfiguration.consumable');
-
-        if ($hasMachinePayload) {
-            RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
-
-            $itemRows = [];
-            foreach ($data['machineConfiguration']['machine'] ?? [] as $row) {
-                $itemRows[] = $this->mapItemRow($project->id, $row, 'machine');
-            }
-            foreach ($data['machineConfiguration']['consumable'] ?? [] as $row) {
-                $itemRows[] = $this->mapItemRow($project->id, $row, 'consumable');
-            }
-
-            if (!empty($itemRows)) {
-                RoiEntryItem::insert($itemRows);
-            }
-        }
-
-        $hasFeePayload = $request->exists('additionalFees.company')
-            || $request->exists('additionalFees.customer');
-
-        if ($hasFeePayload) {
-            RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
-
-            $feeRows = [];
-            foreach ($data['additionalFees']['company'] ?? [] as $row) {
-                $feeRows[] = $this->mapFeeRow($project->id, $row, 'company');
-            }
-            foreach ($data['additionalFees']['customer'] ?? [] as $row) {
-                $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer');
-            }
-
-            if (!empty($feeRows)) {
-                RoiEntryFee::insert($feeRows);
-            }
-        }
+    // Handle items and fees (no changes needed here as they relate to separate tables)
+    $hasMachinePayload = $request->exists('machineConfiguration.machine') || $request->exists('machineConfiguration.consumable');
+    if ($hasMachinePayload) {
+        RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
+        $itemRows = [];
+        foreach ($data['machineConfiguration']['machine'] ?? [] as $row) { $itemRows[] = $this->mapItemRow($project->id, $row, 'machine'); }
+        foreach ($data['machineConfiguration']['consumable'] ?? [] as $row) { $itemRows[] = $this->mapItemRow($project->id, $row, 'consumable'); }
+        if (!empty($itemRows)) { RoiEntryItem::insert($itemRows); }
     }
+
+    $hasFeePayload = $request->exists('additionalFees.company') || $request->exists('additionalFees.customer');
+    if ($hasFeePayload) {
+        RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
+        $feeRows = [];
+        foreach ($data['additionalFees']['company'] ?? [] as $row) { $feeRows[] = $this->mapFeeRow($project->id, $row, 'company'); }
+        foreach ($data['additionalFees']['customer'] ?? [] as $row) { $feeRows[] = $this->mapFeeRow($project->id, $row, 'customer'); }
+        if (!empty($feeRows)) { RoiEntryFee::insert($feeRows); }
+    }
+}
 
     private function storeEntryRemarkAttachments(Request $request, RoiEntryProject $project): array
     {

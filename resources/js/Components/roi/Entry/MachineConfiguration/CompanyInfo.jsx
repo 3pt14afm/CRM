@@ -76,9 +76,15 @@ function CompanyInfo({ readOnly, showErrors = false }) {
     []
   );
 
-  const handleNameChange = (e) => {
+const handleNameChange = (e) => {
     const value = e.target.value;
-    handleChange("companyName", value);
+    
+    // If user types manually, we update the name but clear the SAP code 
+    // because it's no longer a verified selection from the database
+    updateSection("companyInfo", {
+      companyName: value,
+      companySapCode: null 
+    });
     
     if (value.length >= 1) {
       setShowDropdown(true);
@@ -89,12 +95,16 @@ function CompanyInfo({ readOnly, showErrors = false }) {
     }
   };
 
-  const selectSuggestion = (name) => {
-    handleChange("companyName", name);
-    setShowDropdown(false);
-    setSuggestions([]);
-  };
-
+// Change this function to accept the whole object 'item'
+const selectSuggestion = (item) => {
+  updateSection("companyInfo", {
+    companyName: item.company_name,
+    companySapCode: item.company_sap_code // This injects the SAP into your Context
+  });
+  
+  setShowDropdown(false);
+  setSuggestions([]);
+};
   const baseInput = "rounded-xl border px-2 text-sm outline-none focus:outline-none focus:ring-0 h-10 transition-all duration-200";
   const okBorder = "border-darkgreen/10 focus:border-[#289800]";
   const errBorder = "border-red-500 focus:border-red-500 bg-red-50/30";
@@ -135,7 +145,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                   <li
                     key={index}
                     className="px-4 py-2 hover:bg-green-50 cursor-pointer text-sm text-gray-800 border-b  border-gray-50 last:border-none transition-colors"
-                    onClick={() => selectSuggestion(item.company_name)}
+                    onClick={() => selectSuggestion(item)}
                   >
                     {item.company_name}
                   </li>
