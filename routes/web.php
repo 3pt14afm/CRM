@@ -378,20 +378,34 @@ Route::middleware(['auth', 'verified'])
         //     ->name('roi.chat.reset');
 
         Route::prefix('sprf')->group(function () {
-            Route::get('/current', function () {
-                return Inertia::render('CustomerManagement/ProjectSPRF/Current');
-            })->name('sprf.current');
+        Route::get('/current', function () {
+            return Inertia::render('CustomerManagement/ProjectSPRF/Current');
+        })->name('sprf.current');
 
-            Route::get('/archive', function () {
-                return Inertia::render('CustomerManagement/ProjectSPRF/Archive');
-            })->name('sprf.archive');
+        Route::get('/archive', function () {
+            return Inertia::render('CustomerManagement/ProjectSPRF/Archive');
+        })->name('sprf.archive');
 
-            Route::prefix('entry')->group(function () {
-                Route::get('/', function () {
-                    return Inertia::render('CustomerManagement/ProjectSPRF/EntryList');
-                })->name('sprf.entry.list');
-            });
+        Route::prefix('entry')->group(function () {
+            Route::get('/', function () {
+                return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntryList');
+            })->name('sprf.entry.list');
+
+            Route::get('/create', function () {
+                return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry');
+            })->name('sprf.entry.create');
+
+            Route::get('/projects/{project}', function ($project) {
+                return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
+                    'projectId' => $project,
+                ]);
+            })->name('sprf.entry.projects.show');
+
+            Route::delete('/projects/{project}', function ($project) {
+                //
+            })->name('sprf.entry.projects.destroy');
         });
+    });
 
     });
 

@@ -1,0 +1,62 @@
+const formatPeso = (value) =>
+  Number(value || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
+function SummaryRow({ label, value, isPercent = false, isLast = false }) {
+  return (
+    <tr>
+      <td
+        className={`border-b border-[#2c2c2e]/10 border-r bg-[#90E274]/10 px-4 py-2 text-xs font-bold ${
+          isLast ? 'rounded-bl-xl' : ''
+        }`}
+      >
+        {label}
+      </td>
+
+      <td
+        className={`border-b border-[#2c2c2e]/10 bg-white px-4 py-2 text-xs font-medium text-[#111111] ${
+          isLast ? 'rounded-br-xl' : ''
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-bold">
+            {isPercent ? '' : '₱'}
+          </span>
+
+          <span className="text-right">
+            {isPercent ? `${Number(value || 0).toFixed(0)}%` : formatPeso(value)}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+export default function SummaryBlock({ summary }) {
+  return (
+    <div className="overflow-hidden rounded-xl bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25">
+      <table className="w-full table-fixed border-collapse">
+        <colgroup>
+          <col className="w-[50%]" />
+          <col className="w-[50%]" />
+        </colgroup>
+
+        <tbody>
+          <SummaryRow label="REVENUE" value={summary.revenue} />
+          <SummaryRow label="COGS" value={summary.cogs} />
+          <SummaryRow label="OTHER EXPENSE" value={summary.otherExpense} />
+          <SummaryRow label="TOTAL EXPENSE" value={summary.totalExpense} />
+          <SummaryRow label="GP VALUE" value={summary.gpValue} />
+          <SummaryRow
+            label="Total GP%"
+            value={summary.totalGpPercent}
+            isPercent
+            isLast
+          />
+        </tbody>
+      </table>
+    </div>
+  );
+}
