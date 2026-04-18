@@ -229,35 +229,6 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
-  const computeTotals = (rows) =>
-    rows.reduce(
-      (acc, r) => {
-        const normalizedRow = enforceRowQty(r);
-        const calcs = getRowCalculations(normalizedRow, projectData);
-        acc.unitCost += parseFloat(normalizedRow.cost) || 0;
-        acc.qty += parseFloat(normalizedRow.qty) || 0;
-        acc.totalCost += calcs.totalCost;
-        acc.yields += parseFloat(normalizedRow.yields) || 0;
-        acc.costCpp += calcs.costCpp;
-        acc.sellingPrice += parseFloat(normalizedRow.price) || 0;
-        acc.totalSell += calcs.totalSell;
-        acc.sellCpp += calcs.sellCpp;
-        return acc;
-      },
-      {
-        unitCost: 0,
-        qty: 0,
-        totalCost: 0,
-        yields: 0,
-        costCpp: 0,
-        sellingPrice: 0,
-        totalSell: 0,
-        sellCpp: 0,
-      }
-    );
-
-  const tableTotals = computeTotals(rows);
-
   const handleInputChange = (id, field, value) => {
     if (field === 'cost' || field === 'yields') {
       setManuallyEdited((prev) => ({
@@ -293,15 +264,12 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
       .slice(0, 15);
   };
 
-  
   const getConsumableSuggestions = (mode, query) => {
     const q = String(query || '').trim().toLowerCase();
     if (!q || !mode) return [];
     const catalog = consumableCatalog[mode] || [];
     return catalog.filter((item) => String(item.name || '').toLowerCase().includes(q)).slice(0, 15);
-
   };
-
 
   const handleMachineSearchChange = (id, typedValue) => {
     handleInputChange(id, 'sku', typedValue);
@@ -501,7 +469,8 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
     });
 
   useEffect(() => {
-    const isMonthlyRental = projectData.companyInfo?.contractType === 'Rental + Supplies';
+    const contractType = projectData.companyInfo?.contractType || '';
+    const isMonthlyRental = contractType === 'Rental + Supplies';
     const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
 
     const rowsWithCalculations = rows.map((r) => {
@@ -579,20 +548,25 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
     setProjectData,
   ]);
 
+  // Table Totals helper
+  const tableTotals = projectData.machineConfiguration?.totals || {
+    unitCost: 0, qty: 0, totalCost: 0, yields: 0, costCpp: 0, sellingPrice: 0, totalSell: 0, sellCpp: 0
+  };
+
   const inputClass =
     'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
 
   const selectClass =
     'w-full min-w-0 h-8 text-xs print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-center leading-tight';
 
-  const readonlyClass = 'w-full h-8 text-xs text-center px-1 flex items-center justify-center';
-  const footerCellClass = 'bg-[#D9F2D0] p-2 text-xs font-bold text-center ';
+  const readonlyClass = 'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
+  const footerCellClass = 'bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ';
   const disabledInputClass = 'border-none disabled:bg-lightgreen/5  cursor-not-allowed';
 
   return (
     <div className="mx-10 mb-5">
       <div className="rounded-xl shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-lightgreen/5">
-        <div className="bg-[#D9F2D0] py-2 text-center rounded-t-xl  border-b border-darkgreen/15">
+        <div className="bg-[#D9F2D0] py-2 text-center rounded-t-xl border-b border-darkgreen/15">
           <h2 className="text-[14px] font-bold tracking-wider uppercase">Machine Configuration</h2>
         </div>
 
@@ -637,19 +611,35 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                 const normalizedRow = enforceRowQty(row);
                 const calcs = getRowCalculations(normalizedRow, projectData);
                 const isMachineRow = row.type === 'machine';
-                const isOthersMode = row.mode === 'others';
+                const isConsumable = row.type === 'consumable';
+                const modeStr = String(row.mode || '').toLowerCase();
                 
-                const contractType = projectData?.companyInfo?.contractType || "";
-                const isOutright = contractType.toLowerCase().includes("outright");
-                
-                const hasValidationError = !!errors?.machineConfiguration || showOutrightErrors;
-                
-                // Logic to check individual fields for machine rows in outright contracts
-                const isYieldInvalid = hasValidationError && isMachineRow && isOutright && (!String(row.yields).trim() || parseFloat(row.yields) <= 0);
-                const isPriceInvalid = hasValidationError && isMachineRow && isOutright && (!String(row.price).trim() || parseFloat(row.price) <= 0);
+                // --- MODEL LOGIC EXTRACTION ---
+                const contractType = (projectData?.companyInfo?.contractType || "").toLowerCase();
+                const isOutright = contractType.includes("outright");
+                const isRental = contractType.includes("rental");
+                const isFreeUse = contractType.includes("free use");
+                const isClick = contractType.includes("click");
+                const isFixed = contractType.includes("fixed");
 
-                const machineSuggestions =
-                  isMachineRow && activeSearchRowId === row.id ? getMachineSuggestions(row.sku) : [];
+                // General Machine Rule: Never allow Yields for hardware.
+                // Toner Rule: Always require Yields for consumables.
+                const isYieldDisabled = isMachineRow || (isFixed && isMachineRow);
+                
+                // Selling Price Logic
+                // PROHIBITED for non-outright machines
+                // PROHIBITED for Mono/Color items in Click-based service models
+                const isPriceProhibited = (isMachineRow && !isOutright) || 
+                                          (isConsumable && (isRental || isFreeUse) && isClick && (modeStr === 'mono' || modeStr === 'color'));
+
+                // Validation Indicators
+                const hasGlobalError = !!errors?.machineConfiguration || showOutrightErrors;
+                const isYieldError = hasGlobalError && isConsumable && (modeStr === 'mono' || modeStr === 'color') && (!row.yields || parseFloat(row.yields) <= 0);
+                const isPriceError = hasGlobalError && 
+                                    ((isMachineRow && isOutright && (!row.price || parseFloat(row.price) <= 0)) ||
+                                     (isConsumable && isOutright && (modeStr === 'mono' || modeStr === 'color') && !row.price));
+
+                const machineSuggestions = isMachineRow && activeSearchRowId === row.id ? getMachineSuggestions(row.sku) : [];
 
                 return (
                   <tr key={row.id} className={`border-b relative transition-all duration-300 ${activeSearchRowId === row.id ? 'z-50' : 'z-10'}`}>
@@ -659,39 +649,28 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                         className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
                         checked={isMachineRow}
                         onChange={(e) => toggleMachine(row.id, e.target.checked)}
-                        disabled={
-                          readOnly || 
-                          !!row.autoAdded || 
-                          row.mode === 'mono' || 
-                          row.mode === 'color'
-                        }
+                        disabled={readOnly || !!row.autoAdded || modeStr === 'mono' || modeStr === 'color'}
                       />
                     </td>
 
                     <td className="border-r border-b border-darkgreen/15 px-1">
                       <div className="flex items-center justify-center">
                         <select
-                          value={isMachineRow && !isOthersMode ? '' : row.mode || ''}
+                          value={isMachineRow && modeStr !== 'others' ? '' : row.mode || ''}
                           onChange={(e) => setMode(row.id, e.target.value)}
-                          disabled={
-                            readOnly || 
-                            !!row.autoAdded 
-                          }
+                          disabled={readOnly || !!row.autoAdded}
                           className={`w-[90%] min-w-0 h-6 text-[10px] sm:text-[11px] pl-2 pr-5 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0 ${
-                            isMachineRow && !isOthersMode
+                            isMachineRow && modeStr !== 'others'
                               ? 'border-darkgreen/20 cursor-not-allowed bg-slate-100'
                               : shouldHighlightModeError(row)
                               ? 'border-red-400 bg-red-50 text-red-700 cursor-pointer'
                               : 'border-darkgreen/20 focus:border-[#289800] cursor-pointer'
                           } ${
-                            (!!row.autoAdded || row.mode === 'mono' || row.mode === 'color') 
-                              ? ' cursor-not-allowed bg-slate-100 border-slate-200' 
-                              : ''
+                            (!!row.autoAdded || modeStr === 'mono' || modeStr === 'color') 
+                              ? ' cursor-not-allowed bg-slate-100 border-slate-200' : ''
                           }`}
                         >
-                          <option className="text-gray-400" value="">
-                            Select
-                          </option>
+                          <option className="text-gray-400" value="">Select</option>
                           <option value="mono">Mono</option>
                           <option value="color">Color</option>
                           <option value="others">Others</option>
@@ -700,7 +679,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1 text-black">
-                      {isMachineRow && !isOthersMode ? (
+                      {isMachineRow && modeStr !== 'others' ? (
                         <div className="relative">
                           <input
                             type="text"
@@ -716,26 +695,24 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                           {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
                             <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md bg-white/20 backdrop-blur-lg border border-gray-200 shadow-xl max-h-48 overflow-auto no-scrollbar">
                               {machineSuggestions.length > 0 ? (
-                                machineSuggestions.map((machine) => (
+                                machineSuggestions.map((m) => (
                                   <button
-                                    key={machine.id}
+                                    key={m.id}
                                     type="button"
                                     onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => handleMachineSuggestionSelect(row.id, machine)}
+                                    onClick={() => handleMachineSuggestionSelect(row.id, m)}
                                     className="block w-full text-left px-3 py-2 text-[12px] hover:bg-green-600 hover:text-black transition-colors"
                                   >
-                                    {machine.name}
+                                    {m.name}
                                   </button>
                                 ))
                               ) : (
-                                <div className="px-3 py-2 text-[12px] text-slate-500 ">
-                                  No results.
-                                </div>
+                                <div className="px-3 py-2 text-[12px] text-slate-500">No results.</div>
                               )}
                             </div>
                           )}
                         </div>
-                      ) : (row.mode === 'mono' || row.mode === 'color') && !row.autoAdded ? (
+                      ) : (modeStr === 'mono' || modeStr === 'color') && !row.autoAdded ? (
                         <div className="relative">
                           <input
                             type="text"
@@ -768,7 +745,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                                     </button>
                                   ))
                                 ) : (
-                                  <div className="px-3 py-2 text-[12px] text-slate-500 ">No results.</div>
+                                  <div className="px-3 py-2 text-[12px] text-slate-500">No results.</div>
                                 );
                               })()}
                             </div>
@@ -791,9 +768,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                         type="text"
                         inputMode="decimal"
                         disabled={readOnly}
-                        value={
-                          focusedField === keyOf(row.id, 'cost') ? row.cost || '' : format2dpWithCommas(row.cost)
-                        }
+                        value={focusedField === keyOf(row.id, 'cost') ? row.cost || '' : format2dpWithCommas(row.cost)}
                         onFocus={() => setFocusedField(keyOf(row.id, 'cost'))}
                         onBlur={() => {
                           setFocusedField(null);
@@ -807,12 +782,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
-                      <input
-                        type="text"
-                        value="1"
-                        disabled
-                        className={`${inputClass} ${disabledInputClass}`}
-                      />
+                      <input type="text" value="1" disabled className={`${inputClass} ${disabledInputClass}`} />
                     </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
@@ -821,18 +791,20 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                       </div>
                     </td>
 
-                    <td className={`border-b border-r border-darkgreen/15 p-1 ${isYieldInvalid ? 'bg-red-50' : ''}`}>
+                    <td className={`border-b border-r border-darkgreen/15 p-1 ${isYieldError ? 'bg-red-50' : ''}`}>
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={focusedField === keyOf(row.id, 'yields') ? row.yields || '' : formatIntWithCommas(row.yields)}
-                        onFocus={() => setFocusedField(keyOf(row.id, 'yields'))}
+                        value={isYieldDisabled ? "" : (focusedField === keyOf(row.id, 'yields') ? row.yields || '' : formatIntWithCommas(row.yields))}
+                        onFocus={() => !isYieldDisabled && setFocusedField(keyOf(row.id, 'yields'))}
                         onBlur={() => setFocusedField(null)}
                         onKeyDown={onlyNumericKeys(false)}
                         onChange={(e) => handleInputChange(row.id, 'yields', sanitizeInt(e.target.value))}
-                        disabled={readOnly}
-                        className={`${inputClass} ${readOnly ? disabledInputClass : ''} ${isYieldInvalid ? ' ring-1 ring-red-500 border-red-500' : ''}`}
-                        placeholder="0"
+                        disabled={readOnly || isYieldDisabled}
+                        className={`${inputClass} ${
+                          (readOnly || isYieldDisabled) ? "bg-gray-100 cursor-not-allowed opacity-50 border-none" : ""
+                        } ${isYieldError ? 'ring-1 ring-red-500 border-red-500' : ''}`}
+                        placeholder={isYieldDisabled ? "0" : "0"}
                       />
                     </td>
 
@@ -842,45 +814,27 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                       </div>
                     </td>
 
-                  <td className={`border-b border-r border-darkgreen/15 p-1 ${isPriceInvalid ? 'bg-red-50' : ''}`}>
-                    {(() => {
-                      const isMachine = row?.type === 'machine';
-                      const contractType = projectData?.companyInfo?.contractType || "";
-                      const isOutrightCheck = contractType.toLowerCase().includes("outright");
-                      const isPriceDisabled = isMachine && !isOutrightCheck;
-                      const displayValue = isPriceDisabled ? 0 : row.price;
-                      
-                      return (
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={
-                            focusedField === keyOf(row.id, 'price') 
-                              ? (isPriceDisabled ? "0" : (row.price || '')) 
-                              : format2dpWithCommas(displayValue)
-                          }
-                          onFocus={() => !isPriceDisabled && setFocusedField(keyOf(row.id, 'price'))}
-                          onBlur={() => {
-                            setFocusedField(null);
-                            if (!isPriceDisabled) {
-                              handleInputChange(row.id, 'price', normalize2dp(row.price));
-                            }
-                          }}
-                          onKeyDown={onlyNumericKeys(true)}
-                          onChange={(e) => {
-                            if (!isPriceDisabled) {
-                              handleInputChange(row.id, 'price', sanitize2dp(e.target.value));
-                            }
-                          }}
-                          disabled={readOnly || isPriceDisabled}
-                          className={`${inputClass} ${
-                            (readOnly || isPriceDisabled) ? "bg-gray-100 cursor-not-allowed opacity-70" : ""
-                          } ${isPriceInvalid ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                          placeholder="0.00"
-                        />
-                      );
-                    })()}
-                  </td>
+                    <td className={`border-b border-r border-darkgreen/15 p-1 ${isPriceError ? 'bg-red-50' : ''}`}>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={isPriceProhibited ? "0.00" : (focusedField === keyOf(row.id, 'price') ? row.price || '' : format2dpWithCommas(row.price))}
+                        onFocus={() => !isPriceProhibited && setFocusedField(keyOf(row.id, 'price'))}
+                        onBlur={() => {
+                          setFocusedField(null);
+                          if (!isPriceProhibited) handleInputChange(row.id, 'price', normalize2dp(row.price));
+                        }}
+                        onKeyDown={onlyNumericKeys(true)}
+                        onChange={(e) => {
+                          if (!isPriceProhibited) handleInputChange(row.id, 'price', sanitize2dp(e.target.value));
+                        }}
+                        disabled={readOnly || isPriceProhibited}
+                        className={`${inputClass} ${
+                          (readOnly || isPriceProhibited) ? "bg-gray-100 cursor-not-allowed opacity-50 border-none" : ""
+                        } ${isPriceError ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                        placeholder={isPriceProhibited ? "N/A" : "0.00"}
+                      />
+                    </td>
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className={readonlyClass}>
@@ -896,37 +850,19 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
 
                     <td className="border-b border-r border-darkgreen/15 p-1">
                       <div className="flex gap-1 justify-center">
-                        <button
-                          onClick={addRow}
-                          disabled={readOnly}
-                          className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${
-                            readOnly ? ' cursor-not-allowed' : ''
-                          }`}
-                        >
-                          +
-                        </button>
-                        <button
-                          onClick={() => removeRow(row.id)}
-                          disabled={readOnly}
-                          className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${
-                            readOnly ? ' cursor-not-allowed' : ''
-                          }`}
-                        >
-                          -
-                        </button>
+                        <button onClick={addRow} disabled={readOnly} className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${readOnly ? 'cursor-not-allowed' : ''}`}>+</button>
+                        <button onClick={() => removeRow(row.id)} disabled={readOnly} className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly ? 'cursor-not-allowed' : ''}`}>-</button>
                       </div>
                     </td>
 
                     <td className="border-b border-darkgreen/15 p-1">
                       <input
                         type="text"
-                        value={row.remarks}
+                        value={row.remarks || ''}
                         onChange={(e) => handleInputChange(row.id, 'remarks', e.target.value)}
                         placeholder="Enter remarks"
                         disabled={!canEditRemarks}
-                        className={`${inputClass} normal-case text-start ${
-                          !canEditRemarks ? disabledInputClass : ''
-                        }`}
+                        className={`${inputClass} normal-case text-start ${!canEditRemarks ? disabledInputClass : ''}`}
                       />
                     </td>
                   </tr>

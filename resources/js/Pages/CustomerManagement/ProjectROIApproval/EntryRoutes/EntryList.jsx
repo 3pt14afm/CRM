@@ -3,11 +3,12 @@ import React, { useMemo, useState } from "react";
 import { Head, router } from "@inertiajs/react";
 import { route } from "ziggy-js";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
+import { toast } from 'sonner';
 
 // icons (match your style — swap if you prefer different ones)
 import { FaFolderOpen } from "react-icons/fa";
 import { IoTimeOutline, IoAddCircleOutline } from "react-icons/io5";
-import toast, { Toaster } from 'react-hot-toast';
+
 import { MdDelete, MdEdit } from 'react-icons/md';
 import FlashMessages from '@/Components/FlashMessages';
 
@@ -54,58 +55,47 @@ export default function EntryList({
 
 const handleDelete = (row) => {
   const ref = row.reference ?? row.id;
+  const processId = `delete-${row.id}`;
 
-  toast((t) => {
-    const handleOutsideClick = (e) => {
-      if (!e.target.closest('[data-toast]')) {
-        toast.dismiss(t.id);
-        document.removeEventListener('mousedown', handleOutsideClick);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
+  toast.custom((t) => (
+    <div
+      className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-2xl min-w-[400px]"
+    >
+      <div className="flex flex-col">
+        <span className="text-gray-900 font-medium">Delete draft?</span>
+        <span className="text-sm text-gray-500">
+          Reference: <span className="font-bold text-gray-700">{ref}</span>
+        </span>
+      </div>
 
-    return (
-      <span data-toast className="flex items-center gap-3">
-        <span>Delete draft <b>{ref}</b>? This cannot be undone.</span>
+      <div className="flex gap-2">
         <button
-          onClick={() => {
-            toast.dismiss(t.id);
-            document.removeEventListener('mousedown', handleOutsideClick);
-            router.delete(route("roi.entry.projects.destroy", row.id), {
-              preserveScroll: true,
-              onStart: () => {
-                toast.loading("Deleting draft...", { id: "deleteDraft" });
-              },
-              onSuccess: () => {
-                toast.success("Draft deleted successfully!", { id: "deleteDraft" });
-              },
-              onError: () => {
-                toast.error("Delete failed. Please try again.", { id: "deleteDraft" });
-              },
-            });
-          }}
-          className="bg-red-500 text-white px-3 py-1 rounded text-sm"
-        >
-          Delete
-        </button>
-        <button
-          onClick={() => {
-            toast.dismiss(t.id);
-            document.removeEventListener('mousedown', handleOutsideClick);
-          }}
-          className="bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm"
+          onClick={() => toast.dismiss(t)}
+          className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
         >
           Cancel
         </button>
-      </span>
-    );
-  }, { 
+        <button
+          onClick={() => {
+            toast.dismiss(t);
+
+            router.delete(route("roi.entry.projects.destroy", row.id), {
+              preserveScroll: true,
+              onStart: () => toast.loading("Deleting draft...", { id: processId }),
+              onSuccess: () => toast.success("Draft deleted successfully!", { id: processId }),
+              onError: () => toast.error("Delete failed. Please try again.", { id: processId }),
+            });
+          }}
+          className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  ), {
     duration: Infinity,
-    style: {
-      maxWidth: '500px',
-      padding: '16px 20px',
-      fontSize: '15px',
-    }
+    position: "top-center",
+    unstyled: "true"
   });
 };
 
@@ -268,7 +258,6 @@ const handleDelete = (row) => {
             pagination={pagination}
           />
         </div>
-          <Toaster />
           <FlashMessages />
         {/* Keep footer spacing consistent with your pages if needed */}
         <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">

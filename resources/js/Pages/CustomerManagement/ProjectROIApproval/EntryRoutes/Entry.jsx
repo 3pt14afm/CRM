@@ -11,8 +11,11 @@ import { MdDisabledByDefault } from "react-icons/md";
 import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { useProjectData } from '@/Context/ProjectContext';
 import { route as ziggyRoute } from "ziggy-js";
-import toast, { Toaster } from 'react-hot-toast';
+import {toast} from 'sonner';
+import {Toaster} from 'sonner';
 import { IoAlertCircle } from "react-icons/io5";
+import { AlertTriangle  } from 'lucide-react';
+
 
 function mapEntryProjectToContext(entryProject) {
   const items = entryProject?.items ?? [];
@@ -166,6 +169,7 @@ export default function Entry({
     entryProject?.reference ||
     projectData?.companyInfo?.reference ||
     '—';
+    
 
   const [tab, setTab] = useState("Machine");
   const [buttonClicked, setButtonClicked] = useState(false);
@@ -175,6 +179,140 @@ export default function Entry({
 
   const [showSendBackModal, setShowSendBackModal] = useState(false);
   const [sendBackText, setSendBackText] = useState("");
+
+
+const validateBusinessLogic = () => {
+        const ci = projectData?.companyInfo ?? {};
+        const contractType = String(ci.contractType ?? "").toLowerCase();
+        
+        // Model Flags - Fixed the .includes logic
+        const isOutright = contractType.includes("outright");
+        const isRental = contractType.includes("rental");
+        const isFreeUse = contractType.includes("free use");
+        const isClick = contractType.includes("click");
+        const isFixed = contractType.includes("fixed");
+
+        const machines = projectData?.machineConfiguration?.machine || [];
+        const consumables = projectData?.machineConfiguration?.consumable || [];
+        const allItems = [...machines, ...consumables];
+
+      
+            const monoAMVP = parseFloat(projectData?.yield?.monoAmvpYields?.monthly || 0);
+            const colorAMVP = parseFloat(projectData?.yield?.colorAmvpYields?.monthly || 0);
+
+            if(!isOutright && !isFixed){
+            if (monoAMVP <= 0 || colorAMVP <= 0) {
+                toast.error("Monthly AMVP (Mono or Color) must be greater than zero.");
+                
+                return false;
+            }
+          }
+
+        // --- 1. ITEM VALIDATION LOOP ---
+        for (const item of allItems) {
+          const costVal = parseFloat(item.cost || 0);
+          const isMachine = item.type === "machine";
+          const isMonoColor = item.mode === "mono" || item.mode === "color";
+          const yieldVal = parseFloat(item.yields || 0);
+          const priceVal = parseFloat(item.price || 0);
+
+          // Mandatory Unit Cost (Global)
+          if (costVal <= 0) {
+            toast.error(`Unit Cost is mandatory for all items.`);
+            setTab("Machine");
+            return false;
+          }
+
+          // Machine/Printer Rule: Never allow Yields
+          if (isMachine && yieldVal > 0) {
+            toast.error(`Yields cannot be entered for Machines.`);
+            setTab("Machine");
+            return false;
+          }
+
+          // Toner Rule: Require Yields for consumables (except Fixed models)
+          if (!isMachine && isMonoColor && !isFixed && yieldVal <= 0) {
+            toast.error(`Yields are mandatory for Mono/Color consumables.`);
+            setTab("Machine");
+            return false;
+          }
+          if(!isRental ){
+          if (!isMachine && isMonoColor && !isFixed && priceVal <= 0) {
+            toast.error(`Selling price are mandatory for Mono/Color consumables.`);
+            setTab("Machine");
+            return false;
+          }
+        }
+          // Outright Logic
+          if (isOutright) {
+            if (isMachine && priceVal <= 0) {
+              toast.error(`Missing Selling Price for Outright Machine.`);
+              setTab("Machine");
+              return false;
+            }
+            if (!isMachine && isMonoColor && priceVal <= 0) {
+              toast.error(`Selling Price required for Outright Consumables.`);
+              setTab("Machine");
+              return false;
+            }
+          }
+
+    
+        }
+
+        // --- 2. FEE VALIDATION (Logic Controller Rule) ---
+        const companyFees = projectData?.additionalFees?.company || [];
+        const customerFees = projectData?.additionalFees?.customer || [];
+        const allFees = [...companyFees, ...customerFees];
+
+    // Validation: Rental lines MUST have Unit Cost
+    if (isRental || isFixed) {
+        // We check if ANY fee row contains the word "rental" in label OR category 
+        // AND has a cost greater than 0.
+        const hasRentalFee = allFees.some(f => {
+            const category = String(f.category || "").toLowerCase();
+            const label = String(f.label || "").toLowerCase();
+            const cost = parseFloat(f.cost || 0);
+
+            return (category.includes('rental') || label.includes('rental')) && cost > 0;
+        });
+
+        if (!hasRentalFee) {
+            toast.error("Rental Fee cost required.");
+            setTab("Machine");
+            return false;
+        }
+    }
+
+        // Validation: Clicks in "Fees" MUST have at least one Cost
+    if (isClick) {
+        // 1. Use 'allFees' which is already the combined array from projectData
+        const clickFees = allFees.filter(f => {
+            const type = String(f.type || "").toLowerCase();
+            const label = String(f.label || "").toLowerCase();
+            const category = String(f.category || "").toLowerCase();
+            
+            return type.includes("click") || label.includes("click") || category.includes("click");
+        });
+
+        // 2. Check for valid cost
+        const hasValidClickCost = clickFees.some(f => {
+            const cost = parseFloat(f.cost);
+            return !isNaN(cost) && cost > 0;
+        });
+
+        // 3. Logic: If it's a Click contract, we EXPECT click fees to exist and have cost
+        if (clickFees.length === 0 || !hasValidClickCost) {
+            toast.error("At least one Click fee must have a valid Unit Cost.");
+            setTab("Machine");
+            return false;
+        }
+    }
+        setShowOutrightErrors(false);
+        return true;
+ };
+
+
 
   const isCompanyInfoValid = () => {
     const ci = projectData?.companyInfo ?? {};
@@ -195,12 +333,11 @@ export default function Entry({
       const machines = projectData?.machineConfiguration?.machine || [];
       const hasInvalidMachine = machines.some(m => {
         const price = parseFloat(m.price || 0);
-        const yields = parseFloat(m.yields || 0);
         return price <= 0 || yields <= 0;
       });
 
       if (hasInvalidMachine) {
-        toast.error("Outright contracts require a Selling Price and Yield for all machines.");
+        toast.error("Outright contracts require a Selling Price for all machines.");
         setShowOutrightErrors(true);
         setTab("Machine");
         return false;
@@ -261,116 +398,164 @@ export default function Entry({
     return null;
   };
 
+
   const handleReject = () => {
-    toast((t) => (
-      <div className="flex flex-col gap-2">
-        <p className="font-medium text-sm">Reject this project?</p>
-        <div className="flex gap-2 justify-end">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-3 py-1 text-sm rounded border border-slate-300 hover:bg-slate-100"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              toast.dismiss(t.id);
-              router.post(ziggyRoute('roi.current.reject', entryProject.id), {}, {
-                onStart: () => toast.loading('Rejecting...', { id: 'reject' }),
-                onSuccess: () => toast.success('Project rejected.', { id: 'reject' }),
-                onError: () => toast.error('Failed to reject.', { id: 'reject' }),
-              });
-            }}
-            className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-          >
-            Yes, Reject
-          </button>
+  toast.custom((t) => (
+    <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl w-[500px] outline-none ring-0">
+      {/* Icon + Header */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-50 shrink-0">
+          <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div>
+          <p className="font-semibold text-gray-900 text-sm">Reject this project?</p>
+          <p className="text-xs text-gray-500 mt-0.5">This action cannot be undone.</p>
         </div>
       </div>
-    ), { duration: Infinity });
-  };
+
+      {/* Actions */}
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={() => toast.dismiss(t)}
+          className="px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 transition"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            toast.dismiss(t);
+            router.post(ziggyRoute('roi.current.reject', entryProject.id), {}, {
+              onStart: () => toast.loading('Rejecting...', { id: 'reject-process' }),
+              onSuccess: () => toast.success('Project rejected.', { id: 'reject-process' }),
+              onError: () => toast.error('Failed to reject.', { id: 'reject-process' }),
+            });
+          }}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 active:scale-95 transition"
+        >
+          Yes, Reject
+        </button>
+      </div>
+    </div>
+  ), { duration: Infinity, position: 'top-center' });
+};
+
 
   const handleBackToSender = () => {
     setSendBackText("");
     setShowSendBackModal(true);
   };
 
-  const submitSendBack = () => {
-    const trimmed = sendBackText.trim();
+const submitSendBack = () => {
+  const trimmed = sendBackText.trim();
+  const processId = 'sendback-process';
 
-    if (!trimmed) {
-      toast.error(
-        sendBackType === 'comment'
-          ? 'Comment is required before sending back.'
-          : 'Note is required before sending back.'
-      );
-      return;
-    }
-
-    router.patch(
-      ziggyRoute('roi.current.send-back', entryProject.id),
-      {
-        body: trimmed,
-        type: sendBackType,
-      },
-      {
-        preserveScroll: true,
-        onSuccess: () => {
-          setSendBackText("");
-          toast.success('Project sent back to sender.', { id: 'sendBack' });
-        },
-        onError: (errors) => {
-          setShowSendBackModal(true);
-          const message =
-            Object.values(errors ?? {})[0] ||
-            `Failed to send back. ${sendBackType === 'comment' ? 'Comment' : 'Note'} is required.`;
-          toast.error(message, { id: 'sendBack' });
-        },
-      }
+  if (!trimmed) {
+    toast.error(
+      sendBackType === 'comment'
+        ? 'Comment is required before sending back.'
+        : 'Note is required before sending back.'
     );
-  };
+    return;
+  }
 
-  const handleAdvance = (projectId) => {
-    if (!projectId) {
-      toast.error("Invalid Project ID");
-      return;
+  router.patch(
+    ziggyRoute('roi.current.send-back', entryProject.id),
+    {
+      body: trimmed,
+      type: sendBackType,
+    },
+    {
+      preserveScroll: true,
+      onStart: () => toast.loading('Sending back...', { id: processId }), // Added loading state for consistency
+      onSuccess: () => {
+        setSendBackText("");
+        toast.success('Project sent back to sender.', { id: processId });
+      },
+      onError: (errors) => {
+        setShowSendBackModal(true);
+        const message =
+          Object.values(errors ?? {})[0] ||
+          `Failed to send back. ${sendBackType === 'comment' ? 'Comment' : 'Note'} is required.`;
+        toast.error(message, { id: processId });
+      },
     }
+  );
+};
 
-    if (confirm("Are you sure you want to submit this project to the next level?")) {
-      const toastId = toast.loading("Submitting to next level...");
+const handleAdvance = (projectId) => {
+  if (!projectId) {
+    toast.error("Invalid Project ID");
+    return;
+  }
 
-      router.post(ziggyRoute('roi.current.advance', projectId), {}, {
-        preserveScroll: true,
-        onSuccess: () => toast.success("Project advanced successfully!", { id: toastId }),
-        onError: (errors) => {
-          const message = Object.values(errors)[0] || "Failed to advance project.";
-          toast.error(message, { id: toastId });
-        },
-        onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
-      });
-    }
-  };
+  toast.custom((t) => (
+    <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl w-[500px] outline-none ring-0">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-50 shrink-0">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="18" cy="18" r="18" fill="#dcfce7"/>
+            <path d="M11 18 L25 18 M19 12 L25 18 L19 24"
+              stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div>
+         <p className="font-semibold text-gray-900 text-sm">Advance this project?</p>
+          <p className="text-xs text-gray-500 mt-0.5">This will submit it to the next level.</p>
+        </div>
+      </div>
 
-  const handleApprove = (projectId) => {
-    if (!projectId) {
-      toast.error("Invalid Project ID");
-      return;
-    }
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={() => toast.dismiss(t)}
+          className="px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 transition"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            toast.dismiss(t);
+            const processId = `advance-${projectId}`;
+            router.post(ziggyRoute('roi.current.advance', projectId), {}, {
+              preserveScroll: true,
+              onStart: () => toast.loading("Submitting to next level...", { id: processId }),
+              onSuccess: () => toast.success("Project advanced successfully!", { id: processId }),
+              onError: (errors) => {
+                const message = Object.values(errors)[0] || "Failed to advance project.";
+                toast.error(message, { id: processId });
+              },
+            });
+          }}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 active:scale-95 transition"
+        >
+          Yes, Advance
+        </button>
+      </div>
+    </div>
+  ), { duration: Infinity, position: 'top-center',  unstyled: true  });
+};
 
-    if (confirm("Approve this project? This will move it to Archive.")) {
-      const toastId = toast.loading("Approving...");
+const handleApprove = (projectId) => {
+  if (!projectId) {
+    toast.error("Invalid Project ID");
+    return;
+  }
 
-      router.post(ziggyRoute('roi.current.approve', projectId), {}, {
-        preserveScroll: true,
-        onSuccess: () => toast.success("Project approved.", { id: toastId }),
-        onError: (errors) => {
-          const message = Object.values(errors)[0] || "Failed to approve project.";
-          toast.error(message, { id: toastId });
-        },
-        onFinish: () => setTimeout(() => toast.dismiss(toastId), 3000),
-      });
-    }
-  };
+  if (confirm("Approve this project? This will move it to Archive.")) {
+    const processId = `approve-${projectId}`;
+    toast.loading("Approving...", { id: processId });
+
+    router.post(ziggyRoute('roi.current.approve', projectId), {}, {
+      preserveScroll: true,
+      onSuccess: () => toast.success("Project approved.", { id: processId }),
+      onError: (errors) => {
+        const message = Object.values(errors)[0] || "Failed to approve project.";
+        toast.error(message, { id: processId });
+      },
+    });
+  }
+};
 
   useEffect(() => {
     const next =
@@ -506,84 +691,105 @@ export default function Entry({
     setTimeout(() => setButtonClicked(false), 100);
   };
 
-  const handleSaveDraft = () => {
+const handleSaveDraft = () => {
     setShowCompanyInfoErrors(true);
 
+    // 1. Validate Required Company/Project Fields
     if (!isCompanyInfoValid()) {
-      toast.error("Please fill in all required fields.");
+      toast.error("Please fill in all required project fields.");
       setTab("Machine");
       return;
     }
 
-    if (!validateOutrightFields()) {
-        return;
+    // 2. STRICT Business Logic Gate (Unit Cost, Yields, Selling Price)
+    // If this fails, it toast the error, sets tab to Machine, and stops execution
+    if (!validateBusinessLogic()) {
+      return;
     }
 
+    // 3. Threshold Remarks & Attachments check
     if (!validateEntryRemarks()) {
       return;
     }
 
     const payload = buildPayload();
     saveDraft(payload);
-
     const formData = buildFormDataPayload();
 
     router.post(ziggyRoute("roi.entry.draft.save"), formData, {
       preserveScroll: true,
       forceFormData: true,
-      onStart: () => {
-        toast.loading("Saving Draft...", { id: "saveDraft" });
-      },
+      onStart: () => toast.loading("Saving Draft...", { id: "saveDraft" }),
       onSuccess: () => {
         triggerBlink();
         toast.success("Draft saved!", { id: "saveDraft" });
         setShowCompanyInfoErrors(false);
-        setShowOutrightErrors(false);
+        setShowOutrightErrors(false); // Reset validation highlights on success
       },
       onError: (errors) => {
-        const message =
-          Object.values(errors ?? {})[0] || "Failed to save draft.";
+        const message = Object.values(errors ?? {})[0] || "Failed to save draft.";
         toast.error(message, { id: "saveDraft" });
-        console.log("Save draft errors:", errors);
       },
     });
   };
 
-  const handleSubmit = () => {
-    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
+const handleSubmit = () => {
+  const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
-    if (!projectId) {
-      toast((t) => (
-        <div className="flex items-center gap-2 text-sm">
-          <IoAlertCircle className="text-red-500 text-lg shrink-0" />
-          <span>
-            Please <b className="text-darkgreen/70">Save Draft</b> first before submitting.
-          </span>
-        </div>
-      ), { duration: 1000 });
-      return;
-    }
+  if (!projectId) {
+    toast((t) => (
+      <div className="flex items-center gap-2 text-sm">
+        <IoAlertCircle className="text-red-500 text-lg shrink-0" />
+        <span>Please <b>Save Draft</b> first before submitting.</span>
+      </div>
+    ), { duration: 2000 });
+    return;
+  }
 
-    if (!validateOutrightFields()) {
-        return;
-    }
+  // ✅ NEW: Machine configuration check
+  const machines = projectData?.machineConfiguration?.machine || [];
+  const consumables = projectData?.machineConfiguration?.consumable || [];
 
-    if (!validateEntryRemarks()) {
-      return;
-    }
+  if (machines.length === 0 && consumables.length === 0) {
+    toast.error("At least one machine or consumable is required before submitting.");
+    setTab("Machine");
+    return;
+  }
 
-    const formData = buildFormDataPayload();
-    formData.append("_method", "patch");
+  if (machines.length === 0) {
+    toast.error("At least one machine is required before submitting.");
+    setTab("Machine");
+    return;
+  }
 
-    router.patch(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
-      preserveScroll: true,
-      forceFormData: true,
-      onError: (errors) => {
-        const message = Object.values(errors)[0] || "Failed to submit.";
-        toast.error(message);
-      },
-    });
-  };
+  // 1. STRICT Business Logic Gate
+  if (!validateBusinessLogic()) {
+    return;
+  }
+
+  // 2. Entry Remarks validation
+  if (!validateEntryRemarks()) {
+    return;
+  }
+
+  const formData = buildFormDataPayload();
+  formData.append("_method", "patch");
+
+  router.patch(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
+    preserveScroll: true,
+    forceFormData: true,
+    onStart: () => toast.loading("Submitting project...", { id: "submitProject" }),
+    onSuccess: () => {
+      toast.success("Project submitted successfully!", { id: "submitProject" });
+      setShowOutrightErrors(false);
+    },
+    onError: (errors) => {
+      const message = Object.values(errors)[0] || "Failed to submit.";
+      toast.error(message, { id: "submitProject" });
+    },
+  });
+};
+
 
   const handleClearAll = () => {
     if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
@@ -743,7 +949,6 @@ export default function Entry({
                 Summary
               </button>
             </div>
-            <Toaster />
           </div>
 
           {tab === 'Machine' ? (
