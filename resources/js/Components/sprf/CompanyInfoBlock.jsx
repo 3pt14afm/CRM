@@ -41,7 +41,7 @@ export default function CompanyInfoBlock({ value, onChange }) {
               value={value[field.key] ?? ''}
               onChange={(e) => handleFieldChange(field.key, e.target.value)}
               placeholder={field.placeholder}
-              className="h-10 rounded-xl border px-3 text-sm outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-[#9AA08F]"
+              className="h-10 rounded-xl border px-3 text-sm outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
             />
           </div>
         ))}

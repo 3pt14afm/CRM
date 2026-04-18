@@ -13,13 +13,13 @@ export default function SprfOtherExpenseTable({
   totalOtherExpense,
 }) {
   const inputClass =
-    'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+    'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyClass =
     'w-full h-8 text-xs text-center px-1 flex items-center justify-end';
 
   const footerCellClass =
-    'bg-[#D9F2D0] p-2 text-xs font-bold text-center';
+    'bg-[#D9F2D0] p-2 text-xs font-bold text-end';
 
   return (
     <div className="w-full xl:w-[65%]">
@@ -53,7 +53,7 @@ export default function SprfOtherExpenseTable({
 
           <tbody>
             {computedExpenses.map((row, index) => (
-              <tr key={`expense-${index}`} className="border-b relative transition-all duration-300">
+              <tr key={`expense-${index}`} className="border-b relative transition-all duration-100 hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)]">
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   <div className="w-full h-8 flex items-center justify-center text-[13px]">
                     {index + 1}
