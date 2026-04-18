@@ -54,71 +54,50 @@ export default function EntryList({
   }, [stats, drafts]);
 
 const handleDelete = (row) => {
-      const ref = row.reference ?? row.id;
-      const processId = `delete-${row.id}`; // Unique ID for this specific deletion
+  const ref = row.reference ?? row.id;
+  const processId = `delete-${row.id}`;
 
-      toast.custom((t) => {
-        const handleClose = () => {
-          toast.dismiss(t);
-          document.removeEventListener('mousedown', handleOutsideClick);
-        };
+  toast.custom((t) => (
+    <div
+      className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-2xl min-w-[400px]"
+    >
+      <div className="flex flex-col">
+        <span className="text-gray-900 font-medium">Delete draft?</span>
+        <span className="text-sm text-gray-500">
+          Reference: <span className="font-bold text-gray-700">{ref}</span>
+        </span>
+      </div>
 
-        const handleOutsideClick = (e) => {
-          if (!e.target.closest('[data-toast]')) {
-            handleClose();
-          }
-        };
+      <div className="flex gap-2">
+        <button
+          onClick={() => toast.dismiss(t)}
+          className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            toast.dismiss(t);
 
-        document.addEventListener('mousedown', handleOutsideClick);
-
-        return (
-          <div 
-            data-toast 
-            className="flex items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-2xl border border-gray-100 min-w-[400px]"
-          >
-            <div className="flex flex-col">
-              <span className="text-gray-900 font-medium">Delete draft?</span>
-              <span className="text-sm text-gray-500">
-                Reference: <span className="font-bold text-gray-700">{ref}</span>
-              </span>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleClose}
-                className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  handleClose(); // Close the confirmation dialog
-                  
-                  router.delete(route("roi.entry.projects.destroy", row.id), {
-                    preserveScroll: true,
-                    onStart: () => {
-                      toast.loading("Deleting draft...", { id: processId });
-                    },
-                    onSuccess: () => {
-                      toast.success("Draft deleted successfully!", { id: processId });
-                    },
-                    onError: () => {
-                      toast.error("Delete failed. Please try again.", { id: processId });
-                    },
-                  });
-                }}
-                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        );
-      }, { 
-        duration: Infinity,
-        position: 'top-center',
-      });
-    };
+            router.delete(route("roi.entry.projects.destroy", row.id), {
+              preserveScroll: true,
+              onStart: () => toast.loading("Deleting draft...", { id: processId }),
+              onSuccess: () => toast.success("Draft deleted successfully!", { id: processId }),
+              onError: () => toast.error("Delete failed. Please try again.", { id: processId }),
+            });
+          }}
+          className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  ), {
+    duration: Infinity,
+    position: "top-center",
+    unstyled: "true"
+  });
+};
 
   // --- Table columns ---
     const columns = useMemo(

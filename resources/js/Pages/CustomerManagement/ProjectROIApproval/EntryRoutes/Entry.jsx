@@ -733,48 +733,62 @@ const handleSaveDraft = () => {
     });
   };
 
-  const handleSubmit = () => {
-    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
+const handleSubmit = () => {
+  const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
 
-    if (!projectId) {
-      toast((t) => (
-        <div className="flex items-center gap-2 text-sm">
-          <IoAlertCircle className="text-red-500 text-lg shrink-0" />
-          <span>Please <b>Save Draft</b> first before submitting.</span>
-        </div>
-      ), { duration: 2000 });
-      return;
-    }
+  if (!projectId) {
+    toast((t) => (
+      <div className="flex items-center gap-2 text-sm">
+        <IoAlertCircle className="text-red-500 text-lg shrink-0" />
+        <span>Please <b>Save Draft</b> first before submitting.</span>
+      </div>
+    ), { duration: 2000 });
+    return;
+  }
 
-    // 1. STRICT Business Logic Gate
-    // Ensures the deal is "Logic-Ready" before the patch is sent
-    if (!validateBusinessLogic()) {
-      return;
-    }
+  // ✅ NEW: Machine configuration check
+  const machines = projectData?.machineConfiguration?.machine || [];
+  const consumables = projectData?.machineConfiguration?.consumable || [];
 
-    // 2. Entry Remarks validation
-    if (!validateEntryRemarks()) {
-      return;
-    }
+  if (machines.length === 0 && consumables.length === 0) {
+    toast.error("At least one machine or consumable is required before submitting.");
+    setTab("Machine");
+    return;
+  }
 
-    const formData = buildFormDataPayload();
-    formData.append("_method", "patch");
+  if (machines.length === 0) {
+    toast.error("At least one machine is required before submitting.");
+    setTab("Machine");
+    return;
+  }
 
-    router.patch(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
-      preserveScroll: true,
-      forceFormData: true,
-      onStart: () => toast.loading("Submitting project...", { id: "submitProject" }),
-      onSuccess: () => {
-        toast.success("Project submitted successfully!", { id: "submitProject" });
-        setShowOutrightErrors(false);
-      },
-      onError: (errors) => {
-        const message = Object.values(errors)[0] || "Failed to submit.";
-        toast.error(message, { id: "submitProject" });
-      },
-    });
-  };
+  // 1. STRICT Business Logic Gate
+  if (!validateBusinessLogic()) {
+    return;
+  }
 
+  // 2. Entry Remarks validation
+  if (!validateEntryRemarks()) {
+    return;
+  }
+
+  const formData = buildFormDataPayload();
+  formData.append("_method", "patch");
+
+  router.patch(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
+    preserveScroll: true,
+    forceFormData: true,
+    onStart: () => toast.loading("Submitting project...", { id: "submitProject" }),
+    onSuccess: () => {
+      toast.success("Project submitted successfully!", { id: "submitProject" });
+      setShowOutrightErrors(false);
+    },
+    onError: (errors) => {
+      const message = Object.values(errors)[0] || "Failed to submit.";
+      toast.error(message, { id: "submitProject" });
+    },
+  });
+};
 
 
   const handleClearAll = () => {
