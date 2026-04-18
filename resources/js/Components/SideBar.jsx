@@ -337,7 +337,7 @@ export default function Sidebar() {
                   <div className="relative">
                     <div className="flex items-center ">
                       <Link
-                        href={route('roi.current')}
+                        href="#"
                         onClick={() => handleSubToggle('roi')}
                         className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen font-medium hover:font-semibold transition-opacity lg:text-xs ${
                           activeSubMenu === 'roi' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-1 mb-2' : 'text-darkgreen/70 opacity-80'

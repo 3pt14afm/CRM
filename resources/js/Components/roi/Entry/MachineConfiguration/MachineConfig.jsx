@@ -554,14 +554,14 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
   };
 
   const inputClass =
-    'w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+    'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
 
   const selectClass =
-    'w-full min-w-0 h-8 text-[13px] print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-center leading-tight';
+    'w-full min-w-0 h-8 text-xs print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-center leading-tight';
 
   const readonlyClass = 'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center';
   const footerCellClass = 'bg-[#D9F2D0] p-2 text-[12px] font-bold text-center ';
-  const disabledInputClass = 'border-none disabled:bg-lightgreen/5 cursor-not-allowed';
+  const disabledInputClass = 'border-none disabled:bg-lightgreen/5  cursor-not-allowed';
 
   return (
     <div className="mx-10 mb-5">
