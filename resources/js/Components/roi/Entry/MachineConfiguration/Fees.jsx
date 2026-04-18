@@ -11,7 +11,7 @@ const FIXED_FEE_LABELS_RENTAL_CLICK = [
   "Shipping",
   "Rebate",
   "Support Services",
-  "Rental + Supplies",
+  "Rental", // Changed from Rental + Supplies
   "A4/A3 MONO CLICK",
   "A4/LGL COLOR CLICK",
   "A3 COLOR CLICK",
@@ -30,7 +30,7 @@ const FIXED_FEE_LABELS_MONTHLY_RENTAL = [
   "Shipping",
   "Rebate",
   "Support Services",
-  "Rental + Supplies",
+  "Rental", // Changed from Rental + Supplies
 ];
 
 const FIXED_FEE_LABELS_OUTRIGHT_CLICK = [
@@ -52,7 +52,7 @@ const FIXED_FEE_LABELS_FIXED_MONTHLY = [
   "Shipping",
   "Rebate",
   "Support Services",
-  "Rental + Supplies", // Example for Fixed Monthly
+  "Rental", // Changed from Rental + Supplies
 ];
 
 const FIXED_FEE_LABELS_OUTRIGHT_ONLY = [
@@ -61,7 +61,7 @@ const FIXED_FEE_LABELS_OUTRIGHT_ONLY = [
 ];
 
 const CONTRACT_SPECIFIC_LABELS = [
-  "Rental + Supplies",
+  "Rental", // Changed from Rental + Supplies
   "A4/A3 MONO CLICK",
   "A4/LGL COLOR CLICK",
   "A3 COLOR CLICK",
@@ -71,7 +71,7 @@ const CLICK_LABELS = [
   "A4/A3 MONO CLICK",
   "A4/LGL COLOR CLICK",
   "A3 COLOR CLICK",
-  "Rental + Supplies"
+  "Rental" // Changed from Rental + Supplies
 ];
 
 const makeId = () =>
@@ -94,14 +94,13 @@ const normalize = (s) => (s || '').trim().toLowerCase();
 
 const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0) => {
   const l = normalize(label);
-  // if (l === "one time charge") return 1;
   if (l === "shipping") return 1;
   if (l === "rebate") return 1;
   if (l === "support services") return 12;
-  if (l === "rental + supplies") return 12;
+  if (l === "rental") return 12; // Changed from rental + supplies
   if (l === "a4/a3 mono click") return monoAnnual;
   if (l === "a4/lgl color click") return colorAnnual;
-  if (l === "a3 color click") return 0;
+  if (l === "a3 color click") return colorAnnual;
   return null;
 };
 
@@ -136,15 +135,7 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
 
   const fixedRows = fixedLabels.map((fixedLabel) => {
     const idx = remaining.findIndex(r => normalize(r.label) === normalize(fixedLabel));
-    
-    // Check if the label is a Click label
     const isClickLabel = CLICK_LABELS.some(c => normalize(c) === normalize(fixedLabel));
-
-    /**
-     * UPDATED LOGIC:
-     * If it IS a click label, it defaults to Customer (isMachine: true).
-     * If it is NOT a click label (Shipping, Support, etc.), it defaults to Company (isMachine: false).
-     */
     const defaultIsMachine = isClickLabel; 
 
     if (idx >= 0) {
@@ -153,7 +144,6 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
         ...existing, 
         label: fixedLabel, 
         __fixed: true,
-        // Force the machine status based on the new logic
         isMachine: defaultIsMachine 
       }, monoAnnual, colorAnnual);
     }
@@ -165,7 +155,7 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
       qty: 0,
       total: 0,
       remarks: '',
-      isMachine: defaultIsMachine, // Defaults to false for Shipping/Support
+      isMachine: defaultIsMachine,
       __fixed: true,
     }, monoAnnual, colorAnnual);
   });
@@ -173,6 +163,7 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
   const nonFixed = remaining.map(r => ({ ...r, __fixed: false }));
   return [...fixedRows, ...nonFixed];
 };
+
 const stripLocalFields = (row) => {
   const { __fixed, ...clean } = row;
   return clean;
@@ -201,7 +192,6 @@ const Fees = ({ readOnly }) => {
   isRentalClick ? FIXED_FEE_LABELS_RENTAL_CLICK :
   isFixClick ? FIXED_FEE_LABELS_FIX_CLICK :
   isMonthlyRental ? FIXED_FEE_LABELS_MONTHLY_RENTAL :
-  // ADD THE NEW TYPES HERE:
   contractType === "Fixed Monthly Only" ? FIXED_FEE_LABELS_FIXED_MONTHLY :
   contractType === "Outright + Click Charge" ? FIXED_FEE_LABELS_OUTRIGHT_CLICK :
   contractType === "Outright + per Cartridge" ? FIXED_FEE_LABELS_OUTRIGHT_CARTRIDGE :
@@ -338,9 +328,6 @@ const Fees = ({ readOnly }) => {
             {rows.map(row => {
               const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
               const qtyLocked = fixedQty != null;
-              
-              // LOGIC: Show checkbox only if it's NOT a fixed row, OR if it's one of the 3 specific CLICK labels
-              const isClickRow = CLICK_LABELS.some(c => normalize(c) === normalize(row.label));
               const showCheckbox = !row.__fixed;
 
               return (

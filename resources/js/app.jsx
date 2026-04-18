@@ -5,7 +5,9 @@ import './bootstrap';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot, hydrateRoot } from 'react-dom/client';
-import { Toaster, toast } from 'react-hot-toast';
+// import { Toaster, toast } from 'react-hot-toast';
+import { toast } from 'sonner';
+import { Toaster } from 'sonner';
 
 import ProjectDataProvider from './Context/ProjectContext';
 import NoWheelNumberInput from './Components/NoWheelNumberInput';
@@ -24,11 +26,11 @@ createInertiaApp({
       if (response?.status === 403) {
         event.preventDefault();
 
-        toast.remove();
+        toast.dismiss();
 
         setTimeout(() => {
           toast.error(response?.data?.message || 'Forbidden', {
-            duration: 2500,
+            duration: 1000,
           });
         }, 50);
       }
@@ -37,7 +39,21 @@ createInertiaApp({
     const WrappedApp = (
       <NoWheelNumberInput>
         <ProjectDataProvider>
-          <Toaster position="top-center" />
+          <Toaster
+            position="top-center"
+            visibleToasts={2}
+            duration={2000}
+            richColors
+            toastOptions={{
+              classNames: {
+                toast: 'bg-zinc-900 border border-zinc-700 text-white rounded-2xl shadow-xl',
+                title: 'text-sm font-semibold',
+                description: 'text-sm text-zinc-400',
+                success: 'bg-green-950 border border-green-800/60 text-green-100 [&_[data-icon]]:text-green-400',
+                error: 'border-l-4 border-l-red-500',
+              },
+            }}
+/>
           <App {...props} />
         </ProjectDataProvider>
       </NoWheelNumberInput>

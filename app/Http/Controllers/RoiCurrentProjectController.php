@@ -719,7 +719,7 @@ class RoiCurrentProjectController extends Controller
 
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
 
-            return to_route('roi.current')->with('success', 'Project moved to Level ' . $toLevel . '.');
+            return to_route('roi.current')->with('success', 'Project moved ' . $nextStatus . '.');
         });
     }
 
