@@ -620,6 +620,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                 // --- MODEL LOGIC EXTRACTION ---
                 const contractType = (projectData?.companyInfo?.contractType || "").toLowerCase();
                 const isOutright = contractType.includes("outright");
+                const isOutrightClick = contractType.includes("outright + click charge");
                 const isRental = contractType.includes("rental");
                 const isFreeUse = contractType.includes("free use");
                 const isClick = contractType.includes("click");
@@ -633,7 +634,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                 // PROHIBITED for non-outright machines
                 // PROHIBITED for Mono/Color items in Click-based service models
                 const isPriceProhibited = (isMachineRow && !isOutright) || 
-                                          (isConsumable && (isRental || isFreeUse) && isClick && (modeStr === 'mono' || modeStr === 'color')) || isFixed;
+                                          (isConsumable && (isRental || isFreeUse) && isClick && (modeStr === 'mono' || modeStr === 'color')) || isFixed || (isOutrightClick && isConsumable);
 
                 // Validation Indicators
                 const hasGlobalError = !!errors?.machineConfiguration || showOutrightErrors;
