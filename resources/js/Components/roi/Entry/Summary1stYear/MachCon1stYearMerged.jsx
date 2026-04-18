@@ -313,7 +313,6 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
               consumableRows.map((row, index) => {
                 const c = row.left;
                 const p = row.right;
-
                 return (
                   <tr key={`consumable-row-${index}`} className="border-x border-x-gray-300 border-gray-100 bg-white align-middle">
                     <td className="px-7 py-3 border border-gray-200">

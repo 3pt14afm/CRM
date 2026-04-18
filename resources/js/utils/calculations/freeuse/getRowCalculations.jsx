@@ -14,7 +14,8 @@ export const getRowCalculations = (row, projectData) => {
     // 3. IDENTIFIERS
     const type = row?.type?.toLowerCase() || ""; // machine, mono, color, rental, etc.
     const isMachine = type === 'machine';
-    const isConsumable = type === 'mono' || type === 'color';
+    const mode = row?.mode?.toLowerCase() || "";
+    const isConsumable = mode === 'mono' || mode === 'color';
     const isModeOthers = row?.mode?.toLowerCase() === 'others' || row?.mode?.toLowerCase() === 'other';
 
     const contractType = (projectData?.companyInfo?.contractType || projectData?.contractType || "").toLowerCase();
@@ -24,14 +25,20 @@ export const getRowCalculations = (row, projectData) => {
     const isRentalClick = contractType.includes("rental + click");
     const isFreeUseClick = contractType.includes("free use + click");
     const isNonOutright = contractType === "non-outright";
-
+    const isMonthlyRental = contractType === "fixed monthly only";
     // --- LOGIC CONTROLLER: FORCE ZEROS BY PROHIBITION RULES ---
 
     /** * RULE: Machine/Printer Rule 
      * Yields are NEVER allowed for hardware.
      */
-    let yields = isMachine ? 0 : rawYields;
+    let yields =  rawYields;
+    if (isMachine) {
+    yields = 0;
+}
 
+if (isMonthlyRental && isConsumable) {
+    yields = 0;
+}
     /** * RULE: Rental/Free Use + Click PROHIBITION
      * Mono/Color items are PROHIBITED from having a Selling Price in Click models.
      */
@@ -54,6 +61,14 @@ export const getRowCalculations = (row, projectData) => {
     if (!isOutright && isMachine) {
         price = 0;
     }
+  
+       // ✅ RULE: Fixed Monthly — consumables have no selling price and no yields
+    if (isMonthlyRental && isConsumable) {
+        price = 0;
+        yields = 0;
+    }
+
+
 
     // --- COST CALCULATIONS ---
     let finalComputedCost = rawCost;

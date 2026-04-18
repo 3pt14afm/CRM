@@ -473,7 +473,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
     const isMonthlyRental = contractType === 'Rental + Supplies';
     const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
 
-    const rowsWithCalculations = rows.map((r) => {
+      const rowsWithCalculations = rows.map((r) => {
       const normalizedRow = enforceRowQty(r);
       const calcs = getRowCalculations(normalizedRow, projectData);
       return {
@@ -484,6 +484,8 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
         cost: calcs.computedCost,
         basePerYear: calcs.basePerYear,
         totalCost: calcs.totalCost,
+        yields: calcs.yields,        // ✅ overrides normalizedRow.yields
+        price: calcs.price,          // ✅ overrides normalizedRow.price
         costCpp: calcs.costCpp,
         totalSell: calcs.totalSell,
         sellCpp: calcs.sellCpp,
@@ -508,12 +510,13 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
 
     const totalsObj = rowsWithCalculations.reduce(
       (acc, r) => {
+        const calcs = getRowCalculations(r, projectData);
         acc.unitCost += r.inputtedCost;
         acc.qty += Number(r.qty) || 0;
         acc.totalCost += r.totalCost;
-        acc.yields += Number(r.yields) || 0;
+        acc.yields += Number(calcs.yields) || 0;  
         acc.costCpp += r.costCpp;
-        acc.sellingPrice += Number(r.price) || 0;
+         acc.sellingPrice += Number(calcs.price) || 0;
         acc.totalSell += r.totalSell;
         acc.sellCpp += r.sellCpp;
         return acc;
@@ -624,13 +627,13 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
 
                 // General Machine Rule: Never allow Yields for hardware.
                 // Toner Rule: Always require Yields for consumables.
-                const isYieldDisabled = isMachineRow || (isFixed && isMachineRow);
+                const isYieldDisabled = isMachineRow || (isFixed && isMachineRow) || isFixed;
                 
                 // Selling Price Logic
                 // PROHIBITED for non-outright machines
                 // PROHIBITED for Mono/Color items in Click-based service models
                 const isPriceProhibited = (isMachineRow && !isOutright) || 
-                                          (isConsumable && (isRental || isFreeUse) && isClick && (modeStr === 'mono' || modeStr === 'color'));
+                                          (isConsumable && (isRental || isFreeUse) && isClick && (modeStr === 'mono' || modeStr === 'color')) || isFixed;
 
                 // Validation Indicators
                 const hasGlobalError = !!errors?.machineConfiguration || showOutrightErrors;

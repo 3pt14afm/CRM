@@ -81,6 +81,20 @@ const processedConsumables = rawConsumables.map(c => {
 
   let qty = 0;
 
+    if (isMonthlyRental) {
+    qty = 0;
+    const unitCost = 0;
+    return {
+      ...c,
+      qty,
+      yields: 0,
+      price: 0,
+      totalCost: qty * unitCost,
+      totalSell: 0,
+    };
+  }
+
+
   // ✅ CASE 1: OTHERS → always manual
   if (mode === 'others') {
     qty = getSafeNumber(c.qty, 1);

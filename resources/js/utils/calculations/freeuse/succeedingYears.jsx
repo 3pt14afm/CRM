@@ -11,7 +11,8 @@ export const succeedingYears = (projectData) => {
   const succeedingYearCount = Math.max(contractYears - 1, 0);
 
   const normalizedContractType = String(contractType).trim().toLowerCase();
-
+  
+  const isMonthlyRental = normalizedContractType === "fixed monthly only";
   const isRentalClick = normalizedContractType === "rental + click charge";
   const isFixClick = normalizedContractType === "free use + click charge";
   const isOutrightClick = normalizedContractType === "outright + click charge";
@@ -106,6 +107,19 @@ const processedConsumables = rawConsumables.map(c => {
   const itemYields = Number(c.yields);
 
   let qty = 0;
+
+    if (isMonthlyRental) {
+    qty = 0;
+    const unitCost = 0;
+    return {
+      ...c,
+      qty,
+      yields: 0,
+      price: 0,
+      totalCost: qty * unitCost,
+      totalSell: 0,
+    };
+  }
 
   // ✅ CASE 1: OTHERS → always manual
   if (mode === 'others') {
