@@ -187,11 +187,13 @@ const validateBusinessLogic = () => {
         
         // Model Flags - Fixed the .includes logic
         const isOutright = contractType.includes("outright");
+       
         const isRental = contractType.includes("rental");
         const isFreeUseClick = contractType.includes("free use + click charge");
         const isClick = contractType.includes("click");
         const isFixed = contractType.includes("fixed");
-
+        const isOutrightOnly = isOutright && !isClick;
+        
         const machines = projectData?.machineConfiguration?.machine || [];
         const consumables = projectData?.machineConfiguration?.consumable || [];
         const allItems = [...machines, ...consumables];
@@ -231,13 +233,13 @@ const validateBusinessLogic = () => {
           }
 
           // Toner Rule: Require Yields for consumables (except Fixed models)
-          if (!isMachine && isMonoColor && !isFixed && yieldVal <= 0) {
+          if (!isMachine && isMonoColor && !isFixed && yieldVal <= 0 && !isOutrightOnly ) {
             toast.error(`Yields are mandatory for Mono/Color consumables.`);
             setTab("Machine");
             return false;
           }
         // AFTER — skip sell price check for ANY click contract
-        if (!isMachine && isMonoColor && !isFixed && !isClick) {
+        if (!isMachine && isMonoColor && !isFixed && !isClick && !isOutrightOnly) {
           if (priceVal <= 0) {
             toast.error(`Selling price is mandatory for Mono/Color consumables.`);
             setTab("Machine");
