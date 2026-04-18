@@ -188,7 +188,7 @@ const validateBusinessLogic = () => {
         // Model Flags - Fixed the .includes logic
         const isOutright = contractType.includes("outright");
         const isRental = contractType.includes("rental");
-        const isFreeUse = contractType.includes("free use");
+        const isFreeUseClick = contractType.includes("free use + click charge");
         const isClick = contractType.includes("click");
         const isFixed = contractType.includes("fixed");
 
@@ -236,9 +236,10 @@ const validateBusinessLogic = () => {
             setTab("Machine");
             return false;
           }
-          if(!isRental ){
-          if (!isMachine && isMonoColor && !isFixed && priceVal <= 0) {
-            toast.error(`Selling price are mandatory for Mono/Color consumables.`);
+        // AFTER — skip sell price check for ANY click contract
+        if (!isMachine && isMonoColor && !isFixed && !isClick) {
+          if (priceVal <= 0) {
+            toast.error(`Selling price is mandatory for Mono/Color consumables.`);
             setTab("Machine");
             return false;
           }
