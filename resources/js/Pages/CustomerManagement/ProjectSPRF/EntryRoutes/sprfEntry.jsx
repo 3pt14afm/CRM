@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
 import CompanyInfoBlock from '@/Components/sprf/CompanyInfoBlock';
@@ -10,6 +10,22 @@ import SprfItemsTable from '@/Components/sprf/SprfItemsTable';
 import SprfOtherExpenseTable from '@/Components/sprf/SprfOtherExpenseTable';
 import NamesBlock from '@/Components/sprf/NamesBlock';
 
+const FIXED_OTHER_EXPENSE_ROWS = [
+  { key: 'deliveryCharge', productCode: 'Delivery Charge' },
+  { key: 'bidDocs', productCode: 'Bid Docs' },
+  { key: 'otherServices', productCode: 'Other Services' },
+  { key: 'rebate', productCode: 'Rebate' },
+  { key: 'others', productCode: 'Others' },
+];
+
+const APPROVAL_LEVEL = {
+  ESD_ONLY: 'ESD_ONLY',
+  VP_AND_CCTO: 'VP_AND_CCTO',
+  PRESIDENT_AND_CEO: 'PRESIDENT_AND_CEO',
+};
+
+const toNumber = (value) => Number(value || 0);
+
 const makeItemRow = () => ({
   productCode: '',
   itemDescription: '',
@@ -18,22 +34,33 @@ const makeItemRow = () => ({
   costPerUnit: '',
 });
 
-const makeExpenseRow = () => ({
-  productCode: '',
-  itemDescription: '',
+const makeExpenseRow = ({
+  expenseKey = null,
+  isFixed = false,
+  productCode = '',
+  itemDescription = '',
+} = {}) => ({
+  expenseKey,
+  isFixed,
+  productCode,
+  itemDescription,
   qty: '',
   unitPrice: '',
 });
 
-const makeSigner = (label) => ({
-  label,
-  name: '',
-  position: '',
-});
+const makeInitialExpenseRows = () =>
+  FIXED_OTHER_EXPENSE_ROWS.map((row) =>
+    makeExpenseRow({
+      expenseKey: row.key,
+      isFixed: true,
+      productCode: row.productCode,
+      itemDescription: '',
+    })
+  );
 
 const computeItem = (row) => {
-  const qty = Number(row.qty || 0);
-  const costPerUnit = Number(row.costPerUnit || 0);
+  const qty = toNumber(row.qty);
+  const costPerUnit = toNumber(row.costPerUnit);
 
   const totalCost = qty * costPerUnit;
   const sellingPricePerUnitVatInc = costPerUnit * 1.15;
@@ -53,8 +80,8 @@ const computeItem = (row) => {
 };
 
 const computeExpense = (row) => {
-  const qty = Number(row.qty || 0);
-  const unitPrice = Number(row.unitPrice || 0);
+  const qty = toNumber(row.qty);
+  const unitPrice = toNumber(row.unitPrice);
 
   return {
     ...row,
@@ -62,7 +89,35 @@ const computeExpense = (row) => {
   };
 };
 
-function Entry() {
+const resolveApprovalLevel = ({ revenue, totalGpPercent, hasRebate }) => {
+  if (hasRebate) {
+    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
+  }
+
+  if (revenue <= 0) {
+    return APPROVAL_LEVEL.ESD_ONLY;
+  }
+
+  if (totalGpPercent < 8) {
+    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
+  }
+
+  if (totalGpPercent < 10 || revenue > 1000000) {
+    return APPROVAL_LEVEL.VP_AND_CCTO;
+  }
+
+  return APPROVAL_LEVEL.ESD_ONLY;
+};
+
+const buildSigner = ({ name = '', title = '', lookupPosition = '' } = {}) => ({
+  name,
+  title,
+  lookupPosition,
+});
+
+function Entry({ approverUsers = {} }) {
+  const { auth } = usePage().props;
+
   const now = new Date();
 
   const formattedHeaderDate = new Intl.DateTimeFormat('en-US', {
@@ -84,16 +139,10 @@ function Entry() {
   });
 
   const [remarks, setRemarks] = useState('');
+  const [rebateJustification, setRebateJustification] = useState('');
 
   const [items, setItems] = useState([makeItemRow()]);
-  const [otherExpenses, setOtherExpenses] = useState([makeExpenseRow()]);
-
-  const [signers, setSigners] = useState([
-    makeSigner('Prepared by'),
-    makeSigner('Prepared by'),
-    makeSigner('Approved by'),
-    makeSigner('Approved by'),
-  ]);
+  const [otherExpenses, setOtherExpenses] = useState(() => makeInitialExpenseRows());
 
   const computedItems = useMemo(() => items.map(computeItem), [items]);
   const computedExpenses = useMemo(() => otherExpenses.map(computeExpense), [otherExpenses]);
@@ -126,6 +175,60 @@ function Entry() {
       ttlRev,
     };
   }, [computedItems]);
+
+  const rebateTotal = useMemo(() => {
+    return computedExpenses
+      .filter((row) => row.expenseKey === 'rebate')
+      .reduce((sum, row) => sum + row.total, 0);
+  }, [computedExpenses]);
+
+  const hasRebate = rebateTotal > 0;
+
+  const approvalLevel = useMemo(() => {
+    return resolveApprovalLevel({
+      revenue: summary.revenue,
+      totalGpPercent: summary.totalGpPercent,
+      hasRebate,
+    });
+  }, [summary.revenue, summary.totalGpPercent, hasRebate]);
+
+  const showVpCcto = approvalLevel !== APPROVAL_LEVEL.ESD_ONLY;
+  const showPresidentCeo = approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO;
+
+  const signatories = useMemo(() => {
+    const preparerName = auth?.user?.name ?? '';
+    const preparerActualPosition = auth?.user?.position ?? '';
+
+    return {
+      preparer: buildSigner({
+        name: preparerName,
+        title: 'PM INCHARGE',
+        lookupPosition: preparerActualPosition,
+      }),
+      directorCustomerEngagement: buildSigner({
+        name: approverUsers?.directorCustomerEngagement?.name ?? '',
+        title: 'DIRECTOR - CUSTOMER ENGAGEMENT',
+        lookupPosition:
+          approverUsers?.directorCustomerEngagement?.position ??
+          'DIRECTOR - CUSTOMER ENGAGEMENT',
+      }),
+      esdDirector: buildSigner({
+        name: approverUsers?.esdDirector?.name ?? '',
+        title: 'DIRECTOR - ENTERPRISE SOLUTIONS',
+        lookupPosition: approverUsers?.esdDirector?.position ?? 'ESD Director',
+      }),
+      vpCcto: buildSigner({
+        name: approverUsers?.vpCcto?.name ?? '',
+        title: 'VP & CCTO',
+        lookupPosition: approverUsers?.vpCcto?.position ?? 'VP & CCTO',
+      }),
+      presidentCeo: buildSigner({
+        name: approverUsers?.presidentCeo?.name ?? '',
+        title: 'President & CEO',
+        lookupPosition: approverUsers?.presidentCeo?.position ?? 'President & CEO',
+      }),
+    };
+  }, [auth?.user?.name, auth?.user?.position, approverUsers]);
 
   const updateItem = (index, field, value) => {
     setItems((prev) =>
@@ -165,14 +268,9 @@ function Entry() {
   const removeExpenseRow = (index) => {
     setOtherExpenses((prev) => {
       if (prev.length === 1) return prev;
+      if (prev[index]?.isFixed) return prev;
       return prev.filter((_, i) => i !== index);
     });
-  };
-
-  const updateSigner = (index, field, value) => {
-    setSigners((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
-    );
   };
 
   return (
@@ -201,26 +299,13 @@ function Entry() {
             <div className="p-6">
               <div className="grid grid-cols-12 gap-6">
                 <div className="col-span-12 xl:col-span-8 space-y-3">
-                  <CompanyInfoBlock
-                    value={companyInfo}
-                    onChange={setCompanyInfo}
-                  />
-
-                  <RemarksBlock
-                    value={remarks}
-                    onChange={setRemarks}
-                  />
+                  <CompanyInfoBlock value={companyInfo} onChange={setCompanyInfo} />
+                  <RemarksBlock value={remarks} onChange={setRemarks} />
                 </div>
 
                 <div className="col-span-12 xl:col-span-4 space-y-3">
-                  <SprfMetaBlock
-                    dateTime={formattedDateTime}
-                    sprfNo={sprfNo}
-                  />
-
-                  <SummaryBlock
-                    summary={summary}
-                  />
+                  <SprfMetaBlock dateTime={formattedDateTime} sprfNo={sprfNo} />
+                  <SummaryBlock summary={summary} />
                 </div>
               </div>
 
@@ -248,8 +333,12 @@ function Entry() {
 
               <div className="mt-6">
                 <NamesBlock
-                  signers={signers}
-                  onUpdateSigner={updateSigner}
+                  signatories={signatories}
+                  showVpCcto={showVpCcto}
+                  showPresidentCeo={showPresidentCeo}
+                  showRebateJustification={hasRebate}
+                  rebateJustification={rebateJustification}
+                  onChangeRebateJustification={setRebateJustification}
                 />
               </div>
             </div>

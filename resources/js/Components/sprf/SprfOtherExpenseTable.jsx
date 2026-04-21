@@ -15,7 +15,10 @@ export default function SprfOtherExpenseTable({
   const inputClass =
     'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
-  const readonlyClass =
+  const readonlyCellClass =
+    'w-full h-8 text-xs px-2 flex items-center rounded-sm text-slate-700';
+
+  const readonlyAmountClass =
     'w-full h-8 text-xs text-center px-1 flex items-center justify-end';
 
   const footerCellClass =
@@ -30,13 +33,13 @@ export default function SprfOtherExpenseTable({
       <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA]">
         <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
-            <col style={{ width: '5.5%' }} />   {/* Item No. */}
-            <col style={{ width: '18%' }} />  {/* Product Code */}
-            <col style={{ width: '37%' }} />  {/* Item Description */}
-            <col style={{ width: '8%' }} />  {/* Qty */}
-            <col style={{ width: '12%' }} />  {/* Unit Price */}
-            <col style={{ width: '13%' }} />  {/* Total */}
-            <col style={{ width: '6.5%' }} />   {/* +/- */}
+            <col style={{ width: '5.5%' }} />
+            <col style={{ width: '16%' }} />
+            <col style={{ width: '39%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '6.5%' }} />
           </colgroup>
 
           <thead>
@@ -52,82 +55,105 @@ export default function SprfOtherExpenseTable({
           </thead>
 
           <tbody>
-            {computedExpenses.map((row, index) => (
-              <tr key={`expense-${index}`} className="border-b relative transition-all duration-100 hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)]">
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className="w-full h-8 flex items-center justify-center text-[13px]">
-                    {index + 1}
-                  </div>
-                </td>
+            {computedExpenses.map((row, index) => {
+              const sourceRow = otherExpenses[index];
+              const isFixed = Boolean(sourceRow?.isFixed);
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="text"
-                    value={otherExpenses[index].productCode}
-                    onChange={(e) => onUpdateExpense(index, 'productCode', e.target.value)}
-                    className={`${inputClass} normal-case`}
-                  />
-                </td>
+              return (
+                <tr
+                  key={`expense-${index}`}
+                  className="border-b relative transition-all duration-100 hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)]"
+                >
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <div className="w-full h-8 flex items-center justify-center text-[13px]">
+                      {index + 1}
+                    </div>
+                  </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="text"
-                    value={otherExpenses[index].itemDescription}
-                    onChange={(e) => onUpdateExpense(index, 'itemDescription', e.target.value)}
-                    className={`${inputClass} normal-case text-left`}
-                  />
-                </td>
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    {isFixed ? (
+                      <div className={readonlyCellClass}>
+                        {sourceRow.productCode || '—'}
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={sourceRow.productCode}
+                        onChange={(e) => onUpdateExpense(index, 'productCode', e.target.value)}
+                        className={`${inputClass} normal-case text-left`}
+                        placeholder="Enter product code"
+                      />
+                    )}
+                  </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="number"
-                    min="0"
-                    value={otherExpenses[index].qty}
-                    onChange={(e) => onUpdateExpense(index, 'qty', e.target.value)}
-                    className={inputClass}
-                    placeholder="0"
-                  />
-                </td>
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <input
+                      type="text"
+                      value={sourceRow.itemDescription}
+                      onChange={(e) => onUpdateExpense(index, 'itemDescription', e.target.value)}
+                      className={`${inputClass} normal-case text-left`}
+                      placeholder="Enter item description"
+                    />
+                  </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={otherExpenses[index].unitPrice}
-                    onChange={(e) => onUpdateExpense(index, 'unitPrice', e.target.value)}
-                    className={inputClass}
-                    placeholder="0.00"
-                  />
-                </td>
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <input
+                      type="number"
+                      min="0"
+                      value={sourceRow.qty}
+                      onChange={(e) => onUpdateExpense(index, 'qty', e.target.value)}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {peso(row.total)}
-                  </div>
-                </td>
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={sourceRow.unitPrice}
+                      onChange={(e) => onUpdateExpense(index, 'unitPrice', e.target.value)}
+                      className={inputClass}
+                      placeholder="0.00"
+                    />
+                  </td>
 
-                <td className="border-b border-darkgreen/15 p-1">
-                  <div className="flex gap-1 justify-center">
-                    <button
-                      type="button"
-                      onClick={() => onAddExpenseRow(index)}
-                      className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
-                    >
-                      +
-                    </button>
+                  <td className="border-b border-r border-darkgreen/15 p-1">
+                    <div className={readonlyAmountClass}>
+                      {peso(row.total)}
+                    </div>
+                  </td>
 
-                    <button
-                      type="button"
-                      onClick={() => onRemoveExpenseRow(index)}
-                      className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                    >
-                      -
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  <td className="border-b border-darkgreen/15 p-1">
+                    <div className="flex gap-1 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => onAddExpenseRow(index)}
+                        className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                        title="Add row"
+                      >
+                        +
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onRemoveExpenseRow(index)}
+                        disabled={isFixed}
+                        className={`w-6 h-6 rounded border ${
+                          isFixed
+                            ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
+                            : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                        }`}
+                        title={isFixed ? 'Fixed rows cannot be removed' : 'Remove row'}
+                      >
+                        -
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
 
           <tfoot>
