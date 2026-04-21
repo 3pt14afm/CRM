@@ -110,17 +110,19 @@ function SucceTotals() {
                 <tbody className="text-[10px]">
                  {allAdditionalFees.length > 0 ? (
                     allAdditionalFees.map((fee, idx) => {
+                      const isA3ColorClick = fee.label?.toLowerCase().includes("a3 color click");
                       const isCompany = companyFees.some((cf) => cf.id === fee.id);
                       const feeQty = n(fee.qty);
                       const feeCost = n(fee.cost); // Added to check for zero cost
-
+                      const displayTotal = isA3ColorClick ? 0 : (Number(fee.total) || 0);
                       return (
                         <tr key={fee.id || idx} className="border-x-gray-300">
                           <td className="border border-x-gray-300 border-gray-100 px-4 py-2 text-[12px] truncate border-r">
                             {fee.label}
                           </td>
                           <td className="border border-x-gray-300 border-gray-100 px-3 py-2 text-[11px] text-right border-r">
-                            {format(fee.cost)}
+                           {/* If it's A3, show empty or 0 as cost too */}
+                          {isA3ColorClick ? '' : format(fee.cost)}
                           </td>
                           <td className="py-2 border-r border-gray-300 bg-[#f8f8f8] print:bg-white"></td>
 
