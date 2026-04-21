@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
+import { route as ziggyRoute } from 'ziggy-js';
 
 import CompanyInfoBlock from '@/Components/sprf/CompanyInfoBlock';
 import RemarksBlock from '@/Components/sprf/RemarksBlock';
@@ -39,13 +40,15 @@ const makeExpenseRow = ({
   isFixed = false,
   productCode = '',
   itemDescription = '',
+  qty = '',
+  unitPrice = '',
 } = {}) => ({
   expenseKey,
   isFixed,
   productCode,
   itemDescription,
-  qty: '',
-  unitPrice: '',
+  qty,
+  unitPrice,
 });
 
 const makeInitialExpenseRows = () =>
@@ -55,8 +58,77 @@ const makeInitialExpenseRows = () =>
       isFixed: true,
       productCode: row.productCode,
       itemDescription: '',
+      qty: '',
+      unitPrice: '',
     })
   );
+
+const normalizeExpenseRows = (rows = []) => {
+  const incoming = Array.isArray(rows) ? rows : [];
+  const incomingByKey = new Map(
+    incoming
+      .filter((row) => row?.expenseKey)
+      .map((row) => [row.expenseKey, row])
+  );
+
+  const fixedRows = FIXED_OTHER_EXPENSE_ROWS.map((fixed) => {
+    const existing = incomingByKey.get(fixed.key);
+
+    return makeExpenseRow({
+      expenseKey: fixed.key,
+      isFixed: true,
+      productCode: fixed.productCode,
+      itemDescription: existing?.itemDescription ?? '',
+      qty: existing?.qty ?? '',
+      unitPrice: existing?.unitPrice ?? '',
+    });
+  });
+
+  const extraRows = incoming
+    .filter(
+      (row) =>
+        !row?.isFixed &&
+        !FIXED_OTHER_EXPENSE_ROWS.some((fixed) => fixed.key === row?.expenseKey)
+    )
+    .map((row) =>
+      makeExpenseRow({
+        expenseKey: row?.expenseKey ?? null,
+        isFixed: false,
+        productCode: row?.productCode ?? '',
+        itemDescription: row?.itemDescription ?? '',
+        qty: row?.qty ?? '',
+        unitPrice: row?.unitPrice ?? '',
+      })
+    );
+
+  return [...fixedRows, ...extraRows];
+};
+
+const normalizeRemarksRows = (value) => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.map((row) => String(row ?? '')) : [''];
+  }
+
+  const text = String(value ?? '');
+  if (!text.trim()) {
+    return [''];
+  }
+
+  const rows = text
+    .split(/\r?\n/)
+    .map((row) => row.trimEnd());
+
+  return rows.length > 0 ? rows : [''];
+};
+
+const serializeRemarksRows = (rows) => {
+  if (!Array.isArray(rows)) return '';
+
+  return rows
+    .map((row) => String(row ?? '').trim())
+    .filter((row) => row !== '')
+    .join('\n');
+};
 
 const computeItem = (row) => {
   const qty = toNumber(row.qty);
@@ -109,14 +181,43 @@ const resolveApprovalLevel = ({ revenue, totalGpPercent, hasRebate }) => {
   return APPROVAL_LEVEL.ESD_ONLY;
 };
 
+const finalApprovalLevelNumber = (approvalLevel) => {
+  if (approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO) return 5;
+  if (approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO) return 4;
+  return 3;
+};
+
 const buildSigner = ({ name = '', title = '', lookupPosition = '' } = {}) => ({
   name,
   title,
   lookupPosition,
 });
 
-function Entry({ approverUsers = {} }) {
+const formatDateTime = (value) => {
+  if (!value) return '—';
+
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
+};
+
+function Entry({
+  approverUsers = {},
+  initialProject = null,
+  project = null,
+  readOnly = false,
+  route: pageRoute = 'entry',
+  createdBy = '—',
+  canActOnCurrentProject = false,
+}) {
   const { auth } = usePage().props;
+
+  const sourceProject = initialProject ?? project;
 
   const now = new Date();
 
@@ -126,11 +227,56 @@ function Entry({ approverUsers = {} }) {
     year: '2-digit',
   }).format(now);
 
-  const formattedDateTime = `${now.toLocaleDateString('en-US')} ${now.toLocaleTimeString('en-US', {
+  const liveDateTime = `${now.toLocaleDateString('en-US')} ${now.toLocaleTimeString('en-US', {
     hour12: false,
   })}`;
 
-  const [sprfNo] = useState('SPRFIT-0000');
+  const pageLabel =
+    pageRoute === 'current' ? 'Current' : pageRoute === 'archive' ? 'Archive' : 'Entry';
+
+  const pageTitle =
+    pageRoute === 'entry' ? 'Project SPRF' : 'Project SPRF Approval';
+
+  const displayDateTime = useMemo(() => {
+    if (pageRoute === 'archive') {
+      return (
+        formatDateTime(
+          sourceProject?.approved_at ??
+          sourceProject?.rejected_at ??
+          sourceProject?.submitted_at ??
+          sourceProject?.last_saved_at
+        ) || liveDateTime
+      );
+    }
+
+    if (pageRoute === 'current') {
+      return (
+        formatDateTime(
+          sourceProject?.submitted_at ??
+          sourceProject?.last_saved_at
+        ) || liveDateTime
+      );
+    }
+
+    return liveDateTime;
+  }, [
+    pageRoute,
+    sourceProject?.approved_at,
+    sourceProject?.rejected_at,
+    sourceProject?.submitted_at,
+    sourceProject?.last_saved_at,
+    liveDateTime,
+  ]);
+
+  const lastSavedDisplay = useMemo(() => {
+    if (!sourceProject?.last_saved_at) {
+      return '—';
+    }
+
+    return formatDateTime(sourceProject.last_saved_at);
+  }, [sourceProject?.last_saved_at]);
+
+  const [sprfNo, setSprfNo] = useState(sourceProject?.sprf_no ?? 'SPRFIT-0000');
 
   const [companyInfo, setCompanyInfo] = useState({
     subCategory: '',
@@ -138,11 +284,53 @@ function Entry({ approverUsers = {} }) {
     accountManager: '',
   });
 
-  const [remarks, setRemarks] = useState('');
+  const [remarks, setRemarks] = useState(['']);
   const [rebateJustification, setRebateJustification] = useState('');
 
   const [items, setItems] = useState([makeItemRow()]);
   const [otherExpenses, setOtherExpenses] = useState(() => makeInitialExpenseRows());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectNote, setRejectNote] = useState('');
+
+  useEffect(() => {
+    if (!sourceProject) {
+      setSprfNo('SPRFIT-0000');
+      setCompanyInfo({
+        subCategory: '',
+        account: '',
+        accountManager: '',
+      });
+      setRemarks(['']);
+      setRebateJustification('');
+      setItems([makeItemRow()]);
+      setOtherExpenses(makeInitialExpenseRows());
+      return;
+    }
+
+    setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
+    setCompanyInfo({
+      subCategory: sourceProject?.company_info?.subCategory ?? '',
+      account: sourceProject?.company_info?.account ?? '',
+      accountManager: sourceProject?.company_info?.accountManager ?? '',
+    });
+    setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
+    setRebateJustification(sourceProject?.rebate_justification ?? '');
+
+    setItems(
+      Array.isArray(sourceProject?.items) && sourceProject.items.length > 0
+        ? sourceProject.items.map((row) => ({
+            productCode: row?.productCode ?? '',
+            itemDescription: row?.itemDescription ?? '',
+            qty: row?.qty ?? '',
+            disty: row?.disty ?? '',
+            costPerUnit: row?.costPerUnit ?? '',
+          }))
+        : [makeItemRow()]
+    );
+
+    setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
+  }, [sourceProject]);
 
   const computedItems = useMemo(() => items.map(computeItem), [items]);
   const computedExpenses = useMemo(() => otherExpenses.map(computeExpense), [otherExpenses]);
@@ -184,7 +372,7 @@ function Entry({ approverUsers = {} }) {
 
   const hasRebate = rebateTotal > 0;
 
-  const approvalLevel = useMemo(() => {
+  const computedApprovalLevel = useMemo(() => {
     return resolveApprovalLevel({
       revenue: summary.revenue,
       totalGpPercent: summary.totalGpPercent,
@@ -192,11 +380,26 @@ function Entry({ approverUsers = {} }) {
     });
   }, [summary.revenue, summary.totalGpPercent, hasRebate]);
 
+  const approvalLevel = sourceProject?.approval_level ?? computedApprovalLevel;
+
   const showVpCcto = approvalLevel !== APPROVAL_LEVEL.ESD_ONLY;
   const showPresidentCeo = approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO;
 
+  const isEntryRoute = pageRoute === 'entry';
+  const isCurrentRoute = pageRoute === 'current';
+  const isArchiveRoute = pageRoute === 'archive';
+
+  const isFinalApprover =
+    Number(sourceProject?.current_level || 0) === finalApprovalLevelNumber(approvalLevel);
+
   const signatories = useMemo(() => {
-    const preparerName = auth?.user?.name ?? '';
+    const preparerName =
+      sourceProject?.prepared_by_name ??
+      auth?.user?.name ??
+      [auth?.user?.first_name, auth?.user?.last_name].filter(Boolean).join(' ') ??
+      createdBy ??
+      '';
+
     const preparerActualPosition = auth?.user?.position ?? '';
 
     return {
@@ -215,7 +418,7 @@ function Entry({ approverUsers = {} }) {
       esdDirector: buildSigner({
         name: approverUsers?.esdDirector?.name ?? '',
         title: 'DIRECTOR - ENTERPRISE SOLUTIONS',
-        lookupPosition: approverUsers?.esdDirector?.position ?? 'ESD Director',
+        lookupPosition: approverUsers?.esdDirector?.position ?? 'Director - Enterprise Solutions',
       }),
       vpCcto: buildSigner({
         name: approverUsers?.vpCcto?.name ?? '',
@@ -228,7 +431,15 @@ function Entry({ approverUsers = {} }) {
         lookupPosition: approverUsers?.presidentCeo?.position ?? 'President & CEO',
       }),
     };
-  }, [auth?.user?.name, auth?.user?.position, approverUsers]);
+  }, [
+    sourceProject?.prepared_by_name,
+    createdBy,
+    auth?.user?.name,
+    auth?.user?.first_name,
+    auth?.user?.last_name,
+    auth?.user?.position,
+    approverUsers,
+  ]);
 
   const updateItem = (index, field, value) => {
     setItems((prev) =>
@@ -253,7 +464,15 @@ function Entry({ approverUsers = {} }) {
 
   const updateExpense = (index, field, value) => {
     setOtherExpenses((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+      prev.map((row, i) => {
+        if (i !== index) return row;
+
+        if (row.isFixed && field === 'productCode') {
+          return row;
+        }
+
+        return { ...row, [field]: value };
+      })
     );
   };
 
@@ -273,78 +492,413 @@ function Entry({ approverUsers = {} }) {
     });
   };
 
+  const buildPayload = () => ({
+    project_id: sourceProject?.id ?? null,
+    sprf_no: sprfNo,
+    company_info: companyInfo,
+    remarks: serializeRemarksRows(remarks),
+    rebate_justification: rebateJustification,
+    items,
+    other_expenses: otherExpenses,
+    summary,
+  });
+
+  const openPrintPage = (autoPrint = false) => {
+    const projectId = sourceProject?.id;
+
+    if (!projectId || !isEntryRoute) {
+      window.alert('Please save draft first before printing.');
+      return;
+    }
+
+    let storageKey = null;
+
+    try {
+      storageKey = `sprf-print:${projectId}:${Date.now()}`;
+
+      const snapshot = {
+        sprfNo,
+        status: sourceProject?.status ?? 'draft',
+        companyInfo,
+        remarks: serializeRemarksRows(remarks),
+        rebateJustification,
+        items,
+        otherExpenses,
+        signatories,
+      };
+
+      sessionStorage.setItem(storageKey, JSON.stringify(snapshot));
+    } catch (error) {
+      console.warn('SPRF print snapshot could not be stored.', error);
+      storageKey = null;
+    }
+
+    const params = new URLSearchParams();
+    params.set('autoprint', autoPrint ? '1' : '0');
+    params.set('draftWatermark', sourceProject?.status === 'draft' ? '1' : '0');
+
+    if (storageKey) {
+      params.set('storageKey', storageKey);
+    }
+
+    const href = `${ziggyRoute('sprf.entry.projects.print', projectId)}?${params.toString()}`;
+
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const handleSaveDraft = () => {
+    if (isSubmitting || readOnly) return;
+
+    setIsSubmitting(true);
+
+    router.post(ziggyRoute('sprf.entry.draft.save'), buildPayload(), {
+      preserveScroll: true,
+      onFinish: () => {
+        setIsSubmitting(false);
+      },
+    });
+  };
+
+  const handleSubmit = () => {
+    if (isSubmitting || readOnly) return;
+
+    if (hasRebate && rebateJustification.trim() === '') {
+      window.alert('Rebate justification is required when Rebate has a value.');
+      return;
+    }
+
+    if (!sourceProject?.id) {
+      window.alert('Please save draft first before submitting.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    router.patch(
+      ziggyRoute('sprf.entry.projects.submit', sourceProject.id),
+      buildPayload(),
+      {
+        preserveScroll: true,
+        onError: (errors) => {
+          const firstError = Object.values(errors || {})[0];
+          if (firstError) {
+            window.alert(Array.isArray(firstError) ? firstError[0] : firstError);
+          }
+        },
+        onFinish: () => {
+          setIsSubmitting(false);
+        },
+      }
+    );
+  };
+
+  const handleClearAll = () => {
+    if (readOnly) return;
+
+    if (!window.confirm('Are you sure you want to clear all data?')) {
+      return;
+    }
+
+    setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
+    setCompanyInfo({
+      subCategory: '',
+      account: '',
+      accountManager: '',
+    });
+    setRemarks(['']);
+    setRebateJustification('');
+    setItems([makeItemRow()]);
+    setOtherExpenses(makeInitialExpenseRows());
+  };
+
+  const handleAdvanceCurrent = () => {
+    if (isSubmitting || !sourceProject?.id) return;
+
+    setIsSubmitting(true);
+
+    router.post(
+      ziggyRoute('sprf.current.advance', sourceProject.id),
+      {},
+      {
+        preserveScroll: true,
+        onFinish: () => {
+          setIsSubmitting(false);
+        },
+      }
+    );
+  };
+
+  const handleApproveCurrent = () => {
+    if (isSubmitting || !sourceProject?.id) return;
+
+    setIsSubmitting(true);
+
+    router.post(
+      ziggyRoute('sprf.current.approve', sourceProject.id),
+      {},
+      {
+        preserveScroll: true,
+        onFinish: () => {
+          setIsSubmitting(false);
+        },
+      }
+    );
+  };
+
+  const handleRejectCurrent = () => {
+    if (isSubmitting || !sourceProject?.id) return;
+
+    setIsSubmitting(true);
+
+    router.post(
+      ziggyRoute('sprf.current.reject', sourceProject.id),
+      { body: rejectNote },
+      {
+        preserveScroll: true,
+        onFinish: () => {
+          setIsSubmitting(false);
+          setShowRejectModal(false);
+          setRejectNote('');
+        },
+      }
+    );
+  };
+
   return (
     <>
-      <Head title="SPRF Entry" />
+      <Head title={`SPRF ${pageLabel}`} />
 
       <div className="min-h-screen flex flex-col">
-        <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
-          <div className="flex gap-1">
-            <h1 className="font-semibold mt-3">Project SPRF</h1>
-            <p className="mt-3">/</p>
-            <p className="text-3xl font-semibold">Entry</p>
+        <div className="flex-1">
+          <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
+            <div className="flex gap-1">
+              <h1 className="font-semibold mt-3">{pageTitle}</h1>
+              <p className="mt-3">/</p>
+              <p className="text-3xl font-semibold">{pageLabel}</p>
+            </div>
+
+            <div className="flex flex-col gap-1 items-end">
+              <h1 className="text-xs text-right text-slate-500">{formattedHeaderDate}</h1>
+              <p className="text-xs text-right text-slate-500">
+                Last Saved: {lastSavedDisplay}
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1 items-end">
-            <h1 className="text-xs text-right text-slate-500">{formattedHeaderDate}</h1>
+          <div className="mx-10 pb-28">
+            <div className="overflow-hidden rounded-2xl border border-[#2c2c2e]/20 print:shadow-none print:border-0 bg-[#f8f8f8] shadow-md">
+              <div className="bg-[#B5EBA2]/50 px-6 py-2 border border-b-[#2c2c2e]/10 text-center text-[15px] font-bold uppercase tracking-wide">
+                IT Solutions Special Price Request Form
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-12 gap-6">
+                  <div className="col-span-12 xl:col-span-8 space-y-3">
+                    <CompanyInfoBlock
+                      value={companyInfo}
+                      onChange={setCompanyInfo}
+                      readOnly={readOnly}
+                    />
+
+                    <RemarksBlock
+                      value={remarks}
+                      onChange={setRemarks}
+                      readOnly={readOnly}
+                      lastRejectNote={isArchiveRoute ? sourceProject?.last_reject_note ?? '' : ''}
+                    />
+                  </div>
+
+                  <div className="col-span-12 xl:col-span-4 space-y-3">
+                    <SprfMetaBlock
+                      dateTime={displayDateTime}
+                      sprfNo={sprfNo}
+                    />
+
+                    <SummaryBlock
+                      summary={summary}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <SprfItemsTable
+                    items={items}
+                    computedItems={computedItems}
+                    onUpdateItem={updateItem}
+                    onAddItemRow={addItemRow}
+                    onRemoveItemRow={removeItemRow}
+                    totals={itemTotals}
+                    readOnly={readOnly}
+                  />
+                </div>
+
+                <div className="mt-6">
+                  <SprfOtherExpenseTable
+                    otherExpenses={otherExpenses}
+                    computedExpenses={computedExpenses}
+                    onUpdateExpense={updateExpense}
+                    onAddExpenseRow={addExpenseRow}
+                    onRemoveExpenseRow={removeExpenseRow}
+                    totalOtherExpense={summary.otherExpense}
+                    readOnly={readOnly}
+                  />
+                </div>
+
+                <div className="mt-6">
+                  <NamesBlock
+                    signatories={signatories}
+                    showVpCcto={showVpCcto}
+                    showPresidentCeo={showPresidentCeo}
+                    showRebateJustification={hasRebate}
+                    rebateJustification={rebateJustification}
+                    onChangeRebateJustification={setRebateJustification}
+                    readOnly={readOnly}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mx-10 pb-10">
-          <div className="overflow-hidden rounded-2xl border border-[#2c2c2e]/20 print:shadow-none print:border-0 bg-[#f8f8f8] shadow-md">
-            <div className="bg-[#B5EBA2]/50 px-6 py-2 border border-b-[#2c2c2e]/10 text-center text-[15px] font-bold uppercase tracking-wide">
-              IT Solutions Special Price Request Form
+        <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
+          {isEntryRoute && !readOnly ? (
+            <div className="px-10 py-3 flex items-center justify-between relative">
+              <button
+                type="button"
+                onClick={handleClearAll}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+              >
+                Clear All
+              </button>
+
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(false)}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                >
+                  Print Preview
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(true)}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                >
+                  Print
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-5 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                >
+                  Submit
+                </button>
+              </div>
             </div>
+          ) : isCurrentRoute && readOnly ? (
+            <div className="px-10 py-3 flex items-center justify-end gap-3">
+              {canActOnCurrentProject && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectModal(true)}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
 
-            <div className="p-6">
-              <div className="grid grid-cols-12 gap-6">
-                <div className="col-span-12 xl:col-span-8 space-y-3">
-                  <CompanyInfoBlock value={companyInfo} onChange={setCompanyInfo} />
-                  <RemarksBlock value={remarks} onChange={setRemarks} />
-                </div>
-
-                <div className="col-span-12 xl:col-span-4 space-y-3">
-                  <SprfMetaBlock dateTime={formattedDateTime} sprfNo={sprfNo} />
-                  <SummaryBlock summary={summary} />
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <SprfItemsTable
-                  items={items}
-                  computedItems={computedItems}
-                  onUpdateItem={updateItem}
-                  onAddItemRow={addItemRow}
-                  onRemoveItemRow={removeItemRow}
-                  totals={itemTotals}
-                />
-              </div>
-
-              <div className="mt-6">
-                <SprfOtherExpenseTable
-                  otherExpenses={otherExpenses}
-                  computedExpenses={computedExpenses}
-                  onUpdateExpense={updateExpense}
-                  onAddExpenseRow={addExpenseRow}
-                  onRemoveExpenseRow={removeExpenseRow}
-                  totalOtherExpense={summary.otherExpense}
-                />
-              </div>
-
-              <div className="mt-6">
-                <NamesBlock
-                  signatories={signatories}
-                  showVpCcto={showVpCcto}
-                  showPresidentCeo={showPresidentCeo}
-                  showRebateJustification={hasRebate}
-                  rebateJustification={rebateJustification}
-                  onChangeRebateJustification={setRebateJustification}
-                />
-              </div>
+                  {isFinalApprover ? (
+                    <button
+                      type="button"
+                      onClick={handleApproveCurrent}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                    >
+                      Approve
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAdvanceCurrent}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                    >
+                      Submit to Next Level
+                    </button>
+                  )}
+                </>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="px-10 py-3 flex items-center justify-end" />
+          )}
         </div>
       </div>
+
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
+            <h2 className="text-lg font-bold text-[#111111]">Reject SPRF</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Add an optional note for the rejection.
+            </p>
+
+            <textarea
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              rows={5}
+              className="mt-4 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
+              placeholder="Enter rejection note"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectNote('');
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRejectCurrent}
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -11,15 +11,19 @@ export default function SprfItemsTable({
   onAddItemRow,
   onRemoveItemRow,
   totals,
+  readOnly = false,
 }) {
   const inputClass =
-    'w-full min-w-0 h-8 text-[13px] print:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+    'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyClass =
-    'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-end';
+    'w-full h-8 text-xs text-center px-1 flex items-center justify-end';
+
+  const readonlyTextClass =
+    'w-full min-w-0 h-8 text-xs rounded-sm px-1 flex items-center bg-white';
 
   const footerCellClass =
-    'bg-[#D9F2D0] p-2 text-[12px] font-bold text-center text-end';
+    'bg-[#D9F2D0] p-2 text-xs font-bold text-center text-end';
 
   return (
     <div>
@@ -63,7 +67,10 @@ export default function SprfItemsTable({
 
           <tbody>
             {computedItems.map((row, index) => (
-              <tr key={`item-${index}`} className="border-b relative hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)] transition-all duration-100">
+              <tr
+                key={`item-${index}`}
+                className="border-b relative hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)] transition-all duration-100"
+              >
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   <div className="w-full h-8 flex items-center justify-center text-[13px]">
                     {index + 1}
@@ -71,53 +78,79 @@ export default function SprfItemsTable({
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="text"
-                    value={items[index].productCode}
-                    onChange={(e) => onUpdateItem(index, 'productCode', e.target.value)}
-                    className={`${inputClass} normal-case`}
-                  />
+                  {readOnly ? (
+                    <div className={readonlyTextClass}>
+                      {items[index]?.productCode || '—'}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={items[index].productCode}
+                      onChange={(e) => onUpdateItem(index, 'productCode', e.target.value)}
+                      className={`${inputClass} normal-case`}
+                    />
+                  )}
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="text"
-                    value={items[index].itemDescription}
-                    onChange={(e) => onUpdateItem(index, 'itemDescription', e.target.value)}
-                    className={`${inputClass} normal-case text-left`}
-                  />
+                  {readOnly ? (
+                    <div className={`${readonlyTextClass} justify-start`}>
+                      {items[index]?.itemDescription || '—'}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={items[index].itemDescription}
+                      onChange={(e) => onUpdateItem(index, 'itemDescription', e.target.value)}
+                      className={`${inputClass} normal-case text-left`}
+                    />
+                  )}
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="number"
-                    min="0"
-                    value={items[index].qty}
-                    onChange={(e) => onUpdateItem(index, 'qty', e.target.value)}
-                    className={inputClass}
-                    placeholder="0"
-                  />
+                  {readOnly ? (
+                    <div className={readonlyClass}>{peso(items[index]?.qty)}</div>
+                  ) : (
+                    <input
+                      type="number"
+                      min="0"
+                      value={items[index].qty}
+                      onChange={(e) => onUpdateItem(index, 'qty', e.target.value)}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  )}
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="text"
-                    value={items[index].disty}
-                    onChange={(e) => onUpdateItem(index, 'disty', e.target.value)}
-                    className={`${inputClass} normal-case`}
-                  />
+                  {readOnly ? (
+                    <div className={`${readonlyTextClass} justify-start`}>
+                      {items[index]?.disty || '—'}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={items[index].disty}
+                      onChange={(e) => onUpdateItem(index, 'disty', e.target.value)}
+                      className={`${inputClass} normal-case`}
+                    />
+                  )}
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={items[index].costPerUnit}
-                    onChange={(e) => onUpdateItem(index, 'costPerUnit', e.target.value)}
-                    className={inputClass}
-                    placeholder="0.00"
-                  />
+                  {readOnly ? (
+                    <div className={readonlyClass}>{peso(items[index]?.costPerUnit)}</div>
+                  ) : (
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={items[index].costPerUnit}
+                      onChange={(e) => onUpdateItem(index, 'costPerUnit', e.target.value)}
+                      className={inputClass}
+                      placeholder="0.00"
+                    />
+                  )}
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
@@ -151,23 +184,27 @@ export default function SprfItemsTable({
                 </td>
 
                 <td className="border-b border-darkgreen/15 p-1">
-                  <div className="flex gap-1 justify-center">
-                    <button
-                      type="button"
-                      onClick={() => onAddItemRow(index)}
-                      className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
-                    >
-                      +
-                    </button>
+                  {readOnly ? (
+                    <div className="w-full h-8" />
+                  ) : (
+                    <div className="flex gap-1 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => onAddItemRow(index)}
+                        className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                      >
+                        +
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => onRemoveItemRow(index)}
-                      className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                    >
-                      -
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveItemRow(index)}
+                        className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                      >
+                        -
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

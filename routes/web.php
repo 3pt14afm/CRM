@@ -18,6 +18,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoiChatController;
 use App\Http\Controllers\RoiCurrentProjectController;
 use App\Http\Controllers\RoiEntryProjectController;
+use App\Http\Controllers\SPRF\SprfController;
+use App\Http\Controllers\SPRF\SprfCurrentProjectController;
+use App\Http\Controllers\SPRF\SprfEntryProjectController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -378,34 +381,50 @@ Route::middleware(['auth', 'verified'])
         //     ->name('roi.chat.reset');
 
         Route::prefix('sprf')->group(function () {
-        Route::get('/current', function () {
-            return Inertia::render('CustomerManagement/ProjectSPRF/Current');
-        })->name('sprf.current');
+            Route::get('/current', [SprfCurrentProjectController::class, 'current'])
+                ->name('sprf.current');
 
-        Route::get('/archive', function () {
-            return Inertia::render('CustomerManagement/ProjectSPRF/Archive');
-        })->name('sprf.archive');
+            Route::get('/current/{project}', [SprfCurrentProjectController::class, 'show'])
+                ->name('sprf.current.show');
 
-        Route::prefix('entry')->group(function () {
-            Route::get('/', function () {
-                return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntryList');
-            })->name('sprf.entry.list');
+            Route::post('/current/{project}/advance', [SprfCurrentProjectController::class, 'advanceProject'])
+                ->name('sprf.current.advance');
 
-            Route::get('/create', function () {
-                return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry');
-            })->name('sprf.entry.create');
+            Route::post('/current/{project}/reject', [SprfCurrentProjectController::class, 'reject'])
+                ->name('sprf.current.reject');
 
-            Route::get('/projects/{project}', function ($project) {
-                return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
-                    'projectId' => $project,
-                ]);
-            })->name('sprf.entry.projects.show');
+            Route::post('/current/{project}/approve', [SprfCurrentProjectController::class, 'approve'])
+                ->name('sprf.current.approve');
 
-            Route::delete('/projects/{project}', function ($project) {
-                //
-            })->name('sprf.entry.projects.destroy');
+            Route::get('/archive', [SprfController::class, 'archive'])
+                ->name('sprf.archive');
+
+            Route::get('/archive/{project}', [SprfController::class, 'archiveShow'])
+                ->name('sprf.archive.show');
+
+            Route::prefix('entry')->group(function () {
+                Route::get('/', [SprfController::class, 'entryList'])
+                    ->name('sprf.entry.list');
+
+                Route::get('/create', [SprfController::class, 'entryCreate'])
+                    ->name('sprf.entry.create');
+
+                Route::post('/draft', [SprfEntryProjectController::class, 'saveDraft'])
+                    ->name('sprf.entry.draft.save');
+
+                Route::get('/projects/{project}', [SprfEntryProjectController::class, 'show'])
+                    ->name('sprf.entry.projects.show');
+
+                Route::get('/projects/{project}/print', [SprfEntryProjectController::class, 'print'])
+                    ->name('sprf.entry.projects.print');
+
+                Route::patch('/projects/{project}/submit', [SprfEntryProjectController::class, 'submit'])
+                    ->name('sprf.entry.projects.submit');
+
+                Route::delete('/projects/{project}', [SprfEntryProjectController::class, 'destroy'])
+                    ->name('sprf.entry.projects.destroy');
+            });
         });
-    });
 
     });
 
