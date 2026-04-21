@@ -5,6 +5,7 @@ export default function NamesBlock({
   showRebateJustification = false,
   rebateJustification = '',
   onChangeRebateJustification,
+  readOnly = false,
 }) {
   const leftPreparer = signatories?.preparer ?? { name: '', title: '' };
   const leftDirectorCustomerEngagement =
@@ -37,6 +38,7 @@ export default function NamesBlock({
               <JustificationField
                 value={rebateJustification}
                 onChange={onChangeRebateJustification}
+                readOnly={readOnly}
               />
             )}
           </div>
@@ -84,24 +86,32 @@ function Signatory({ name, title }) {
   );
 }
 
-function JustificationField({ value, onChange }) {
+function JustificationField({ value, onChange, readOnly = false }) {
   return (
     <div className="flex flex-col space-y-3">
       <label className="text-[10px] font-extrabold text-gray-800 tracking-tight">
         JUSTIFICATION FOR REBATE <span className="text-red-500">*</span>
       </label>
 
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={3}
-        placeholder="Enter justification for rebate request"
-        className="w-full rounded-xl border border-gray-200 px-3 py-3 text-xs outline-none placeholder:text-[#9AA08F] hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
-      />
+      {readOnly ? (
+        <div className="w-full min-h-[72px] rounded-xl border border-gray-200 px-3 py-3 text-xs bg-white whitespace-pre-wrap">
+          {value?.trim?.() ? value : '—'}
+        </div>
+      ) : (
+        <textarea
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
+          rows={3}
+          placeholder="Enter justification for rebate request"
+          className="w-full rounded-xl border border-gray-200 px-3 py-3 text-xs outline-none placeholder:text-[#9AA08F] hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
+        />
+      )}
 
-      <p className="text-[11px] text-gray-500">
-        This field is shown only when the Rebate row has a value.
-      </p>
+      {!readOnly && (
+        <p className="text-[11px] text-gray-500">
+          This field is shown only when the Rebate row has a value.
+        </p>
+      )}
     </div>
   );
 }

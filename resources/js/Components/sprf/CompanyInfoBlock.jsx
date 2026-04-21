@@ -1,5 +1,7 @@
-export default function CompanyInfoBlock({ value, onChange }) {
+export default function CompanyInfoBlock({ value, onChange, readOnly = false }) {
   const handleFieldChange = (field, fieldValue) => {
+    if (readOnly || typeof onChange !== 'function') return;
+
     onChange((prev) => ({
       ...prev,
       [field]: fieldValue,
@@ -36,13 +38,19 @@ export default function CompanyInfoBlock({ value, onChange }) {
               {field.label}
             </label>
 
-            <input
-              type="text"
-              value={value[field.key] ?? ''}
-              onChange={(e) => handleFieldChange(field.key, e.target.value)}
-              placeholder={field.placeholder}
-              className="h-10 rounded-xl border px-3 text-sm outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
-            />
+            {readOnly ? (
+              <div className="min-h-8 rounded-xl border px-3 py-1.5 text-xs border-gray-200 bg-white flex items-center">
+                {value?.[field.key]?.trim?.() ? value[field.key] : '—'}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={value?.[field.key] ?? ''}
+                onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                className="h-8 rounded-xl border px-3 text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
+              />
+            )}
           </div>
         ))}
       </div>
