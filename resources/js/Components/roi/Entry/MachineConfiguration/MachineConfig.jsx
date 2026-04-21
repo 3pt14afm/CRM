@@ -693,10 +693,10 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                             onFocus={() => setActiveSearchRowId(row.id)}
                             onBlur={handleMachineInputBlur}
                             className={selectClass}
-                            placeholder="Search printer..."
+                            placeholder="Enter printer..."
                             autoComplete="off"
                           />
-                          {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
+                          {/* {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
                             <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md bg-white/20 backdrop-blur-lg border border-gray-200 shadow-xl max-h-48 overflow-auto no-scrollbar">
                               {machineSuggestions.length > 0 ? (
                                 machineSuggestions.map((m) => (
@@ -714,7 +714,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                                 <div className="px-3 py-2 text-[12px] text-slate-500">No results.</div>
                               )}
                             </div>
-                          )}
+                          )} */}
                         </div>
                       ) : (modeStr === 'mono' || modeStr === 'color') && !row.autoAdded ? (
                         <div className="relative">
@@ -729,10 +729,10 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                             onFocus={() => setActiveSearchRowId(row.id)}
                             onBlur={handleMachineInputBlur}
                             className={selectClass}
-                            placeholder={`Search ${row.mode} item...`}
+                            placeholder={`Enter ${row.mode} item...`}
                             autoComplete="off"
                           />
-                          {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
+                          {/* {activeSearchRowId === row.id && !readOnly && row.sku?.trim() && (
                             <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md bg-white/30 backdrop-blur-lg border border-gray-200 shadow-xl max-h-48 overflow-auto no-scrollbar">
                               {(() => {
                                 const suggestions = getConsumableSuggestions(row.mode, row.sku);
@@ -753,7 +753,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                                 );
                               })()}
                             </div>
-                          )}
+                          )} */}
                         </div>
                       ) : (
                         <input

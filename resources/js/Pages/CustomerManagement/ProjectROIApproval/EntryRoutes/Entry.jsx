@@ -191,9 +191,10 @@ const validateBusinessLogic = () => {
         const isRental = contractType.includes("rental");
         const isFreeUseClick = contractType.includes("free use + click charge");
         const isClick = contractType.includes("click");
-        const isFixed = contractType.includes("fixed");
-        const isOutrightOnly = isOutright && !isClick;
-        
+        const isFixed = contractType.includes("fixed monthly only");
+        const isOutrightOnly = contractType.toLowerCase().includes("outright only");
+
+        const outrightCart = contractType.includes("Outright + per Cartridge")
         const machines = projectData?.machineConfiguration?.machine || [];
         const consumables = projectData?.machineConfiguration?.consumable || [];
         const allItems = [...machines, ...consumables];
@@ -202,13 +203,21 @@ const validateBusinessLogic = () => {
             const monoAMVP = parseFloat(projectData?.yield?.monoAmvpYields?.monthly || 0);
             const colorAMVP = parseFloat(projectData?.yield?.colorAmvpYields?.monthly || 0);
 
-            if(!isOutright && !isFixed){
-            if (monoAMVP <= 0 || colorAMVP <= 0) {
-                toast.error("Monthly AMVP (Mono or Color) must be greater than zero.");
-                
-                return false;
-            }
-          }
+      
+    // Only validate AMVP if it's NOT 'Outright Only' AND it's a type that requires usage data
+    if (!isOutrightOnly && !isFixed) {
+      if (monoAMVP <= 0 && colorAMVP <= 0) {
+        toast.error("At least one Monthly AMVP (Mono or Color) must be greater than zero.");
+        return false;
+      }
+    }
+      //    if (isOutright) {
+      //   if (monoAMVP <= 0 || colorAMVP <= 0) {
+      //     toast.error("Monthly AMVP (Mono or Color) must be greater than zero.");
+      //     return false;
+      //   }
+      // }
+      
 
         // --- 1. ITEM VALIDATION LOOP ---
         for (const item of allItems) {
