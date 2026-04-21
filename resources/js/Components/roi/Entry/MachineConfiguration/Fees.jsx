@@ -100,7 +100,7 @@ const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0) => {
   if (l === "rental") return 12; // Changed from rental + supplies
   if (l === "a4/a3 mono click") return monoAnnual;
   if (l === "a4/lgl color click") return colorAnnual;
-  if (l === "a3 color click") return colorAnnual;
+  if (l === "a3 color click") return 0;
   return null;
 };
 

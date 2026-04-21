@@ -478,9 +478,12 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
 
         {allAdditionalFees.length > 0 ? (
           allAdditionalFees.map((fee, idx) => {
+
+            const isA3ColorClick = fee.label?.toLowerCase().includes("a3 color click");
             const isCompany = companyFees.some((cf) => cf.id === fee.id);
             const feeCost = Number(fee.cost) || 0;
             const feeQty = Number(fee.qty) || 0;
+            const displayTotal = isA3ColorClick ? 0 : (Number(fee.total) || 0);
 
             return (
               <tr
@@ -491,7 +494,8 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                   {fee.label}
                 </td>
                 <td className="px-3 py-2 text-[11px] text-right border-r border-b border-gray-200">
-                  {format(fee.cost)}
+                  {/* If it's A3, show empty or 0 as cost too */}
+                   {isA3ColorClick ? '' : format(fee.cost)}
                 </td>
                 <td className="px-3 py-2 text-center border-b border-gray-200"></td>
                 <td className="px-3 py-2 text-center border-b border-gray-200"></td>

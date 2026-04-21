@@ -60,7 +60,7 @@ function Yields() {
             {/* Mono AMVP */}
             <tr className="text-center">
               <td className="bg-[#E9F7E7] text-[10px] sm:text-[11px] px-2 border-b border-r border-slate-200 font-bold text-slate-800">
-                Mono AMVP
+                Mono AMPV
               </td>
 
               <td className="border-b border-r border-slate-200 p-2 sm:p-1 bg-lightgreen/2">
@@ -81,7 +81,7 @@ function Yields() {
             {/* Color AMVP */}
             <tr className="text-center">
               <td className="bg-[#E9F7E7] text-[10px] sm:text-[11px] px-2 border-r border-slate-200 font-bold text-slate-800">
-                Color AMVP
+                Color AMPV
               </td>
 
               <td className="border-r border-slate-200 p-2 sm:p-1 bg-lightgreen/2">
