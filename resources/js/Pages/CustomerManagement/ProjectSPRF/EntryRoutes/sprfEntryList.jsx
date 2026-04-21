@@ -169,7 +169,7 @@ export default function SprfEntryList({
         key: 'last_saved_at',
         header: <div className="text-center w-full">LAST SAVED</div>,
         cell: (r) => (
-          <span className="font-medium flex justify-center items-center">
+          <span className="flex justify-center items-center text-[11px] text-slate-500">
             {formatLastSaved(r.last_saved_at)}
           </span>
         ),
@@ -179,7 +179,7 @@ export default function SprfEntryList({
         header: <div className="text-center w-full">STATUS</div>,
         cell: (row) => (
           <div className="flex justify-center items-center">
-            <span className="px-2 rounded-full text-[9px] font-bold uppercase tracking-wider md:text-[8px] md:px-1 lg:text-[9px] lg:px-[6px] xl:text-[10px] xl:px-2 bg-gray-100 text-gray-600 border border-gray-200">
+            <span className="px-2 rounded-full text-[9px] font-bold uppercase tracking-wider md:text-[8px] md:px-1 lg:text-[9px] lg:px-[6px] xl:text-[10px] xl:px-2 bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
               {row.status ?? '—'}
             </span>
           </div>

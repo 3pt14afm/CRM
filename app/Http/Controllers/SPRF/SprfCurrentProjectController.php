@@ -30,7 +30,7 @@ class SprfCurrentProjectController extends Controller
                 $q->where('prepared_by_user_id', $userId)
                     ->orWhere('current_approver_user_id', $userId);
             })
-            ->whereIn('status', ['submitted', 'under_review'])
+            ->whereIn('status', ['for_review', 'under_review'])
             ->orderByDesc('last_saved_at')
             ->orderByDesc('updated_at');
 
@@ -65,7 +65,7 @@ class SprfCurrentProjectController extends Controller
                 $q->where('prepared_by_user_id', $userId)
                     ->orWhere('current_approver_user_id', $userId);
             })
-            ->whereIn('status', ['submitted', 'under_review'])
+            ->whereIn('status', ['for_review', 'under_review'])
             ->whereDate('last_saved_at', now()->toDateString())
             ->count();
 
@@ -339,7 +339,7 @@ class SprfCurrentProjectController extends Controller
 
     private function assertAssignedApprover(SprfCurrentProject $project): void
     {
-        if (! in_array($project->status, ['submitted', 'under_review'], true)) {
+        if (! in_array($project->status, ['for_review', 'under_review'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'This SPRF project is not in the current approval queue.',
             ]);

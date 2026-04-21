@@ -215,7 +215,7 @@ class SprfEntryProjectController extends Controller
                 'sprf_no' => $project->sprf_no ?: $this->generateNextSprfNo(),
                 'document_datetime' => $project->document_datetime ?: now(),
 
-                'status' => 'submitted',
+                'status' => 'for_review',
                 'current_level' => 2,
                 'approval_level' => $flags['approval_level'],
 
