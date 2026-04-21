@@ -57,6 +57,18 @@ function CurrentList({ currentProjects = null, stats = null }) {
     ];
   }, [stats, currentProjects, rows]);
 
+  const formatStatusLabel = (value = '') => {
+    const labels = {
+        draft: 'Draft',
+        for_review: 'For Review',
+        under_review: 'Under Review',
+        approved: 'Approved',
+        rejected: 'Rejected',
+    };
+
+    return labels[String(value).toLowerCase()] ?? value;
+  };
+
   const columns = useMemo(
     () => [
       {
@@ -114,7 +126,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
         key: 'approval_level',
         header: <div className="text-center w-full">APPROVAL LEVEL</div>,
         cell: (r) => (
-          <span className="font-medium flex justify-center items-center">
+          <span className="font-medium text-blue-700 flex justify-center items-center text-center">
             {approvalLevelLabel(r.approval_level)}
           </span>
         ),
@@ -132,7 +144,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
                 "
               >
                 <span className="uppercase">
-                  {row.status ?? '—'}
+                  {formatStatusLabel(row.status ?? '—')}
                 </span>
               </span>
 
@@ -148,7 +160,9 @@ function CurrentList({ currentProjects = null, stats = null }) {
         header: <div className="text-center w-full">SUBMITTED AT</div>,
         cell: (r) => (
           <div className="w-full text-slate-600 flex justify-center items-center">
-            <span className="text-xs">{formatDateTime(r.submitted_at)}</span>
+            <span className="text-[11px]">
+              {formatDateTime(r.submitted_at)}
+            </span>
           </div>
         ),
       },

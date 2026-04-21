@@ -126,7 +126,7 @@ const handleDelete = (row) => {
             key: "company_name",
             header: <div className="text-center w-full">COMPANY NAME</div>,
             cell: (r) => (
-              <span className="font-medium flex justify-center items-center">
+              <span className="font-medium flex justify-center items-center text-center">
                 {r.company_name ?? "—"}
               </span>
             ),
@@ -144,7 +144,7 @@ const handleDelete = (row) => {
             key: "contract_type",
             header: <div className="text-center w-full">CONTRACT TYPE</div>,
             cell: (r) => (
-              <span className="font-medium flex justify-center items-center">
+              <span className="font-medium flex justify-center items-center text-center">
                 {r.contract_type ?? "—"}
               </span>
             ),

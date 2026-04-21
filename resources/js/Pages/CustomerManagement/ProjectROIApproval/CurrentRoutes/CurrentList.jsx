@@ -50,7 +50,7 @@ console.log({ currentProjects, stats });
       key: "reference",
       header: <div className="text-center w-full">REFERENCE</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center font-medium items-center">
+        <div className="w-full flex justify-center font-medium items-center text-center">
           <span className="text-[11px] lg:text-sm">
             {r.reference}
           </span>
@@ -61,7 +61,7 @@ console.log({ currentProjects, stats });
           key: "company_sap_code",
           header: <div className="text-center w-full">SAP CODE</div>,
           cell: (r) => (
-        <span className="font-mono text-sm text-[#33721c] flex justify-center items-center">
+        <span className="font-mono text-sm text-[#33721c] flex justify-center items-center text-center">
               {r.company_sap_code ?? "—"}
             </span>
           ),
@@ -70,7 +70,7 @@ console.log({ currentProjects, stats });
       key: "company_name",
       header: <div className="text-center w-full">COMPANY NAME</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center font-medium items-center">
+        <div className="w-full flex justify-center font-medium items-center text-center">
           <span className="text-[11px] lg:text-sm">
             {r.company_name ?? "—"}
           </span>
@@ -92,7 +92,7 @@ console.log({ currentProjects, stats });
       key: "contract_type",
       header: <div className="text-center w-full">CONTRACT TYPE</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center font-medium items-center">
+        <div className="w-full flex justify-center font-medium items-center text-center">
           <span className="text-[11px] lg:text-sm">
             {r.contract_type ?? "—"}
           </span>
@@ -134,7 +134,7 @@ console.log({ currentProjects, stats });
       key: "last_saved_at",
       header: <div className="text-center w-full">LAST SAVED</div>,
       cell: (r) => (
-        <div className="w-full text-slate-600 flex justify-center items-center">
+        <div className="w-full text-slate-600 flex justify-center items-center text-center">
           <span className="text-xs">{r.last_saved_display ?? "—"}</span>
         </div>
       ),
