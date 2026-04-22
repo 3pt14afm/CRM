@@ -11,6 +11,7 @@ import SprfMetaBlock from '@/Components/sprf/SprfMetaBlock';
 import SummaryBlock from '@/Components/sprf/SummaryBlock';
 import SprfItemsTable from '@/Components/sprf/SprfItemsTable';
 import SprfOtherExpenseTable from '@/Components/sprf/SprfOtherExpenseTable';
+import Conditions from '@/Components/sprf/Conditions';
 import NamesBlock from '@/Components/sprf/NamesBlock';
 
 const FIXED_OTHER_EXPENSE_ROWS = [
@@ -802,7 +803,7 @@ const handleClearAll = () => {
 
               <div className="p-6">
                 <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-12 xl:col-span-8 space-y-3">
+                  <div className="col-span-8 space-y-3">
                     <CompanyInfoBlock
                       value={companyInfo}
                       onChange={setCompanyInfo}
@@ -817,7 +818,7 @@ const handleClearAll = () => {
                     />
                   </div>
 
-                  <div className="col-span-12 xl:col-span-4 space-y-3">
+                  <div className="col-span-12 lg:col-span-4 space-y-1.5 xl:space-y-2">
                     <SprfMetaBlock
                       dateTime={displayDateTime}
                       sprfNo={sprfNo}
@@ -853,17 +854,24 @@ const handleClearAll = () => {
                   />
                 </div>
 
-                <div className="mt-6">
-                  <NamesBlock
-                    signatories={signatories}
-                    showVpCcto={showVpCcto}
-                    showPresidentCeo={showPresidentCeo}
-                    showRebateJustification={hasRebate}
-                    rebateJustification={rebateJustification}
-                    onChangeRebateJustification={setRebateJustification}
-                    readOnly={readOnly}
-                  />
+                <div className="mt-10 grid grid-cols-12 gap-10 items-start">
+                  <div className="cols-span-12 lg:col-span-5">
+                    <Conditions />
+                  </div>
+
+                  <div className="cols-span-12 lg:col-span-7">
+                    <NamesBlock
+                      signatories={signatories}
+                      showVpCcto={showVpCcto}
+                      showPresidentCeo={showPresidentCeo}
+                      showRebateJustification={hasRebate}
+                      rebateJustification={rebateJustification}
+                      onChangeRebateJustification={setRebateJustification}
+                      readOnly={readOnly}
+                    />
+                  </div>
                 </div>
+                
               </div>
             </div>
           </div>

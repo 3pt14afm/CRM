@@ -27,14 +27,14 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false }) 
   ];
 
   return (
-    <div className="border-[#D6DDD0] bg-[#FBFFFA] px-7 py-4 shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl">
+    <div className="border-[#D6DDD0] bg-[#FBFFFA] px-5 xl:px-7 py-4 shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl">
       <div className="space-y-2">
         {fields.map((field) => (
           <div
             key={field.key}
-            className="grid grid-cols-[190px_minmax(0,1fr)] items-center"
+            className="grid grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center"
           >
-            <label className="text-xs font-bold tracking-[0.01em]">
+            <label className="text-[11px] xl:text-xs font-bold tracking-[0.01em]">
               {field.label}
             </label>
 

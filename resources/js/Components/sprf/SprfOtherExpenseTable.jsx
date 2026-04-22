@@ -14,38 +14,38 @@ export default function SprfOtherExpenseTable({
   readOnly = false,
 }) {
   const inputClass =
-    'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+    'w-full min-w-0 h-7 xl:h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyCellClass =
-    'w-full h-8 text-xs px-2 flex items-center rounded-sm text-slate-700';
+    'w-full h-8 text-[11px] xl:text-xs px-2 flex items-center rounded-sm text-slate-700';
 
   const readonlyAmountClass =
-    'w-full h-8 text-xs text-center px-1 flex items-center justify-end';
+    'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
 
   const footerCellClass =
-    'bg-[#D9F2D0] p-2 text-xs font-bold text-end';
+    'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
 
   return (
-    <div className="w-full xl:w-[65%]">
-      <div className="mb-1 text-[12px] ml-3 font-bold uppercase text-[#111]">
+    <div className="w-[80%] xl:w-[65%]">
+      <div className="mb-1 text-[11px] xl:text-xs ml-3 font-bold uppercase text-[#111]">
         Other Expense
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA]">
+      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md">
         <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
-            <col style={{ width: '5.5%' }} />
-            <col style={{ width: '16%' }} />
-            <col style={{ width: '39%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '6.5%' }} />
+            <col className="w-[5.5%]" />
+            <col className="w-[16%]" />
+            <col className="w-[35%] xl:w-[39%]" />
+            <col className="w-[5%] xl:w-[8%]" />
+            <col className="w-[11%] xl:w-[12%]" />
+            <col className="w-[10%] xl:w-[13%]" />
+            <col className="w-[6%] xl:w-[6.5%]" />
           </colgroup>
 
           <thead>
             <tr className="bg-lightgreen/30 text-[10px] uppercase">
-              <th className="border-b border-r border-darkgreen/15 p-2 text-center">Item No.</th>
+              <th className="border-b border-r border-darkgreen/15 py-2 text-center">Item No.</th>
               <th className="border-b border-r border-darkgreen/15 p-2">Product Code</th>
               <th className="border-b border-r border-darkgreen/15 p-2">Item Description</th>
               <th className="border-b border-r border-darkgreen/15 p-2">Qty</th>
@@ -66,7 +66,7 @@ export default function SprfOtherExpenseTable({
                   className="border-b relative transition-all duration-100 hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)]"
                 >
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    <div className="w-full h-8 flex items-center justify-center text-[13px]">
+                    <div className="w-full h-8 flex items-center justify-center text-[11px] xl:text-[13px]">
                       {index + 1}
                     </div>
                   </td>
@@ -81,7 +81,7 @@ export default function SprfOtherExpenseTable({
                         type="text"
                         value={sourceRow.productCode}
                         onChange={(e) => onUpdateExpense(index, 'productCode', e.target.value)}
-                        className={`${inputClass} normal-case text-left`}
+                        className={`${inputClass} normal-case text-start pl-2`}
                         placeholder="Enter product code"
                       />
                     )}
@@ -97,7 +97,7 @@ export default function SprfOtherExpenseTable({
                         type="text"
                         value={sourceRow.itemDescription}
                         onChange={(e) => onUpdateExpense(index, 'itemDescription', e.target.value)}
-                        className={`${inputClass} normal-case text-left`}
+                        className={`${inputClass} normal-case text-start pl-2`}
                         placeholder="Enter item description"
                       />
                     )}
@@ -148,7 +148,7 @@ export default function SprfOtherExpenseTable({
                     {readOnly ? (
                       <div className="w-full h-8" />
                     ) : (
-                      <div className="flex gap-1 justify-center">
+                      <div className="flex gap-0.5 xl:gap-1 justify-center">
                         <button
                           type="button"
                           onClick={() => onAddExpenseRow(index)}
@@ -183,10 +183,10 @@ export default function SprfOtherExpenseTable({
             <tr>
               <td className={`${footerCellClass} rounded-bl-xl`}></td>
               <td className={footerCellClass}></td>
+              <td className={`${footerCellClass} text-center`}>TOTAL</td>
               <td className={footerCellClass}></td>
-              <td className={footerCellClass}></td>
-              <td className={footerCellClass}>TOTAL</td>
-              <td className={footerCellClass}>{peso(totalOtherExpense)}</td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totalOtherExpense)}</td>
               <td className={`${footerCellClass} rounded-br-xl`}></td>
             </tr>
           </tfoot>

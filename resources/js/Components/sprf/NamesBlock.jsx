@@ -18,10 +18,10 @@ export default function NamesBlock({
   ];
 
   return (
-    <div className="w-full mt-10 pb-10">
-      <div className="mx-auto w-full max-w-[860px]">
-        <div className="grid grid-cols-1 gap-y-12 gap-x-24 md:grid-cols-2">
-          <div className="flex flex-col space-y-12">
+    <div className="w-full pb-10">
+      <div className="mx-auto w-full">
+        <div className="grid grid-cols-1 gap-y-10 gap-x-1 md:grid-cols-2">
+          <div className="flex flex-col space-y-10">
             <SectionLabel label="PREPARED BY:" />
 
             <Signatory
@@ -43,7 +43,7 @@ export default function NamesBlock({
             )}
           </div>
 
-          <div className="flex flex-col space-y-12">
+          <div className="flex flex-col space-y-10">
             <SectionLabel label="APPROVED BY:" />
 
             {rightSignatories.map((signatory, index) => (
@@ -71,14 +71,14 @@ function SectionLabel({ label }) {
 function Signatory({ name, title }) {
   return (
     <div className="flex flex-col space-y-4 justify-center">
-      <div className="pt-2">
-        <div className="border-b border-gray-400 min-h-[28px] flex items-end pb-0.5">
-          <span className="text-sm font-semibold text-gray-900 print:font-medium print:text-xs">
+      <div className="w-[85%] xl:w-[80%]">
+        <div className="border-b border-gray-400 min-h-[25px] flex items-center justify-center xl:pb-0.5">
+          <span className="text-xs xl:text-sm font-semibold text-gray-900 print:font-medium print:text-xs">
             {name?.trim() || '—'}
           </span>
         </div>
 
-        <div className="text-[11px] text-gray-500 mt-1 w-full">
+        <div className="text-[10px] xl:text-[11px] text-gray-500 mt-1 flex items-center justify-center">
           {title || ''}
         </div>
       </div>
@@ -88,8 +88,8 @@ function Signatory({ name, title }) {
 
 function JustificationField({ value, onChange, readOnly = false }) {
   return (
-    <div className="flex flex-col space-y-3">
-      <label className="text-[10px] font-extrabold text-gray-800 tracking-tight">
+    <div className="flex flex-col space-y-1">
+      <label className="text-[10px] pl-1 font-extrabold text-gray-800 tracking-tight">
         JUSTIFICATION FOR REBATE <span className="text-red-500">*</span>
       </label>
 
@@ -101,14 +101,14 @@ function JustificationField({ value, onChange, readOnly = false }) {
         <textarea
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
-          rows={3}
+          rows={2}
           placeholder="Enter justification for rebate request"
-          className="w-full rounded-xl border border-gray-200 px-3 py-3 text-xs outline-none placeholder:text-[#9AA08F] hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
+          className="w-[85%] xl:w-[80%] rounded-xl border border-gray-200 p-3 text-[11px] leading-tight xl:text-xs outline-none placeholder:text-[#9AA08F] hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
         />
       )}
 
       {!readOnly && (
-        <p className="text-[11px] text-gray-500">
+        <p className="text-[10px] italic pl-1 text-gray-500 w-[85%] xl:w-[80%]">
           This field is shown only when the Rebate row has a value.
         </p>
       )}
