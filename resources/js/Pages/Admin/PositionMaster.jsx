@@ -189,10 +189,10 @@ function PositionMaster({ stats, positions, departments }) {
       },
       {
         key: "department",
-        header: <div className="text-center w-full">DEPARTMENT</div>,
+        header: <div className="w-full">DEPARTMENT</div>,
         cell: (r) => (
-          <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm">
+          <div className="w-full">
+            <span>
               {r.department_name ?? "—"}
             </span>
           </div>

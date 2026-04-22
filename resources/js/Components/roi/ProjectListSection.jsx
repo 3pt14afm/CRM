@@ -6,7 +6,7 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
 
   // normal = white tile, highlight = green tile, action = green clickable tile
   const base =
-    "rounded-xl border shadow-sm flex items-center gap-4 px-8 py-5 md:px-4 md:py-4 lg:px-6 lg:py-5 lg:gap-2 xl:gap-4 xl:px-8";
+    "rounded-xl border border-gray-200 border-b-gray-300 shadow-md flex items-center md:px-3 md:py-3 lg:px-4 lg:py-3 gap-2 xl:gap-4 xl:px-8";
   const styles =
     variant === "highlight" || variant === "action"
       ? "bg-[#4FA34E] border-[#4FA34E] text-white"
@@ -34,12 +34,12 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
       </div>
 
       <div className="flex-1">
-        <div className={`${variant === "highlight" || variant === "action" ? "text-white/90 font-semibold text-xs md:text-xs lg:text-lg" : "text-slate-500 text-sm md:text-xs lg:text-sm"}`}>
+        <div className={`${variant === "highlight" || variant === "action" ? "text-white/90 font-semibold text-[11px] md:text-xs lg:text-sm xl:text-base" : "text-slate-500 text-[10px] md:text-[11px] lg:text-xs xl:text-sm"}`}>
           {label}
         </div>
 
         {value != null && (
-          <div className="text-xl font-semibold leading-tight md:text-base lg:text-xl">
+          <div className="text-sm font-semibold leading-tight md:text-base lg:text-lg xl:text-xl">
             {value}
           </div>
         )}
@@ -87,8 +87,8 @@ export default function ProjectListSection({
 
       {/* Table */}
       <div className="mt-6 bg-white rounded-xl border border-[#00000012] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
-        <div className="flex items-center justify-between px-8 py-4 border-b border-black/10 md:px-3 md:py-3 lg:px-4 xl:px-6">
-          <h2 className="font-semibold text-xs md:text-sm lg:text-base xl:text-lg">{tableTitle}</h2>
+        <div className="flex items-center justify-between px-8 py-4 border-b border-black/10 md:px-2 md:py-3 lg:px-3 xl:px-6">
+          <h2 className="font-semibold text-[11px] md:text-xs lg:text-sm xl:text-lg">{tableTitle}</h2>
           <div className="flex items-center gap-2">{rightControls}</div>
         </div>
 
@@ -97,7 +97,7 @@ export default function ProjectListSection({
             <thead className="bg-gray-100">
               <tr className="text-left text-slate-500">
                 {columns.map((c) => (
-                  <th key={c.key} className="px-1 py-1 font-bold tracking-wide md:px-3 md:py-[6px] md:text-[8px] lg:px-4 lg:text-[10px] xl:text-[11px] xl:px-6">
+                  <th key={c.key} className="px-1 py-1 font-bold tracking-wide leading-tight md:px-2 md:py-[6px] md:text-[8px] lg:px-3 lg:text-[10px] xl:text-[11px] xl:px-6">
                     {c.header}
                   </th>
                 ))}
@@ -109,7 +109,7 @@ export default function ProjectListSection({
                 rows.map((r) => (
                   <tr key={rowKey(r)} className="border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] border-black/5">
                     {columns.map((c) => (
-                      <td key={c.key} className="px-8 py-2 md:px-3 md:text-xs lg:text-sm lg:px-4 xl:px-6">
+                      <td key={c.key} className="px-8 py-2 md:px-2 md:text-[11px] lg:text-xs lg:px-3 xl:text-sm xl:px-6">
                         {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
                       </td>
                     ))}
