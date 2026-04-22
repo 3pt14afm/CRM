@@ -51,7 +51,7 @@ console.log({ currentProjects, stats });
       header: <div className="text-center w-full">REFERENCE</div>,
       cell: (r) => (
         <div className="w-full flex justify-center font-medium items-center text-center">
-          <span className="text-[11px] lg:text-sm">
+          <span className="">
             {r.reference}
           </span>
         </div>
@@ -71,7 +71,7 @@ console.log({ currentProjects, stats });
       header: <div className="text-center w-full">COMPANY NAME</div>,
       cell: (r) => (
         <div className="w-full flex justify-center font-medium items-center text-center">
-          <span className="text-[11px] lg:text-sm">
+          <span className="">
             {r.company_name ?? "—"}
           </span>
         </div>
@@ -82,7 +82,7 @@ console.log({ currentProjects, stats });
       header: <div className="text-center w-full">CONTRACT TERM</div>,
       cell: (r) => (
         <div className="w-full flex justify-center font-medium items-center">
-          <span className="text-[11px] lg:text-sm">
+          <span className="">
             {r.contract_years != null ? `${r.contract_years}` : "—"}
           </span>
         </div>
@@ -93,7 +93,7 @@ console.log({ currentProjects, stats });
       header: <div className="text-center w-full">CONTRACT TYPE</div>,
       cell: (r) => (
         <div className="w-full flex justify-center font-medium items-center text-center">
-          <span className="text-[11px] lg:text-sm">
+          <span className="">
             {r.contract_type ?? "—"}
           </span>
         </div>
@@ -108,7 +108,7 @@ console.log({ currentProjects, stats });
             <div className="flex flex-col items-center leading-tight">
               <span
                 className="
-                  inline-block px-2 py-1 text-center rounded-full text-[9px] font-bold tracking-wider
+                  inline-block px-1 xl:px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider
                   bg-blue-100 text-blue-700 border border-blue-200
                 "
               >
@@ -135,7 +135,7 @@ console.log({ currentProjects, stats });
       header: <div className="text-center w-full">LAST SAVED</div>,
       cell: (r) => (
         <div className="w-full text-slate-600 flex justify-center items-center text-center">
-          <span className="text-xs">{r.last_saved_display ?? "—"}</span>
+          <span className="text-[11px] xl:text-xs">{r.last_saved_display ?? "—"}</span>
         </div>
       ),
     },  

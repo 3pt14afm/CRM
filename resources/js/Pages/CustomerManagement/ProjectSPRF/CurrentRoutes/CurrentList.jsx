@@ -84,8 +84,8 @@ function CurrentList({ currentProjects = null, stats = null }) {
         key: 'sprf_no',
         header: <div className="text-center w-full">SPRF #</div>,
         cell: (r) => (
-          <div className="w-full flex justify-center font-medium items-center">
-            <span className="text-[11px] lg:text-sm">
+          <div className="text-center">
+            <span className="font-medium">
               {r.sprf_no ?? '—'}
             </span>
           </div>
@@ -139,7 +139,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
             <div className="flex flex-col items-center leading-tight">
               <span
                 className="
-                  inline-block px-2 py-1 text-center rounded-full text-[9px] font-bold tracking-wider
+                  inline-block px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider
                   bg-blue-100 text-blue-700 border border-blue-200
                 "
               >
@@ -159,7 +159,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
         key: 'submitted_at',
         header: <div className="text-center w-full">SUBMITTED AT</div>,
         cell: (r) => (
-          <div className="w-full text-slate-600 flex justify-center items-center">
+          <div className="w-full text-slate-600 flex justify-center items-center text-center">
             <span className="text-[11px]">
               {formatDateTime(r.submitted_at)}
             </span>

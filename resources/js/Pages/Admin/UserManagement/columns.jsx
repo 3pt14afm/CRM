@@ -56,7 +56,7 @@ export function getUserColumns({
       ),
       cell: (r) => (
         <div className="w-full flex justify-left items-center">
-          <span className="text-[11px] lg:text-sm">{r.first_name ?? "—"}</span>
+          <span className="">{r.first_name ?? "—"}</span>
         </div>
       ),
     },
@@ -73,7 +73,7 @@ export function getUserColumns({
       ),
       cell: (r) => (
         <div className="w-full flex justify-left items-center">
-          <span className="text-[11px] lg:text-sm">{r.last_name ?? "—"}</span>
+          <span className="">{r.last_name ?? "—"}</span>
         </div>
       ),
     },
@@ -91,7 +91,7 @@ export function getUserColumns({
       ),
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] lg:text-sm">{r.employee_id ?? "—"}</span>
+          <span className="">{r.employee_id ?? "—"}</span>
         </div>
       ),
     },
@@ -100,7 +100,7 @@ export function getUserColumns({
       header: <div className="text-center w-full">POSITION</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] text-center lg:text-sm">
+          <span className="text-center">
             {r.position ?? "—"}
           </span>
         </div>
@@ -111,7 +111,7 @@ export function getUserColumns({
       header: <div className="text-center w-full">DEPARTMENT</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] text-center lg:text-sm">
+          <span className="text-center">
             {r.department_name ?? "—"}
           </span>
         </div>
@@ -122,7 +122,7 @@ export function getUserColumns({
       header: <div className="text-center w-full">EMAIL</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] lg:text-sm text-slate-600">
+          <span className="text-slate-600">
             {r.email ?? "—"}
           </span>
         </div>
@@ -133,7 +133,7 @@ export function getUserColumns({
       header: <div className="text-center w-full">LOCATION</div>,
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
-          <span className="text-[11px] text-center lg:text-sm">
+          <span className="text-center">
             {r.location_name ?? "—"}
           </span>
         </div>
@@ -149,7 +149,7 @@ export function getUserColumns({
           <div className="w-full flex justify-center items-center">
             <span
               className={`
-                px-2 py-px rounded-full text-[10px] lg:text-xs lg:font-medium font-semibold tracking-wider
+                px-1.5 xl:px-2 py-px rounded-full text-[10px] xl:text-xs lg:font-medium font-semibold tracking-wider
                 ${
                   active
                     ? "bg-[#E9F7E7] text-[#289800] border border-[#2DA300]/20"
