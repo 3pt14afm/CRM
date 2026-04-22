@@ -1,7 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { route as ziggyRoute } from 'ziggy-js';
+
+import { toast } from 'sonner';
 
 import CompanyInfoBlock from '@/Components/sprf/CompanyInfoBlock';
 import RemarksBlock from '@/Components/sprf/RemarksBlock';
@@ -292,45 +294,52 @@ function Entry({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
+  const hydratedProjectIdRef = useRef(null);
 
-  useEffect(() => {
-    if (!sourceProject) {
-      setSprfNo('SPRFIT-0000');
-      setCompanyInfo({
-        subCategory: '',
-        account: '',
-        accountManager: '',
-      });
-      setRemarks(['']);
-      setRebateJustification('');
-      setItems([makeItemRow()]);
-      setOtherExpenses(makeInitialExpenseRows());
-      return;
-    }
+      useEffect(() => {
+              const currentProjectId = sourceProject?.id ?? null;
+              if (hydratedProjectIdRef.current === currentProjectId) {
+                return;
+              }
+              hydratedProjectIdRef.current = currentProjectId;
 
-    setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
-    setCompanyInfo({
-      subCategory: sourceProject?.company_info?.subCategory ?? '',
-      account: sourceProject?.company_info?.account ?? '',
-      accountManager: sourceProject?.company_info?.accountManager ?? '',
-    });
-    setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
-    setRebateJustification(sourceProject?.rebate_justification ?? '');
+              if (!sourceProject) {
+                setSprfNo('SPRFIT-0000');
+                setCompanyInfo({
+                  subCategory: '',
+                  account: '',
+                  accountManager: '',
+                });
+                setRemarks(['']);
+                setRebateJustification('');
+                setItems([makeItemRow()]);
+                setOtherExpenses(makeInitialExpenseRows());
+                return;
+              }
 
-    setItems(
-      Array.isArray(sourceProject?.items) && sourceProject.items.length > 0
-        ? sourceProject.items.map((row) => ({
-            productCode: row?.productCode ?? '',
-            itemDescription: row?.itemDescription ?? '',
-            qty: row?.qty ?? '',
-            disty: row?.disty ?? '',
-            costPerUnit: row?.costPerUnit ?? '',
-          }))
-        : [makeItemRow()]
-    );
+              setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
+              setCompanyInfo({
+                subCategory: sourceProject?.company_info?.subCategory ?? '',
+                account: sourceProject?.company_info?.account ?? '',
+                accountManager: sourceProject?.company_info?.accountManager ?? '',
+              });
+              setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
+              setRebateJustification(sourceProject?.rebate_justification ?? '');
 
-    setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
-  }, [sourceProject]);
+              setItems(
+                Array.isArray(sourceProject?.items) && sourceProject.items.length > 0
+                  ? sourceProject.items.map((row) => ({
+                      productCode: row?.productCode ?? '',
+                      itemDescription: row?.itemDescription ?? '',
+                      qty: row?.qty ?? '',
+                      disty: row?.disty ?? '',
+                      costPerUnit: row?.costPerUnit ?? '',
+                    }))
+                  : [makeItemRow()]
+              );
+
+                setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
+      }, [sourceProject?.id]);
 
   const computedItems = useMemo(() => items.map(computeItem), [items]);
   const computedExpenses = useMemo(() => otherExpenses.map(computeExpense), [otherExpenses]);
@@ -552,31 +561,97 @@ function Entry({
     a.remove();
   };
 
-  const handleSaveDraft = () => {
+
+// =======================ERROR HANDLING LOGIC====================================================//
+const hasValidCompanyInfo = (companyInfo) => {
+  return (
+    companyInfo?.subCategory?.trim() &&
+    companyInfo?.account?.trim() &&
+    companyInfo?.accountManager?.trim()
+  );
+};
+
+const hasValidItems = (items) => {
+  return items.some((row) => {
+    return (
+      row.productCode?.trim() ||
+      row.itemDescription?.trim() ||
+      Number(row.qty) > 0 ||
+      Number(row.costPerUnit) > 0
+    );
+  });
+};
+
+const hasValidExpenses = (expenses) => {
+  return expenses.some((row) => {
+    return (
+      row.itemDescription?.trim() ||
+      Number(row.qty) > 0 ||
+      Number(row.unitPrice) > 0
+    );
+  });
+};
+
+const hasValidRemarks = (remarks) => {
+  return Array.isArray(remarks)
+    && remarks.some((row) => String(row ?? '').trim() !== '');
+};
+// ===============================================================================================//
+
+ const handleSaveDraft = () => {
     if (isSubmitting || readOnly) return;
+
+    switch(true){
+       case !hasValidCompanyInfo(companyInfo):
+          toast.error("Company Information is required before saving draft.");
+            return;
+
+       default:
+        break;
+    }
 
     setIsSubmitting(true);
 
     router.post(ziggyRoute('sprf.entry.draft.save'), buildPayload(), {
       preserveScroll: true,
+      preserveState: true,
       onFinish: () => {
         setIsSubmitting(false);
       },
     });
-  };
+ };
 
-  const handleSubmit = () => {
+ const handleSubmit = () => {
     if (isSubmitting || readOnly) return;
 
-    if (hasRebate && rebateJustification.trim() === '') {
-      window.alert('Rebate justification is required when Rebate has a value.');
-      return;
-    }
+        switch (true) {
+          case !sourceProject?.id:
+            toast.error('Please save draft first before submitting.');
+            return;
 
-    if (!sourceProject?.id) {
-      window.alert('Please save draft first before submitting.');
-      return;
-    }
+          case !hasValidCompanyInfo(companyInfo):
+             toast.error("Company Information is required before submitting.");
+             return;
+
+          case hasRebate && rebateJustification.trim() === '':
+            toast.error('Rebate justification is required when Rebate has a value.');
+            return;
+
+          case !hasValidItems(items):
+            toast.error("Please add at least one item before submitting.");
+            return;
+
+          case !hasValidExpenses(otherExpenses):
+            toast.error("Please add at least one expense before submitting.");
+            return;
+
+          case !hasValidRemarks(remarks):
+            toast.error("Remarks justification is required before submitting.");
+            return;
+
+          default:
+            break;
+        }
 
     setIsSubmitting(true);
 
@@ -585,10 +660,11 @@ function Entry({
       buildPayload(),
       {
         preserveScroll: true,
+        preserveState: true,
         onError: (errors) => {
           const firstError = Object.values(errors || {})[0];
           if (firstError) {
-            window.alert(Array.isArray(firstError) ? firstError[0] : firstError);
+            toast.error(Array.isArray(firstError) ? firstError[0] : firstError);
           }
         },
         onFinish: () => {
@@ -596,26 +672,53 @@ function Entry({
         },
       }
     );
-  };
+ };
 
-  const handleClearAll = () => {
-    if (readOnly) return;
+const handleClearAll = () => {
+  if (readOnly) return;
 
-    if (!window.confirm('Are you sure you want to clear all data?')) {
-      return;
-    }
+  toast.custom((t) => (
+    <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-4 rounded-2xl bg-white  p-4 shadow-lg">
+      <div className="flex-1">
+        <p className="text-sm font-medium text-zinc-900">Clear all data?</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          This action cannot be undone.
+        </p>
+      </div>
 
-    setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
-    setCompanyInfo({
-      subCategory: '',
-      account: '',
-      accountManager: '',
-    });
-    setRemarks(['']);
-    setRebateJustification('');
-    setItems([makeItemRow()]);
-    setOtherExpenses(makeInitialExpenseRows());
-  };
+      <div className="flex items-center gap-2">
+        <div
+          onClick={() => toast.dismiss(t)}
+          className="cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium text-zinc-900 transition hover:bg-zinc-100"
+        >
+          Cancel
+        </div>
+
+        <div
+          onClick={() => {
+            toast.dismiss(t);
+
+            setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
+            setCompanyInfo({
+              subCategory: '',
+              account: '',
+              accountManager: '',
+            });
+            setRemarks(['']);
+            setRebateJustification('');
+            setItems([makeItemRow()]);
+            setOtherExpenses(makeInitialExpenseRows());
+
+            toast.success('All data cleared.');
+          }}
+          className="cursor-pointer rounded-md bg-red-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-600"
+        >
+          Confirm
+        </div>
+      </div>
+    </div>
+  ));
+};
 
   const handleAdvanceCurrent = () => {
     if (isSubmitting || !sourceProject?.id) return;
