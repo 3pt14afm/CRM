@@ -8,7 +8,7 @@ function SummaryRow({ label, value, isPercent = false, isLast = false }) {
   return (
     <tr>
       <td
-        className={`border-r bg-[#90E274]/10 px-4 py-2 text-xs font-bold ${
+        className={`border-r bg-[#90E274]/10 px-3 py-1.5 xl:py-2 text-[11px] font-semibold ${
           isLast ? 'rounded-bl-xl' : 'border-b border-[#2c2c2e]/10'
         }`}
       >
@@ -16,7 +16,7 @@ function SummaryRow({ label, value, isPercent = false, isLast = false }) {
       </td>
 
       <td
-        className={`bg-white px-4 py-2 text-xs font-medium text-[#111111] ${
+        className={`bg-white px-3 py-1.5 xl:py-2 text-xs font-medium text-[#111111] ${
           isLast ? 'rounded-br-xl' : 'border-b border-[#2c2c2e]/10'
         }`}
       >
@@ -39,8 +39,8 @@ export default function SummaryBlock({ summary = {} }) {
     <div className="overflow-hidden rounded-xl bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25">
       <table className="w-full table-fixed border-collapse">
         <colgroup>
-          <col className="w-[50%]" />
-          <col className="w-[50%]" />
+          <col className="w-[55%]" />
+          <col className="w-[45%]" />
         </colgroup>
 
         <tbody>

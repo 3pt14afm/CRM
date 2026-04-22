@@ -14,46 +14,46 @@ export default function SprfItemsTable({
   readOnly = false,
 }) {
   const inputClass =
-    'w-full min-w-0 h-8 text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+    'w-full min-w-0 h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyClass =
-    'w-full h-8 text-xs text-center px-1 flex items-center justify-end';
+    'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
 
   const readonlyTextClass =
     'w-full min-w-0 h-8 text-xs rounded-sm px-1 flex items-center bg-white';
 
   const footerCellClass =
-    'bg-[#D9F2D0] p-2 text-xs font-bold text-center text-end';
+    'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA]">
+      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md">
         <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
-            <col style={{ width: '3.5%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '19%' }} />
-            <col style={{ width: '5%' }} />
-            <col style={{ width: '5%' }} />
-            <col style={{ width: '9%' }} />
-            <col style={{ width: '9.5%' }} />
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '6%' }} />
-            <col style={{ width: '6%' }} />
-            <col style={{ width: '5%' }} />
+            <col className="w-[3.5%]" />
+            <col className="w-[10%]" />
+            <col className="w-[19%]" />
+            <col className="w-[4%] xl:w-[5%]" />
+            <col className="w-[5%]" />
+            <col className="w-[7%] xl:w-[9%]" />
+            <col className="w-[9.5%]" />
+            <col className="w-[9%] xl:w-[11%]" />
+            <col className="w-[9%] xl:w-[11%]" />
+            <col className="w-[8%] xl:w-[6%]" />
+            <col className="w-[6%]" />
+            <col className="w-[3%] xl:w-[5%]" />
           </colgroup>
 
           <thead>
             <tr className="bg-lightgreen/30 text-[10px] uppercase">
-              <th className="border-b border-r border-darkgreen/15 p-2">Item Lot</th>
+              <th className="border-b border-r border-darkgreen/15 py-2">Item Lot</th>
               <th className="border-b border-r border-darkgreen/15 p-2">Product Code</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Item Description</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Qty</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Disty</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Cost/unit</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Total Cost</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">
+              <th className="border-b border-r border-darkgreen/15 py-2">Item Description</th>
+              <th className="border-b border-r border-darkgreen/15 py-2">Qty</th>
+              <th className="border-b border-r border-darkgreen/15 py-2">Disty</th>
+              <th className="border-b border-r border-darkgreen/15 py-2">Cost / unit</th>
+              <th className="border-b border-r border-darkgreen/15 py-2">Total Cost</th>
+              <th className="border-b border-r border-darkgreen/15 py-2 px-1">
                 Selling Price/unit (VAT INC)
               </th>
               <th className="border-b border-r border-darkgreen/15 p-2">
@@ -61,7 +61,7 @@ export default function SprfItemsTable({
               </th>
               <th className="border-b border-r border-darkgreen/15 p-2">Mark Up Value</th>
               <th className="border-b border-r border-darkgreen/15 p-2">Mark-up %</th>
-              <th className="border-b border-darkgreen/15 p-2">+/-</th>
+              <th className="border-b border-darkgreen/15 p-1 xl:p-2">+/-</th>
             </tr>
           </thead>
 
@@ -72,7 +72,7 @@ export default function SprfItemsTable({
                 className="border-b relative hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)] transition-all duration-100"
               >
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className="w-full h-8 flex items-center justify-center text-[13px]">
+                  <div className="w-full h-8 flex items-center justify-center text-[11px] xl:text-[13px]">
                     {index + 1}
                   </div>
                 </td>
@@ -177,21 +177,21 @@ export default function SprfItemsTable({
                   </div>
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
+                <td className="border-b border-r border-darkgreen/15 xl:p-1">
                   <div className={readonlyClass}>
                     {row.markupPercent.toFixed(2)}%
                   </div>
                 </td>
 
-                <td className="border-b border-darkgreen/15 p-1">
+                <td className="border-b border-darkgreen/15 p-1 xl:py-2 flex items-center justify-center">
                   {readOnly ? (
                     <div className="w-full h-8" />
                   ) : (
-                    <div className="flex gap-1 justify-center">
+                    <div className="flex flex-col xl:flex-row gap-0.5 xl:gap-1 justify-center">
                       <button
                         type="button"
                         onClick={() => onAddItemRow(index)}
-                        className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                        className="w-5 h-5 xl:w-6 xl:h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
                       >
                         +
                       </button>
@@ -199,7 +199,7 @@ export default function SprfItemsTable({
                       <button
                         type="button"
                         onClick={() => onRemoveItemRow(index)}
-                        className="w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                        className="w-5 h-5 xl:w-6 xl:h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
                       >
                         -
                       </button>
@@ -214,13 +214,13 @@ export default function SprfItemsTable({
             <tr>
               <td className={`${footerCellClass} rounded-bl-xl`}></td>
               <td className={footerCellClass}></td>
+              <td className={`${footerCellClass} text-center`}>TOTAL</td>
               <td className={footerCellClass}></td>
               <td className={footerCellClass}></td>
-              <td className={footerCellClass}></td>
-              <td className={footerCellClass}>TOTAL</td>
-              <td className={footerCellClass}>{peso(totals.ttlCost)}</td>
-              <td className={footerCellClass}></td>
-              <td className={footerCellClass}>{peso(totals.ttlRev)}</td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlCost)}</td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlRev)}</td>
               <td className={footerCellClass}></td>
               <td className={footerCellClass}></td>
               <td className={`${footerCellClass} rounded-br-xl`}></td>

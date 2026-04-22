@@ -67,9 +67,9 @@ export default function RemarksBlock({
   };
 
   return (
-    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-7 py-3 shadow-md">
-      <div className="grid grid-cols-[145px_minmax(0,1fr)] items-start gap-5">
-        <label className="text-xs uppercase font-bold tracking-[0.01em]">
+    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-5 xl:px-7 py-3 shadow-md">
+      <div className="grid grid-cols-[95px_minmax(0,1fr)] xl:grid-cols-[110px_minmax(0,1fr)] items-start gap-5">
+        <label className="text-[11px] xl:text-xs uppercase font-bold tracking-[0.01em]">
           Justification /
           <br />
           Remarks
