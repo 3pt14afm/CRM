@@ -426,8 +426,17 @@ function Entry({
   const isCurrentRoute = pageRoute === 'current';
   const isArchiveRoute = pageRoute === 'archive';
 
-  const isFinalApprover =
-    Number(sourceProject?.current_level || 0) === finalApprovalLevelNumber(approvalLevel);
+  const isFinalApprover = Number(sourceProject?.current_level || 0) === finalApprovalLevelNumber(approvalLevel);
+
+  const isDirectorCustomerEngagementStep = Number(sourceProject?.current_level || 0) === 2;
+
+  const canEditRebateJustification =
+    isCurrentRoute &&
+    readOnly &&
+    canActOnCurrentProject &&
+    isDirectorCustomerEngagementStep;
+
+  const isRebateJustificationRequired = canEditRebateJustification && hasRebate;
 
   const signatories = useMemo(() => {
     const preparerName =
@@ -543,7 +552,15 @@ function Entry({
   const openPrintPage = (autoPrint = false) => {
     const projectId = sourceProject?.id;
 
-    if (!projectId || !isEntryRoute) {
+    const printRouteName = isCurrentRoute
+      ? 'sprf.current.print'
+      : isArchiveRoute
+        ? 'sprf.archive.print'
+        : isEntryRoute
+          ? 'sprf.entry.projects.print'
+          : null;
+
+    if (!projectId || !printRouteName) {
       window.alert('Please save draft first before printing.');
       return;
     }
@@ -558,6 +575,7 @@ function Entry({
         status: sourceProject?.status ?? 'draft',
         companyInfo,
         remarks: serializeRemarksRows(remarks),
+        lastRejectNote: sourceProject?.last_reject_note ?? '',
         rebateJustification,
         items,
         otherExpenses,
@@ -572,13 +590,17 @@ function Entry({
 
     const params = new URLSearchParams();
     params.set('autoprint', autoPrint ? '1' : '0');
-    params.set('draftWatermark', sourceProject?.status === 'draft' ? '1' : '0');
+
+    params.set(
+      'draftWatermark',
+      isEntryRoute && sourceProject?.status === 'draft' ? '1' : '0'
+    );
 
     if (storageKey) {
       params.set('storageKey', storageKey);
     }
 
-    const href = `${ziggyRoute('sprf.entry.projects.print', projectId)}?${params.toString()}`;
+    const href = `${ziggyRoute(printRouteName, projectId)}?${params.toString()}`;
 
     const a = document.createElement('a');
     a.href = href;
@@ -661,17 +683,13 @@ const hasValidRemarks = (remarks) => {
              toast.error("Company Information is required before submitting.");
              return;
 
-          case hasRebate && rebateJustification.trim() === '':
-            toast.error('Rebate justification is required when Rebate has a value.');
-            return;
-
           case !hasValidItems(items):
             toast.error("Please add at least one item before submitting.");
             return;
 
-          case !hasValidExpenses(otherExpenses):
-            toast.error("Please add at least one expense before submitting.");
-            return;
+          // case !hasValidExpenses(otherExpenses):
+          //   toast.error("Please add at least one expense before submitting.");
+          //   return;
 
           case !hasValidRemarks(remarks):
             toast.error("Remarks justification is required before submitting.");
@@ -751,13 +769,26 @@ const handleClearAll = () => {
   const handleAdvanceCurrent = () => {
     if (isSubmitting || !sourceProject?.id) return;
 
+    if (isDirectorCustomerEngagementStep && hasRebate && rebateJustification.trim() === '') {
+      toast.error('Rebate justification is required when the Rebate row has a value.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     router.post(
       ziggyRoute('sprf.current.advance', sourceProject.id),
-      {},
+      {
+        rebate_justification: rebateJustification,
+      },
       {
         preserveScroll: true,
+        onError: (errors) => {
+          const firstError = Object.values(errors || {})[0];
+          if (firstError) {
+            toast.error(Array.isArray(firstError) ? firstError[0] : firstError);
+          }
+        },
         onFinish: () => {
           setIsSubmitting(false);
         },
@@ -891,9 +922,11 @@ const handleClearAll = () => {
                     signatories={signatories}
                     showVpCcto={showVpCcto}
                     showPresidentCeo={showPresidentCeo}
-                    showRebateJustification={hasRebate}
+                    showRebateJustification={true}
                     rebateJustification={rebateJustification}
                     onChangeRebateJustification={setRebateJustification}
+                    canEditRebateJustification={canEditRebateJustification}
+                    isRebateJustificationRequired={isRebateJustificationRequired}
                     readOnly={readOnly}
                   />
                 </div>
@@ -956,9 +989,9 @@ const handleClearAll = () => {
               </div>
             </div>
           ) : isCurrentRoute && readOnly ? (
-            <div className="px-10 py-3 flex items-center justify-end gap-3">
-              {canActOnCurrentProject && (
-                <>
+            <div className="px-10 py-3 grid grid-cols-3 items-center">
+              <div className="flex items-center justify-start">
+                {canActOnCurrentProject && (
                   <button
                     type="button"
                     onClick={() => setShowRejectModal(true)}
@@ -967,28 +1000,74 @@ const handleClearAll = () => {
                   >
                     Reject
                   </button>
+                )}
+              </div>
 
-                  {isFinalApprover ? (
-                    <button
-                      type="button"
-                      onClick={handleApproveCurrent}
-                      disabled={isSubmitting}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
-                    >
-                      Approve
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleAdvanceCurrent}
-                      disabled={isSubmitting}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
-                    >
-                      Submit to Next Level
-                    </button>
-                  )}
-                </>
-              )}
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(false)}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                >
+                  Print Preview
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(true)}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                >
+                  Print
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end">
+                {canActOnCurrentProject && (
+                  <>
+                    {isFinalApprover ? (
+                      <button
+                        type="button"
+                        onClick={handleApproveCurrent}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleAdvanceCurrent}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                      >
+                        Submit to Next Level
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : isArchiveRoute && readOnly ? (
+            <div className="px-10 py-3 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => openPrintPage(false)}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+              >
+                Print Preview
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openPrintPage(true)}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+              >
+                Print
+              </button>
             </div>
           ) : (
             <div className="px-10 py-3 flex items-center justify-end" />

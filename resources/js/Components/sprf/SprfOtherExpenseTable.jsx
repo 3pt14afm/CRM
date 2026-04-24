@@ -7,6 +7,11 @@ const peso = (value) => {
   });
 };
 
+const blankIfEmpty = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  return value;
+};
+
 export default function SprfOtherExpenseTable({
   otherExpenses,
   computedExpenses,
@@ -16,6 +21,8 @@ export default function SprfOtherExpenseTable({
   totalOtherExpense,
   readOnly = false,
 }) {
+  const showActionColumn = !readOnly;
+
   const inputClass =
     'w-full min-w-0 h-7 xl:h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
@@ -43,18 +50,39 @@ export default function SprfOtherExpenseTable({
             <col className="w-[5%] xl:w-[8%]" />
             <col className="w-[11%] xl:w-[12%]" />
             <col className="w-[10%] xl:w-[13%]" />
-            <col className="w-[6%] xl:w-[6.5%]" />
+
+            {showActionColumn && <col className="w-[6%] xl:w-[6.5%]" />}
           </colgroup>
 
           <thead>
             <tr className="bg-lightgreen/30 text-[10px] uppercase">
-              <th className="border-b border-r border-darkgreen/15 py-2 text-center">Item No.</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Product Code</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Item Description</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Qty</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Unit Price</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Total</th>
-              <th className="border-b border-darkgreen/15 p-2">+/-</th>
+              <th className="border-b border-r border-darkgreen/15 py-2 text-center">
+                Item No.
+              </th>
+              <th className="border-b border-r border-darkgreen/15 p-2">
+                Product Code
+              </th>
+              <th className="border-b border-r border-darkgreen/15 p-2">
+                Item Description
+              </th>
+              <th className="border-b border-r border-darkgreen/15 p-2">
+                Qty
+              </th>
+              <th className="border-b border-r border-darkgreen/15 p-2">
+                Unit Price
+              </th>
+
+              <th
+                className={`border-b border-darkgreen/15 p-2 ${
+                  showActionColumn ? 'border-r' : ''
+                }`}
+              >
+                Total
+              </th>
+
+              {showActionColumn && (
+                <th className="border-b border-darkgreen/15 p-2">+/-</th>
+              )}
             </tr>
           </thead>
 
@@ -77,13 +105,15 @@ export default function SprfOtherExpenseTable({
                   <td className="border-b border-r border-darkgreen/15 p-1">
                     {readOnly || isFixed ? (
                       <div className={readonlyCellClass}>
-                        {sourceRow?.productCode || '—'}
+                        {blankIfEmpty(sourceRow?.productCode)}
                       </div>
                     ) : (
                       <input
                         type="text"
                         value={sourceRow.productCode}
-                        onChange={(e) => onUpdateExpense(index, 'productCode', e.target.value)}
+                        onChange={(e) =>
+                          onUpdateExpense(index, 'productCode', e.target.value)
+                        }
                         className={`${inputClass} normal-case text-start pl-2`}
                         placeholder="Enter product code"
                       />
@@ -93,13 +123,15 @@ export default function SprfOtherExpenseTable({
                   <td className="border-b border-r border-darkgreen/15 p-1">
                     {readOnly ? (
                       <div className={readonlyCellClass}>
-                        {sourceRow?.itemDescription || '—'}
+                        {blankIfEmpty(sourceRow?.itemDescription)}
                       </div>
                     ) : (
                       <input
                         type="text"
                         value={sourceRow.itemDescription}
-                        onChange={(e) => onUpdateExpense(index, 'itemDescription', e.target.value)}
+                        onChange={(e) =>
+                          onUpdateExpense(index, 'itemDescription', e.target.value)
+                        }
                         className={`${inputClass} normal-case text-start pl-2`}
                         placeholder="Enter item description"
                       />
@@ -119,7 +151,11 @@ export default function SprfOtherExpenseTable({
                         value={sourceRow.qty}
                         onChange={(e) => {
                           const value = e.target.value;
-                          onUpdateExpense(index, 'qty', value === '' ? '' : String(Math.floor(Number(value))));
+                          onUpdateExpense(
+                            index,
+                            'qty',
+                            value === '' ? '' : String(Math.floor(Number(value)))
+                          );
                         }}
                         className={inputClass}
                         placeholder="0"
@@ -138,23 +174,25 @@ export default function SprfOtherExpenseTable({
                         min="0"
                         step="0.01"
                         value={sourceRow.unitPrice}
-                        onChange={(e) => onUpdateExpense(index, 'unitPrice', e.target.value)}
+                        onChange={(e) =>
+                          onUpdateExpense(index, 'unitPrice', e.target.value)
+                        }
                         className={inputClass}
                         placeholder="0.00"
                       />
                     )}
                   </td>
 
-                  <td className="border-b border-r border-darkgreen/15 p-1">
-                    <div className={readonlyAmountClass}>
-                      {peso(row.total)}
-                    </div>
+                  <td
+                    className={`border-b border-darkgreen/15 p-1 ${
+                      showActionColumn ? 'border-r' : ''
+                    }`}
+                  >
+                    <div className={readonlyAmountClass}>{peso(row.total)}</div>
                   </td>
 
-                  <td className="border-b border-darkgreen/15 p-1">
-                    {readOnly ? (
-                      <div className="w-full h-8" />
-                    ) : (
+                  {showActionColumn && (
+                    <td className="border-b border-darkgreen/15 p-1">
                       <div className="flex gap-0.5 xl:gap-1 justify-center">
                         <button
                           type="button"
@@ -179,8 +217,8 @@ export default function SprfOtherExpenseTable({
                           -
                         </button>
                       </div>
-                    )}
-                  </td>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -193,8 +231,20 @@ export default function SprfOtherExpenseTable({
               <td className={`${footerCellClass} text-center`}>TOTAL</td>
               <td className={footerCellClass}></td>
               <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
-              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totalOtherExpense)}</td>
-              <td className={`${footerCellClass} rounded-br-xl`}></td>
+
+              <td
+                className={`${footerCellClass} text-end ${
+                  showActionColumn
+                    ? 'border-r border-darkgreen/15'
+                    : 'rounded-br-xl'
+                }`}
+              >
+                {peso(totalOtherExpense)}
+              </td>
+
+              {showActionColumn && (
+                <td className={`${footerCellClass} rounded-br-xl`}></td>
+              )}
             </tr>
           </tfoot>
         </table>

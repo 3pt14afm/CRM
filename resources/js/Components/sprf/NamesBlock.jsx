@@ -2,9 +2,11 @@ export default function NamesBlock({
   signatories,
   showVpCcto = false,
   showPresidentCeo = false,
-  showRebateJustification = false,
+  showRebateJustification = true,
   rebateJustification = '',
   onChangeRebateJustification,
+  canEditRebateJustification = false,
+  isRebateJustificationRequired = false,
   readOnly = false,
 }) {
   const leftPreparer = signatories?.preparer ?? { name: '', title: '' };
@@ -38,7 +40,8 @@ export default function NamesBlock({
               <JustificationField
                 value={rebateJustification}
                 onChange={onChangeRebateJustification}
-                readOnly={readOnly}
+                canEdit={canEditRebateJustification}
+                required={isRebateJustificationRequired}
               />
             )}
           </div>
@@ -86,16 +89,22 @@ function Signatory({ name, title }) {
   );
 }
 
-function JustificationField({ value, onChange, readOnly = false }) {
+function JustificationField({
+  value,
+  onChange,
+  canEdit = false,
+  required = false,
+}) {
   return (
     <div className="flex flex-col space-y-1">
       <label className="text-[10px] pl-1 font-extrabold text-gray-800 tracking-tight">
-        JUSTIFICATION FOR REBATE <span className="text-red-500">*</span>
+        JUSTIFICATION FOR REBATE
+        {required && <span className="text-red-500"> *</span>}
       </label>
 
-      {readOnly ? (
-        <div className="w-full min-h-[72px] rounded-xl border border-gray-200 px-3 py-3 text-xs bg-white whitespace-pre-wrap">
-          {value?.trim?.() ? value : '—'}
+      {!canEdit ? (
+        <div className="w-[85%] xl:w-[80%] min-h-[72px] rounded-xl border border-gray-200 px-3 py-3 text-xs bg-white whitespace-pre-wrap">
+          {value?.trim?.() ? value : ''}
         </div>
       ) : (
         <textarea
@@ -107,9 +116,15 @@ function JustificationField({ value, onChange, readOnly = false }) {
         />
       )}
 
-      {!readOnly && (
+      {canEdit ? (
         <p className="text-[10px] italic pl-1 text-gray-500 w-[85%] xl:w-[80%]">
-          This field is shown only when the Rebate row has a value.
+          {required
+            ? 'Required because the Rebate row has a value.'
+            : 'Optional. You may add a rebate justification if needed.'}
+        </p>
+      ) : (
+        <p className="text-[10px] italic pl-1 text-gray-500 w-[85%] xl:w-[80%]">
+          Only Director - Customer Engagement can input this field.
         </p>
       )}
     </div>

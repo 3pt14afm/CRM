@@ -2,7 +2,12 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import CurrentList from './CurrentList';
 
-export default function Current({ currentProjects = null, projects = null, stats = null }) {
+export default function Current({
+  currentProjects = null,
+  projects = null,
+  stats = null,
+  canActOnCurrentProject = false,
+}) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     day: '2-digit',
@@ -31,6 +36,7 @@ export default function Current({ currentProjects = null, projects = null, stats
           <CurrentList
             currentProjects={currentProjects ?? projects}
             stats={stats}
+            canActOnCurrentProject={canActOnCurrentProject}
           />
         </div>
 
