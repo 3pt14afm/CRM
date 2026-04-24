@@ -15,15 +15,15 @@ return new class extends Migration
 
             $table->string('product_code')->nullable();
             $table->text('item_description')->nullable();
-            $table->decimal('qty', 15, 2)->default(0);
+            $table->unsignedInteger('qty')->nullable();
             $table->string('disty')->nullable();
-            $table->decimal('cost_per_unit', 15, 2)->default(0);
+            $table->decimal('cost_per_unit', 15, 2)->nullable();
 
-            $table->decimal('total_cost', 15, 2)->default(0);
-            $table->decimal('selling_price_per_unit_vat_inc', 15, 2)->default(0);
-            $table->decimal('total_selling_price_vat_inc', 15, 2)->default(0);
-            $table->decimal('markup_value', 15, 2)->default(0);
-            $table->decimal('markup_percent', 8, 2)->default(0);
+            $table->decimal('total_cost', 15, 2)->nullable();
+            $table->decimal('selling_price_per_unit_vat_inc', 15, 2)->nullable();
+            $table->decimal('total_selling_price_vat_inc', 15, 2)->nullable();
+            $table->decimal('markup_value', 15, 2)->nullable();
+            $table->decimal('markup_percent', 8, 2)->nullable();
 
             $table->timestamps();
         });

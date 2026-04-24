@@ -23,7 +23,7 @@ class SprfCurrentItem extends Model
     ];
 
     protected $casts = [
-        'qty' => 'decimal:2',
+        'qty' => 'integer',
         'cost_per_unit' => 'decimal:2',
         'total_cost' => 'decimal:2',
         'selling_price_per_unit_vat_inc' => 'decimal:2',

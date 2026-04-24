@@ -19,9 +19,9 @@ return new class extends Migration
             $table->string('product_code')->nullable();
             $table->text('item_description')->nullable();
 
-            $table->decimal('qty', 15, 2)->default(0);
-            $table->decimal('unit_price', 15, 2)->default(0);
-            $table->decimal('total', 15, 2)->default(0);
+            $table->unsignedInteger('qty')->nullable();
+            $table->decimal('unit_price', 15, 2)->nullable();
+            $table->decimal('total', 15, 2)->nullable();
 
             $table->timestamps();
         });

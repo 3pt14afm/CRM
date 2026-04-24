@@ -8,11 +8,11 @@ const CONDITION_ROWS = [
     requiredApprovals: 'ESD Director + VP & CCTO',
   },
   {
-    condition: 'GP < 10%',
+    condition: 'GP > 15%',
     requiredApprovals: 'ESD Director + VP & CCTO',
   },
   {
-    condition: 'GP < 8%',
+    condition: 'GP <= 15%',
     requiredApprovals: 'ESD Director + VP & CCTO + President & CEO',
   },
   {
@@ -24,15 +24,15 @@ const CONDITION_ROWS = [
 
 export default function Conditions() {
   return (
-    <div className="overflow-hidden rounded-xl border border-[#2c2c2e]/20 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-[#2c2c2e]/20 bg-white shadow-sm print:mt-5">
       <div className="bg-[#B5EBA2]/15 px-4 py-1.5 border-b border-[#2c2c2e]/10">
-        <h3 className="text-[10px] xl:text-[11px] font-bold uppercase tracking-wide">
+        <h3 className="text-[10px] xl:text-[11px] font-bold uppercase tracking-wide print:font-semibold">
           Conditions
         </h3>
       </div>
 
       <div className="px-3 py-1">
-        <table className="w-full border-collapse text-[11px]">
+        <table className="w-full border-collapse text-[11px] print:text-[10px]">
         <colgroup>
             <col className="w-1/4" />
             <col className="w-3/4" />
@@ -53,7 +53,7 @@ export default function Conditions() {
           </tbody>
         </table>
 
-        <p className="my-1 pl-2 text-[10px] text-slate-500 italic">
+        <p className="my-1 pl-2 text-[10px] text-slate-500 italic print:text-[9px]">
           Note: For Rebate requests, Value must be 100K above
         </p>
       </div>

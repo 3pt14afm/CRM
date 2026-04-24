@@ -25,6 +25,11 @@ class CompanyDepartmentSeeder extends Seeder
                 'name' => 'Marketing',
                 'is_active' => true,
             ],
+            [
+                'code' => 'EXE',
+                'name' => 'Executive Management',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($departments as $department) {
