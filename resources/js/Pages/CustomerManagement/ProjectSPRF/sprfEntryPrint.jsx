@@ -172,6 +172,7 @@ function mapProjectToPrintData(project) {
     status: project?.status ?? 'draft',
     companyInfo,
     remarks: project?.remarks ?? '',
+    lastRejectNote: project?.last_reject_note ?? project?.lastRejectNote ?? '',
     rebateJustification: project?.rebate_justification ?? '',
     items,
     otherExpenses,
@@ -274,6 +275,7 @@ export default function SprfEntryPrint({
       computedExpenses,
       summary,
       hasRebate,
+      showRejectNote: String(printData.status ?? '').toLowerCase() === 'rejected' && displayText(printData.lastRejectNote),
       showVpCcto: approvalLevel !== APPROVAL_LEVEL.ESD_ONLY,
       showPresidentCeo: approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO,
     };
@@ -348,6 +350,10 @@ export default function SprfEntryPrint({
                       label="Justification / Remarks"
                       value={resolved.remarks}
                     />
+
+                    {resolved.showRejectNote && (
+                      <PrintRejectNoteBlock value={resolved.lastRejectNote} />
+                    )}
                   </div>
 
                   <div className="min-w-0 space-y-2">
@@ -387,7 +393,7 @@ export default function SprfEntryPrint({
                       signatories={resolved.signatories}
                       showVpCcto={resolved.showVpCcto}
                       showPresidentCeo={resolved.showPresidentCeo}
-                      showRebateJustification={resolved.hasRebate}
+                      showRebateJustification={true}
                       rebateJustification={resolved.rebateJustification}
                     />
                   </div>
@@ -431,6 +437,22 @@ function PrintTextBlock({ label, value }) {
         </label>
 
         <div className="min-h-[60px] rounded-xl border border-gray-200 px-3 py-3 text-[11px] whitespace-pre-wrap bg-white">
+          {displayText(value)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrintRejectNoteBlock({ value }) {
+  return (
+    <div className="rounded-xl border border-[#F27373]/30 bg-[#FFF6F6] px-3">
+      <div className="grid grid-cols-[90px_minmax(0,1fr)] items-center gap-5">
+        <label className="text-[11px] uppercase font-semibold tracking-[0.01em] text-red-600">
+          Reject Note
+        </label>
+
+        <div className="px-3 py-1 text-[11px] text-slate-700">
           {displayText(value)}
         </div>
       </div>
@@ -513,8 +535,8 @@ function PrintItemsTable({ rows, totals }) {
           <col className="w-[10%]" />
           <col className="w-[9%]" />
           <col className="w-[10%]" />
-          <col className="w-[8.5%]" />
-          <col className="w-[7%]" />
+          <col className="w-[8.8%]" />
+          <col className="w-[6.7%]" />
         </colgroup>
 
         <thead>
@@ -638,7 +660,7 @@ function PrintOtherExpenseTable({ rows, totalOtherExpense }) {
             <col className="w-[35%]" />
             <col className="w-[5%]" />
             <col className="w-[11%]" />
-            <col className="w-[10%]" />
+            <col className="w-[11%]" />
           </colgroup>
 
           <thead>

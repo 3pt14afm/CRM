@@ -7,6 +7,16 @@ const peso = (value) => {
   });
 };
 
+const blankIfEmpty = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  return value;
+};
+
+const percent = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  return `${Number(value).toFixed(2)}%`;
+};
+
 export default function SprfItemsTable({
   items,
   computedItems,
@@ -16,6 +26,8 @@ export default function SprfItemsTable({
   totals,
   readOnly = false,
 }) {
+  const showActionColumn = !readOnly;
+
   const inputClass =
     'w-full min-w-0 h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
@@ -23,7 +35,7 @@ export default function SprfItemsTable({
     'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
 
   const readonlyTextClass =
-    'w-full min-w-0 h-8 text-xs rounded-sm px-1 flex items-center bg-white';
+    'w-full min-w-0 h-8 text-xs rounded-sm px-1 flex items-center';
 
   const footerCellClass =
     'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
@@ -44,7 +56,8 @@ export default function SprfItemsTable({
             <col className="w-[9%] xl:w-[11%]" />
             <col className="w-[8%] xl:w-[6%]" />
             <col className="w-[6%]" />
-            <col className="w-[3%] xl:w-[5%]" />
+
+            {showActionColumn && <col className="w-[3%] xl:w-[5%]" />}
           </colgroup>
 
           <thead>
@@ -63,8 +76,18 @@ export default function SprfItemsTable({
                 Total Selling Price (VAT INC)
               </th>
               <th className="border-b border-r border-darkgreen/15 p-2">Mark Up Value</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Mark-up %</th>
-              <th className="border-b border-darkgreen/15 p-1 xl:p-2">+/-</th>
+
+              <th
+                className={`border-b border-darkgreen/15 p-2 ${
+                  showActionColumn ? 'border-r' : ''
+                }`}
+              >
+                Mark-up %
+              </th>
+
+              {showActionColumn && (
+                <th className="border-b border-darkgreen/15 p-1 xl:p-2">+/-</th>
+              )}
             </tr>
           </thead>
 
@@ -83,7 +106,7 @@ export default function SprfItemsTable({
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   {readOnly ? (
                     <div className={readonlyTextClass}>
-                      {items[index]?.productCode || '—'}
+                      {blankIfEmpty(items[index]?.productCode)}
                     </div>
                   ) : (
                     <input
@@ -98,7 +121,7 @@ export default function SprfItemsTable({
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   {readOnly ? (
                     <div className={`${readonlyTextClass} justify-start`}>
-                      {items[index]?.itemDescription || '—'}
+                      {blankIfEmpty(items[index]?.itemDescription)}
                     </div>
                   ) : (
                     <input
@@ -121,7 +144,11 @@ export default function SprfItemsTable({
                       value={items[index].qty}
                       onChange={(e) => {
                         const value = e.target.value;
-                        onUpdateItem(index, 'qty', value === '' ? '' : String(Math.floor(Number(value))));
+                        onUpdateItem(
+                          index,
+                          'qty',
+                          value === '' ? '' : String(Math.floor(Number(value)))
+                        );
                       }}
                       className={inputClass}
                       placeholder="0"
@@ -132,7 +159,7 @@ export default function SprfItemsTable({
                 <td className="border-b border-r border-darkgreen/15 p-1">
                   {readOnly ? (
                     <div className={`${readonlyTextClass} justify-start`}>
-                      {items[index]?.disty || '—'}
+                      {blankIfEmpty(items[index]?.disty)}
                     </div>
                   ) : (
                     <input
@@ -161,34 +188,28 @@ export default function SprfItemsTable({
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {peso(row.totalCost)}
-                  </div>
+                  <div className={readonlyClass}>{peso(row.totalCost)}</div>
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {peso(row.sellingPricePerUnitVatInc)}
-                  </div>
+                  <div className={readonlyClass}>{peso(row.sellingPricePerUnitVatInc)}</div>
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {peso(row.totalSellingPriceVatInc)}
-                  </div>
+                  <div className={readonlyClass}>{peso(row.totalSellingPriceVatInc)}</div>
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>
-                    {peso(row.markupValue)}
-                  </div>
+                  <div className={readonlyClass}>{peso(row.markupValue)}</div>
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 xl:p-1">
+                <td
+                  className={`border-b border-darkgreen/15 xl:p-1 ${
+                    showActionColumn ? 'border-r' : ''
+                  }`}
+                >
                   {readOnly ? (
-                    <div className={readonlyClass}>
-                      {row.markupPercent ? `${Number(row.markupPercent).toFixed(2)}%` : '—'}
-                    </div>
+                    <div className={readonlyClass}>{percent(row.markupPercent)}</div>
                   ) : (
                     <input
                       type="number"
@@ -202,10 +223,8 @@ export default function SprfItemsTable({
                   )}
                 </td>
 
-                <td className="border-b border-darkgreen/15 p-1 xl:py-2 flex items-center justify-center">
-                  {readOnly ? (
-                    <div className="w-full h-8" />
-                  ) : (
+                {showActionColumn && (
+                  <td className="border-b border-darkgreen/15 p-1 xl:py-2 flex items-center justify-center">
                     <div className="flex flex-col xl:flex-row gap-0.5 xl:gap-1 justify-center">
                       <button
                         type="button"
@@ -223,8 +242,8 @@ export default function SprfItemsTable({
                         -
                       </button>
                     </div>
-                  )}
-                </td>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -237,12 +256,26 @@ export default function SprfItemsTable({
               <td className={footerCellClass}></td>
               <td className={footerCellClass}></td>
               <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
-              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlCost)}</td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>
+                {peso(totals.ttlCost)}
+              </td>
               <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
-              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlRev)}</td>
-              <td className={footerCellClass}></td>
-              <td className={footerCellClass}></td>
-              <td className={`${footerCellClass} rounded-br-xl`}></td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>
+                {peso(totals.ttlRev)}
+              </td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+
+              <td
+                className={`${footerCellClass} ${
+                  showActionColumn
+                    ? 'border-r border-darkgreen/15'
+                    : 'rounded-br-xl'
+                }`}
+              ></td>
+
+              {showActionColumn && (
+                <td className={`${footerCellClass} rounded-br-xl`}></td>
+              )}
             </tr>
           </tfoot>
         </table>

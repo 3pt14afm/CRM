@@ -387,6 +387,9 @@ Route::middleware(['auth', 'verified'])
             Route::get('/current/{project}', [SprfCurrentProjectController::class, 'show'])
                 ->name('sprf.current.show');
 
+            Route::get('/current/{project}/print', [SprfCurrentProjectController::class, 'print'])
+                ->name('sprf.current.print');
+
             Route::post('/current/{project}/advance', [SprfCurrentProjectController::class, 'advanceProject'])
                 ->name('sprf.current.advance');
 
@@ -401,6 +404,9 @@ Route::middleware(['auth', 'verified'])
 
             Route::get('/archive/{project}', [SprfController::class, 'archiveShow'])
                 ->name('sprf.archive.show');
+
+            Route::get('/archive/{project}/print', [SprfController::class, 'archivePrint'])
+                ->name('sprf.archive.print');
 
             Route::prefix('entry')->group(function () {
                 Route::get('/', [SprfController::class, 'entryList'])

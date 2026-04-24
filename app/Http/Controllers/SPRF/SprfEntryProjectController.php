@@ -185,13 +185,7 @@ class SprfEntryProjectController extends Controller
 
         $this->validateRequiredApprovers($approverUsers, $flags);
 
-        $rebateJustification = (string) data_get($payload, 'rebate_justification', $project->rebate_justification);
-
-        if ($flags['requires_rebate_justification'] && trim($rebateJustification) === '') {
-            throw ValidationException::withMessages([
-                'rebate_justification' => 'Rebate justification is required when the Rebate row has a value.',
-            ]);
-        }
+        $rebateJustification = (string) ($project->rebate_justification ?? '');
 
         DB::transaction(function () use (
             $project,

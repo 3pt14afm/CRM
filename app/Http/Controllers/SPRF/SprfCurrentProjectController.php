@@ -103,9 +103,48 @@ class SprfCurrentProjectController extends Controller
         ]);
     }
 
-    public function advanceProject(SprfCurrentProject $project)
+    public function print(SprfCurrentProject $project)
+    {
+        $this->ensureCanView($project);
+
+        $project->load([
+            'items',
+            'fees',
+            'preparer:id,first_name,last_name,position,email',
+            'currentApprover:id,first_name,last_name,position,email',
+        ]);
+
+        return Inertia::render('CustomerManagement/ProjectSPRF/sprfEntryPrint', [
+            'entryProject' => $this->transformProjectForPrint($project),
+            'storageKey' => request('storageKey'),
+            'autoprint' => (bool) request('autoprint', false),
+            'showDraftWatermark' => false,
+        ]);
+    }
+
+    public function advanceProject(Request $request, SprfCurrentProject $project)
     {
         $this->assertAssignedApprover($project);
+
+        $validated = $request->validate([
+            'rebate_justification' => ['nullable', 'string'],
+        ]);
+
+        $rebateJustification = $project->rebate_justification;
+
+        if ((int) $project->current_level === 2) {
+            $rebateJustification = data_get(
+                $validated,
+                'rebate_justification',
+                $project->rebate_justification
+            );
+
+            if ($project->requires_rebate_justification && trim((string) $rebateJustification) === '') {
+                throw ValidationException::withMessages([
+                    'rebate_justification' => 'Rebate justification is required when the Rebate row has a value.',
+                ]);
+            }
+        }
 
         $finalLevel = $this->finalApprovalLevel($project);
 
@@ -127,6 +166,7 @@ class SprfCurrentProjectController extends Controller
             'status' => 'under_review',
             'current_level' => $nextLevel,
             'current_approver_user_id' => $nextApproverId,
+            'rebate_justification' => $rebateJustification,
             'last_saved_at' => now(),
         ]);
 
@@ -481,6 +521,60 @@ class SprfCurrentProjectController extends Controller
                 })
                 ->values()
                 ->all(),
+        ];
+    }
+
+    private function transformProjectForPrint(SprfCurrentProject $project): array
+    {
+        return [
+            'id' => $project->id,
+            'sprf_no' => $project->sprf_no,
+            'status' => $project->status,
+            'remarks' => $project->remarks,
+            'rebate_justification' => $project->rebate_justification,
+
+            'company_info' => [
+                'subCategory' => $project->sub_category,
+                'account' => $project->account,
+                'accountManager' => $project->account_manager,
+            ],
+
+            'items' => $project->items
+                ->map(function ($item) {
+                    return [
+                        'productCode' => $item->product_code,
+                        'itemDescription' => $item->item_description,
+                        'qty' => $item->qty,
+                        'disty' => $item->disty,
+                        'costPerUnit' => $item->cost_per_unit,
+                        'markupPercent' => $item->markup_percent,
+                    ];
+                })
+                ->values()
+                ->all(),
+
+            'other_expenses' => $project->fees
+                ->map(function ($fee) {
+                    return [
+                        'expenseKey' => $fee->expense_key,
+                        'isFixed' => $fee->is_fixed,
+                        'productCode' => $fee->product_code,
+                        'itemDescription' => $fee->item_description,
+                        'qty' => $fee->qty,
+                        'unitPrice' => $fee->unit_price,
+                    ];
+                })
+                ->values()
+                ->all(),
+
+            'approver_users' => $this->mapApproverUsersFromProject($project),
+
+            'preparer' => [
+                'id' => $project->preparer?->id,
+                'name' => $project->preparer?->name,
+                'position' => $project->preparer?->position,
+                'email' => $project->preparer?->email,
+            ],
         ];
     }
 }

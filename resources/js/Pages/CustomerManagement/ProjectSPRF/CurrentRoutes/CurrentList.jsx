@@ -105,7 +105,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
         header: <div className="text-center w-full">ACCOUNT</div>,
         cell: (r) => (
           <div className="w-full flex justify-center font-medium items-center">
-            <span className="text-[11px] lg:text-sm">
+            <span className="">
               {r.company_name ?? '—'}
             </span>
           </div>
@@ -116,7 +116,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
         header: <div className="text-center w-full">ACCOUNT MANAGER</div>,
         cell: (r) => (
           <div className="w-full flex justify-center font-medium items-center">
-            <span className="text-[11px] lg:text-sm">
+            <span className="">
               {r.account_manager ?? '—'}
             </span>
           </div>
@@ -126,7 +126,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
         key: 'approval_level',
         header: <div className="text-center w-full">APPROVAL LEVEL</div>,
         cell: (r) => (
-          <span className="font-medium text-blue-700 flex justify-center items-center text-center">
+          <span className="font-medium text-blue-700 flex justify-center items-center text-center text-[11px] xl:text-xs">
             {approvalLevelLabel(r.approval_level)}
           </span>
         ),
@@ -160,7 +160,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
         header: <div className="text-center w-full">SUBMITTED AT</div>,
         cell: (r) => (
           <div className="w-full text-slate-600 flex justify-center items-center text-center">
-            <span className="text-[11px]">
+            <span className="text-[10px] xl:text-[11px]">
               {formatDateTime(r.submitted_at)}
             </span>
           </div>
@@ -172,7 +172,7 @@ function CurrentList({ currentProjects = null, stats = null }) {
         cell: (r) => (
           <div className="flex justify-center items-center gap-2">
             <button
-              className="px-3 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
+              className="px-2 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
               onClick={() => router.visit(ziggyRoute('sprf.current.show', r.id))}
             >
               <IoEyeOutline className="text-[18px]" />

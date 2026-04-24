@@ -172,6 +172,26 @@ class SprfController extends Controller
         ]);
     }
 
+    public function archivePrint(SprfArchiveProject $project)
+    {
+        $this->ensureCanViewArchive($project);
+
+        $project->load([
+            'items',
+            'fees',
+            'preparer:id,first_name,last_name,position,email',
+            'approvedBy:id,first_name,last_name,position,email',
+            'rejectedBy:id,first_name,last_name,position,email',
+        ]);
+
+        return Inertia::render('CustomerManagement/ProjectSPRF/sprfEntryPrint', [
+            'entryProject' => $this->transformArchiveProjectForPrint($project),
+            'storageKey' => request('storageKey'),
+            'autoprint' => (bool) request('autoprint', false),
+            'showDraftWatermark' => false,
+        ]);
+    }
+
     private function ensureCanViewArchive(SprfArchiveProject $project): void
     {
         $userId = (int) Auth::id();
@@ -302,6 +322,61 @@ class SprfController extends Controller
                 })
                 ->values()
                 ->all(),
+        ];
+    }
+
+    private function transformArchiveProjectForPrint(SprfArchiveProject $project): array
+    {
+        return [
+            'id' => $project->id,
+            'sprf_no' => $project->sprf_no,
+            'status' => $project->status,
+            'remarks' => $project->remarks,
+            'last_reject_note' => $project->last_reject_note,
+            'rebate_justification' => $project->rebate_justification,
+
+            'company_info' => [
+                'subCategory' => $project->sub_category,
+                'account' => $project->account,
+                'accountManager' => $project->account_manager,
+            ],
+
+            'items' => $project->items
+                ->map(function ($item) {
+                    return [
+                        'productCode' => $item->product_code,
+                        'itemDescription' => $item->item_description,
+                        'qty' => $item->qty,
+                        'disty' => $item->disty,
+                        'costPerUnit' => $item->cost_per_unit,
+                        'markupPercent' => $item->markup_percent,
+                    ];
+                })
+                ->values()
+                ->all(),
+
+            'other_expenses' => $project->fees
+                ->map(function ($fee) {
+                    return [
+                        'expenseKey' => $fee->expense_key,
+                        'isFixed' => $fee->is_fixed,
+                        'productCode' => $fee->product_code,
+                        'itemDescription' => $fee->item_description,
+                        'qty' => $fee->qty,
+                        'unitPrice' => $fee->unit_price,
+                    ];
+                })
+                ->values()
+                ->all(),
+
+            'approver_users' => $this->mapApproverUsersFromArchiveProject($project),
+
+            'preparer' => [
+                'id' => $project->preparer?->id,
+                'name' => $project->preparer?->name,
+                'position' => $project->preparer?->position,
+                'email' => $project->preparer?->email,
+            ],
         ];
     }
 }
