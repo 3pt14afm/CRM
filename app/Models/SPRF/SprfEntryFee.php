@@ -21,7 +21,7 @@ class SprfEntryFee extends Model
 
     protected $casts = [
         'is_fixed' => 'boolean',
-        'qty' => 'decimal:2',
+        'qty' => 'integer',
         'unit_price' => 'decimal:2',
         'total' => 'decimal:2',
     ];

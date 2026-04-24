@@ -28,6 +28,9 @@ const APPROVAL_LEVEL = {
   PRESIDENT_AND_CEO: 'PRESIDENT_AND_CEO',
 };
 
+const isBlank = (value) =>
+  value === '' || value === null || value === undefined;
+
 const toNumber = (value) => Number(value || 0);
 
 const makeItemRow = () => ({
@@ -36,6 +39,7 @@ const makeItemRow = () => ({
   qty: '',
   disty: '',
   costPerUnit: '',
+  markupPercent: '',
 });
 
 const makeExpenseRow = ({
@@ -134,15 +138,33 @@ const serializeRemarksRows = (rows) => {
 };
 
 const computeItem = (row) => {
+  const qtyBlank = isBlank(row.qty);
+  const costBlank = isBlank(row.costPerUnit);
+  const markupBlank = isBlank(row.markupPercent);
+
   const qty = toNumber(row.qty);
   const costPerUnit = toNumber(row.costPerUnit);
+  const markupPercent = toNumber(row.markupPercent);
 
-  const totalCost = qty * costPerUnit;
-  const sellingPricePerUnitVatInc = costPerUnit * 1.15;
-  const totalSellingPriceVatInc = qty * sellingPricePerUnitVatInc;
-  const markupValue = totalSellingPriceVatInc - totalCost;
-  const markupPercent =
-    costPerUnit > 0 ? ((sellingPricePerUnitVatInc / costPerUnit) - 1) * 100 : 0;
+  const totalCost =
+    qtyBlank || costBlank
+      ? ''
+      : qty * costPerUnit;
+
+  const sellingPricePerUnitVatInc =
+    costBlank || markupBlank
+      ? ''
+      : costPerUnit * (1 + markupPercent / 100);
+
+  const totalSellingPriceVatInc =
+    qtyBlank || sellingPricePerUnitVatInc === ''
+      ? ''
+      : qty * sellingPricePerUnitVatInc;
+
+  const markupValue =
+    totalSellingPriceVatInc === '' || totalCost === ''
+      ? ''
+      : totalSellingPriceVatInc - totalCost;
 
   return {
     ...row,
@@ -150,17 +172,20 @@ const computeItem = (row) => {
     sellingPricePerUnitVatInc,
     totalSellingPriceVatInc,
     markupValue,
-    markupPercent,
+    markupPercent: row.markupPercent,
   };
 };
 
 const computeExpense = (row) => {
+  const qtyBlank = isBlank(row.qty);
+  const unitPriceBlank = isBlank(row.unitPrice);
+
   const qty = toNumber(row.qty);
   const unitPrice = toNumber(row.unitPrice);
 
   return {
     ...row,
-    total: qty * unitPrice,
+    total: qtyBlank || unitPriceBlank ? '' : qty * unitPrice,
   };
 };
 
@@ -173,11 +198,11 @@ const resolveApprovalLevel = ({ revenue, totalGpPercent, hasRebate }) => {
     return APPROVAL_LEVEL.ESD_ONLY;
   }
 
-  if (totalGpPercent < 8) {
+  if (totalGpPercent <= 15) {
     return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
   }
 
-  if (totalGpPercent < 10 || revenue > 1000000) {
+  if (totalGpPercent > 15 || revenue > 1000000) {
     return APPROVAL_LEVEL.VP_AND_CCTO;
   }
 
@@ -335,6 +360,7 @@ function Entry({
                       qty: row?.qty ?? '',
                       disty: row?.disty ?? '',
                       costPerUnit: row?.costPerUnit ?? '',
+                      markupPercent: row?.markupPercent ?? '',
                     }))
                   : [makeItemRow()]
               );
@@ -346,9 +372,9 @@ function Entry({
   const computedExpenses = useMemo(() => otherExpenses.map(computeExpense), [otherExpenses]);
 
   const summary = useMemo(() => {
-    const revenue = computedItems.reduce((sum, row) => sum + row.totalSellingPriceVatInc, 0);
-    const cogs = computedItems.reduce((sum, row) => sum + row.totalCost, 0);
-    const otherExpense = computedExpenses.reduce((sum, row) => sum + row.total, 0);
+    const revenue = computedItems.reduce((sum, row) => sum + toNumber(row.totalSellingPriceVatInc), 0 );
+    const cogs = computedItems.reduce((sum, row) => sum + toNumber(row.totalCost), 0 );
+    const otherExpense = computedExpenses.reduce((sum, row) => sum + toNumber(row.total), 0 );
 
     const totalExpense = cogs + otherExpense;
     const gpValue = revenue - totalExpense;
@@ -365,8 +391,9 @@ function Entry({
   }, [computedItems, computedExpenses]);
 
   const itemTotals = useMemo(() => {
-    const ttlCost = computedItems.reduce((sum, row) => sum + row.totalCost, 0);
-    const ttlRev = computedItems.reduce((sum, row) => sum + row.totalSellingPriceVatInc, 0);
+    const ttlCost = computedItems.reduce(
+      (sum, row) => sum + toNumber(row.totalCost), 0 );
+    const ttlRev = computedItems.reduce((sum, row) => sum + toNumber(row.totalSellingPriceVatInc), 0 );
 
     return {
       ttlCost,
@@ -778,104 +805,103 @@ const handleClearAll = () => {
     <>
       <Head title={`SPRF ${pageLabel}`} />
 
-      <div className="min-h-screen flex flex-col">
-        <div className="flex-1">
-          <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
-            <div className="flex gap-1">
-              <h1 className="font-semibold mt-3">{pageTitle}</h1>
-              <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">{pageLabel}</p>
-            </div>
-
-            <div className="flex flex-col gap-1 items-end">
-              <h1 className="text-xs text-right text-slate-500">{formattedHeaderDate}</h1>
-              <p className="text-xs text-right text-slate-500">
-                Last Saved: {lastSavedDisplay}
-              </p>
-            </div>
+      <div className="min-h-screen flex flex-col print:min-h-0 print:block">
+      <div className="flex-1">
+        <div className="px-2 pt-8 pb-3 flex justify-between mx-10 print:mx-0 print:pt-0">
+          <div className="flex gap-1">
+            <h1 className="font-semibold mt-3">{pageTitle}</h1>
+            <p className="mt-3">/</p>
+            <p className="text-3xl font-semibold">{pageLabel}</p>
           </div>
 
-          <div className="mx-10 pb-28">
-            <div className="overflow-hidden rounded-2xl border border-[#2c2c2e]/20 print:shadow-none print:border-0 bg-[#f8f8f8] shadow-md">
-              <div className="bg-[#B5EBA2]/50 px-6 py-2 border border-b-[#2c2c2e]/10 text-center text-[15px] font-bold uppercase tracking-wide">
-                IT Solutions Special Price Request Form
+          <div className="flex flex-col gap-1 items-end">
+            <h1 className="text-xs text-right text-slate-500">{formattedHeaderDate}</h1>
+            <p className="text-xs text-right text-slate-500">
+              Last Saved: {lastSavedDisplay}
+            </p>
+          </div>
+        </div>
+
+        <div className="mx-10 pb-28 print:mx-0 print:pb-0">
+          <div className="print-avoid-break overflow-hidden rounded-2xl border border-[#2c2c2e]/20 bg-[#f8f8f8] shadow-md print:shadow-none print:border-none print:bg-transparent print:justify-center">
+            <div className="bg-[#B5EBA2]/50 px-6 py-2 border border-b-[#2c2c2e]/10 text-center text-[15px] font-bold uppercase tracking-wide">
+              IT Solutions Special Price Request Form
+            </div>
+
+            <div className="p-6 print:p-0">
+              <div className="grid grid-cols-12 gap-6 print:grid-cols-[50%_50%] print:gap-2">
+                <div className="col-span-8 space-y-3 print:space-y-1">
+                  <CompanyInfoBlock
+                    value={companyInfo}
+                    onChange={setCompanyInfo}
+                    readOnly={readOnly}
+                  />
+
+                  <RemarksBlock
+                    value={remarks}
+                    onChange={setRemarks}
+                    readOnly={readOnly}
+                    lastRejectNote={isArchiveRoute ? sourceProject?.last_reject_note ?? '' : ''}
+                  />
+                </div>
+
+                <div className="col-span-12 lg:col-span-4 space-y-1.5 xl:space-y-2 print:col-auto print:space-y-1">
+                  <SprfMetaBlock
+                    dateTime={displayDateTime}
+                    sprfNo={sprfNo}
+                  />
+
+                  <SummaryBlock
+                    summary={summary}
+                  />
+                </div>
               </div>
 
-              <div className="p-6">
-                <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-8 space-y-3">
-                    <CompanyInfoBlock
-                      value={companyInfo}
-                      onChange={setCompanyInfo}
-                      readOnly={readOnly}
-                    />
+              <div className="mt-6 print:mt-2">
+                <SprfItemsTable
+                  items={items}
+                  computedItems={computedItems}
+                  onUpdateItem={updateItem}
+                  onAddItemRow={addItemRow}
+                  onRemoveItemRow={removeItemRow}
+                  totals={itemTotals}
+                  readOnly={readOnly}
+                />
+              </div>
 
-                    <RemarksBlock
-                      value={remarks}
-                      onChange={setRemarks}
-                      readOnly={readOnly}
-                      lastRejectNote={isArchiveRoute ? sourceProject?.last_reject_note ?? '' : ''}
-                    />
-                  </div>
+              <div className="mt-6 print:mt-2">
+                <SprfOtherExpenseTable
+                  otherExpenses={otherExpenses}
+                  computedExpenses={computedExpenses}
+                  onUpdateExpense={updateExpense}
+                  onAddExpenseRow={addExpenseRow}
+                  onRemoveExpenseRow={removeExpenseRow}
+                  totalOtherExpense={summary.otherExpense}
+                  readOnly={readOnly}
+                />
+              </div>
 
-                  <div className="col-span-12 lg:col-span-4 space-y-1.5 xl:space-y-2">
-                    <SprfMetaBlock
-                      dateTime={displayDateTime}
-                      sprfNo={sprfNo}
-                    />
-
-                    <SummaryBlock
-                      summary={summary}
-                    />
-                  </div>
+              <div className="mt-10 grid grid-cols-12 gap-10 items-start print:mt-4 print:gap-2 print:items-start">
+                <div className="cols-span-12 lg:col-span-5 print:col-span-5">
+                  <Conditions />
                 </div>
 
-                <div className="mt-6">
-                  <SprfItemsTable
-                    items={items}
-                    computedItems={computedItems}
-                    onUpdateItem={updateItem}
-                    onAddItemRow={addItemRow}
-                    onRemoveItemRow={removeItemRow}
-                    totals={itemTotals}
+                <div className="cols-span-12 lg:col-span-7 print:col-span-7">
+                  <NamesBlock
+                    signatories={signatories}
+                    showVpCcto={showVpCcto}
+                    showPresidentCeo={showPresidentCeo}
+                    showRebateJustification={hasRebate}
+                    rebateJustification={rebateJustification}
+                    onChangeRebateJustification={setRebateJustification}
                     readOnly={readOnly}
                   />
                 </div>
-
-                <div className="mt-6">
-                  <SprfOtherExpenseTable
-                    otherExpenses={otherExpenses}
-                    computedExpenses={computedExpenses}
-                    onUpdateExpense={updateExpense}
-                    onAddExpenseRow={addExpenseRow}
-                    onRemoveExpenseRow={removeExpenseRow}
-                    totalOtherExpense={summary.otherExpense}
-                    readOnly={readOnly}
-                  />
-                </div>
-
-                <div className="mt-10 grid grid-cols-12 gap-10 items-start">
-                  <div className="cols-span-12 lg:col-span-5">
-                    <Conditions />
-                  </div>
-
-                  <div className="cols-span-12 lg:col-span-7">
-                    <NamesBlock
-                      signatories={signatories}
-                      showVpCcto={showVpCcto}
-                      showPresidentCeo={showPresidentCeo}
-                      showRebateJustification={hasRebate}
-                      rebateJustification={rebateJustification}
-                      onChangeRebateJustification={setRebateJustification}
-                      readOnly={readOnly}
-                    />
-                  </div>
-                </div>
-                
               </div>
             </div>
           </div>
         </div>
+      </div>
 
         <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
           {isEntryRoute && !readOnly ? (

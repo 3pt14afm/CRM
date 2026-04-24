@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import PrintLayout from '@/Layouts/PrintLayout';
+import Conditions from '@/Components/sprf/Conditions';
 
 const APPROVAL_LEVEL = {
   ESD_ONLY: 'ESD_ONLY',
@@ -8,49 +9,129 @@ const APPROVAL_LEVEL = {
   PRESIDENT_AND_CEO: 'PRESIDENT_AND_CEO',
 };
 
+const isBlank = (value) =>
+  value === '' || value === null || value === undefined;
+
 const toNumber = (value) => Number(value || 0);
 
-const formatPeso = (value) =>
-  Number(value || 0).toLocaleString('en-PH', {
+const displayText = (value) => {
+  if (isBlank(value)) return '';
+
+  const text = String(value);
+  return text.trim() ? text : '';
+};
+
+const displayPeso = (value) => {
+  if (isBlank(value)) return '';
+
+  return `₱${Number(value).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
+  })}`;
+};
 
-const formatWholePeso = (value) =>
-  Number(value || 0).toLocaleString('en-PH', {
+const displayWholePeso = (value) => {
+  if (isBlank(value)) return '';
+
+  return Number(value).toLocaleString('en-PH', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
+};
+
+const displayPercent = (value) => {
+  if (isBlank(value)) return '';
+
+  return `${Number(value).toFixed(2)}%`;
+};
+
+const hasItemValue = (row) => {
+  return (
+    displayText(row.productCode) ||
+    displayText(row.itemDescription) ||
+    !isBlank(row.qty) ||
+    displayText(row.disty) ||
+    !isBlank(row.costPerUnit) ||
+    !isBlank(row.markupPercent)
+  );
+};
+
+const hasExpenseValue = (row) => {
+  return (
+    displayText(row.productCode) ||
+    displayText(row.itemDescription) ||
+    !isBlank(row.qty) ||
+    !isBlank(row.unitPrice)
+  );
+};
 
 function computeSummary(items = [], otherExpenses = []) {
   const computedItems = items.map((row) => {
+    const qtyBlank = isBlank(row.qty);
+    const costBlank = isBlank(row.costPerUnit);
+    const markupBlank = isBlank(row.markupPercent);
+
     const qty = toNumber(row.qty);
     const costPerUnit = toNumber(row.costPerUnit);
-    const totalCost = qty * costPerUnit;
-    const sellingPricePerUnitVatInc = costPerUnit * 1.15;
-    const totalSellingPriceVatInc = qty * sellingPricePerUnitVatInc;
+    const markupPercent = toNumber(row.markupPercent);
+
+    const totalCost =
+      qtyBlank || costBlank
+        ? ''
+        : qty * costPerUnit;
+
+    const sellingPricePerUnitVatInc =
+      costBlank || markupBlank
+        ? ''
+        : costPerUnit * (1 + markupPercent / 100);
+
+    const totalSellingPriceVatInc =
+      qtyBlank || sellingPricePerUnitVatInc === ''
+        ? ''
+        : qty * sellingPricePerUnitVatInc;
+
+    const markupValue =
+      totalSellingPriceVatInc === '' || totalCost === ''
+        ? ''
+        : totalSellingPriceVatInc - totalCost;
 
     return {
       ...row,
       totalCost,
       sellingPricePerUnitVatInc,
       totalSellingPriceVatInc,
+      markupValue,
+      markupPercent: row.markupPercent,
     };
   });
 
   const computedExpenses = otherExpenses.map((row) => {
+    const qtyBlank = isBlank(row.qty);
+    const unitPriceBlank = isBlank(row.unitPrice);
+
     const qty = toNumber(row.qty);
     const unitPrice = toNumber(row.unitPrice);
 
     return {
       ...row,
-      total: qty * unitPrice,
+      total: qtyBlank || unitPriceBlank ? '' : qty * unitPrice,
     };
   });
 
-  const revenue = computedItems.reduce((sum, row) => sum + row.totalSellingPriceVatInc, 0);
-  const cogs = computedItems.reduce((sum, row) => sum + row.totalCost, 0);
-  const otherExpense = computedExpenses.reduce((sum, row) => sum + row.total, 0);
+  const revenue = computedItems.reduce(
+    (sum, row) => sum + toNumber(row.totalSellingPriceVatInc),
+    0
+  );
+
+  const cogs = computedItems.reduce(
+    (sum, row) => sum + toNumber(row.totalCost),
+    0
+  );
+
+  const otherExpense = computedExpenses.reduce(
+    (sum, row) => sum + toNumber(row.total),
+    0
+  );
 
   const totalExpense = cogs + otherExpense;
   const gpValue = revenue - totalExpense;
@@ -73,8 +154,8 @@ function computeSummary(items = [], otherExpenses = []) {
 function resolveApprovalLevel({ revenue, totalGpPercent, hasRebate }) {
   if (hasRebate) return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
   if (revenue <= 0) return APPROVAL_LEVEL.ESD_ONLY;
-  if (totalGpPercent < 8) return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  if (totalGpPercent < 10 || revenue > 1000000) return APPROVAL_LEVEL.VP_AND_CCTO;
+  if (totalGpPercent <= 15) return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
+  if (totalGpPercent > 15 || revenue > 1000000) return APPROVAL_LEVEL.VP_AND_CCTO;
   return APPROVAL_LEVEL.ESD_ONLY;
 }
 
@@ -141,6 +222,7 @@ export default function SprfEntryPrint({
       }
 
       const raw = sessionStorage.getItem(storageKey);
+
       if (!raw) {
         setLoaded(true);
         return;
@@ -156,7 +238,9 @@ export default function SprfEntryPrint({
 
   useEffect(() => {
     if (!autoprint || !loaded) return;
+
     const t = setTimeout(() => window.print(), 300);
+
     return () => clearTimeout(t);
   }, [autoprint, loaded]);
 
@@ -174,9 +258,10 @@ export default function SprfEntryPrint({
           row?.expenseKey === 'rebate' ||
           String(row?.productCode || '').trim().toLowerCase() === 'rebate'
       )
-      .reduce((sum, row) => sum + row.total, 0);
+      .reduce((sum, row) => sum + toNumber(row.total), 0);
 
     const hasRebate = rebateTotal > 0;
+
     const approvalLevel = resolveApprovalLevel({
       revenue: summary.revenue,
       totalGpPercent: summary.totalGpPercent,
@@ -198,6 +283,7 @@ export default function SprfEntryPrint({
 
   const handleClose = () => {
     window.close();
+
     setTimeout(() => {
       if (!window.closed) window.history.back();
     }, 50);
@@ -242,23 +328,14 @@ export default function SprfEntryPrint({
               No SPRF print data available.
             </div>
           ) : (
-            <div className="rounded-2xl border border-[#2c2c2e]/20 bg-[#f8f8f8] shadow-md overflow-hidden">
-              <div className="bg-[#B5EBA2]/50 px-6 py-2 border-b border-[#2c2c2e]/10 text-center text-[15px] font-bold uppercase tracking-wide">
+            <div className="rounded-2xl overflow-hidden flex flex-col justify-center">
+              <div className="px-6 py-1 mb-2 text-center text-xs font-bold uppercase tracking-wide">
                 IT Solutions Special Price Request Form
               </div>
 
-              <div className="p-6 space-y-6">
-                <div className="flex justify-end">
-                  <div className="text-right">
-                    <div className="text-xs text-slate-500">SPRF No.</div>
-                    <div className="text-base font-extrabold text-[#111111]">
-                      {resolved.sprfNo || '—'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-12 xl:col-span-8 space-y-3">
+              <div className="px-1 space-y-5 mx-auto">
+                <div className="grid grid-cols-[70%_30%] items-start">
+                  <div className="min-w-0 space-y-2 mr-3">
                     <PrintInfoBlock
                       rows={[
                         ['SUB CATEGORY', resolved.companyInfo?.subCategory],
@@ -273,24 +350,48 @@ export default function SprfEntryPrint({
                     />
                   </div>
 
-                  <div className="col-span-12 xl:col-span-4">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex justify-end">
+                      <div className="text-right">
+                        <div className="text-[11px] text-slate-500">SPRF No.</div>
+                        <div className="text-xs font-extrabold">
+                          {displayText(resolved.sprfNo)}
+                        </div>
+                      </div>
+                    </div>
+
                     <PrintSummaryBlock summary={resolved.summary} />
                   </div>
                 </div>
 
-                <PrintItemsTable rows={resolved.computedItems} />
+                <PrintItemsTable
+                  rows={resolved.computedItems}
+                  totals={{
+                    ttlCost: resolved.summary.cogs,
+                    ttlRev: resolved.summary.revenue,
+                  }}
+                />
+
                 <PrintOtherExpenseTable
                   rows={resolved.computedExpenses}
                   totalOtherExpense={resolved.summary.otherExpense}
                 />
 
-                <PrintNamesBlock
-                  signatories={resolved.signatories}
-                  showVpCcto={resolved.showVpCcto}
-                  showPresidentCeo={resolved.showPresidentCeo}
-                  showRebateJustification={resolved.hasRebate}
-                  rebateJustification={resolved.rebateJustification}
-                />
+                <div className="grid grid-cols-12 items-start space-y-5">
+                  <div className="col-span-5">
+                    <Conditions />
+                  </div>
+
+                  <div className="col-span-7">
+                    <PrintNamesBlock
+                      signatories={resolved.signatories}
+                      showVpCcto={resolved.showVpCcto}
+                      showPresidentCeo={resolved.showPresidentCeo}
+                      showRebateJustification={resolved.hasRebate}
+                      rebateJustification={resolved.rebateJustification}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -302,14 +403,18 @@ export default function SprfEntryPrint({
 
 function PrintInfoBlock({ rows }) {
   return (
-    <div className="border-[#D6DDD0] bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl overflow-hidden">
+    <div className="border-[#D6DDD0] bg-[#FBFFFA] border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl overflow-hidden">
       {rows.map(([label, value]) => (
-        <div key={label} className="grid grid-cols-[190px_minmax(0,1fr)] border-b last:border-b-0 border-[#2c2c2e]/10">
-          <div className="px-4 py-3 text-xs font-bold bg-[#90E274]/10">
+        <div
+          key={label}
+          className="grid grid-cols-[140px_minmax(0,1fr)] border-b last:border-b-0 border-[#2c2c2e]/10"
+        >
+          <div className="px-3 py-1.5 text-[11px] font-semibold flex items-center bg-[#90E274]/10">
             {label}
           </div>
-          <div className="px-4 py-3 text-sm">
-            {value?.trim?.() ? value : '—'}
+
+          <div className="px-3 py-1.5 text-[11px] flex items-center">
+            {displayText(value)}
           </div>
         </div>
       ))}
@@ -319,14 +424,14 @@ function PrintInfoBlock({ rows }) {
 
 function PrintTextBlock({ label, value }) {
   return (
-    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-7 py-4 shadow-md">
-      <div className="grid grid-cols-[145px_minmax(0,1fr)] items-start gap-5">
-        <label className="text-xs uppercase font-bold tracking-[0.01em]">
+    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-3 py-2">
+      <div className="grid grid-cols-[90px_minmax(0,1fr)] items-center gap-5">
+        <label className="text-[11px] uppercase font-semibold tracking-[0.01em]">
           {label}
         </label>
 
-        <div className="min-h-[60px] rounded-xl border border-gray-200 px-3 py-3 text-xs whitespace-pre-wrap bg-white">
-          {value?.trim?.() ? value : '—'}
+        <div className="min-h-[60px] rounded-xl border border-gray-200 px-3 py-3 text-[11px] whitespace-pre-wrap bg-white">
+          {displayText(value)}
         </div>
       </div>
     </div>
@@ -335,8 +440,13 @@ function PrintTextBlock({ label, value }) {
 
 function PrintSummaryBlock({ summary }) {
   return (
-    <div className="overflow-hidden rounded-xl bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25">
+    <div className="overflow-hidden rounded-xl bg-[#FBFFFA] border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25">
       <table className="w-full table-fixed border-collapse">
+        <colgroup>
+          <col className="w-[55%]" />
+          <col className="w-[45%]" />
+        </colgroup>
+
         <tbody>
           <PrintSummaryRow label="REVENUE" value={summary.revenue} />
           <PrintSummaryRow label="COGS" value={summary.cogs} />
@@ -351,16 +461,34 @@ function PrintSummaryBlock({ summary }) {
 }
 
 function PrintSummaryRow({ label, value, isPercent = false, isLast = false }) {
+  const displayValue = isPercent
+    ? isBlank(value)
+      ? ''
+      : `${Number(value).toFixed(0)}%`
+    : displayWholePeso(value);
+
   return (
     <tr>
-      <td className={`border-b border-[#2c2c2e]/10 border-r bg-[#90E274]/10 px-4 py-2 text-xs font-bold ${isLast ? 'border-b-0' : ''}`}>
+      <td
+        className={`border-b border-[#2c2c2e]/10 border-r bg-[#90E274]/10 px-4 py-1 text-[10px] font-semibold ${
+          isLast ? 'border-b-0' : ''
+        }`}
+      >
         {label}
       </td>
-      <td className={`border-b border-[#2c2c2e]/10 bg-white px-4 py-2 text-xs font-medium ${isLast ? 'border-b-0' : ''}`}>
+
+      <td
+        className={`border-b border-[#2c2c2e]/10 bg-white px-4 py-1 text-[10px] font-medium ${
+          isLast ? 'border-b-0' : ''
+        }`}
+      >
         <div className="flex items-center justify-between gap-3">
-          <span className="font-bold">{isPercent ? '' : '₱'}</span>
+          <span className="font-bold">
+            {isPercent || isBlank(value) ? '' : '₱'}
+          </span>
+
           <span className="text-right">
-            {isPercent ? `${Number(value || 0).toFixed(0)}%` : formatWholePeso(value)}
+            {displayValue}
           </span>
         </div>
       </td>
@@ -368,47 +496,128 @@ function PrintSummaryRow({ label, value, isPercent = false, isLast = false }) {
   );
 }
 
-function PrintItemsTable({ rows }) {
+function PrintItemsTable({ rows, totals }) {
+  const footerCellClass =
+    'bg-[#D9F2D0] p-2 py-1 text-[10px] font-semibold';
+
   return (
     <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA]">
-      <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-[10px]">
+        <colgroup>
+          <col className="w-[2.5%]" />
+          <col className="w-[10%]" />
+          <col className="w-[23.5%]" />
+          <col className="w-[4.5%]" />
+          <col className="w-[6%]" />
+          <col className="w-[9%]" />
+          <col className="w-[10%]" />
+          <col className="w-[9%]" />
+          <col className="w-[10%]" />
+          <col className="w-[8.5%]" />
+          <col className="w-[7%]" />
+        </colgroup>
+
         <thead>
           <tr className="bg-lightgreen/30 text-[10px] uppercase">
-            <th className="border-b border-r border-darkgreen/15 p-2">#</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Product Code</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Item Description</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Qty</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Disty</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Cost / Unit</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Total Cost</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">SP / Unit VAT Inc</th>
-            <th className="border-b border-darkgreen/15 p-2">Total SP VAT Inc</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">#</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Product Code</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Item Description</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Qty</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Disty</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Cost / Unit</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Total Cost</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">
+              Selling Price/unit (VAT INC)
+            </th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">
+              Total Selling Price (VAT INC)
+            </th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Mark Up Value</th>
+            <th className="border-b border-darkgreen/15 p-1.5 py-2 font-semibold">Mark-up %</th>
           </tr>
         </thead>
 
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={9} className="p-4 text-center text-slate-500">
+              <td colSpan={11} className="p-4 text-center text-slate-500">
                 No items available.
               </td>
             </tr>
           ) : (
-            rows.map((row, index) => (
-              <tr key={`item-${index}`}>
-                <td className="border-b border-r border-darkgreen/15 p-2">{index + 1}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2">{row.productCode || '—'}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2">{row.itemDescription || '—'}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2 text-right">{row.qty || '0'}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2">{row.disty || '—'}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2 text-right">₱{formatPeso(row.costPerUnit)}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2 text-right">₱{formatPeso(row.totalCost)}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2 text-right">₱{formatPeso(row.sellingPricePerUnitVatInc)}</td>
-                <td className="border-b border-darkgreen/15 p-2 text-right">₱{formatPeso(row.totalSellingPriceVatInc)}</td>
-              </tr>
-            ))
+            rows.map((row, index) => {
+              const rowHasValue = hasItemValue(row);
+
+              return (
+                <tr key={`item-${index}`}>
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">
+                    {rowHasValue ? index + 1 : ''}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2">
+                    {displayText(row.productCode)}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2">
+                    {displayText(row.itemDescription)}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">
+                    {isBlank(row.qty) ? '' : row.qty}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2">
+                    {displayText(row.disty)}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
+                    {displayPeso(row.costPerUnit)}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
+                    {displayPeso(row.totalCost)}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
+                    {displayPeso(row.sellingPricePerUnitVatInc)}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
+                    {displayPeso(row.totalSellingPriceVatInc)}
+                  </td>
+
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
+                    {displayPeso(row.markupValue)}
+                  </td>
+
+                  <td className="border-b border-darkgreen/15 p-2 text-right">
+                    {displayPercent(row.markupPercent)}
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
+
+        <tfoot>
+          <tr>
+            <td className={`${footerCellClass} rounded-bl-xl`}></td>
+            <td className={footerCellClass}></td>
+            <td className={`${footerCellClass} text-center`}>TOTAL</td>
+            <td className={footerCellClass}></td>
+            <td className={footerCellClass}></td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>
+              {displayPeso(totals?.ttlCost)}
+            </td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>
+              {displayPeso(totals?.ttlRev)}
+            </td>
+            <td className={footerCellClass}></td>
+            <td className={`${footerCellClass} rounded-br-xl`}></td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
@@ -416,48 +625,88 @@ function PrintItemsTable({ rows }) {
 
 function PrintOtherExpenseTable({ rows, totalOtherExpense }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA]">
-      <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
-        <thead>
-          <tr className="bg-lightgreen/30 text-[10px] uppercase">
-            <th className="border-b border-r border-darkgreen/15 p-2">#</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Product Code</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Item Description</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Qty</th>
-            <th className="border-b border-r border-darkgreen/15 p-2">Unit Price</th>
-            <th className="border-b border-darkgreen/15 p-2">Total</th>
-          </tr>
-        </thead>
+    <div className="w-[80%]">
+      <div className="mb-1 text-[11px] xl:text-xs ml-3 font-bold uppercase text-[#111]">
+        Other Expense
+      </div>
 
-        <tbody>
-          {rows.length === 0 ? (
+      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA]">
+        <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
+          <colgroup>
+            <col className="w-[2.5%]" />
+            <col className="w-[16%]" />
+            <col className="w-[35%]" />
+            <col className="w-[5%]" />
+            <col className="w-[11%]" />
+            <col className="w-[10%]" />
+          </colgroup>
+
+          <thead>
+            <tr className="bg-lightgreen/30 text-[10px] uppercase">
+              <th className="border-b border-r border-darkgreen/15 p-2">#</th>
+              <th className="border-b border-r border-darkgreen/15 p-2">Product Code</th>
+              <th className="border-b border-r border-darkgreen/15 p-2">Item Description</th>
+              <th className="border-b border-r border-darkgreen/15 p-2">Qty</th>
+              <th className="border-b border-r border-darkgreen/15 p-2">Unit Price</th>
+              <th className="border-b border-darkgreen/15 p-2">Total</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="p-4 text-center text-slate-500">
+                  No other expense rows available.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, index) => {
+                const rowHasValue = hasExpenseValue(row);
+
+                return (
+                  <tr key={`expense-${index}`}>
+                    <td className="border-b border-r border-darkgreen/15 p-2 py-1 text-center">
+                      {rowHasValue ? index + 1 : ''}
+                    </td>
+
+                    <td className="border-b border-r border-darkgreen/15 p-2 py-1 ">
+                      {displayText(row.productCode)}
+                    </td>
+
+                    <td className="border-b border-r border-darkgreen/15 p-2 py-1">
+                      {displayText(row.itemDescription)}
+                    </td>
+
+                    <td className="border-b border-r border-darkgreen/15 p-2 py-1 text-center">
+                      {isBlank(row.qty) ? '' : row.qty}
+                    </td>
+
+                    <td className="border-b border-r border-darkgreen/15 p-2 py-1 text-right">
+                      {displayPeso(row.unitPrice)}
+                    </td>
+
+                    <td className="border-b border-darkgreen/15 p-2 py-1 text-right">
+                      {displayPeso(row.total)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+
+          <tfoot>
             <tr>
-              <td colSpan={6} className="p-4 text-center text-slate-500">
-                No other expense rows available.
+              <td colSpan={4} className="bg-[#D9F2D0] p-2"></td>
+              <td className="bg-[#D9F2D0] p-2 py-1 text-[11px] font-semibold text-end">
+                TOTAL
+              </td>
+              <td className="bg-[#D9F2D0] p-2 py-1 text-[11px] font-semibold text-end">
+                {displayPeso(totalOtherExpense)}
               </td>
             </tr>
-          ) : (
-            rows.map((row, index) => (
-              <tr key={`expense-${index}`}>
-                <td className="border-b border-r border-darkgreen/15 p-2">{index + 1}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2">{row.productCode || '—'}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2">{row.itemDescription || '—'}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2 text-right">{row.qty || '0'}</td>
-                <td className="border-b border-r border-darkgreen/15 p-2 text-right">₱{formatPeso(row.unitPrice)}</td>
-                <td className="border-b border-darkgreen/15 p-2 text-right">₱{formatPeso(row.total)}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-
-        <tfoot>
-          <tr>
-            <td colSpan={4} className="bg-[#D9F2D0] p-2"></td>
-            <td className="bg-[#D9F2D0] p-2 text-xs font-bold text-end">TOTAL</td>
-            <td className="bg-[#D9F2D0] p-2 text-xs font-bold text-end">₱{formatPeso(totalOtherExpense)}</td>
-          </tr>
-        </tfoot>
-      </table>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }
@@ -469,37 +718,46 @@ function PrintNamesBlock({
   showRebateJustification,
   rebateJustification,
 }) {
-  const rightSignatories = [
+  const approvedSignatories = [
     signatories?.esdDirector ?? { name: '', title: '' },
     ...(showVpCcto ? [signatories?.vpCcto ?? { name: '', title: '' }] : []),
     ...(showPresidentCeo ? [signatories?.presidentCeo ?? { name: '', title: '' }] : []),
   ];
 
   return (
-    <div className="w-full mt-10 pb-4">
-      <div className="mx-auto w-full max-w-[860px]">
-        <div className="grid grid-cols-1 gap-y-12 gap-x-24 md:grid-cols-2">
-          <div className="flex flex-col space-y-12">
-            <SectionLabel label="PREPARED BY:" />
-            <PrintSignatory {...(signatories?.preparer ?? {})} />
-            <PrintSignatory {...(signatories?.directorCustomerEngagement ?? {})} />
+    <div className="w-full">
+      <div className="grid grid-cols-2 mx-3 ml-8 gap-x-8 items-start">
+        <div className="flex flex-col">
+          <SectionLabel label="PREPARED BY:" />
 
-            {showRebateJustification && (
-              <div className="flex flex-col space-y-3">
-                <label className="text-[10px] font-extrabold text-gray-800 tracking-tight">
-                  JUSTIFICATION FOR REBATE
-                </label>
-                <div className="w-full rounded-xl border border-gray-200 px-3 py-3 text-xs min-h-[80px] bg-white whitespace-pre-wrap">
-                  {rebateJustification?.trim?.() ? rebateJustification : '—'}
-                </div>
-              </div>
-            )}
+          <div className="mt-10 space-y-12">
+            <PrintSignatory {...(signatories?.preparer ?? {})} />
+
+            <PrintSignatory {...(signatories?.directorCustomerEngagement ?? {})} />
           </div>
 
-          <div className="flex flex-col space-y-12">
-            <SectionLabel label="APPROVED BY:" />
-            {rightSignatories.map((signatory, index) => (
-              <PrintSignatory key={`${signatory?.title || 'signatory'}-${index}`} {...signatory} />
+          {showRebateJustification && (
+            <div className="mt-10">
+              <label className="text-[10px] font-extrabold text-gray-800 tracking-tight uppercase">
+                JUSTIFICATION FOR REBATE
+              </label>
+
+              <div className="mt-2 w-full max-w-[195px] text-[11px] min-h-[54px] whitespace-pre-wrap text-slate-700">
+                {displayText(rebateJustification)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col">
+          <SectionLabel label="APPROVED BY:" />
+
+          <div className="mt-10 space-y-12">
+            {approvedSignatories.map((signatory, index) => (
+              <PrintSignatory
+                key={`${signatory?.title || 'signatory'}-${index}`}
+                {...signatory}
+              />
             ))}
           </div>
         </div>
@@ -510,7 +768,7 @@ function PrintNamesBlock({
 
 function SectionLabel({ label }) {
   return (
-    <span className="text-[10px] font-extrabold text-gray-800 tracking-tight">
+    <span className="text-[10px] font-extrabold text-gray-800 tracking-tight uppercase">
       {label}
     </span>
   );
@@ -518,17 +776,15 @@ function SectionLabel({ label }) {
 
 function PrintSignatory({ name, title }) {
   return (
-    <div className="flex flex-col space-y-4 justify-center">
-      <div className="pt-2">
-        <div className="border-b border-gray-400 min-h-[28px] flex items-end pb-0.5">
-          <span className="text-sm font-semibold text-gray-900">
-            {name?.trim?.() ? name : '—'}
-          </span>
-        </div>
+    <div className="w-full">
+      <div className="border-b border-gray-400 min-h-[24px] flex items-end justify-center pb-0.5">
+        <span className="text-[12px] font-semibold text-gray-900 text-center">
+          {displayText(name)}
+        </span>
+      </div>
 
-        <div className="text-[11px] text-gray-500 mt-1 w-full">
-          {title || ''}
-        </div>
+      <div className="text-[10px] text-slate-500 mt-1 w-full text-center">
+        {displayText(title)}
       </div>
     </div>
   );

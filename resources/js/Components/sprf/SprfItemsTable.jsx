@@ -1,8 +1,11 @@
-const peso = (value) =>
-  Number(value || 0).toLocaleString('en-PH', {
+const peso = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+
+  return Number(value).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+};
 
 export default function SprfItemsTable({
   items,
@@ -114,8 +117,12 @@ export default function SprfItemsTable({
                     <input
                       type="number"
                       min="0"
+                      step="1"
                       value={items[index].qty}
-                      onChange={(e) => onUpdateItem(index, 'qty', e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        onUpdateItem(index, 'qty', value === '' ? '' : String(Math.floor(Number(value))));
+                      }}
                       className={inputClass}
                       placeholder="0"
                     />
@@ -178,9 +185,21 @@ export default function SprfItemsTable({
                 </td>
 
                 <td className="border-b border-r border-darkgreen/15 xl:p-1">
-                  <div className={readonlyClass}>
-                    {row.markupPercent.toFixed(2)}%
-                  </div>
+                  {readOnly ? (
+                    <div className={readonlyClass}>
+                      {row.markupPercent ? `${Number(row.markupPercent).toFixed(2)}%` : '—'}
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={items[index].markupPercent}
+                      onChange={(e) => onUpdateItem(index, 'markupPercent', e.target.value)}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  )}
                 </td>
 
                 <td className="border-b border-darkgreen/15 p-1 xl:py-2 flex items-center justify-center">

@@ -309,16 +309,17 @@ class SprfEntryProjectController extends Controller
             'items' => ['nullable', 'array'],
             'items.*.productCode' => ['nullable', 'string', 'max:255'],
             'items.*.itemDescription' => ['nullable', 'string'],
-            'items.*.qty' => ['nullable', 'numeric'],
+            'items.*.qty' => ['nullable', 'integer', 'min:0'],
             'items.*.disty' => ['nullable', 'string', 'max:255'],
             'items.*.costPerUnit' => ['nullable', 'numeric'],
+            'items.*.markupPercent' => ['nullable', 'numeric'],
 
             'other_expenses' => ['nullable', 'array'],
             'other_expenses.*.expenseKey' => ['nullable', 'string', 'max:255'],
             'other_expenses.*.isFixed' => ['nullable', 'boolean'],
             'other_expenses.*.productCode' => ['nullable', 'string', 'max:255'],
             'other_expenses.*.itemDescription' => ['nullable', 'string'],
-            'other_expenses.*.qty' => ['nullable', 'numeric'],
+            'other_expenses.*.qty' => ['nullable', 'integer', 'min:0'],
             'other_expenses.*.unitPrice' => ['nullable', 'numeric'],
 
             'summary' => ['nullable', 'array'],
@@ -331,20 +332,43 @@ class SprfEntryProjectController extends Controller
         ]);
     }
 
+    private function isBlankValue($value): bool
+    {
+        return $value === null || $value === '';
+    }
+
+    private function toNullableFloat($value): ?float
+    {
+        return $this->isBlankValue($value) ? null : (float) $value;
+    }
+
     private function mapItemsPayload(array $items): array
     {
         return collect($items)
             ->map(function ($row) {
-                $qty = (float) data_get($row, 'qty', 0);
-                $costPerUnit = (float) data_get($row, 'costPerUnit', 0);
+                $qty = $this->toNullableFloat(data_get($row, 'qty'));
+                $costPerUnit = $this->toNullableFloat(data_get($row, 'costPerUnit'));
+                $markupPercent = $this->toNullableFloat(data_get($row, 'markupPercent'));
 
-                $totalCost = $qty * $costPerUnit;
-                $sellingPricePerUnitVatInc = $costPerUnit * 1.15;
-                $totalSellingPriceVatInc = $qty * $sellingPricePerUnitVatInc;
-                $markupValue = $totalSellingPriceVatInc - $totalCost;
-                $markupPercent = $costPerUnit > 0
-                    ? (($sellingPricePerUnitVatInc / $costPerUnit) - 1) * 100
-                    : 0;
+                $totalCost =
+                    $qty === null || $costPerUnit === null
+                        ? null
+                        : $qty * $costPerUnit;
+
+                $sellingPricePerUnitVatInc =
+                    $costPerUnit === null || $markupPercent === null
+                        ? null
+                        : $costPerUnit * (1 + ($markupPercent / 100));
+
+                $totalSellingPriceVatInc =
+                    $qty === null || $sellingPricePerUnitVatInc === null
+                        ? null
+                        : $qty * $sellingPricePerUnitVatInc;
+
+                $markupValue =
+                    $totalSellingPriceVatInc === null || $totalCost === null
+                        ? null
+                        : $totalSellingPriceVatInc - $totalCost;
 
                 return [
                     'product_code' => data_get($row, 'productCode'),
@@ -364,8 +388,9 @@ class SprfEntryProjectController extends Controller
                     blank($row['product_code']) &&
                     blank($row['item_description']) &&
                     blank($row['disty']) &&
-                    (float) $row['qty'] === 0.0 &&
-                    (float) $row['cost_per_unit'] === 0.0
+                    $row['qty'] === null &&
+                    $row['cost_per_unit'] === null &&
+                    $row['markup_percent'] === null
                 );
             })
             ->values()
@@ -376,8 +401,13 @@ class SprfEntryProjectController extends Controller
     {
         return collect($fees)
             ->map(function ($row) {
-                $qty = (float) data_get($row, 'qty', 0);
-                $unitPrice = (float) data_get($row, 'unitPrice', 0);
+                $qty = $this->toNullableFloat(data_get($row, 'qty'));
+                $unitPrice = $this->toNullableFloat(data_get($row, 'unitPrice'));
+
+                $total =
+                    $qty === null || $unitPrice === null
+                        ? null
+                        : $qty * $unitPrice;
 
                 return [
                     'expense_key' => data_get($row, 'expenseKey'),
@@ -386,7 +416,7 @@ class SprfEntryProjectController extends Controller
                     'item_description' => data_get($row, 'itemDescription'),
                     'qty' => $qty,
                     'unit_price' => $unitPrice,
-                    'total' => $qty * $unitPrice,
+                    'total' => $total,
                 ];
             })
             ->filter(function ($row) {
@@ -394,14 +424,13 @@ class SprfEntryProjectController extends Controller
                     blank($row['expense_key']) &&
                     blank($row['product_code']) &&
                     blank($row['item_description']) &&
-                    (float) $row['qty'] === 0.0 &&
-                    (float) $row['unit_price'] === 0.0
+                    $row['qty'] === null &&
+                    $row['unit_price'] === null
                 );
             })
             ->values()
             ->all();
     }
-
     private function hasRebateValueFromMappedFees(array $fees): bool
     {
         foreach ($fees as $row) {
@@ -429,7 +458,7 @@ class SprfEntryProjectController extends Controller
             ];
         }
 
-        if ($gpPercent < 8) {
+        if ($gpPercent <= 15) {
             return [
                 'approval_level' => 'PRESIDENT_AND_CEO',
                 'requires_vp_ccto' => true,
@@ -439,7 +468,7 @@ class SprfEntryProjectController extends Controller
             ];
         }
 
-        if ($gpPercent < 10 || $revenue > 1000000) {
+        if ($gpPercent > 15 || $revenue > 1000000) {
             return [
                 'approval_level' => 'VP_AND_CCTO',
                 'requires_vp_ccto' => true,
@@ -577,6 +606,7 @@ class SprfEntryProjectController extends Controller
                         'qty' => $item->qty,
                         'disty' => $item->disty,
                         'costPerUnit' => $item->cost_per_unit,
+                        'markupPercent' => $item->markup_percent,
                     ];
                 })
                 ->values()
@@ -621,6 +651,7 @@ class SprfEntryProjectController extends Controller
                         'qty' => $item->qty,
                         'disty' => $item->disty,
                         'costPerUnit' => $item->cost_per_unit,
+                        'markupPercent' => $item->markup_percent,
                     ];
                 })
                 ->values()

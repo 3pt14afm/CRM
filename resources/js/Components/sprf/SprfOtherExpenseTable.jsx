@@ -1,8 +1,11 @@
-const peso = (value) =>
-  Number(value || 0).toLocaleString('en-PH', {
+const peso = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+
+  return Number(value).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+};
 
 export default function SprfOtherExpenseTable({
   otherExpenses,
@@ -112,8 +115,12 @@ export default function SprfOtherExpenseTable({
                       <input
                         type="number"
                         min="0"
+                        step="1"
                         value={sourceRow.qty}
-                        onChange={(e) => onUpdateExpense(index, 'qty', e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          onUpdateExpense(index, 'qty', value === '' ? '' : String(Math.floor(Number(value))));
+                        }}
                         className={inputClass}
                         placeholder="0"
                       />

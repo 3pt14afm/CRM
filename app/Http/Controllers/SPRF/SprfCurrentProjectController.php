@@ -462,6 +462,7 @@ class SprfCurrentProjectController extends Controller
                         'qty' => $item->qty,
                         'disty' => $item->disty,
                         'costPerUnit' => $item->cost_per_unit,
+                        'markupPercent' => $item->markup_percent,
                     ];
                 })
                 ->values()

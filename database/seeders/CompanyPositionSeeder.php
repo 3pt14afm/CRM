@@ -37,6 +37,30 @@ class CompanyPositionSeeder extends Seeder
                 'department_name' => 'Marketing',
                 'is_active' => true,
             ],
+            [
+                'code' => 'CED-001',
+                'name' => 'Director - Customer Engagement',
+                'department_name' => 'Executive Management',
+                'is_active' => true,
+            ],
+            [
+                'code' => 'ESD-001',
+                'name' => 'Director - Enterprise Solutions',
+                'department_name' => 'Executive Management',
+                'is_active' => true,
+            ],
+            [
+                'code' => 'CEO-001',
+                'name' => 'President & CEO',
+                'department_name' => 'Executive Management',
+                'is_active' => true,
+            ],
+            [
+                'code' => 'VP-001',
+                'name' => 'VP & CCTO',
+                'department_name' => 'Executive Management',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($positions as $position) {
