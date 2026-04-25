@@ -24,6 +24,8 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Concerns\StreamsEntryRemarkAttachments;
 use Illuminate\Validation\ValidationException;
+use App\Services\ActivityLogger;
+use Illuminate\Support\Facades\Log;
 
 class RoiEntryProjectController extends Controller
 {
@@ -49,6 +51,20 @@ class RoiEntryProjectController extends Controller
     });
 
     return response()->json($suggestions);
+}
+
+private function requestHasRoiDraftPayload(Request $request): bool
+{
+    return $request->hasAny([
+        'companyInfo',
+        'interest',
+        'yield',
+        'entryRemarks',
+        'machineConfiguration',
+        'additionalFees',
+        'totalProjectCost',
+        'yearlyBreakdown',
+    ]);
 }
 
     public function show(RoiEntryProject $project, Request $request)
@@ -180,6 +196,8 @@ class RoiEntryProjectController extends Controller
     ]);
 }
 
+
+
 public function saveDraft(Request $request)
 {
     $data = $this->validateDraftPayload($request);
@@ -190,8 +208,10 @@ public function saveDraft(Request $request)
     $projectUid = $data['companyInfo']['projectUid'] ?? null;
     $reference = $data['companyInfo']['reference'] ?? null;
 
-    $project = DB::transaction(function () use ($data, $user, $userId, $projectUid, $reference, $request) {
+    $result = DB::transaction(function () use ($data, $user, $userId, $projectUid, $reference, $request) {
         $project = null;
+        $isNewProject = false;
+        $oldSnapshot = [];
 
         if (!empty($projectUid)) {
             $project = RoiEntryProject::where('user_id', $userId)
@@ -206,6 +226,8 @@ public function saveDraft(Request $request)
         }
 
         if (!$project) {
+            $isNewProject = true;
+
             $company = $data['companyInfo'] ?? [];
             $interest = $data['interest'] ?? [];
             $yield = $data['yield'] ?? [];
@@ -228,10 +250,7 @@ public function saveDraft(Request $request)
                         'version' => 1,
                         'status' => 'draft',
                         'company_name' => (string) ($company['companyName'] ?? ''),
-                        
-                        // Added the SAP Code here for initial creation
-                        'company_sap_code' => $company['companySapCode'] ?? null, 
-                        
+                        'company_sap_code' => $company['companySapCode'] ?? null,
                         'contract_years' => (int) ($company['contractYears'] ?? 0),
                         'contract_type' => (string) ($company['contractType'] ?? ''),
                         'purpose' => (string) ($company['purpose'] ?? ''),
@@ -264,33 +283,58 @@ public function saveDraft(Request $request)
                 }
             }
         } else {
+            $oldSnapshot = $this->getRoiEntrySnapshot($project->fresh());
             $project->increment('version');
         }
 
-        // This call will also update the SAP code if it changed 
-        // between the initial create and the subsequent save logic
         $this->persistDraft($request, $project, $data);
 
-        return $project->fresh();
+        $project = $project->fresh();
+
+        $newSnapshot = $this->getRoiEntrySnapshot($project);
+
+        $changes = $isNewProject
+            ? [
+                'old' => null,
+                'new' => $newSnapshot,
+            ]
+            : $this->getChangedValues($oldSnapshot, $newSnapshot);
+
+        ActivityLogger::log(
+            activityType: $isNewProject ? 'save_draft' : 'update_draft',
+            moduleType: 'ROI Entry',
+            details: $isNewProject
+                ? 'Saved new ROI draft #' . $project->reference
+                : 'Updated ROI draft #' . $project->reference,
+            subject: $project,
+            oldValues: $changes['old'],
+            newValues: $changes['new']
+        );
+
+        return $project;
     });
 
-    return redirect()->route('roi.entry.projects.show', $project);
+    return redirect()->route('roi.entry.projects.show', $result);
 }
-  public function submit(Request $request, RoiEntryProject $project)
+
+
+ public function submit(Request $request, RoiEntryProject $project)
 {
     abort_unless($project->user_id === Auth::id(), 403);
 
-    if ($request->has('companyInfo')) {
+    if ($this->requestHasRoiDraftPayload($request)) {
         $data = $this->validateDraftPayload($request);
         $this->persistDraft($request, $project, $data);
-        $project->refresh()->load(['items', 'fees']);
     }
+
+    $project->refresh()->load(['items', 'fees']);
 
     if (empty($project->company_name) || empty($project->contract_type)) {
         return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
     }
 
     $submitter = Auth::user();
+
     if (!$submitter?->primary_location_id || !$submitter?->department_id) {
         return back()->with('error', 'Your account must have both a primary location and department before submitting.');
     }
@@ -304,7 +348,15 @@ public function saveDraft(Request $request)
         return back()->with('error', 'No approver matrix found for your location and department.');
     }
 
-    return DB::transaction(function () use ($project, $submitter, $matrix) {
+    $oldValues = [
+        'status' => $project->status,
+        'table' => 'roi_entry_projects',
+        'reference' => $project->reference,
+    ];
+
+    $newProject = DB::transaction(function () use ($project, $submitter, $matrix) {
+        $project->loadMissing(['items', 'fees']);
+
         $newProject = RoiCurrentProject::create([
             'user_id' => $project->user_id,
             'location_id' => $submitter->primary_location_id,
@@ -321,7 +373,7 @@ public function saveDraft(Request $request)
             'confirmed_by' => $matrix->confirmed_by,
             'approved_by' => $matrix->approved_by,
             'company_name' => $project->company_name,
-            'company_sap_code' => $project->company_sap_code, // Added this line
+            'company_sap_code' => $project->company_sap_code,
             'contract_years' => $project->contract_years,
             'contract_type' => $project->contract_type,
             'purpose' => $project->purpose,
@@ -353,7 +405,6 @@ public function saveDraft(Request $request)
             'comments' => $project->comments ?? [],
         ]);
 
-        // Transfer items and fees to the Current Project tables
         foreach ($project->items as $item) {
             RoiCurrentItem::create([
                 'roi_current_project_id' => $newProject->id,
@@ -397,12 +448,37 @@ public function saveDraft(Request $request)
         $project->fees()->delete();
         $project->delete();
 
-        return redirect()->route('roi.entry.list')->with('success', 'Draft successfully submitted.');
+        return $newProject;
     });
+
+    try {
+        ActivityLogger::log(
+            activityType: 'submit',
+            moduleType: 'ROI Entry',
+            details: 'Submitted ROI #' . $newProject->reference,
+            subject: $newProject,
+            oldValues: $oldValues,
+            newValues: [
+                'status' => $newProject->status,
+                'table' => 'roi_current_projects',
+                'reference' => $newProject->reference,
+                'current_level' => $newProject->current_level,
+                'submitted_at' => $newProject->submitted_at,
+            ]
+        );
+    } catch (\Throwable $e) {
+        Log::error('ROI submit activity log failed', [
+            'message' => $e->getMessage(),
+            'reference' => $newProject->reference ?? null,
+        ]);
+    }
+
+    return redirect()->route('roi.entry.list')->with('success', 'Draft successfully submitted.');
 }
 
+    
     public function destroy(RoiEntryProject $project)
-    {
+{
         abort_unless($project->user_id === Auth::id(), 403);
 
         $allowedStatuses = ['draft', 'returned'];
@@ -410,14 +486,41 @@ public function saveDraft(Request $request)
             return back()->with('error', 'Only drafts or returned projects can be deleted.');
         }
 
+        // 🔥 Load everything before deleting
+        $project->load(['items', 'fees']);
+
+        // 🔥 FULL SNAPSHOT
+        $oldValues = [
+            'project' => $project->toArray(),
+            'items' => $project->items->map->toArray()->toArray(),
+            'fees' => $project->fees->map->toArray()->toArray(),
+        ];
+
         DB::transaction(function () use ($project) {
             RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
             RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
             $project->delete();
         });
 
-        return redirect()->route('roi.entry.list');
-    }
+        // 🔥 Log AFTER delete (safe)
+        try {
+            ActivityLogger::log(
+                activityType: 'delete',
+                moduleType: 'ROI Entry',
+                details: 'Deleted ROI draft #' . ($oldValues['project']['reference'] ?? ''),
+                subject: null, // already deleted
+                oldValues: $oldValues,
+                newValues: null
+            );
+        } catch (\Throwable $e) {
+            Log::error('ROI delete activity log failed', [
+                'message' => $e->getMessage(),
+                'project_id' => $project->id,
+            ]);
+        }
+
+    return redirect()->route('roi.entry.list');
+}
 
 private function validateDraftPayload(Request $request): array
 {
@@ -559,7 +662,7 @@ private function validateDraftPayload(Request $request): array
     }
 }
 
-    private function storeEntryRemarkAttachments(Request $request, RoiEntryProject $project): array
+   private function storeEntryRemarkAttachments(Request $request, RoiEntryProject $project): array
     {
         $existing = is_array($project->entry_remarks_attachments)
             ? $project->entry_remarks_attachments
@@ -588,6 +691,7 @@ private function validateDraftPayload(Request $request): array
         }
 
         $uploaded = $request->file('entry_remarks_attachments', []);
+        $uploadedLogs = [];
 
         foreach ($uploaded as $file) {
             $id = (string) Str::ulid();
@@ -595,19 +699,56 @@ private function validateDraftPayload(Request $request): array
             $storedName = "{$id}.{$extension}";
             $path = $file->storeAs('roi-entry-remarks', $storedName, 'local');
 
-            $kept[] = [
+            $newAttachment = [
                 'id' => $id,
                 'original_name' => $file->getClientOriginalName(),
                 'stored_name' => $storedName,
                 'path' => $path,
                 'size' => $file->getSize(),
             ];
+
+            $kept[] = $newAttachment;
+            $uploadedLogs[] = $newAttachment;
         }
 
         if (count($kept) > 3) {
             throw ValidationException::withMessages([
                 'entry_remarks_attachments' => 'You may attach up to 3 files only.',
             ]);
+        }
+
+        if (!empty($uploadedLogs) || !empty($removed)) {
+            try {
+                ActivityLogger::log(
+                    activityType: 'update_attachments',
+                    moduleType: 'ROI Entry',
+                    details: 'Updated entry remark attachments for ROI #' . $project->reference,
+                    subject: $project,
+                    oldValues: [
+                        'removed_attachments' => collect($removed)->map(fn ($item) => [
+                            'id' => $item['id'] ?? null,
+                            'original_name' => $item['original_name'] ?? null,
+                            'stored_name' => $item['stored_name'] ?? null,
+                            'size' => $item['size'] ?? null,
+                        ])->values()->all(),
+                    ],
+                    newValues: [
+                        'uploaded_attachments' => collect($uploadedLogs)->map(fn ($item) => [
+                            'id' => $item['id'] ?? null,
+                            'original_name' => $item['original_name'] ?? null,
+                            'stored_name' => $item['stored_name'] ?? null,
+                            'size' => $item['size'] ?? null,
+                        ])->values()->all(),
+                        'kept_attachments_count' => count($kept),
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::error('ROI attachment activity log failed', [
+                    'message' => $e->getMessage(),
+                    'project_id' => $project->id,
+                    'reference' => $project->reference,
+                ]);
+            }
         }
 
         return array_values($kept);
@@ -660,54 +801,102 @@ private function validateDraftPayload(Request $request): array
 
     public function storeNote(Request $request, RoiEntryProject $project)
     {
-        abort_unless($this->canNoteOnEntryProject($project), 403);
+            abort_unless($this->canNoteOnEntryProject($project), 403);
 
-        $validated = $request->validate(['body' => ['required', 'string', 'max:5000']]);
-        $user = Auth::user();
-        $notes = is_array($project->notes) ? $project->notes : [];
+            $validated = $request->validate([
+                'body' => ['required', 'string', 'max:5000']
+            ]);
 
-        $notes[] = [
-            'id' => (string) Str::ulid(),
-            'body' => trim($validated['body']),
-            'created_at' => now()->toISOString(),
-            'author' => [
-                'id' => Auth::id(),
-                'name' => $user?->name ?? 'Unknown',
-                'role' => $user?->role,
-            ],
-        ];
+            $user = Auth::user();
+            $notes = is_array($project->notes) ? $project->notes : [];
 
-        $project->update([
-            'notes' => $this->sortTimelineEntries($notes),
-            'last_saved_at' => now(),
-        ]);
+            $note = [
+                'id' => (string) Str::ulid(),
+                'body' => trim($validated['body']),
+                'created_at' => now()->toISOString(),
+                'author' => [
+                    'id' => Auth::id(),
+                    'name' => $user?->name ?? 'Unknown',
+                    'role' => $user?->role,
+                ],
+            ];
+
+            $notes[] = $note;
+
+            $project->update([
+                'notes' => $this->sortTimelineEntries($notes),
+                'last_saved_at' => now(),
+            ]);
+
+            // ✅ LOG
+            try {
+                ActivityLogger::log(
+                    activityType: 'add_note',
+                    moduleType: 'ROI Entry',
+                    details: 'Added note to ROI #' . $project->reference,
+                    subject: $project,
+                    newValues: [
+                        'note_id' => $note['id'],
+                        'body' => $note['body'],
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::error('ROI note log failed', [
+                    'message' => $e->getMessage(),
+                    'project_id' => $project->id,
+                ]);
+            }
 
         return back()->with('success', 'Note added.');
     }
 
-    public function storeComment(Request $request, RoiCurrentProject $project)
+  public function storeComment(Request $request, RoiCurrentProject $project)
     {
-        abort_unless($this->canCommentOnCurrentProject($project), 403);
+            abort_unless($this->canCommentOnCurrentProject($project), 403);
 
-        $validated = $request->validate(['body' => ['required', 'string', 'max:5000']]);
-        $user = Auth::user();
-        $comments = is_array($project->comments) ? $project->comments : [];
+            $validated = $request->validate([
+                'body' => ['required', 'string', 'max:5000']
+            ]);
 
-        $comments[] = [
-            'id' => (string) Str::ulid(),
-            'body' => trim($validated['body']),
-            'created_at' => now()->toISOString(),
-            'author' => [
-                'id' => Auth::id(),
-                'name' => $user?->name ?? 'Unknown',
-                'role' => $user?->role,
-            ],
-        ];
+            $user = Auth::user();
+            $comments = is_array($project->comments) ? $project->comments : [];
 
-        $project->update([
-            'comments' => $this->sortTimelineEntries($comments),
-            'last_saved_at' => now(),
-        ]);
+            $comment = [
+                'id' => (string) Str::ulid(),
+                'body' => trim($validated['body']),
+                'created_at' => now()->toISOString(),
+                'author' => [
+                    'id' => Auth::id(),
+                    'name' => $user?->name ?? 'Unknown',
+                    'role' => $user?->role,
+                ],
+            ];
+
+            $comments[] = $comment;
+
+            $project->update([
+                'comments' => $this->sortTimelineEntries($comments),
+                'last_saved_at' => now(),
+            ]);
+
+            // ✅ LOG
+            try {
+                ActivityLogger::log(
+                    activityType: 'add_comment',
+                    moduleType: 'ROI Current',
+                    details: 'Added comment to ROI #' . $project->reference,
+                    subject: $project,
+                    newValues: [
+                        'comment_id' => $comment['id'],
+                        'body' => $comment['body'],
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::error('ROI comment log failed', [
+                    'message' => $e->getMessage(),
+                    'project_id' => $project->id,
+                ]);
+        }
 
         return back()->with('success', 'Comment added.');
     }
@@ -806,4 +995,52 @@ private function validateDraftPayload(Request $request): array
 
         return response()->file(Storage::disk('local')->path($attachment['path']));
     }
+
+    private function getChangedValues(array $oldData, array $newData): array
+    {
+        $oldValues = [];
+        $newValues = [];
+
+        foreach ($newData as $key => $newValue) {
+            $oldValue = $oldData[$key] ?? null;
+
+            if ($oldValue != $newValue) {
+                $oldValues[$key] = $oldValue;
+                $newValues[$key] = $newValue;
+            }
+        }
+
+        return [
+            'old' => $oldValues,
+            'new' => $newValues,
+        ];
+    }
+
+    private function getRoiEntrySnapshot(RoiEntryProject $project): array
+    {
+        return [
+            'company_name' => $project->company_name,
+            'company_sap_code' => $project->company_sap_code,
+            'contract_years' => $project->contract_years,
+            'contract_type' => $project->contract_type,
+            'purpose' => $project->purpose,
+            'bundled_std_ink' => $project->bundled_std_ink,
+            'annual_interest' => $project->annual_interest,
+            'percent_margin' => $project->percent_margin,
+            'mono_yield_monthly' => $project->mono_yield_monthly,
+            'color_yield_monthly' => $project->color_yield_monthly,
+            'entry_remarks' => $project->entry_remarks,
+            'mc_unit_cost' => $project->mc_unit_cost,
+            'mc_qty' => $project->mc_qty,
+            'mc_total_cost' => $project->mc_total_cost,
+            'mc_selling_price' => $project->mc_selling_price,
+            'mc_total_sell' => $project->mc_total_sell,
+            'fees_total' => $project->fees_total,
+            'grand_total_cost' => $project->grand_total_cost,
+            'grand_total_revenue' => $project->grand_total_revenue,
+            'grand_roi' => $project->grand_roi,
+            'grand_roi_percentage' => $project->grand_roi_percentage,
+        ];
+    }
+
 }

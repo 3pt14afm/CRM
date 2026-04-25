@@ -784,10 +784,10 @@ const handleSubmit = () => {
     return;
   }
 
-  const formData = buildFormDataPayload();
+ const formData = buildFormDataPayload();
   formData.append("_method", "patch");
 
-  router.patch(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
+  router.post(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
     preserveScroll: true,
     forceFormData: true,
     onStart: () => toast.loading("Submitting project...", { id: "submitProject" }),
