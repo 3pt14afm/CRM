@@ -16,6 +16,7 @@ export const INITIAL_ASSIGN_FORM = {
   email: "",
   department_id: "",
   department: "",
+  company_position_id: "",
   position: "",
   primary_location_id: "",
 };
@@ -27,6 +28,7 @@ export const INITIAL_EDIT_FORM = {
   email: "",
   department_id: "",
   department: "",
+  company_position_id: "",
   position: "",
   primary_location_id: "",
   password: "",

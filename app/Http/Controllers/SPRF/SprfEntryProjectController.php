@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SPRF;
 
 use App\Http\Controllers\Controller;
+use App\Models\SPRF\SprfApprovalMatrix;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfCurrentProject;
 use App\Models\SPRF\SprfEntryFee;
@@ -59,8 +60,6 @@ class SprfEntryProjectController extends Controller
                 ->firstOrFail()
             : null;
 
-        $approverUsers = $this->resolveApproverUsers();
-
         $revenue = (float) data_get($payload, 'summary.revenue', 0);
         $cogs = (float) data_get($payload, 'summary.cogs', 0);
         $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', 0);
@@ -72,7 +71,19 @@ class SprfEntryProjectController extends Controller
         $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
 
         $hasRebate = $this->hasRebateValueFromMappedFees($fees);
-        $flags = $this->resolveApprovalFlags($revenue, $gpPercent, $hasRebate);
+
+        $approvalConditionCode = $this->resolveApprovalConditionCode(
+            $payload,
+            $revenue,
+            $gpPercent,
+            $hasRebate
+        );
+
+        $approval = $this->tryResolveActiveSprfApprovalMatrix($approvalConditionCode);
+
+        $approverUsers = $approval['approver_users'] ?? $this->resolveApproverUsers();
+        $flags = $approval['flags'] ?? $this->resolveApprovalFlags($revenue, $gpPercent, $hasRebate);
+        $sprfApprovalMatrixId = $approval['matrix_id'] ?? null;
 
         $project = DB::transaction(function () use (
             $existingProject,
@@ -86,7 +97,9 @@ class SprfEntryProjectController extends Controller
             $gpPercent,
             $flags,
             $items,
-            $fees
+            $fees,
+            $sprfApprovalMatrixId,
+            $approvalConditionCode
         ) {
             $project = $existingProject ?: new SprfEntryProject();
 
@@ -99,6 +112,8 @@ class SprfEntryProjectController extends Controller
                 'status' => 'draft',
                 'current_level' => 1,
                 'approval_level' => $flags['approval_level'],
+                'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
+                'approval_condition_code' => $approvalConditionCode,
 
                 'prepared_by_user_id' => $existingProject?->prepared_by_user_id ?: Auth::id(),
                 'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
@@ -168,7 +183,6 @@ class SprfEntryProjectController extends Controller
         }
 
         $payload = $this->validatePayload($request);
-        $approverUsers = $this->resolveApproverUsers();
 
         $revenue = (float) data_get($payload, 'summary.revenue', $project->revenue);
         $cogs = (float) data_get($payload, 'summary.cogs', $project->cogs);
@@ -181,11 +195,33 @@ class SprfEntryProjectController extends Controller
         $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
 
         $hasRebate = $this->hasRebateValueFromMappedFees($fees);
-        $flags = $this->resolveApprovalFlags($revenue, $gpPercent, $hasRebate);
+
+        $approvalConditionCode = $this->resolveApprovalConditionCode(
+            $payload,
+            $revenue,
+            $gpPercent,
+            $hasRebate
+        );
+
+        $approval = $this->resolveActiveSprfApprovalMatrix($approvalConditionCode);
+
+        $approverUsers = $approval['approver_users'];
+        $flags = $approval['flags'];
+        $sprfApprovalMatrixId = $approval['matrix_id'];
 
         $this->validateRequiredApprovers($approverUsers, $flags);
 
-        $rebateJustification = (string) ($project->rebate_justification ?? '');
+        $rebateJustification = (string) data_get(
+            $payload,
+            'rebate_justification',
+            $project->rebate_justification ?? ''
+        );
+
+        if ($flags['requires_rebate_justification'] && blank($rebateJustification)) {
+            throw ValidationException::withMessages([
+                'rebate_justification' => 'Rebate justification is required for this SPRF condition.',
+            ]);
+        }
 
         DB::transaction(function () use (
             $project,
@@ -200,7 +236,9 @@ class SprfEntryProjectController extends Controller
             $flags,
             $items,
             $fees,
-            $rebateJustification
+            $rebateJustification,
+            $sprfApprovalMatrixId,
+            $approvalConditionCode
         ) {
             $companyInfo = (array) data_get($payload, 'company_info', []);
 
@@ -212,6 +250,8 @@ class SprfEntryProjectController extends Controller
                 'status' => 'for_review',
                 'current_level' => 2,
                 'approval_level' => $flags['approval_level'],
+                'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
+                'approval_condition_code' => $approvalConditionCode,
 
                 'prepared_by_user_id' => $project->prepared_by_user_id ?: Auth::id(),
                 'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
@@ -291,6 +331,7 @@ class SprfEntryProjectController extends Controller
         return $request->validate([
             'project_id' => ['nullable', 'integer', 'exists:sprf_entry_projects,id'],
             'sprf_no' => ['nullable', 'string', 'max:50'],
+            'approval_condition_code' => ['nullable', 'string', 'max:50'],
 
             'company_info' => ['nullable', 'array'],
             'company_info.subCategory' => ['nullable', 'string', 'max:255'],
@@ -425,6 +466,7 @@ class SprfEntryProjectController extends Controller
             ->values()
             ->all();
     }
+
     private function hasRebateValueFromMappedFees(array $fees): bool
     {
         foreach ($fees as $row) {
@@ -438,6 +480,202 @@ class SprfEntryProjectController extends Controller
         }
 
         return false;
+    }
+
+    private function resolveApprovalConditionCode(
+        array $payload,
+        float $revenue,
+        float $gpPercent,
+        bool $hasRebate
+    ): string {
+        $conditionCode = strtoupper(trim((string) data_get($payload, 'approval_condition_code', '')));
+
+        $allowed = [
+            'STANDARD_PRICING',
+            'VALUE_GT_1M',
+            'GP_GT_15',
+            'GP_LTE_15',
+            'REBATE_REQUEST',
+        ];
+
+        if (in_array($conditionCode, $allowed, true)) {
+            return $conditionCode;
+        }
+
+        if ($hasRebate) {
+            return 'REBATE_REQUEST';
+        }
+
+        if ($gpPercent <= 15) {
+            return 'GP_LTE_15';
+        }
+
+        if ($revenue > 1000000) {
+            return 'VALUE_GT_1M';
+        }
+
+        if ($gpPercent > 15) {
+            return 'GP_GT_15';
+        }
+
+        return 'STANDARD_PRICING';
+    }
+
+    private function tryResolveActiveSprfApprovalMatrix(string $conditionCode): ?array
+    {
+        try {
+            return $this->resolveActiveSprfApprovalMatrix($conditionCode);
+        } catch (ValidationException $e) {
+            return null;
+        }
+    }
+
+    private function resolveActiveSprfApprovalMatrix(string $conditionCode): array
+    {
+        $matrix = SprfApprovalMatrix::query()
+            ->with([
+                'steps.position:id,name',
+                'steps.approver:id,first_name,last_name,position,email,company_position_id,is_banned',
+            ])
+            ->where('condition_code', $conditionCode)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $matrix) {
+            throw ValidationException::withMessages([
+                'approvers' => "No active SPRF approver matrix found for {$conditionCode}.",
+            ]);
+        }
+
+        $stepsByRole = $matrix->steps->keyBy('role');
+        $requiredRoles = $this->requiredSprfRolesForCondition($conditionCode);
+
+        foreach ($requiredRoles as $role) {
+            if (! $stepsByRole->has($role)) {
+                throw ValidationException::withMessages([
+                    'approvers' => "The active SPRF approver matrix is missing role: {$role}.",
+                ]);
+            }
+
+            $step = $stepsByRole->get($role);
+
+            if (! $step->approver || $step->approver->is_banned) {
+                throw ValidationException::withMessages([
+                    'approvers' => "The active SPRF approver matrix has an invalid or inactive approver for role: {$role}.",
+                ]);
+            }
+
+            if ((int) $step->approver->company_position_id !== (int) $step->position_id) {
+                throw ValidationException::withMessages([
+                    'approvers' => "The selected approver does not match the selected position for role: {$role}.",
+                ]);
+            }
+        }
+
+        return [
+            'matrix_id' => $matrix->id,
+            'condition_code' => $matrix->condition_code,
+            'flags' => $this->resolveApprovalFlagsFromCondition($conditionCode),
+            'approver_users' => [
+                'directorCustomerEngagement' => $this->mapSprfStepApprover(
+                    $stepsByRole->get('DIRECTOR_CUSTOMER_ENGAGEMENT')
+                ),
+                'esdDirector' => $this->mapSprfStepApprover(
+                    $stepsByRole->get('ESD_DIRECTOR')
+                ),
+                'vpCcto' => $this->mapSprfStepApprover(
+                    $stepsByRole->get('VP_CCTO')
+                ),
+                'presidentCeo' => $this->mapSprfStepApprover(
+                    $stepsByRole->get('PRESIDENT_CEO')
+                ),
+            ],
+        ];
+    }
+
+    private function mapSprfStepApprover($step): ?array
+    {
+        if (! $step?->approver) {
+            return null;
+        }
+
+        return [
+            'id' => $step->approver->id,
+            'name' => $step->approver->name,
+            'position' => $step->approver->position,
+            'email' => $step->approver->email,
+        ];
+    }
+
+    private function requiredSprfRolesForCondition(string $conditionCode): array
+    {
+        return match ($conditionCode) {
+            'STANDARD_PRICING' => [
+                'DIRECTOR_CUSTOMER_ENGAGEMENT',
+                'ESD_DIRECTOR',
+            ],
+
+            'VALUE_GT_1M',
+            'GP_GT_15' => [
+                'DIRECTOR_CUSTOMER_ENGAGEMENT',
+                'ESD_DIRECTOR',
+                'VP_CCTO',
+            ],
+
+            'GP_LTE_15',
+            'REBATE_REQUEST' => [
+                'DIRECTOR_CUSTOMER_ENGAGEMENT',
+                'ESD_DIRECTOR',
+                'VP_CCTO',
+                'PRESIDENT_CEO',
+            ],
+
+            default => throw ValidationException::withMessages([
+                'approval_condition_code' => 'Invalid SPRF approval condition.',
+            ]),
+        };
+    }
+
+    private function resolveApprovalFlagsFromCondition(string $conditionCode): array
+    {
+        return match ($conditionCode) {
+            'STANDARD_PRICING' => [
+                'approval_level' => 'ESD_ONLY',
+                'requires_vp_ccto' => false,
+                'requires_president_ceo' => false,
+                'requires_rebate_justification' => false,
+                'final_level' => 3,
+            ],
+
+            'VALUE_GT_1M',
+            'GP_GT_15' => [
+                'approval_level' => 'VP_AND_CCTO',
+                'requires_vp_ccto' => true,
+                'requires_president_ceo' => false,
+                'requires_rebate_justification' => false,
+                'final_level' => 4,
+            ],
+
+            'GP_LTE_15' => [
+                'approval_level' => 'PRESIDENT_AND_CEO',
+                'requires_vp_ccto' => true,
+                'requires_president_ceo' => true,
+                'requires_rebate_justification' => false,
+                'final_level' => 5,
+            ],
+
+            'REBATE_REQUEST' => [
+                'approval_level' => 'PRESIDENT_AND_CEO',
+                'requires_vp_ccto' => true,
+                'requires_president_ceo' => true,
+                'requires_rebate_justification' => true,
+                'final_level' => 5,
+            ],
+
+            default => throw ValidationException::withMessages([
+                'approval_condition_code' => 'Invalid SPRF approval condition.',
+            ]),
+        };
     }
 
     private function resolveApprovalFlags(float $revenue, float $gpPercent, bool $hasRebate): array
@@ -490,7 +728,7 @@ class SprfEntryProjectController extends Controller
         }
 
         if (! data_get($approverUsers, 'esdDirector.id')) {
-            $missing[] = 'Director - Enterprise Solutions';
+            $missing[] = 'ESD Director';
         }
 
         if ($flags['requires_vp_ccto'] && ! data_get($approverUsers, 'vpCcto.id')) {
@@ -503,7 +741,7 @@ class SprfEntryProjectController extends Controller
 
         if (! empty($missing)) {
             throw ValidationException::withMessages([
-                'approvers' => 'Missing required approver setup in User Management: ' . implode(', ', $missing) . '.',
+                'approvers' => 'Missing required approver setup in SPRF Approver Matrix: ' . implode(', ', $missing) . '.',
             ]);
         }
     }
@@ -577,6 +815,8 @@ class SprfEntryProjectController extends Controller
             'status' => $project->status,
             'current_level' => $project->current_level,
             'approval_level' => $project->approval_level,
+            'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+            'approval_condition_code' => $project->approval_condition_code,
             'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
             'submitted_at' => optional($project->submitted_at)?->toISOString(),
             'approved_at' => optional($project->approved_at)?->toISOString(),
@@ -628,6 +868,9 @@ class SprfEntryProjectController extends Controller
             'id' => $project->id,
             'sprf_no' => $project->sprf_no,
             'status' => $project->status,
+            'approval_level' => $project->approval_level,
+            'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+            'approval_condition_code' => $project->approval_condition_code,
             'remarks' => $project->remarks,
             'rebate_justification' => $project->rebate_justification,
 

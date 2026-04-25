@@ -37,6 +37,8 @@ class SprfController extends Controller
                     'revenue' => $project->revenue,
                     'gp_percent' => $project->gp_percent,
                     'approval_level' => $project->approval_level,
+                    'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+                    'approval_condition_code' => $project->approval_condition_code,
                     'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
                     'updated_at' => optional($project->updated_at)?->format('m/d/y H:i'),
                 ];
@@ -68,7 +70,6 @@ class SprfController extends Controller
 
     public function archive(Request $request)
     {
-        $userId = Auth::id();
         $perPage = (int) $request->input('per_page', 10);
 
         $archiveQuery = SprfArchiveProject::query()
@@ -77,15 +78,6 @@ class SprfController extends Controller
                 'approvedBy:id,first_name,last_name,position',
                 'rejectedBy:id,first_name,last_name,position',
             ])
-            ->where(function ($query) use ($userId) {
-                $query->where('prepared_by_user_id', $userId)
-                    ->orWhere('director_customer_engagement_user_id', $userId)
-                    ->orWhere('esd_director_user_id', $userId)
-                    ->orWhere('vp_ccto_user_id', $userId)
-                    ->orWhere('president_ceo_user_id', $userId)
-                    ->orWhere('approved_by_user_id', $userId)
-                    ->orWhere('rejected_by_user_id', $userId);
-            })
             ->whereIn('status', ['approved', 'rejected'])
             ->orderByDesc('updated_at');
 
@@ -95,19 +87,22 @@ class SprfController extends Controller
             ->through(function (SprfArchiveProject $project) {
                 $status = strtolower((string) ($project->status ?? ''));
                 $isRejected = $status === 'rejected';
-                $isApproved = $status === 'approved';
 
                 $decidedByName = $isRejected
                     ? ($project->rejectedBy?->name ?? '—')
                     : ($project->approvedBy?->name ?? '—');
 
-                $decidedAt = $isRejected ? $project->rejected_at : $project->approved_at;
+                $decidedAt = $isRejected
+                    ? $project->rejected_at
+                    : $project->approved_at;
 
                 return [
                     'id' => $project->id,
                     'sprf_no' => $project->sprf_no,
                     'status' => $project->status,
                     'approval_level' => $project->approval_level,
+                    'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+                    'approval_condition_code' => $project->approval_condition_code,
                     'company_name' => $project->account,
                     'sub_category' => $project->sub_category,
                     'account_manager' => $project->account_manager,
@@ -126,15 +121,7 @@ class SprfController extends Controller
         $totalArchiveProjects = (clone $archiveQuery)->count();
 
         $recentlyArchivedToday = SprfArchiveProject::query()
-            ->where(function ($query) use ($userId) {
-                $query->where('prepared_by_user_id', $userId)
-                    ->orWhere('director_customer_engagement_user_id', $userId)
-                    ->orWhere('esd_director_user_id', $userId)
-                    ->orWhere('vp_ccto_user_id', $userId)
-                    ->orWhere('president_ceo_user_id', $userId)
-                    ->orWhere('approved_by_user_id', $userId)
-                    ->orWhere('rejected_by_user_id', $userId);
-            })
+            ->whereIn('status', ['approved', 'rejected'])
             ->where(function ($query) {
                 $query->whereDate('approved_at', now()->toDateString())
                     ->orWhereDate('rejected_at', now()->toDateString());
@@ -152,8 +139,6 @@ class SprfController extends Controller
 
     public function archiveShow(SprfArchiveProject $project)
     {
-        $this->ensureCanViewArchive($project);
-
         $project->load([
             'items',
             'fees',
@@ -174,8 +159,6 @@ class SprfController extends Controller
 
     public function archivePrint(SprfArchiveProject $project)
     {
-        $this->ensureCanViewArchive($project);
-
         $project->load([
             'items',
             'fees',
@@ -190,22 +173,6 @@ class SprfController extends Controller
             'autoprint' => (bool) request('autoprint', false),
             'showDraftWatermark' => false,
         ]);
-    }
-
-    private function ensureCanViewArchive(SprfArchiveProject $project): void
-    {
-        $userId = (int) Auth::id();
-
-        $canView =
-            (int) $project->prepared_by_user_id === $userId
-            || (int) ($project->director_customer_engagement_user_id ?? 0) === $userId
-            || (int) ($project->esd_director_user_id ?? 0) === $userId
-            || (int) ($project->vp_ccto_user_id ?? 0) === $userId
-            || (int) ($project->president_ceo_user_id ?? 0) === $userId
-            || (int) ($project->approved_by_user_id ?? 0) === $userId
-            || (int) ($project->rejected_by_user_id ?? 0) === $userId;
-
-        abort_unless($canView, 403);
     }
 
     private function resolveApproverUsers(): array
@@ -277,6 +244,8 @@ class SprfController extends Controller
             'status' => $project->status,
             'current_level' => $project->current_level,
             'approval_level' => $project->approval_level,
+            'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+            'approval_condition_code' => $project->approval_condition_code,
             'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
             'submitted_at' => optional($project->submitted_at)?->toISOString(),
             'approved_at' => optional($project->approved_at)?->toISOString(),
@@ -331,6 +300,9 @@ class SprfController extends Controller
             'id' => $project->id,
             'sprf_no' => $project->sprf_no,
             'status' => $project->status,
+            'approval_level' => $project->approval_level,
+            'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+            'approval_condition_code' => $project->approval_condition_code,
             'remarks' => $project->remarks,
             'last_reject_note' => $project->last_reject_note,
             'rebate_justification' => $project->rebate_justification,

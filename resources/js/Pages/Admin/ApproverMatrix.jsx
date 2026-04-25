@@ -3,7 +3,9 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import NewApproverMatrixModal from "@/Components/admin/modals/NewApproverMatrixModal";
 import EditApproverMatrixModal from "@/Components/admin/modals/EditApproverMatrixModal";
-import { MdEdit } from "react-icons/md";
+import NewSprfApproverMatrixModal, {buildSprfMatrixSteps,} from "@/Components/admin/modals/NewSprfApproverMatrixModal";
+import EditSprfApproverMatrixModal from "@/Components/admin/modals/EditSprfApproverMatrixModal";
+import { MdEdit, MdOutlinePowerSettingsNew } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
 
 function StatusPill({ children, tone = "neutral" }) {
@@ -16,7 +18,9 @@ function StatusPill({ children, tone = "neutral" }) {
 
   return (
     <span
-      className={`px-2 py-px rounded-full text-[10px] font-bold uppercase tracking-wider ${classes[tone]}`}
+      className={`px-2 py-px rounded-full text-[10px] font-bold uppercase tracking-wider ${
+        classes[tone] ?? classes.gray
+      }`}
     >
       {children}
     </span>
@@ -33,13 +37,40 @@ function ApproverLine({ label, value }) {
   );
 }
 
-function ApproverMatrix({ stats, matrices }) {
+function ApproverMatrix({
+  stats,
+  matrices,
+  sprfMatrices = [],
+  sprfConditions = [],
+  positions = [],
+}) {
+  const [activeMatrixTab, setActiveMatrixTab] = useState("ROI");
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createProcessing, setCreateProcessing] = useState(false);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editProcessing, setEditProcessing] = useState(false);
   const [editingMatrix, setEditingMatrix] = useState(null);
+
+  const [showCreateSprfModal, setShowCreateSprfModal] = useState(false);
+  const [createSprfProcessing, setCreateSprfProcessing] = useState(false);
+
+  const [sprfCreateForm, setSprfCreateForm] = useState({
+    condition_code: "STANDARD_PRICING",
+    remarks: "",
+    steps: buildSprfMatrixSteps("STANDARD_PRICING"),
+  });
+
+  const [showEditSprfModal, setShowEditSprfModal] = useState(false);
+  const [editSprfProcessing, setEditSprfProcessing] = useState(false);
+  const [editingSprfMatrix, setEditingSprfMatrix] = useState(null);
+
+  const [sprfEditForm, setSprfEditForm] = useState({
+    condition_code: "STANDARD_PRICING",
+    remarks: "",
+    steps: buildSprfMatrixSteps("STANDARD_PRICING"),
+  });
 
   const users = stats?.users ?? [];
   const locations = stats?.locations ?? [];
@@ -82,6 +113,21 @@ function ApproverMatrix({ stats, matrices }) {
     const raw = matrices?.data ?? matrices ?? stats?.matrices ?? [];
     return Array.isArray(raw) ? raw : [];
   }, [matrices, stats]);
+
+  const sprfMatrixRows = useMemo(() => {
+    const raw = sprfMatrices?.data ?? sprfMatrices ?? [];
+    return Array.isArray(raw) ? raw : [];
+  }, [sprfMatrices]);
+
+  const pagination =
+    matrices && typeof matrices.current_page === "number"
+      ? {
+          page: matrices.current_page,
+          perPage: matrices.per_page ?? 10,
+          total: matrices.total ?? matrixRows.length,
+          lastPage: matrices.last_page ?? 1,
+        }
+      : null;
 
   const openCreateModal = () => {
     setCreateProcessing(false);
@@ -173,6 +219,122 @@ function ApproverMatrix({ stats, matrices }) {
     });
   };
 
+  const openCreateSprfModal = () => {
+    const defaultCondition = sprfConditions?.[0]?.code ?? "STANDARD_PRICING";
+
+    setCreateSprfProcessing(false);
+    setSprfCreateForm({
+      condition_code: defaultCondition,
+      remarks: "",
+      steps: buildSprfMatrixSteps(defaultCondition),
+    });
+
+    setShowCreateSprfModal(true);
+  };
+
+  const closeCreateSprfModal = () => {
+    if (createSprfProcessing) return;
+    setShowCreateSprfModal(false);
+  };
+
+  const submitCreateSprf = (e) => {
+    e.preventDefault();
+    setCreateSprfProcessing(true);
+
+    router.post(route("admin.sprf-approver-matrix.store"), sprfCreateForm, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setCreateSprfProcessing(false);
+        setShowCreateSprfModal(false);
+      },
+      onError: () => {
+        setCreateSprfProcessing(false);
+      },
+      onFinish: () => {
+        setCreateSprfProcessing(false);
+      },
+    });
+  };
+
+  const activateSprfMatrix = (row) => {
+    if (!row?.id || row?.is_active) return;
+
+    if (
+      !confirm(
+        "Activate this SPRF approver matrix? This will deactivate the current active matrix for the same condition."
+      )
+    ) {
+      return;
+    }
+
+    router.patch(route("admin.sprf-approver-matrix.activate", row.id), {}, {
+      preserveScroll: true,
+    });
+  };
+
+  const openEditSprfModal = (row) => {
+    setEditSprfProcessing(false);
+    setEditingSprfMatrix(row);
+    setSprfEditForm(buildSprfEditFormFromRow(row));
+    setShowEditSprfModal(true);
+  };
+
+  const closeEditSprfModal = () => {
+    if (editSprfProcessing) return;
+    setShowEditSprfModal(false);
+    setEditingSprfMatrix(null);
+  };
+
+  const submitEditSprf = (e) => {
+    e.preventDefault();
+
+    if (!editingSprfMatrix?.id || editingSprfMatrix?.is_active) return;
+
+    setEditSprfProcessing(true);
+
+    router.put(
+      route("admin.sprf-approver-matrix.update", editingSprfMatrix.id),
+      sprfEditForm,
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setEditSprfProcessing(false);
+          setShowEditSprfModal(false);
+          setEditingSprfMatrix(null);
+        },
+        onError: () => {
+          setEditSprfProcessing(false);
+        },
+        onFinish: () => {
+          setEditSprfProcessing(false);
+        },
+      }
+    );
+  };
+
+  const buildSprfEditFormFromRow = (row) => {
+  const conditionCode = row?.condition_code ?? "STANDARD_PRICING";
+  const baseSteps = buildSprfMatrixSteps(conditionCode);
+
+  const stepsByRole = new Map(
+    (row?.steps ?? []).map((step) => [step.role, step])
+  );
+
+  return {
+    condition_code: conditionCode,
+    remarks: row?.remarks ?? "",
+    steps: baseSteps.map((baseStep) => {
+      const savedStep = stepsByRole.get(baseStep.role);
+
+      return {
+        ...baseStep,
+        position_id: savedStep?.position_id ?? "",
+        approver_user_id: savedStep?.approver_user_id ?? "",
+      };
+    }),
+  };
+};
+
   const goToPage = (p) => {
     router.get(
       route("admin.approver-matrix.index"),
@@ -181,15 +343,14 @@ function ApproverMatrix({ stats, matrices }) {
     );
   };
 
-  const pagination =
-    matrices && typeof matrices.current_page === "number"
-      ? {
-          page: matrices.current_page,
-          perPage: matrices.per_page ?? 10,
-          total: matrices.total ?? matrixRows.length,
-          lastPage: matrices.last_page ?? 1,
-        }
-      : null;
+  const openCreateForActiveTab = () => {
+    if (activeMatrixTab === "SPRF") {
+      openCreateSprfModal();
+      return;
+    }
+
+    openCreateModal();
+  };
 
   return (
     <>
@@ -218,6 +379,31 @@ function ApproverMatrix({ stats, matrices }) {
         users={users}
       />
 
+      <NewSprfApproverMatrixModal
+        show={showCreateSprfModal}
+        onClose={closeCreateSprfModal}
+        processing={createSprfProcessing}
+        form={sprfCreateForm}
+        setForm={setSprfCreateForm}
+        onSubmit={submitCreateSprf}
+        sprfConditions={sprfConditions}
+        positions={positions}
+        users={users}
+      />
+
+      <EditSprfApproverMatrixModal
+        show={showEditSprfModal}
+        onClose={closeEditSprfModal}
+        processing={editSprfProcessing}
+        editingMatrix={editingSprfMatrix}
+        form={sprfEditForm}
+        setForm={setSprfEditForm}
+        onSubmit={submitEditSprf}
+        sprfConditions={sprfConditions}
+        positions={positions}
+        users={users}
+      />
+
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
           <div className="mx-10 pt-8">
@@ -227,11 +413,42 @@ function ApproverMatrix({ stats, matrices }) {
                   Approver Matrix
                 </h1>
                 <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
-                  Manage ROI approval routing per location and department.
+                  {activeMatrixTab === "ROI"
+                    ? "Manage ROI approval routing per location and department."
+                    : "Manage SPRF approval routing per condition."}
                 </p>
               </div>
+
               <div className="flex flex-col items-end gap-2">
                 <span className="text-xs text-slate-500">{formattedDate}</span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="flex rounded-full bg-[#f8f8f8] w-fit border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setActiveMatrixTab("ROI")}
+                  className={`px-8 text-sm m-0.5 mr-0 py-1 ${
+                    activeMatrixTab === "ROI"
+                      ? "bg-[#B5EBA2]/50 font-extrabold rounded-full text-[#289800]   "
+                      : "rounded-t-xl text-slate-500"
+                  }`}
+                >
+                  ROI
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveMatrixTab("SPRF")}
+                  className={`px-8 text-sm m-0.5 ml-0 py-1 ${
+                    activeMatrixTab === "SPRF"
+                      ? "bg-[#B5EBA2]/50 font-extrabold rounded-full text-[#289800]"
+                      : "rounded-t-xl text-slate-500"
+                  }`}
+                >
+                  SPRF
+                </button>
               </div>
             </div>
 
@@ -239,85 +456,100 @@ function ApproverMatrix({ stats, matrices }) {
               <button
                 type="button"
                 className="inline-flex items-center gap-2 text-[#289800] hover:brightness-95 md:text-xs lg:text-sm"
-                onClick={openCreateModal}
+                onClick={openCreateForActiveTab}
               >
                 <IoAddCircle className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="mt-5">
-              <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse">
-                    <thead>
-                      <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
-                        <th className="px-6 py-2 text-left font-bold">Location</th>
-                        <th className="px-4 py-2 text-center font-bold">Department</th>
-                        <th className="px-4 py-2 text-center font-bold min-w-[420px]">
-                          Approvers
-                        </th>
-                        <th className="px-4 py-2 text-center font-bold">Status</th>
-                        <th className="px-4 py-2 text-center font-bold">Actions</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {matrixRows.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={5}
-                            className="px-6 py-10 text-center text-sm text-slate-500"
-                          >
-                            No approver matrix rows found.
-                          </td>
+            {activeMatrixTab === "ROI" && (
+              <div className="mt-2">
+                <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse">
+                      <thead>
+                        <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
+                          <th className="px-6 py-2 text-left font-bold">Location</th>
+                          <th className="px-4 py-2 text-center font-bold">Department</th>
+                          <th className="px-4 py-2 text-center font-bold min-w-[420px]">
+                            Approvers
+                          </th>
+                          <th className="px-4 py-2 text-center font-bold">Status</th>
+                          <th className="px-4 py-2 text-center font-bold">Actions</th>
                         </tr>
-                      ) : (
-                        matrixRows.map((row, index) => {
-                          const rowKey = String(
-                            row.id ?? `${row.location_name}-${row.dept_name}-${index}`
-                          );
+                      </thead>
 
-                          const status = row?.status ?? null;
-                          const normalizedStatus = String(status ?? "").toLowerCase();
-
-                          return (
-                            <tr
-                              key={rowKey}
-                              className="border-b border-slate-100 hover:bg-slate-50/60 align-top"
+                      <tbody>
+                        {matrixRows.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={5}
+                              className="px-6 py-10 text-center text-sm text-slate-500"
                             >
-                              <td className="px-6 py-3 text-[11px] lg:text-sm text-slate-900">
-                                {row.location_name ?? "—"}
-                              </td>
+                              No approver matrix rows found.
+                            </td>
+                          </tr>
+                        ) : (
+                          matrixRows.map((row, index) => {
+                            const rowKey = String(
+                              row.id ?? `${row.location_name}-${row.dept_name}-${index}`
+                            );
 
-                              <td className="px-4 py-3 text-center">
-                                <span className="text-[11px] lg:text-sm text-slate-900">
-                                  {row.dept_name ?? "—"}
-                                </span>
-                              </td>
+                            const status = row?.status ?? null;
+                            const normalizedStatus = String(status ?? "").toLowerCase();
 
-                              <td className="px-4 py-3 text-center">
-                                <div className="flex flex-col gap-1.5">
-                                  <ApproverLine label="Reviewed by" value={row?.reviewed_by_name} />
-                                  <ApproverLine label="Checked by" value={row?.checked_by_name} />
-                                  <ApproverLine label="Endorsed by" value={row?.endorsed_by_name} />
-                                  <ApproverLine label="Confirmed by" value={row?.confirmed_by_name} />
-                                  <ApproverLine label="Approved by" value={row?.approved_by_name} />
-                                </div>
-                              </td>
+                            return (
+                              <tr
+                                key={rowKey}
+                                className="border-b border-slate-100 hover:bg-slate-50/60 align-top"
+                              >
+                                <td className="px-6 py-3 text-[11px] lg:text-sm text-slate-900">
+                                  {row.location_name ?? "—"}
+                                </td>
 
-                              <td className="px-4 py-3 text-center">
-                                {normalizedStatus === "active" ? (
-                                  <StatusPill tone="green">Active</StatusPill>
-                                ) : normalizedStatus === "inactive" ? (
-                                  <StatusPill tone="red">Inactive</StatusPill>
-                                ) : (
-                                  <StatusPill tone="gray">{status ?? "—"}</StatusPill>
-                                )}
-                              </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="text-[11px] lg:text-sm text-slate-900">
+                                    {row.dept_name ?? "—"}
+                                  </span>
+                                </td>
 
-                              <td className="px-4 py-3">
-                                <div className="w-full flex justify-center items-center">
-                                  <div className="flex items-center gap-2">
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex flex-col gap-1.5">
+                                    <ApproverLine
+                                      label="Reviewed by"
+                                      value={row?.reviewed_by_name}
+                                    />
+                                    <ApproverLine
+                                      label="Checked by"
+                                      value={row?.checked_by_name}
+                                    />
+                                    <ApproverLine
+                                      label="Endorsed by"
+                                      value={row?.endorsed_by_name}
+                                    />
+                                    <ApproverLine
+                                      label="Confirmed by"
+                                      value={row?.confirmed_by_name}
+                                    />
+                                    <ApproverLine
+                                      label="Approved by"
+                                      value={row?.approved_by_name}
+                                    />
+                                  </div>
+                                </td>
+
+                                <td className="px-4 py-3 text-center">
+                                  {normalizedStatus === "active" ? (
+                                    <StatusPill tone="green">Active</StatusPill>
+                                  ) : normalizedStatus === "inactive" ? (
+                                    <StatusPill tone="red">Inactive</StatusPill>
+                                  ) : (
+                                    <StatusPill tone="gray">{status ?? "—"}</StatusPill>
+                                  )}
+                                </td>
+
+                                <td className="px-4 py-3">
+                                  <div className="w-full flex justify-center items-center">
                                     <button
                                       type="button"
                                       className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
@@ -327,45 +559,156 @@ function ApproverMatrix({ stats, matrices }) {
                                       <MdEdit className="text-[14px]" />
                                     </button>
                                   </div>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {pagination && pagination.lastPage > 1 && (
-                  <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
-                    <p className="text-xs text-slate-500">
-                      Page {pagination.page} of {pagination.lastPage}
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={pagination.page <= 1}
-                        onClick={() => goToPage(pagination.page - 1)}
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={pagination.page >= pagination.lastPage}
-                        onClick={() => goToPage(pagination.page + 1)}
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                )}
+
+                  {pagination && pagination.lastPage > 1 && (
+                    <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+                      <p className="text-xs text-slate-500">
+                        Page {pagination.page} of {pagination.lastPage}
+                      </p>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={pagination.page <= 1}
+                          onClick={() => goToPage(pagination.page - 1)}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Previous
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={pagination.page >= pagination.lastPage}
+                          onClick={() => goToPage(pagination.page + 1)}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {activeMatrixTab === "SPRF" && (
+              <div className="mt-5">
+                <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse">
+                      <thead>
+                        <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
+                          <th className="px-6 py-2 text-left font-bold">Condition</th>
+                          <th className="px-4 py-2 text-center font-bold">Version</th>
+                          <th className="px-4 py-2 text-center font-bold min-w-[420px]">
+                            Approval Route
+                          </th>
+                          <th className="px-4 py-2 text-center font-bold">Status</th>
+                          <th className="px-4 py-2 text-center font-bold">Actions</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {sprfMatrixRows.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={5}
+                              className="px-6 py-10 text-center text-sm text-slate-500"
+                            >
+                              No SPRF approver matrix rows found.
+                            </td>
+                          </tr>
+                        ) : (
+                          sprfMatrixRows.map((row, index) => {
+                            const rowKey = String(row.id ?? `sprf-${index}`);
+                            const isActive = Boolean(row.is_active);
+
+                            return (
+                              <tr
+                                key={rowKey}
+                                className="border-b border-slate-100 hover:bg-slate-50/60 align-top"
+                              >
+                                <td className="px-6 py-3 text-[11px] lg:text-sm text-slate-900">
+                                  {row.condition_label ?? row.condition_code ?? "—"}
+                                </td>
+
+                                <td className="px-4 py-3 text-center text-[11px] lg:text-sm text-slate-900">
+                                  v{row.version ?? 1}
+                                </td>
+
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex flex-col gap-1.5">
+                                    {(row.steps ?? []).length === 0 ? (
+                                      <span className="text-xs text-slate-500">
+                                        No steps setup
+                                      </span>
+                                    ) : (
+                                      row.steps.map((step) => (
+                                        <ApproverLine
+                                          key={step.id ?? `${rowKey}-${step.role}`}
+                                          label={step.role_label ?? step.role}
+                                          value={
+                                            step.approver_user_name ??
+                                            step.position_name ??
+                                            "Not setup"
+                                          }
+                                        />
+                                      ))
+                                    )}
+                                  </div>
+                                </td>
+
+                                <td className="px-4 py-3 text-center">
+                                  {isActive ? (
+                                    <StatusPill tone="green">Active</StatusPill>
+                                  ) : (
+                                    <StatusPill tone="red">Inactive</StatusPill>
+                                  )}
+                                </td>
+
+                                <td className="px-4 py-3">
+                                  <div className="w-full flex justify-center items-center">
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
+                                        title="Edit"
+                                        onClick={() => openEditSprfModal(row)}
+                                      >
+                                        <MdEdit className="text-[14px]" />
+                                      </button>
+
+                                      {!isActive && (
+                                        <button
+                                          type="button"
+                                          title="Activate"
+                                          onClick={() => activateSprfMatrix(row)}
+                                          className="px-1 py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
+                                        >
+                                          <MdOutlinePowerSettingsNew/>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -374,4 +717,5 @@ function ApproverMatrix({ stats, matrices }) {
 }
 
 export default ApproverMatrix;
+
 ApproverMatrix.layout = (page) => <AuthenticatedLayout children={page} />;
