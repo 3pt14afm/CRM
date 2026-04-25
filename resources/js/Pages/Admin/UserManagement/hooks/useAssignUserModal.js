@@ -35,7 +35,10 @@ export default function useAssignUserModal() {
         employee_id: Number(assignForm.employee_id),
         department_id: Number(assignForm.department_id),
         department: assignForm.department,
+
+        company_position_id: Number(assignForm.company_position_id),
         position: assignForm.position,
+
         email: assignForm.email,
         primary_location_id: Number(assignForm.primary_location_id),
       },

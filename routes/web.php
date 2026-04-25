@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\PreferencesController;
 use App\Http\Controllers\Admin\PrinterController;
 use App\Http\Controllers\Admin\SupplyController;
 use App\Http\Controllers\Admin\PrinterSupplyController;
+use App\Http\Controllers\Admin\SprfApproverMatrixController;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
@@ -143,6 +144,11 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::get('/directory/positions', [PositionController::class, 'positions'])->name('directory.positions');
         Route::get('/directory/employees', [UserController::class, 'employeesByPosition'])->name('directory.employees');
         Route::post('/users/assign-employee', [UserController::class, 'assignEmployeeUser'])->name('users.assign-employee');
+
+        //SPRF Approval Matrix CRUD
+        Route::post('/sprf-approver-matrix', [SprfApproverMatrixController::class, 'store'])->name('sprf-approver-matrix.store');
+        Route::put('/sprf-approver-matrix/{matrix}', [SprfApproverMatrixController::class, 'update'])->name('sprf-approver-matrix.update');
+        Route::patch('/sprf-approver-matrix/{matrix}/activate', [SprfApproverMatrixController::class, 'activate'])->name('sprf-approver-matrix.activate');
     });
 
 /*

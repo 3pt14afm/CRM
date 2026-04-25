@@ -39,6 +39,7 @@ class User extends Authenticatable
         'last_name',
         'employee_id',
         'department_id',
+        'company_position_id',
         'position',
         'email',
         'password',
@@ -134,5 +135,15 @@ class User extends Authenticatable
         return isset($this->attributes['role'])
             ? strtolower(trim((string) ($this->attributes['role'] ?? '')))
             : null;
+    }
+
+    public function companyPosition()
+    {
+        return $this->belongsTo(\App\Models\CompanyPosition::class, 'company_position_id');
+    }
+
+    public function scopeAvailableApprover($query)
+    {
+        return $query->where('is_banned', false);
     }
 }

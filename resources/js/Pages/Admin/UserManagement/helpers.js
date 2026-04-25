@@ -37,6 +37,7 @@ export function buildEditFormFromUser(user) {
     email: user?.email ?? "",
     department_id: user?.department_id ?? "",
     department: user?.department ?? "",
+    company_position_id: user?.company_position_id ?? "",
     position: user?.position ?? "",
     primary_location_id: user?.primary_location_id ?? "",
     password: "",
