@@ -67,6 +67,18 @@ private function requestHasRoiDraftPayload(Request $request): bool
     ]);
 }
 
+private function getRoiWorkflow(RoiCurrentProject $project): array
+{
+    return [
+        'preparer_id' => $project->user_id,
+        'reviewer_id' => $project->reviewed_by,
+        'checker_id' => $project->checked_by,
+        'endorser_id' => $project->endorsed_by,
+        'confirmer_id' => $project->confirmed_by,
+        'approver_id' => $project->approved_by,
+    ];
+}
+
     public function show(RoiEntryProject $project, Request $request)
 {
     abort_unless($project->user_id === Auth::id(), 403);
@@ -464,7 +476,15 @@ public function saveDraft(Request $request)
                 'reference' => $newProject->reference,
                 'current_level' => $newProject->current_level,
                 'submitted_at' => $newProject->submitted_at,
-            ]
+            ],
+            workflow: [
+                'preparer_id' => $newProject->user_id,
+                'reviewer_id' => $newProject->reviewed_by,
+                'checker_id' => $newProject->checked_by,
+                'endorser_id' => $newProject->endorsed_by,
+                'confirmer_id' => $newProject->confirmed_by,
+                'approver_id' => $newProject->approved_by,
+                ]
         );
     } catch (\Throwable $e) {
         Log::error('ROI submit activity log failed', [

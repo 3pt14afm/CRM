@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\ActivityLogger;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Log;
 
 class ProfileController extends Controller
 {
@@ -27,37 +29,74 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
-    {
-        $request->user()->fill($request->validated());
+public function update(ProfileUpdateRequest $request): RedirectResponse
+{
+    $user = $request->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
+    $oldValues = $user->only(array_keys($request->validated()));
 
-        $request->user()->save();
+    $user->fill($request->validated());
 
-        return Redirect::route('profile.edit');
+    if ($user->isDirty('email')) {
+        $user->email_verified_at = null;
     }
 
+    $changes = $user->getDirty();
+
+    $user->save();
+
+    try {
+        ActivityLogger::log(
+            activityType: 'update_profile',
+            moduleType: 'Profile',
+            details: 'User updated profile',
+            oldValues: array_intersect_key($oldValues, $changes),
+            newValues: $changes
+        );
+    } catch (\Throwable $e) {
+        Log::error('Profile update activity log failed', [
+            'message' => $e->getMessage(),
+            'user_id' => $user->id,
+        ]);
+    }
+
+    return Redirect::route('profile.edit');
+}
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'password' => ['required', 'current_password'],
+public function destroy(Request $request): RedirectResponse
+{
+    $request->validate([
+        'password' => ['required', 'current_password'],
+    ]);
+
+    $user = $request->user();
+
+    try {
+        ActivityLogger::log(
+            activityType: 'delete_account',
+            moduleType: 'Profile',
+            details: 'User deleted account',
+            oldValues: [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]
+        );
+    } catch (\Throwable $e) {
+        Log::error('Account deletion activity log failed', [
+            'message' => $e->getMessage(),
+            'user_id' => $user->id,
         ]);
-
-        $user = $request->user();
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
     }
+
+    Auth::logout();
+
+    $user->delete();
+
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return Redirect::to('/');
+}
 }

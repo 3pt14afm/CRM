@@ -13,6 +13,12 @@ class ActivityLog extends Model
         'employee_id',
         'department_id',
         'location_id',
+        'preparer_id',
+        'reviewer_id',
+        'checker_id',
+        'endorser_id',
+        'confirmer_id',
+        'approver_id',
         'position',
         'email',
 

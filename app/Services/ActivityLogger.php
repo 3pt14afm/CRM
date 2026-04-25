@@ -22,14 +22,15 @@ class ActivityLogger
         'pin',
     ];
 
-    public static function log(
-        string $activityType,
-        ?string $moduleType = null,
-        ?string $details = null,
-        ?Model $subject = null,
-        ?array $oldValues = null,
-        ?array $newValues = null,
-        string $status = 'success'
+   public static function log(
+    string $activityType,
+    ?string $moduleType = null,
+    ?string $details = null,
+    ?Model $subject = null,
+    ?array $oldValues = null,
+    ?array $newValues = null,
+    string $status = 'success',
+    ?array $workflow = null
     ): void {
       $user = Auth::user();
 
@@ -41,6 +42,12 @@ class ActivityLogger
     'employee_id' => $user?->employee_id,
     'department_id' => $user?->department_id,
     'location_id' => $user?->primary_location_id,
+    'preparer_id' => $workflow['preparer_id'] ?? null,
+    'reviewer_id' => $workflow['reviewer_id'] ?? null,
+    'checker_id' => $workflow['checker_id'] ?? null,
+    'endorser_id' => $workflow['endorser_id'] ?? null,
+    'confirmer_id' => $workflow['confirmer_id'] ?? null,
+    'approver_id' => $workflow['approver_id'] ?? null,
     'position' => $user?->position,
     'email' => $user?->email,
 

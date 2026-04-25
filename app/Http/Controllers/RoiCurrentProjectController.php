@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use App\Services\ActivityLogger;
 
 class RoiCurrentProjectController extends Controller
 {
@@ -44,6 +45,18 @@ class RoiCurrentProjectController extends Controller
             6 => 'For Approval',
             default => 'Pending',
         };
+    }
+
+    private function getRoiWorkflow(RoiCurrentProject $project): array
+    {
+        return [
+            'preparer_id' => $project->user_id,
+            'reviewer_id' => $project->reviewed_by,
+            'checker_id' => $project->checked_by,
+            'endorser_id' => $project->endorsed_by,
+            'confirmer_id' => $project->confirmed_by,
+            'approver_id' => $project->approved_by,
+        ];
     }
 
     private function sortTimelineEntries(?array $entries): array
@@ -584,103 +597,167 @@ class RoiCurrentProjectController extends Controller
         ]);
     }
 
-    public function sendBack(Request $request, $id)
-    {
-        return DB::transaction(function () use ($request, $id) {
-            $user = $this->getAuthenticatedUser();
+public function sendBack(Request $request, $id)
+{
+    return DB::transaction(function () use ($request, $id) {
+        $user = $this->getAuthenticatedUser();
 
-            $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+        $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            $this->ensureCanAct($project, $user);
+        $this->ensureCanAct($project, $user);
 
-            $fromLevel = (int) $project->current_level;
+        $fromLevel = (int) $project->current_level;
 
-            if ($fromLevel < 2) {
-                return back()->withErrors(['level' => 'Cannot send back any further.']);
-            }
+        if ($fromLevel < 2) {
+            return back()->withErrors(['level' => 'Cannot send back any further.']);
+        }
 
-            $requiredType = $this->requiredSendBackTypeForLevel($fromLevel);
+        $requiredType = $this->requiredSendBackTypeForLevel($fromLevel);
 
-            if (!$requiredType) {
-                return back()->withErrors([
-                    'type' => 'Invalid send back action for this level.',
-                ]);
-            }
-
-            $validated = $request->validate([
-                'body' => ['required', 'string', 'max:2000'],
-                'type' => ['required', 'in:note,comment'],
+        if (!$requiredType) {
+            return back()->withErrors([
+                'type' => 'Invalid send back action for this level.',
             ]);
+        }
 
-            if ($validated['type'] !== $requiredType) {
-                return back()->withErrors([
-                    'type' => "Invalid type for this level. Expected {$requiredType}.",
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+            'type' => ['required', 'in:note,comment'],
+        ]);
+
+        if ($validated['type'] !== $requiredType) {
+            return back()->withErrors([
+                'type' => "Invalid type for this level. Expected {$requiredType}.",
+            ]);
+        }
+
+        $oldValues = [
+            'status' => $project->status,
+            'current_level' => $fromLevel,
+            'note_or_comment_type' => $validated['type'],
+            'note_or_comment_body' => trim($validated['body']),
+        ];
+
+        $workflow = $this->getRoiWorkflow($project);
+
+        $this->appendSendBackEntry($project, $user, $validated['type'], $validated['body']);
+
+        $toLevel = $fromLevel - 1;
+
+        // 🔥 Label for logging
+        $backStatus = match ($toLevel) {
+            1 => 'Draft (Preparer)',
+            2 => 'For Review',
+            3 => 'For Checking',
+            4 => 'For Endorsement',
+            5 => 'For Confirmation',
+            default => 'Unknown',
+        };
+
+        if ($toLevel === 1) {
+            $project->save();
+
+            $project->refresh();
+            $project->load(['items', 'fees', 'user']);
+
+            $projectData = $project->toArray();
+            unset($projectData['id']);
+            unset($projectData['roi_current_project_id']);
+            unset($projectData['submitted_at']);
+            unset($projectData['status_updated_at']);
+            unset($projectData['status_updated_by']);
+            unset($projectData['current_level']);
+            unset($projectData['created_at']);
+            unset($projectData['updated_at']);
+
+            $entryProject = RoiEntryProject::create(array_merge($projectData, [
+                'status' => 'returned',
+                'last_saved_at' => now(),
+            ]));
+
+            foreach ($project->items as $item) {
+                $itemData = $item->toArray();
+                unset($itemData['id']);
+                unset($itemData['roi_current_project_id']);
+                $itemData['roi_entry_project_id'] = $entryProject->id;
+                RoiEntryItem::create($itemData);
+            }
+
+            foreach ($project->fees as $fee) {
+                $feeData = $fee->toArray();
+                unset($feeData['id']);
+                unset($feeData['roi_current_project_id']);
+                $feeData['roi_entry_project_id'] = $entryProject->id;
+                RoiEntryFee::create($feeData);
+            }
+
+            try {
+                ActivityLogger::log(
+                    activityType: 'send_back',
+                    moduleType: 'ROI Current',
+                    details: 'Sent back ROI #' . $project->reference . ' to ' . $backStatus,
+                    subject: $entryProject,
+                    oldValues: $oldValues,
+                    newValues: [
+                        'status' => 'returned',
+                        'current_level' => 1,
+                        'entry_project_id' => $entryProject->id,
+                    ],
+                    workflow: $workflow
+                );
+            } catch (\Throwable $e) {
+                Log::error('ROI send back activity log failed', [
+                    'message' => $e->getMessage(),
+                    'project_id' => $project->id,
+                    'reference' => $project->reference,
                 ]);
             }
 
-            $this->appendSendBackEntry($project, $user, $validated['type'], $validated['body']);
-
-            $toLevel = $fromLevel - 1;
-
-            if ($toLevel === 1) {
-                $project->save();
-
-                $project->refresh();
-                $project->load(['items', 'fees', 'user']);
-
-                $projectData = $project->toArray();
-                unset($projectData['id']);
-                unset($projectData['roi_current_project_id']);
-                unset($projectData['submitted_at']);
-                unset($projectData['status_updated_at']);
-                unset($projectData['status_updated_by']);
-                unset($projectData['current_level']);
-                unset($projectData['created_at']);
-                unset($projectData['updated_at']);
-
-                $entryProject = RoiEntryProject::create(array_merge($projectData, [
-                    'status' => 'returned',
-                    'last_saved_at' => now(),
-                ]));
-
-                foreach ($project->items as $item) {
-                    $itemData = $item->toArray();
-                    unset($itemData['id']);
-                    unset($itemData['roi_current_project_id']);
-                    $itemData['roi_entry_project_id'] = $entryProject->id;
-                    RoiEntryItem::create($itemData);
-                }
-
-                foreach ($project->fees as $fee) {
-                    $feeData = $fee->toArray();
-                    unset($feeData['id']);
-                    unset($feeData['roi_current_project_id']);
-                    $feeData['roi_entry_project_id'] = $entryProject->id;
-                    RoiEntryFee::create($feeData);
-                }
-
-                $project->items()->delete();
-                $project->fees()->delete();
-                $project->delete();
-
-                $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
-
-                return to_route('roi.entry.list');
-            }
-
-            $project->status = 'Sent Back';
-            $project->status_reason = null;
-            $project->status_updated_at = now();
-            $project->status_updated_by = $user->id;
-            $project->last_saved_at = now();
-            $project->current_level = $toLevel;
-            $project->save();
+            $project->items()->delete();
+            $project->fees()->delete();
+            $project->delete();
 
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
 
-            return to_route('roi.current');
-        });
-    }
+            return to_route('roi.entry.list');
+        }
+
+        $project->status = 'Sent Back';
+        $project->status_reason = null;
+        $project->status_updated_at = now();
+        $project->status_updated_by = $user->id;
+        $project->last_saved_at = now();
+        $project->current_level = $toLevel;
+        $project->save();
+
+        try {
+            ActivityLogger::log(
+                activityType: 'send_back',
+                moduleType: 'ROI Current',
+                details: 'Sent back ROI #' . $project->reference . ' to ' . $backStatus,
+                subject: $project,
+                oldValues: $oldValues,
+                newValues: [
+                    'status' => $project->status,
+                    'current_level' => $project->current_level,
+                    'status_updated_by' => $project->status_updated_by,
+                    'status_updated_at' => $project->status_updated_at,
+                ],
+                workflow: $workflow
+            );
+        } catch (\Throwable $e) {
+            Log::error('ROI send back activity log failed', [
+                'message' => $e->getMessage(),
+                'project_id' => $project->id,
+                'reference' => $project->reference,
+            ]);
+        }
+
+        $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
+
+        return to_route('roi.current');
+    });
+}
 
     public function advanceProject($id)
     {
@@ -708,6 +785,13 @@ class RoiCurrentProjectController extends Controller
                 default => 'Pending',
             };
 
+            $oldValues = [
+                'current_level' => $fromLevel,
+                'status' => $project->status,
+            ];
+
+            $workflow = $this->getRoiWorkflow($project);
+
             $project->update([
                 'current_level' => $toLevel,
                 'status' => $nextStatus,
@@ -717,114 +801,220 @@ class RoiCurrentProjectController extends Controller
                 'last_saved_at' => now(),
             ]);
 
+            try {
+               ActivityLogger::log(
+                activityType: 'advance',
+                moduleType: 'ROI Current',
+                details: 'Advanced ROI #' . $project->reference . ' to ' . $nextStatus,
+                subject: $project,
+                oldValues: $oldValues,
+                newValues: [
+                    'current_level' => $project->current_level,
+                    'status' => $project->status,
+                    'status_updated_by' => $project->status_updated_by,
+                    'status_updated_at' => $project->status_updated_at,
+                ],
+                workflow: $workflow
+            );
+            } catch (\Throwable $e) {
+                Log::error('ROI advance activity log failed', [
+                    'message' => $e->getMessage(),
+                    'project_id' => $project->id,
+                    'reference' => $project->reference,
+                ]);
+            }
+
             $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
 
             return to_route('roi.current')->with('success', 'Project moved ' . $nextStatus . '.');
         });
     }
 
-    public function reject($id)
-    {
-        return DB::transaction(function () use ($id) {
-            $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+public function reject($id)
+{
+    return DB::transaction(function () use ($id) {
+        $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
 
-            $actor = $this->getAuthenticatedUser();
+        $actor = $this->getAuthenticatedUser();
 
-            $this->ensureCanAct($current, $actor);
+        $this->ensureCanAct($current, $actor);
 
-            $actorLevel = (int) $current->current_level;
-            $reference = $current->reference;
-            $preparer = $this->emailUserById((int) $current->user_id);
+        $actorLevel = (int) $current->current_level;
+        $reference = $current->reference;
+        $preparer = $this->emailUserById((int) $current->user_id);
 
-            $this->archiveFromCurrent($current, [
-                'status' => 'rejected',
-                'rejected_at' => now(),
-                'rejected_by' => $actor->id,
-                'rejected_by_level' => $actorLevel,
-                'approved_at' => null,
-                'approved_by' => null,
-            ]);
-
-            $this->notifyDecision('rejected', $reference, $preparer, $actor, $actorLevel);
-
-            return to_route('roi.current')->with('success', 'Project rejected and archived.');
-        });
-    }
-
-    public function approve($id)
-    {
-        return DB::transaction(function () use ($id) {
-            $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
-
-            $actor = $this->getAuthenticatedUser();
-
-            $this->ensureCanAct($current, $actor);
-
-            if ((int) $current->current_level !== 6 || (int) $current->approved_by !== (int) $actor->id) {
-                abort(403, 'Only the assigned approver can approve.');
-            }
-
-            $reference = $current->reference;
-            $preparer = $this->emailUserById((int) $current->user_id);
-
-            $this->archiveFromCurrent($current, [
-                'status' => 'approved',
-                'approved_at' => now(),
-                'approved_by' => $actor->id,
-                'rejected_at' => null,
-                'rejected_by' => null,
-                'rejected_by_level' => null,
-            ]);
-
-            $this->notifyDecision('approved', $reference, $preparer, $actor, 6);
-
-            return to_route('roi.current')->with('success', 'Project approved and archived.');
-        });
-    }
-
-    public function storeNote(Request $request, RoiCurrentProject $project)
-    {
-        $user = $this->getAuthenticatedUser();
-
-        $this->ensureCanAct($project, $user);
-
-        $level = (int) $project->current_level;
-
-        if (!in_array($level, [2, 3, 4], true)) {
-            abort(403, 'Only reviewer, checker, or endorser can add notes on current projects.');
-        }
-
-        $validated = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
-        ]);
-
-        $notes = is_array($project->notes) ? $project->notes : [];
-
-        $notes[] = [
-            'id' => (string) \Illuminate\Support\Str::ulid(),
-            'body' => trim($validated['body']),
-            'created_at' => now()->toISOString(),
-            'author' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'role' => $user->role,
-            ],
+        $oldValues = [
+            'status' => $current->status,
+            'current_level' => $current->current_level,
         ];
 
-        usort($notes, function ($a, $b) {
-            $aTime = strtotime($a['created_at'] ?? '') ?: 0;
-            $bTime = strtotime($b['created_at'] ?? '') ?: 0;
+        $workflow = $this->getRoiWorkflow($current);
 
-            return $bTime <=> $aTime;
-        });
-
-        $project->update([
-            'notes' => array_values($notes),
-            'last_saved_at' => now(),
+        $archived = $this->archiveFromCurrent($current, [
+            'status' => 'rejected',
+            'rejected_at' => now(),
+            'rejected_by' => $actor->id,
+            'rejected_by_level' => $actorLevel,
+            'approved_at' => null,
+            'approved_by' => null,
         ]);
 
-        return back()->with('success', 'Note added.');
+        try {
+            ActivityLogger::log(
+                activityType: 'reject',
+                moduleType: 'ROI Current',
+                details: 'Rejected ROI #' . $reference,
+                subject: $archived,
+                oldValues: $oldValues,
+                newValues: [
+                    'status' => 'rejected',
+                    'archive_project_id' => $archived->id,
+                    'rejected_by' => $actor->id,
+                    'rejected_by_level' => $actorLevel,
+                    'rejected_at' => $archived->rejected_at,
+                ],
+                workflow: $workflow
+            );
+        } catch (\Throwable $e) {
+            Log::error('ROI reject activity log failed', [
+                'message' => $e->getMessage(),
+                'reference' => $reference,
+            ]);
+        }
+
+        $this->notifyDecision('rejected', $reference, $preparer, $actor, $actorLevel);
+
+        return to_route('roi.current')->with('success', 'Project rejected and archived.');
+    });
+}
+
+public function approve($id)
+{
+    return DB::transaction(function () use ($id) {
+        $current = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+        $actor = $this->getAuthenticatedUser();
+
+        $this->ensureCanAct($current, $actor);
+
+        if ((int) $current->current_level !== 6 || (int) $current->approved_by !== (int) $actor->id) {
+            abort(403, 'Only the assigned approver can approve.');
+        }
+
+        $reference = $current->reference;
+        $preparer = $this->emailUserById((int) $current->user_id);
+
+        $oldValues = [
+            'status' => $current->status,
+            'current_level' => $current->current_level,
+        ];
+
+        $workflow = $this->getRoiWorkflow($current);
+
+        $archived = $this->archiveFromCurrent($current, [
+            'status' => 'approved',
+            'approved_at' => now(),
+            'approved_by' => $actor->id,
+            'rejected_at' => null,
+            'rejected_by' => null,
+            'rejected_by_level' => null,
+        ]);
+
+        try {
+            ActivityLogger::log(
+                activityType: 'approve',
+                moduleType: 'ROI Current',
+                details: 'Approved ROI #' . $reference,
+                subject: $archived,
+                oldValues: $oldValues,
+                newValues: [
+                    'status' => 'approved',
+                    'archive_project_id' => $archived->id,
+                    'approved_by' => $actor->id,
+                    'approved_at' => $archived->approved_at,
+                ],
+                workflow: $workflow
+            );
+        } catch (\Throwable $e) {
+            Log::error('ROI approve activity log failed', [
+                'message' => $e->getMessage(),
+                'reference' => $reference,
+            ]);
+        }
+
+        $this->notifyDecision('approved', $reference, $preparer, $actor, 6);
+
+        return to_route('roi.current')->with('success', 'Project approved and archived.');
+    });
+}
+
+public function storeNote(Request $request, RoiCurrentProject $project)
+{
+    $user = $this->getAuthenticatedUser();
+
+    $this->ensureCanAct($project, $user);
+
+    $level = (int) $project->current_level;
+
+    if (!in_array($level, [2, 3, 4], true)) {
+        abort(403, 'Only reviewer, checker, or endorser can add notes on current projects.');
     }
+
+    $validated = $request->validate([
+        'body' => ['required', 'string', 'max:5000'],
+    ]);
+
+    $notes = is_array($project->notes) ? $project->notes : [];
+
+    $note = [
+        'id' => (string) \Illuminate\Support\Str::ulid(),
+        'body' => trim($validated['body']),
+        'created_at' => now()->toISOString(),
+        'author' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => $user->role,
+        ],
+    ];
+
+    $notes[] = $note;
+
+    usort($notes, function ($a, $b) {
+        $aTime = strtotime($a['created_at'] ?? '') ?: 0;
+        $bTime = strtotime($b['created_at'] ?? '') ?: 0;
+
+        return $bTime <=> $aTime;
+    });
+
+    $project->update([
+        'notes' => array_values($notes),
+        'last_saved_at' => now(),
+    ]);
+
+    try {
+        ActivityLogger::log(
+            activityType: 'add_note',
+            moduleType: 'ROI Current',
+            details: 'Added note to ROI #' . $project->reference,
+            subject: $project,
+            oldValues: null,
+            newValues: [
+                'note_id' => $note['id'],
+                'body' => $note['body'],
+                'current_level' => $project->current_level,
+            ],
+            workflow: $this->getRoiWorkflow($project)
+        );
+    } catch (\Throwable $e) {
+        Log::error('ROI current note activity log failed', [
+            'message' => $e->getMessage(),
+            'project_id' => $project->id,
+            'reference' => $project->reference,
+        ]);
+    }
+
+    return back()->with('success', 'Note added.');
+}
 
     public function showAttachment($id, int $attachmentIndex)
     {
