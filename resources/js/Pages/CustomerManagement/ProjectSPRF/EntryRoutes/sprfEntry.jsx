@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { route as ziggyRoute } from 'ziggy-js';
 
 import { toast } from 'sonner';
@@ -13,226 +13,7 @@ import SprfItemsTable from '@/Components/sprf/SprfItemsTable';
 import SprfOtherExpenseTable from '@/Components/sprf/SprfOtherExpenseTable';
 import Conditions from '@/Components/sprf/Conditions';
 import NamesBlock from '@/Components/sprf/NamesBlock';
-
-const FIXED_OTHER_EXPENSE_ROWS = [
-  { key: 'deliveryCharge', productCode: 'Delivery Charge' },
-  { key: 'bidDocs', productCode: 'Bid Docs' },
-  { key: 'otherServices', productCode: 'Other Services' },
-  { key: 'rebate', productCode: 'Rebate' },
-  { key: 'others', productCode: 'Others' },
-];
-
-const APPROVAL_LEVEL = {
-  ESD_ONLY: 'ESD_ONLY',
-  VP_AND_CCTO: 'VP_AND_CCTO',
-  PRESIDENT_AND_CEO: 'PRESIDENT_AND_CEO',
-};
-
-const isBlank = (value) =>
-  value === '' || value === null || value === undefined;
-
-const toNumber = (value) => Number(value || 0);
-
-const makeItemRow = () => ({
-  productCode: '',
-  itemDescription: '',
-  qty: '',
-  disty: '',
-  costPerUnit: '',
-  markupPercent: '',
-});
-
-const makeExpenseRow = ({
-  expenseKey = null,
-  isFixed = false,
-  productCode = '',
-  itemDescription = '',
-  qty = '',
-  unitPrice = '',
-} = {}) => ({
-  expenseKey,
-  isFixed,
-  productCode,
-  itemDescription,
-  qty,
-  unitPrice,
-});
-
-const makeInitialExpenseRows = () =>
-  FIXED_OTHER_EXPENSE_ROWS.map((row) =>
-    makeExpenseRow({
-      expenseKey: row.key,
-      isFixed: true,
-      productCode: row.productCode,
-      itemDescription: '',
-      qty: '',
-      unitPrice: '',
-    })
-  );
-
-const normalizeExpenseRows = (rows = []) => {
-  const incoming = Array.isArray(rows) ? rows : [];
-  const incomingByKey = new Map(
-    incoming
-      .filter((row) => row?.expenseKey)
-      .map((row) => [row.expenseKey, row])
-  );
-
-  const fixedRows = FIXED_OTHER_EXPENSE_ROWS.map((fixed) => {
-    const existing = incomingByKey.get(fixed.key);
-
-    return makeExpenseRow({
-      expenseKey: fixed.key,
-      isFixed: true,
-      productCode: fixed.productCode,
-      itemDescription: existing?.itemDescription ?? '',
-      qty: existing?.qty ?? '',
-      unitPrice: existing?.unitPrice ?? '',
-    });
-  });
-
-  const extraRows = incoming
-    .filter(
-      (row) =>
-        !row?.isFixed &&
-        !FIXED_OTHER_EXPENSE_ROWS.some((fixed) => fixed.key === row?.expenseKey)
-    )
-    .map((row) =>
-      makeExpenseRow({
-        expenseKey: row?.expenseKey ?? null,
-        isFixed: false,
-        productCode: row?.productCode ?? '',
-        itemDescription: row?.itemDescription ?? '',
-        qty: row?.qty ?? '',
-        unitPrice: row?.unitPrice ?? '',
-      })
-    );
-
-  return [...fixedRows, ...extraRows];
-};
-
-const normalizeRemarksRows = (value) => {
-  if (Array.isArray(value)) {
-    return value.length > 0 ? value.map((row) => String(row ?? '')) : [''];
-  }
-
-  const text = String(value ?? '');
-  if (!text.trim()) {
-    return [''];
-  }
-
-  const rows = text
-    .split(/\r?\n/)
-    .map((row) => row.trimEnd());
-
-  return rows.length > 0 ? rows : [''];
-};
-
-const serializeRemarksRows = (rows) => {
-  if (!Array.isArray(rows)) return '';
-
-  return rows
-    .map((row) => String(row ?? '').trim())
-    .filter((row) => row !== '')
-    .join('\n');
-};
-
-const computeItem = (row) => {
-  const qtyBlank = isBlank(row.qty);
-  const costBlank = isBlank(row.costPerUnit);
-  const markupBlank = isBlank(row.markupPercent);
-
-  const qty = toNumber(row.qty);
-  const costPerUnit = toNumber(row.costPerUnit);
-  const markupPercent = toNumber(row.markupPercent);
-
-  const totalCost =
-    qtyBlank || costBlank
-      ? ''
-      : qty * costPerUnit;
-
-  const sellingPricePerUnitVatInc =
-    costBlank || markupBlank
-      ? ''
-      : costPerUnit * (1 + markupPercent / 100);
-
-  const totalSellingPriceVatInc =
-    qtyBlank || sellingPricePerUnitVatInc === ''
-      ? ''
-      : qty * sellingPricePerUnitVatInc;
-
-  const markupValue =
-    totalSellingPriceVatInc === '' || totalCost === ''
-      ? ''
-      : totalSellingPriceVatInc - totalCost;
-
-  return {
-    ...row,
-    totalCost,
-    sellingPricePerUnitVatInc,
-    totalSellingPriceVatInc,
-    markupValue,
-    markupPercent: row.markupPercent,
-  };
-};
-
-const computeExpense = (row) => {
-  const qtyBlank = isBlank(row.qty);
-  const unitPriceBlank = isBlank(row.unitPrice);
-
-  const qty = toNumber(row.qty);
-  const unitPrice = toNumber(row.unitPrice);
-
-  return {
-    ...row,
-    total: qtyBlank || unitPriceBlank ? '' : qty * unitPrice,
-  };
-};
-
-const resolveApprovalLevel = ({ revenue, totalGpPercent, hasRebate }) => {
-  if (hasRebate) {
-    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  }
-
-  if (revenue <= 0) {
-    return APPROVAL_LEVEL.ESD_ONLY;
-  }
-
-  if (totalGpPercent <= 15) {
-    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  }
-
-  if (totalGpPercent > 15 || revenue > 1000000) {
-    return APPROVAL_LEVEL.VP_AND_CCTO;
-  }
-
-  return APPROVAL_LEVEL.ESD_ONLY;
-};
-
-const finalApprovalLevelNumber = (approvalLevel) => {
-  if (approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO) return 5;
-  if (approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO) return 4;
-  return 3;
-};
-
-const buildSigner = ({ name = '', title = '', lookupPosition = '' } = {}) => ({
-  name,
-  title,
-  lookupPosition,
-});
-
-const formatDateTime = (value) => {
-  if (!value) return '—';
-
-  return new Intl.DateTimeFormat('en-US', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(new Date(value));
-};
+import { APPROVAL_LEVEL, buildSigner, buildSprfPayload, computeExpense, computeItem, computeItemTotals, computeRebateTotal, computeSummary, createSprfFormState, finalApprovalLevelNumber, formatDateTime, resolveApprovalLevel, serializeRemarksRows, sprfFormReducer, validateAdvance, validateDraft, validateSubmit, } from '@/utils/sprf';
 
 function Entry({
   approverUsers = {},
@@ -259,11 +40,9 @@ function Entry({
     hour12: false,
   })}`;
 
-  const pageLabel =
-    pageRoute === 'current' ? 'Current' : pageRoute === 'archive' ? 'Archive' : 'Entry';
+  const pageLabel = pageRoute === 'current' ? 'Current' : pageRoute === 'archive' ? 'Archive' : 'Entry';
 
-  const pageTitle =
-    pageRoute === 'entry' ? 'Project SPRF' : 'Project SPRF Approval';
+  const pageTitle = pageRoute === 'entry' ? 'Project SPRF' : 'Project SPRF Approval';
 
   const displayDateTime = useMemo(() => {
     if (pageRoute === 'archive') {
@@ -304,108 +83,45 @@ function Entry({
     return formatDateTime(sourceProject.last_saved_at);
   }, [sourceProject?.last_saved_at]);
 
-  const [sprfNo, setSprfNo] = useState(sourceProject?.sprf_no ?? 'SPRFIT-0000');
+  const [form, dispatch] = useReducer(sprfFormReducer, null, () => createSprfFormState(sourceProject) );
+  const { sprfNo, companyInfo, remarks, rebateJustification, items, otherExpenses, } = form;
 
-  const [companyInfo, setCompanyInfo] = useState({
-    subCategory: '',
-    account: '',
-    accountManager: '',
-  });
-
-  const [remarks, setRemarks] = useState(['']);
-  const [rebateJustification, setRebateJustification] = useState('');
-
-  const [items, setItems] = useState([makeItemRow()]);
-  const [otherExpenses, setOtherExpenses] = useState(() => makeInitialExpenseRows());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
   const hydratedProjectIdRef = useRef(null);
-
       useEffect(() => {
-              const currentProjectId = sourceProject?.id ?? null;
-              if (hydratedProjectIdRef.current === currentProjectId) {
-                return;
-              }
-              hydratedProjectIdRef.current = currentProjectId;
+        const currentProjectId = sourceProject?.id ?? null;
 
-              if (!sourceProject) {
-                setSprfNo('SPRFIT-0000');
-                setCompanyInfo({
-                  subCategory: '',
-                  account: '',
-                  accountManager: '',
-                });
-                setRemarks(['']);
-                setRebateJustification('');
-                setItems([makeItemRow()]);
-                setOtherExpenses(makeInitialExpenseRows());
-                return;
-              }
+        if (hydratedProjectIdRef.current === currentProjectId) {
+          return;
+        }
 
-              setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
-              setCompanyInfo({
-                subCategory: sourceProject?.company_info?.subCategory ?? '',
-                account: sourceProject?.company_info?.account ?? '',
-                accountManager: sourceProject?.company_info?.accountManager ?? '',
-              });
-              setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
-              setRebateJustification(sourceProject?.rebate_justification ?? '');
+        hydratedProjectIdRef.current = currentProjectId;
 
-              setItems(
-                Array.isArray(sourceProject?.items) && sourceProject.items.length > 0
-                  ? sourceProject.items.map((row) => ({
-                      productCode: row?.productCode ?? '',
-                      itemDescription: row?.itemDescription ?? '',
-                      qty: row?.qty ?? '',
-                      disty: row?.disty ?? '',
-                      costPerUnit: row?.costPerUnit ?? '',
-                      markupPercent: row?.markupPercent ?? '',
-                    }))
-                  : [makeItemRow()]
-              );
-
-                setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
+        dispatch({
+          type: 'HYDRATE_PROJECT',
+          sourceProject,
+        });
       }, [sourceProject?.id]);
 
   const computedItems = useMemo(() => items.map(computeItem), [items]);
   const computedExpenses = useMemo(() => otherExpenses.map(computeExpense), [otherExpenses]);
 
-  const summary = useMemo(() => {
-    const revenue = computedItems.reduce((sum, row) => sum + toNumber(row.totalSellingPriceVatInc), 0 );
-    const cogs = computedItems.reduce((sum, row) => sum + toNumber(row.totalCost), 0 );
-    const otherExpense = computedExpenses.reduce((sum, row) => sum + toNumber(row.total), 0 );
+  const summary = useMemo(
+    () => computeSummary(computedItems, computedExpenses),
+    [computedItems, computedExpenses]
+  );
 
-    const totalExpense = cogs + otherExpense;
-    const gpValue = revenue - totalExpense;
-    const totalGpPercent = revenue > 0 ? (gpValue / revenue) * 100 : 0;
+  const itemTotals = useMemo(
+    () => computeItemTotals(computedItems),
+    [computedItems]
+  );
 
-    return {
-      revenue,
-      cogs,
-      otherExpense,
-      totalExpense,
-      gpValue,
-      totalGpPercent,
-    };
-  }, [computedItems, computedExpenses]);
-
-  const itemTotals = useMemo(() => {
-    const ttlCost = computedItems.reduce(
-      (sum, row) => sum + toNumber(row.totalCost), 0 );
-    const ttlRev = computedItems.reduce((sum, row) => sum + toNumber(row.totalSellingPriceVatInc), 0 );
-
-    return {
-      ttlCost,
-      ttlRev,
-    };
-  }, [computedItems]);
-
-  const rebateTotal = useMemo(() => {
-    return computedExpenses
-      .filter((row) => row.expenseKey === 'rebate')
-      .reduce((sum, row) => sum + row.total, 0);
-  }, [computedExpenses]);
+  const rebateTotal = useMemo(
+    () => computeRebateTotal(computedExpenses),
+    [computedExpenses]
+  );
 
   const hasRebate = rebateTotal > 0;
 
@@ -488,66 +204,40 @@ function Entry({
   ]);
 
   const updateItem = (index, field, value) => {
-    setItems((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
-    );
+    dispatch({ type: 'UPDATE_ITEM', index, field, value, });
   };
 
   const addItemRow = (index) => {
-    setItems((prev) => {
-      const next = [...prev];
-      next.splice(index + 1, 0, makeItemRow());
-      return next;
-    });
+    dispatch({ type: 'ADD_ITEM_ROW', index, });
   };
 
   const removeItemRow = (index) => {
-    setItems((prev) => {
-      if (prev.length === 1) return prev;
-      return prev.filter((_, i) => i !== index);
-    });
+    dispatch({ type: 'REMOVE_ITEM_ROW', index, });
   };
 
   const updateExpense = (index, field, value) => {
-    setOtherExpenses((prev) =>
-      prev.map((row, i) => {
-        if (i !== index) return row;
-
-        if (row.isFixed && field === 'productCode') {
-          return row;
-        }
-
-        return { ...row, [field]: value };
-      })
-    );
+    dispatch({ type: 'UPDATE_EXPENSE', index, field, value, });
   };
 
   const addExpenseRow = (index) => {
-    setOtherExpenses((prev) => {
-      const next = [...prev];
-      next.splice(index + 1, 0, makeExpenseRow());
-      return next;
-    });
+    dispatch({ type: 'ADD_EXPENSE_ROW', index, });
   };
 
   const removeExpenseRow = (index) => {
-    setOtherExpenses((prev) => {
-      if (prev.length === 1) return prev;
-      if (prev[index]?.isFixed) return prev;
-      return prev.filter((_, i) => i !== index);
-    });
+    dispatch({ type: 'REMOVE_EXPENSE_ROW', index, });
   };
 
-  const buildPayload = () => ({
-    project_id: sourceProject?.id ?? null,
-    sprf_no: sprfNo,
-    company_info: companyInfo,
-    remarks: serializeRemarksRows(remarks),
-    rebate_justification: rebateJustification,
-    items,
-    other_expenses: otherExpenses,
-    summary,
-  });
+  const buildPayload = () =>
+    buildSprfPayload({
+      sourceProject,
+      sprfNo,
+      companyInfo,
+      remarks,
+      rebateJustification,
+      items,
+      otherExpenses,
+      summary,
+    });
 
   const openPrintPage = (autoPrint = false) => {
     const projectId = sourceProject?.id;
@@ -611,53 +301,14 @@ function Entry({
     a.remove();
   };
 
-
-// =======================ERROR HANDLING LOGIC====================================================//
-const hasValidCompanyInfo = (companyInfo) => {
-  return (
-    companyInfo?.subCategory?.trim() &&
-    companyInfo?.account?.trim() &&
-    companyInfo?.accountManager?.trim()
-  );
-};
-
-const hasValidItems = (items) => {
-  return items.some((row) => {
-    return (
-      row.productCode?.trim() ||
-      row.itemDescription?.trim() ||
-      Number(row.qty) > 0 ||
-      Number(row.costPerUnit) > 0
-    );
-  });
-};
-
-const hasValidExpenses = (expenses) => {
-  return expenses.some((row) => {
-    return (
-      row.itemDescription?.trim() ||
-      Number(row.qty) > 0 ||
-      Number(row.unitPrice) > 0
-    );
-  });
-};
-
-const hasValidRemarks = (remarks) => {
-  return Array.isArray(remarks)
-    && remarks.some((row) => String(row ?? '').trim() !== '');
-};
-// ===============================================================================================//
-
  const handleSaveDraft = () => {
     if (isSubmitting || readOnly) return;
 
-    switch(true){
-       case !hasValidCompanyInfo(companyInfo):
-          toast.error("Company Information is required before saving draft.");
-            return;
+    const validation = validateDraft({ companyInfo });
 
-       default:
-        break;
+    if (!validation.ok) {
+      toast.error(validation.message);
+      return;
     }
 
     setIsSubmitting(true);
@@ -674,29 +325,16 @@ const hasValidRemarks = (remarks) => {
  const handleSubmit = () => {
     if (isSubmitting || readOnly) return;
 
-        switch (true) {
-          case !sourceProject?.id:
-            toast.error('Please save draft first before submitting.');
-            return;
+        const validation = validateSubmit({
+          sourceProject,
+          companyInfo,
+          items,
+          remarks,
+        });
 
-          case !hasValidCompanyInfo(companyInfo):
-             toast.error("Company Information is required before submitting.");
-             return;
-
-          case !hasValidItems(items):
-            toast.error("Please add at least one item before submitting.");
-            return;
-
-          // case !hasValidExpenses(otherExpenses):
-          //   toast.error("Please add at least one expense before submitting.");
-          //   return;
-
-          case !hasValidRemarks(remarks):
-            toast.error("Remarks justification is required before submitting.");
-            return;
-
-          default:
-            break;
+        if (!validation.ok) {
+          toast.error(validation.message);
+          return;
         }
 
     setIsSubmitting(true);
@@ -744,16 +382,7 @@ const handleClearAll = () => {
           onClick={() => {
             toast.dismiss(t);
 
-            setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
-            setCompanyInfo({
-              subCategory: '',
-              account: '',
-              accountManager: '',
-            });
-            setRemarks(['']);
-            setRebateJustification('');
-            setItems([makeItemRow()]);
-            setOtherExpenses(makeInitialExpenseRows());
+            dispatch({ type: 'CLEAR_FORM', sourceProject });
 
             toast.success('All data cleared.');
           }}
@@ -769,8 +398,14 @@ const handleClearAll = () => {
   const handleAdvanceCurrent = () => {
     if (isSubmitting || !sourceProject?.id) return;
 
-    if (isDirectorCustomerEngagementStep && hasRebate && rebateJustification.trim() === '') {
-      toast.error('Rebate justification is required when the Rebate row has a value.');
+    const validation = validateAdvance({
+      isDirectorCustomerEngagementStep,
+      hasRebate,
+      rebateJustification,
+    });
+
+    if (!validation.ok) {
+      toast.error(validation.message);
       return;
     }
 
@@ -830,6 +465,30 @@ const handleClearAll = () => {
         },
       }
     );
+  };
+
+  const setCompanyInfo = (nextValueOrUpdater) => {
+    dispatch({
+      type: 'SET_COMPANY_INFO',
+      value:
+        typeof nextValueOrUpdater === 'function'
+          ? nextValueOrUpdater(companyInfo)
+          : nextValueOrUpdater,
+    });
+  };
+
+  const setRemarks = (value) => {
+    dispatch({
+      type: 'SET_REMARKS',
+      value,
+    });
+  };
+
+  const setRebateJustification = (value) => {
+    dispatch({
+      type: 'SET_REBATE_JUSTIFICATION',
+      value,
+    });
   };
 
   return (

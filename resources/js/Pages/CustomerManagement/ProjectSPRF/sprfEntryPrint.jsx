@@ -473,7 +473,7 @@ function PrintTextBlock({ label, value }) {
           {rows.map((row, index) => (
             <div
               key={`${label}-${index}`}
-              className="min-w-0 min-h-[32px] max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11px] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+              className="min-w-0 min-h-[32px] max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]"
             >
               {displayText(row) || '—'}
             </div>
@@ -492,7 +492,7 @@ function PrintRejectNoteBlock({ value }) {
           Reject Note
         </label>
 
-        <div className="px-3 py-1 text-[11px] text-slate-700 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        <div className="px-3 py-1 text-[11px] text-slate-700 whitespace-pre-wrap [overflow-wrap:anywhere]">
           {displayText(value)}
         </div>
       </div>
@@ -804,7 +804,7 @@ function PrintNamesBlock({
                 JUSTIFICATION FOR REBATE
               </label>
 
-              <div className="mt-2 w-full max-w-[195px] text-[11px] min-h-[54px] whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-slate-700">
+              <div className="mt-2 w-full max-w-[195px] text-[11px] min-h-[54px] whitespace-pre-wrap [overflow-wrap:anywhere] text-slate-700">
                 {displayText(rebateJustification)}
               </div>
             </div>
