@@ -691,10 +691,6 @@ const hasValidRemarks = (remarks) => {
           //   toast.error("Please add at least one expense before submitting.");
           //   return;
 
-          case !hasValidRemarks(remarks):
-            toast.error("Remarks justification is required before submitting.");
-            return;
-
           default:
             break;
         }
