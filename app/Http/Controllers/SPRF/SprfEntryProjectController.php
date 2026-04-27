@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use App\Services\SprfActivityLogger;
+use Illuminate\Support\Facades\Log;
+
 
 class SprfEntryProjectController extends Controller
 {
@@ -49,299 +52,356 @@ class SprfEntryProjectController extends Controller
         ]);
     }
 
-    public function saveDraft(Request $request, SprfNumberGenerator $sprfNumberGenerator)
-    {
-        $payload = $this->validatePayload($request);
+public function saveDraft(Request $request, SprfNumberGenerator $sprfNumberGenerator)
+{
+    $payload = $this->validatePayload($request);
 
-        $projectId = data_get($payload, 'project_id');
-        $existingProject = $projectId
-            ? SprfEntryProject::query()
-                ->where('id', $projectId)
-                ->where('prepared_by_user_id', Auth::id())
-                ->firstOrFail()
-            : null;
+    $projectId = data_get($payload, 'project_id');
 
-        $revenue = (float) data_get($payload, 'summary.revenue', 0);
-        $cogs = (float) data_get($payload, 'summary.cogs', 0);
-        $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', 0);
-        $totalExpense = (float) data_get($payload, 'summary.totalExpense', 0);
-        $gpValue = (float) data_get($payload, 'summary.gpValue', 0);
-        $gpPercent = (float) data_get($payload, 'summary.totalGpPercent', 0);
+    $existingProject = $projectId
+        ? SprfEntryProject::query()
+            ->where('id', $projectId)
+            ->where('prepared_by_user_id', Auth::id())
+            ->firstOrFail()
+        : null;
 
-        $items = $this->mapItemsPayload((array) data_get($payload, 'items', []));
-        $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
+    $oldValues = $existingProject
+        ? $existingProject->toArray()
+        : null;
 
-        $hasRebate = $this->hasRebateValueFromMappedFees($fees);
+    $revenue = (float) data_get($payload, 'summary.revenue', 0);
+    $cogs = (float) data_get($payload, 'summary.cogs', 0);
+    $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', 0);
+    $totalExpense = (float) data_get($payload, 'summary.totalExpense', 0);
+    $gpValue = (float) data_get($payload, 'summary.gpValue', 0);
+    $gpPercent = (float) data_get($payload, 'summary.totalGpPercent', 0);
 
-        $approvalConditionCode = $this->resolveApprovalConditionCode(
-            $payload,
-            $revenue,
-            $gpPercent,
-            $hasRebate
-        );
+    $items = $this->mapItemsPayload((array) data_get($payload, 'items', []));
+    $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
 
-        $approval = $this->tryResolveActiveSprfApprovalMatrix($approvalConditionCode);
+    $hasRebate = $this->hasRebateValueFromMappedFees($fees);
 
-        $approverUsers = $approval['approver_users'] ?? $this->resolveApproverUsers();
-        $flags = $approval['flags'] ?? $this->resolveApprovalFlags($revenue, $gpPercent, $hasRebate);
-        $sprfApprovalMatrixId = $approval['matrix_id'] ?? null;
+    $approvalConditionCode = $this->resolveApprovalConditionCode(
+        $payload,
+        $revenue,
+        $gpPercent,
+        $hasRebate
+    );
 
-        $project = DB::transaction(function () use (
-            $existingProject,
-            $payload,
-            $approverUsers,
-            $revenue,
-            $cogs,
-            $otherExpenseTotal,
-            $totalExpense,
-            $gpValue,
-            $gpPercent,
-            $flags,
-            $items,
-            $fees,
-            $sprfApprovalMatrixId,
-            $approvalConditionCode,
-            $sprfNumberGenerator
-        ) {
-            $project = $existingProject ?: new SprfEntryProject();
+    $approval = $this->tryResolveActiveSprfApprovalMatrix($approvalConditionCode);
 
-            $documentDatetime = $existingProject?->document_datetime
-                ? Carbon::parse($existingProject->document_datetime)
-                : now();
+    $approverUsers = $approval['approver_users'] ?? $this->resolveApproverUsers();
+    $flags = $approval['flags'] ?? $this->resolveApprovalFlags($revenue, $gpPercent, $hasRebate);
+    $sprfApprovalMatrixId = $approval['matrix_id'] ?? null;
 
-            $sprfNo = $existingProject?->sprf_no ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
+    $project = DB::transaction(function () use (
+        $existingProject,
+        $payload,
+        $approverUsers,
+        $revenue,
+        $cogs,
+        $otherExpenseTotal,
+        $totalExpense,
+        $gpValue,
+        $gpPercent,
+        $flags,
+        $items,
+        $fees,
+        $sprfApprovalMatrixId,
+        $approvalConditionCode,
+        $sprfNumberGenerator
+    ) {
+        $project = $existingProject ?: new SprfEntryProject();
 
-            $companyInfo = (array) data_get($payload, 'company_info', []);
+        $documentDatetime = $existingProject?->document_datetime
+            ? Carbon::parse($existingProject->document_datetime)
+            : now();
 
-            $project->fill([
-                'sprf_no' => $sprfNo,
-                'document_datetime' => $documentDatetime,
+        $sprfNo = $existingProject?->sprf_no
+            ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
 
-                'status' => 'draft',
-                'current_level' => 1,
-                'approval_level' => $flags['approval_level'],
-                'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
-                'approval_condition_code' => $approvalConditionCode,
+        $companyInfo = (array) data_get($payload, 'company_info', []);
 
-                'prepared_by_user_id' => $existingProject?->prepared_by_user_id ?: Auth::id(),
-                'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
-                'esd_director_user_id' => data_get($approverUsers, 'esdDirector.id'),
-                'vp_ccto_user_id' => data_get($approverUsers, 'vpCcto.id'),
-                'president_ceo_user_id' => data_get($approverUsers, 'presidentCeo.id'),
-                'current_approver_user_id' => null,
-                'approved_by_user_id' => null,
-                'rejected_by_user_id' => null,
+        $project->fill([
+            'sprf_no' => $sprfNo,
+            'document_datetime' => $documentDatetime,
 
-                'sub_category' => data_get($companyInfo, 'subCategory'),
-                'account' => data_get($companyInfo, 'account'),
-                'account_manager' => data_get($companyInfo, 'accountManager'),
+            'status' => 'draft',
+            'current_level' => 1,
+            'approval_level' => $flags['approval_level'],
+            'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
+            'approval_condition_code' => $approvalConditionCode,
 
-                'remarks' => data_get($payload, 'remarks'),
-                'rebate_justification' => data_get($payload, 'rebate_justification'),
-                'last_reject_note' => null,
+            'prepared_by_user_id' => $existingProject?->prepared_by_user_id ?: Auth::id(),
+            'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
+            'esd_director_user_id' => data_get($approverUsers, 'esdDirector.id'),
+            'vp_ccto_user_id' => data_get($approverUsers, 'vpCcto.id'),
+            'president_ceo_user_id' => data_get($approverUsers, 'presidentCeo.id'),
+            'current_approver_user_id' => null,
+            'approved_by_user_id' => null,
+            'rejected_by_user_id' => null,
 
-                'revenue' => $revenue,
-                'cogs' => $cogs,
-                'other_expense_total' => $otherExpenseTotal,
-                'total_expense' => $totalExpense,
-                'gp_value' => $gpValue,
-                'gp_percent' => $gpPercent,
+            'sub_category' => data_get($companyInfo, 'subCategory'),
+            'account' => data_get($companyInfo, 'account'),
+            'account_manager' => data_get($companyInfo, 'accountManager'),
 
-                'requires_vp_ccto' => $flags['requires_vp_ccto'],
-                'requires_president_ceo' => $flags['requires_president_ceo'],
-                'requires_rebate_justification' => $flags['requires_rebate_justification'],
+            'remarks' => data_get($payload, 'remarks'),
+            'rebate_justification' => data_get($payload, 'rebate_justification'),
+            'last_reject_note' => null,
 
-                'last_saved_at' => now(),
-                'submitted_at' => null,
-                'approved_at' => null,
-                'rejected_at' => null,
-            ]);
+            'revenue' => $revenue,
+            'cogs' => $cogs,
+            'other_expense_total' => $otherExpenseTotal,
+            'total_expense' => $totalExpense,
+            'gp_value' => $gpValue,
+            'gp_percent' => $gpPercent,
 
-            $project->save();
+            'requires_vp_ccto' => $flags['requires_vp_ccto'],
+            'requires_president_ceo' => $flags['requires_president_ceo'],
+            'requires_rebate_justification' => $flags['requires_rebate_justification'],
 
-            $project->items()->delete();
-            $project->fees()->delete();
+            'last_saved_at' => now(),
+            'submitted_at' => null,
+            'approved_at' => null,
+            'rejected_at' => null,
+        ]);
 
-            if (! empty($items)) {
-                $project->items()->createMany($items);
-            }
+        $project->save();
 
-            if (! empty($fees)) {
-                $project->fees()->createMany($fees);
-            }
+        $project->items()->delete();
+        $project->fees()->delete();
 
-            return $project;
-        });
+        if (! empty($items)) {
+            $project->items()->createMany($items);
+        }
 
-        return redirect()
-            ->route('sprf.entry.projects.show', $project)
-            ->with('success', 'SPRF draft saved.');
+        if (! empty($fees)) {
+            $project->fees()->createMany($fees);
+        }
+
+        return $project;
+    });
+
+    SprfActivityLogger::log(
+        activityType: $existingProject ? 'update_draft' : 'create_draft',
+        sprf: $project,
+        details: $existingProject
+            ? 'SPRF draft updated'
+            : 'SPRF draft created',
+        oldValues: $oldValues,
+        newValues: $project->fresh()->toArray()
+    );
+
+    return redirect()
+        ->route('sprf.entry.projects.show', $project)
+        ->with('success', 'SPRF draft saved.');
+}
+
+public function submit(Request $request, SprfEntryProject $project, SprfNumberGenerator $sprfNumberGenerator)
+{
+    if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
+        abort(403);
     }
 
-    public function submit( Request $request, SprfEntryProject $project, SprfNumberGenerator $sprfNumberGenerator)
-    {
-        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
-            abort(403);
-        }
-
-        if ($project->status !== 'draft') {
-            throw ValidationException::withMessages([
-                'project' => 'Only draft SPRF projects can be submitted.',
-            ]);
-        }
-
-        $payload = $this->validatePayload($request);
-
-        $revenue = (float) data_get($payload, 'summary.revenue', $project->revenue);
-        $cogs = (float) data_get($payload, 'summary.cogs', $project->cogs);
-        $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', $project->other_expense_total);
-        $totalExpense = (float) data_get($payload, 'summary.totalExpense', $project->total_expense);
-        $gpValue = (float) data_get($payload, 'summary.gpValue', $project->gp_value);
-        $gpPercent = (float) data_get($payload, 'summary.totalGpPercent', $project->gp_percent);
-
-        $items = $this->mapItemsPayload((array) data_get($payload, 'items', []));
-        $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
-
-        $hasRebate = $this->hasRebateValueFromMappedFees($fees);
-
-        $approvalConditionCode = $this->resolveApprovalConditionCode(
-            $payload,
-            $revenue,
-            $gpPercent,
-            $hasRebate
-        );
-
-        $approval = $this->resolveActiveSprfApprovalMatrix($approvalConditionCode);
-
-        $approverUsers = $approval['approver_users'];
-        $flags = $approval['flags'];
-        $sprfApprovalMatrixId = $approval['matrix_id'];
-
-        $this->validateRequiredApprovers($approverUsers, $flags);
-
-        $rebateJustification = (string) data_get(
-            $payload,
-            'rebate_justification',
-            $project->rebate_justification ?? ''
-        );
-
-        if ($flags['requires_rebate_justification'] && blank($rebateJustification)) {
-            throw ValidationException::withMessages([
-                'rebate_justification' => 'Rebate justification is required for this SPRF condition.',
-            ]);
-        }
-
-        DB::transaction(function () use (
-            $project,
-            $payload,
-            $approverUsers,
-            $revenue,
-            $cogs,
-            $otherExpenseTotal,
-            $totalExpense,
-            $gpValue,
-            $gpPercent,
-            $flags,
-            $items,
-            $fees,
-            $rebateJustification,
-            $sprfApprovalMatrixId,
-            $approvalConditionCode,
-            $sprfNumberGenerator
-        ) {
-            $companyInfo = (array) data_get($payload, 'company_info', []);
-
-            $documentDatetime = $project->document_datetime
-                ? Carbon::parse($project->document_datetime)
-                : now();
-
-            $sprfNo = $project->sprf_no
-                ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
-
-            $currentProject = SprfCurrentProject::create([
-                'entry_project_id' => $project->id,
-                'sprf_no' => $sprfNo,
-                'document_datetime' => $documentDatetime,
-
-                'status' => 'for_review',
-                'current_level' => 2,
-                'approval_level' => $flags['approval_level'],
-                'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
-                'approval_condition_code' => $approvalConditionCode,
-
-                'prepared_by_user_id' => $project->prepared_by_user_id ?: Auth::id(),
-                'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
-                'esd_director_user_id' => data_get($approverUsers, 'esdDirector.id'),
-                'vp_ccto_user_id' => data_get($approverUsers, 'vpCcto.id'),
-                'president_ceo_user_id' => data_get($approverUsers, 'presidentCeo.id'),
-                'current_approver_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
-                'approved_by_user_id' => null,
-                'rejected_by_user_id' => null,
-
-                'sub_category' => data_get($companyInfo, 'subCategory'),
-                'account' => data_get($companyInfo, 'account'),
-                'account_manager' => data_get($companyInfo, 'accountManager'),
-
-                'remarks' => data_get($payload, 'remarks', $project->remarks),
-                'rebate_justification' => $rebateJustification,
-                'last_reject_note' => null,
-
-                'revenue' => $revenue,
-                'cogs' => $cogs,
-                'other_expense_total' => $otherExpenseTotal,
-                'total_expense' => $totalExpense,
-                'gp_value' => $gpValue,
-                'gp_percent' => $gpPercent,
-
-                'requires_vp_ccto' => $flags['requires_vp_ccto'],
-                'requires_president_ceo' => $flags['requires_president_ceo'],
-                'requires_rebate_justification' => $flags['requires_rebate_justification'],
-
-                'last_saved_at' => now(),
-                'submitted_at' => now(),
-                'approved_at' => null,
-                'rejected_at' => null,
-            ]);
-
-            if (! empty($items)) {
-                $currentProject->items()->createMany($items);
-            }
-
-            if (! empty($fees)) {
-                $currentProject->fees()->createMany($fees);
-            }
-
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->forceDelete();
-        });
-
-        return redirect()
-            ->route('sprf.current')
-            ->with('success', 'Draft successfully submitted.');
+    if ($project->status !== 'draft') {
+        throw ValidationException::withMessages([
+            'project' => 'Only draft SPRF projects can be submitted.',
+        ]);
     }
 
-    public function destroy(SprfEntryProject $project)
-    {
-        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
-            abort(403);
-        }
+    $oldValues = $project->toArray();
 
-        if ($project->status !== 'draft') {
-            throw ValidationException::withMessages([
-                'project' => 'Only draft SPRF projects can be deleted.',
-            ]);
-        }
+    $payload = $this->validatePayload($request);
 
-        DB::transaction(function () use ($project) {
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->forceDelete();
-        });
+    $revenue = (float) data_get($payload, 'summary.revenue', $project->revenue);
+    $cogs = (float) data_get($payload, 'summary.cogs', $project->cogs);
+    $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', $project->other_expense_total);
+    $totalExpense = (float) data_get($payload, 'summary.totalExpense', $project->total_expense);
+    $gpValue = (float) data_get($payload, 'summary.gpValue', $project->gp_value);
+    $gpPercent = (float) data_get($payload, 'summary.totalGpPercent', $project->gp_percent);
 
-        return redirect()->route('sprf.entry.list');
+    $items = $this->mapItemsPayload((array) data_get($payload, 'items', []));
+    $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
+
+    $hasRebate = $this->hasRebateValueFromMappedFees($fees);
+
+    $approvalConditionCode = $this->resolveApprovalConditionCode(
+        $payload,
+        $revenue,
+        $gpPercent,
+        $hasRebate
+    );
+
+    $approval = $this->resolveActiveSprfApprovalMatrix($approvalConditionCode);
+
+    $approverUsers = $approval['approver_users'];
+    $flags = $approval['flags'];
+    $sprfApprovalMatrixId = $approval['matrix_id'];
+
+    $this->validateRequiredApprovers($approverUsers, $flags);
+
+    $rebateJustification = (string) data_get(
+        $payload,
+        'rebate_justification',
+        $project->rebate_justification ?? ''
+    );
+
+    if ($flags['requires_rebate_justification'] && blank($rebateJustification)) {
+        throw ValidationException::withMessages([
+            'rebate_justification' => 'Rebate justification is required for this SPRF condition.',
+        ]);
     }
 
+    $currentProject = DB::transaction(function () use (
+        $project,
+        $payload,
+        $approverUsers,
+        $revenue,
+        $cogs,
+        $otherExpenseTotal,
+        $totalExpense,
+        $gpValue,
+        $gpPercent,
+        $flags,
+        $items,
+        $fees,
+        $rebateJustification,
+        $sprfApprovalMatrixId,
+        $approvalConditionCode,
+        $sprfNumberGenerator
+    ) {
+        $companyInfo = (array) data_get($payload, 'company_info', []);
+
+        $documentDatetime = $project->document_datetime
+            ? Carbon::parse($project->document_datetime)
+            : now();
+
+        $sprfNo = $project->sprf_no
+            ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
+
+        $currentProject = SprfCurrentProject::create([
+            'entry_project_id' => $project->id,
+            'sprf_no' => $sprfNo,
+            'document_datetime' => $documentDatetime,
+
+            'status' => 'for_review',
+            'current_level' => 2,
+            'approval_level' => $flags['approval_level'],
+            'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
+            'approval_condition_code' => $approvalConditionCode,
+
+            'prepared_by_user_id' => $project->prepared_by_user_id ?: Auth::id(),
+            'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
+            'esd_director_user_id' => data_get($approverUsers, 'esdDirector.id'),
+            'vp_ccto_user_id' => data_get($approverUsers, 'vpCcto.id'),
+            'president_ceo_user_id' => data_get($approverUsers, 'presidentCeo.id'),
+            'current_approver_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
+            'approved_by_user_id' => null,
+            'rejected_by_user_id' => null,
+
+            'sub_category' => data_get($companyInfo, 'subCategory'),
+            'account' => data_get($companyInfo, 'account'),
+            'account_manager' => data_get($companyInfo, 'accountManager'),
+
+            'remarks' => data_get($payload, 'remarks', $project->remarks),
+            'rebate_justification' => $rebateJustification,
+            'last_reject_note' => null,
+
+            'revenue' => $revenue,
+            'cogs' => $cogs,
+            'other_expense_total' => $otherExpenseTotal,
+            'total_expense' => $totalExpense,
+            'gp_value' => $gpValue,
+            'gp_percent' => $gpPercent,
+
+            'requires_vp_ccto' => $flags['requires_vp_ccto'],
+            'requires_president_ceo' => $flags['requires_president_ceo'],
+            'requires_rebate_justification' => $flags['requires_rebate_justification'],
+
+            'last_saved_at' => now(),
+            'submitted_at' => now(),
+            'approved_at' => null,
+            'rejected_at' => null,
+        ]);
+
+        if (! empty($items)) {
+            $currentProject->items()->createMany($items);
+        }
+
+        if (! empty($fees)) {
+            $currentProject->fees()->createMany($fees);
+        }
+
+        $project->items()->delete();
+        $project->fees()->delete();
+        $project->forceDelete();
+
+        return $currentProject;
+    });
+
+    try {
+        SprfActivityLogger::log(
+            activityType: 'submitted',
+            sprf: $currentProject,
+            details: 'SPRF draft submitted',
+            oldValues: $oldValues,
+            newValues: $currentProject->fresh()->toArray()
+        );
+    } catch (\Throwable $e) {
+        Log::error('SPRF submit activity log failed', [
+            'message' => $e->getMessage(),
+            'sprf_current_project_id' => $currentProject->id ?? null,
+        ]);
+    }
+
+    return redirect()
+        ->route('sprf.current')
+        ->with('success', 'Draft successfully submitted.');
+}
+
+public function destroy(SprfEntryProject $project)
+{
+    if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
+        abort(403);
+    }
+
+    if ($project->status !== 'draft') {
+        throw ValidationException::withMessages([
+            'project' => 'Only draft SPRF projects can be deleted.',
+        ]);
+    }
+
+    $project->load(['items', 'fees']);
+
+    $oldValues = [
+        'project' => $project->toArray(),
+        'items' => $project->items->map->toArray()->toArray(),
+        'fees' => $project->fees->map->toArray()->toArray(),
+    ];
+
+    DB::transaction(function () use ($project) {
+        $project->items()->delete();
+        $project->fees()->delete();
+        $project->forceDelete();
+    });
+
+    try {
+        SprfActivityLogger::log(
+            activityType: 'delete_draft',
+            sprf: null,
+            details: 'Deleted SPRF draft #' . ($oldValues['project']['sprf_no'] ?? $project->id),
+            oldValues: $oldValues,
+            newValues: null
+        );
+    } catch (\Throwable $e) {
+        Log::error('SPRF delete activity log failed', [
+            'message' => $e->getMessage(),
+            'sprf_id' => $project->id,
+        ]);
+    }
+
+    return redirect()->route('sprf.entry.list');
+}
     private function validatePayload(Request $request): array
     {
         return $request->validate([

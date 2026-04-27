@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use App\Services\SprfActivityLogger;
+use Illuminate\Support\Facades\Log;
 
 class SprfCurrentProjectController extends Controller
 {
@@ -122,244 +124,312 @@ class SprfCurrentProjectController extends Controller
         ]);
     }
 
-    public function advanceProject(Request $request, SprfCurrentProject $project)
-    {
-        $this->assertAssignedApprover($project);
+public function advanceProject(Request $request, SprfCurrentProject $project)
+{
+    $this->assertAssignedApprover($project);
 
-        $validated = $request->validate([
-            'rebate_justification' => ['nullable', 'string'],
+    $oldValues = $project->toArray();
+
+    $validated = $request->validate([
+        'rebate_justification' => ['nullable', 'string'],
+    ]);
+
+    $rebateJustification = $project->rebate_justification;
+
+    if ((int) $project->current_level === 2) {
+        $rebateJustification = data_get(
+            $validated,
+            'rebate_justification',
+            $project->rebate_justification
+        );
+
+        if ($project->requires_rebate_justification && trim((string) $rebateJustification) === '') {
+            throw ValidationException::withMessages([
+                'rebate_justification' => 'Rebate justification is required when the Rebate row has a value.',
+            ]);
+        }
+    }
+
+    $finalLevel = $this->finalApprovalLevel($project);
+
+    if ((int) $project->current_level >= $finalLevel) {
+        throw ValidationException::withMessages([
+            'project' => 'This project is already at its final approval level. Use Approve instead.',
         ]);
+    }
 
-        $rebateJustification = $project->rebate_justification;
+    list($nextLevel, $nextApproverId) = $this->resolveNextStep($project);
 
-        if ((int) $project->current_level === 2) {
-            $rebateJustification = data_get(
-                $validated,
-                'rebate_justification',
-                $project->rebate_justification
-            );
+    if (! $nextApproverId) {
+        throw ValidationException::withMessages([
+            'project' => 'Next approver is not configured in User Management.',
+        ]);
+    }
 
-            if ($project->requires_rebate_justification && trim((string) $rebateJustification) === '') {
-                throw ValidationException::withMessages([
-                    'rebate_justification' => 'Rebate justification is required when the Rebate row has a value.',
-                ]);
-            }
-        }
+    $project->update([
+        'status' => 'under_review',
+        'current_level' => $nextLevel,
+        'current_approver_user_id' => $nextApproverId,
+        'rebate_justification' => $rebateJustification,
+        'last_saved_at' => now(),
+    ]);
 
-        $finalLevel = $this->finalApprovalLevel($project);
+    try {
+        SprfActivityLogger::log(
+            activityType: 'advanced',
+            sprf: $project->fresh(),
+            details: 'SPRF project advanced to the next level',
+            oldValues: $oldValues,
+            newValues: $project->fresh()->toArray()
+        );
+    } catch (\Throwable $e) {
+        Log::error('SPRF advance activity log failed', [
+            'message' => $e->getMessage(),
+            'sprf_current_project_id' => $project->id,
+        ]);
+    }
 
-        if ((int) $project->current_level >= $finalLevel) {
-            throw ValidationException::withMessages([
-                'project' => 'This project is already at its final approval level. Use Approve instead.',
-            ]);
-        }
+    return to_route('sprf.current')->with('success', 'SPRF project advanced to the next level.');
+}
 
-        list($nextLevel, $nextApproverId) = $this->resolveNextStep($project);
+public function reject(Request $request, SprfCurrentProject $project)
+{
+    $validated = $request->validate([
+        'body' => ['nullable', 'string'],
+    ]);
 
-        if (! $nextApproverId) {
-            throw ValidationException::withMessages([
-                'project' => 'Next approver is not configured in User Management.',
-            ]);
-        }
+    $this->assertAssignedApprover($project);
 
-        $project->update([
-            'status' => 'under_review',
-            'current_level' => $nextLevel,
-            'current_approver_user_id' => $nextApproverId,
-            'rebate_justification' => $rebateJustification,
+    $project->load(['items', 'fees']);
+
+    $oldValues = [
+        'project' => $project->toArray(),
+        'items' => $project->items->map->toArray()->toArray(),
+        'fees' => $project->fees->map->toArray()->toArray(),
+    ];
+
+    $archiveProject = DB::transaction(function () use ($project, $validated) {
+        $archiveProject = SprfArchiveProject::create([
+            'entry_project_id' => $project->entry_project_id,
+            'current_project_id' => $project->id,
+            'sprf_no' => $project->sprf_no,
+            'document_datetime' => $project->document_datetime,
+
+            'status' => 'rejected',
+            'current_level' => $project->current_level,
+            'approval_level' => $project->approval_level,
+
+            'prepared_by_user_id' => $project->prepared_by_user_id,
+            'director_customer_engagement_user_id' => $project->director_customer_engagement_user_id,
+            'esd_director_user_id' => $project->esd_director_user_id,
+            'vp_ccto_user_id' => $project->vp_ccto_user_id,
+            'president_ceo_user_id' => $project->president_ceo_user_id,
+            'current_approver_user_id' => null,
+            'approved_by_user_id' => null,
+            'rejected_by_user_id' => Auth::id(),
+
+            'sub_category' => $project->sub_category,
+            'account' => $project->account,
+            'account_manager' => $project->account_manager,
+
+            'remarks' => $project->remarks,
+            'rebate_justification' => $project->rebate_justification,
+            'last_reject_note' => isset($validated['body']) ? $validated['body'] : null,
+
+            'revenue' => $project->revenue,
+            'cogs' => $project->cogs,
+            'other_expense_total' => $project->other_expense_total,
+            'total_expense' => $project->total_expense,
+            'gp_value' => $project->gp_value,
+            'gp_percent' => $project->gp_percent,
+
+            'requires_vp_ccto' => $project->requires_vp_ccto,
+            'requires_president_ceo' => $project->requires_president_ceo,
+            'requires_rebate_justification' => $project->requires_rebate_justification,
+
             'last_saved_at' => now(),
+            'submitted_at' => $project->submitted_at,
+            'approved_at' => null,
+            'rejected_at' => now(),
         ]);
 
-        return to_route('sprf.current')->with('success', 'SPRF project advanced to the next level.');
+        $archiveProject->items()->createMany(
+            $project->items->map(function ($item) {
+                return [
+                    'product_code' => $item->product_code,
+                    'item_description' => $item->item_description,
+                    'qty' => $item->qty,
+                    'disty' => $item->disty,
+                    'cost_per_unit' => $item->cost_per_unit,
+                    'total_cost' => $item->total_cost,
+                    'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
+                    'total_selling_price_vat_inc' => $item->total_selling_price_vat_inc,
+                    'markup_value' => $item->markup_value,
+                    'markup_percent' => $item->markup_percent,
+                ];
+            })->all()
+        );
+
+        $archiveProject->fees()->createMany(
+            $project->fees->map(function ($fee) {
+                return [
+                    'expense_key' => $fee->expense_key,
+                    'is_fixed' => $fee->is_fixed,
+                    'product_code' => $fee->product_code,
+                    'item_description' => $fee->item_description,
+                    'qty' => $fee->qty,
+                    'unit_price' => $fee->unit_price,
+                    'total' => $fee->total,
+                ];
+            })->all()
+        );
+
+        $project->items()->delete();
+        $project->fees()->delete();
+        $project->forceDelete();
+
+        return $archiveProject;
+    });
+
+    try {
+        SprfActivityLogger::log(
+            activityType: 'rejected',
+            sprf: $archiveProject,
+            details: 'SPRF project rejected and archived',
+            oldValues: $oldValues,
+            newValues: $archiveProject->fresh()->toArray()
+        );
+    } catch (\Throwable $e) {
+        Log::error('SPRF reject activity log failed', [
+            'message' => $e->getMessage(),
+            'sprf_archive_project_id' => $archiveProject->id ?? null,
+        ]);
     }
 
-    public function reject(Request $request, SprfCurrentProject $project)
-    {
-        $validated = $request->validate([
-            'body' => ['nullable', 'string'],
+    return to_route('sprf.current')->with('success', 'SPRF project rejected and archived.');
+}
+
+
+public function approve(SprfCurrentProject $project)
+{
+    $this->assertAssignedApprover($project);
+
+    $finalLevel = $this->finalApprovalLevel($project);
+
+    if ((int) $project->current_level !== $finalLevel) {
+        throw ValidationException::withMessages([
+            'project' => 'Only the final approver can approve this SPRF project.',
+        ]);
+    }
+
+    $project->load(['items', 'fees']);
+
+    $oldValues = [
+        'project' => $project->toArray(),
+        'items' => $project->items->map->toArray()->toArray(),
+        'fees' => $project->fees->map->toArray()->toArray(),
+    ];
+
+    $archiveProject = DB::transaction(function () use ($project) {
+        $archiveProject = SprfArchiveProject::create([
+            'entry_project_id' => $project->entry_project_id,
+            'current_project_id' => $project->id,
+            'sprf_no' => $project->sprf_no,
+            'document_datetime' => $project->document_datetime,
+
+            'status' => 'approved',
+            'current_level' => $project->current_level,
+            'approval_level' => $project->approval_level,
+
+            'prepared_by_user_id' => $project->prepared_by_user_id,
+            'director_customer_engagement_user_id' => $project->director_customer_engagement_user_id,
+            'esd_director_user_id' => $project->esd_director_user_id,
+            'vp_ccto_user_id' => $project->vp_ccto_user_id,
+            'president_ceo_user_id' => $project->president_ceo_user_id,
+            'current_approver_user_id' => null,
+            'approved_by_user_id' => Auth::id(),
+            'rejected_by_user_id' => null,
+
+            'sub_category' => $project->sub_category,
+            'account' => $project->account,
+            'account_manager' => $project->account_manager,
+
+            'remarks' => $project->remarks,
+            'rebate_justification' => $project->rebate_justification,
+            'last_reject_note' => null,
+
+            'revenue' => $project->revenue,
+            'cogs' => $project->cogs,
+            'other_expense_total' => $project->other_expense_total,
+            'total_expense' => $project->total_expense,
+            'gp_value' => $project->gp_value,
+            'gp_percent' => $project->gp_percent,
+
+            'requires_vp_ccto' => $project->requires_vp_ccto,
+            'requires_president_ceo' => $project->requires_president_ceo,
+            'requires_rebate_justification' => $project->requires_rebate_justification,
+
+            'last_saved_at' => now(),
+            'submitted_at' => $project->submitted_at,
+            'approved_at' => now(),
+            'rejected_at' => null,
         ]);
 
-        $this->assertAssignedApprover($project);
+        $archiveProject->items()->createMany(
+            $project->items->map(function ($item) {
+                return [
+                    'product_code' => $item->product_code,
+                    'item_description' => $item->item_description,
+                    'qty' => $item->qty,
+                    'disty' => $item->disty,
+                    'cost_per_unit' => $item->cost_per_unit,
+                    'total_cost' => $item->total_cost,
+                    'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
+                    'total_selling_price_vat_inc' => $item->total_selling_price_vat_inc,
+                    'markup_value' => $item->markup_value,
+                    'markup_percent' => $item->markup_percent,
+                ];
+            })->all()
+        );
 
-        DB::transaction(function () use ($project, $validated) {
-            $archiveProject = SprfArchiveProject::create([
-                'entry_project_id' => $project->entry_project_id,
-                'current_project_id' => $project->id,
-                'sprf_no' => $project->sprf_no,
-                'document_datetime' => $project->document_datetime,
+        $archiveProject->fees()->createMany(
+            $project->fees->map(function ($fee) {
+                return [
+                    'expense_key' => $fee->expense_key,
+                    'is_fixed' => $fee->is_fixed,
+                    'product_code' => $fee->product_code,
+                    'item_description' => $fee->item_description,
+                    'qty' => $fee->qty,
+                    'unit_price' => $fee->unit_price,
+                    'total' => $fee->total,
+                ];
+            })->all()
+        );
 
-                'status' => 'rejected',
-                'current_level' => $project->current_level,
-                'approval_level' => $project->approval_level,
+        $project->items()->delete();
+        $project->fees()->delete();
+        $project->forceDelete();
 
-                'prepared_by_user_id' => $project->prepared_by_user_id,
-                'director_customer_engagement_user_id' => $project->director_customer_engagement_user_id,
-                'esd_director_user_id' => $project->esd_director_user_id,
-                'vp_ccto_user_id' => $project->vp_ccto_user_id,
-                'president_ceo_user_id' => $project->president_ceo_user_id,
-                'current_approver_user_id' => null,
-                'approved_by_user_id' => null,
-                'rejected_by_user_id' => Auth::id(),
+        return $archiveProject;
+    });
 
-                'sub_category' => $project->sub_category,
-                'account' => $project->account,
-                'account_manager' => $project->account_manager,
-
-                'remarks' => $project->remarks,
-                'rebate_justification' => $project->rebate_justification,
-                'last_reject_note' => isset($validated['body']) ? $validated['body'] : null,
-
-                'revenue' => $project->revenue,
-                'cogs' => $project->cogs,
-                'other_expense_total' => $project->other_expense_total,
-                'total_expense' => $project->total_expense,
-                'gp_value' => $project->gp_value,
-                'gp_percent' => $project->gp_percent,
-
-                'requires_vp_ccto' => $project->requires_vp_ccto,
-                'requires_president_ceo' => $project->requires_president_ceo,
-                'requires_rebate_justification' => $project->requires_rebate_justification,
-
-                'last_saved_at' => now(),
-                'submitted_at' => $project->submitted_at,
-                'approved_at' => null,
-                'rejected_at' => now(),
-            ]);
-
-            $archiveProject->items()->createMany(
-                $project->items->map(function ($item) {
-                    return [
-                        'product_code' => $item->product_code,
-                        'item_description' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'cost_per_unit' => $item->cost_per_unit,
-                        'total_cost' => $item->total_cost,
-                        'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
-                        'total_selling_price_vat_inc' => $item->total_selling_price_vat_inc,
-                        'markup_value' => $item->markup_value,
-                        'markup_percent' => $item->markup_percent,
-                    ];
-                })->all()
-            );
-
-            $archiveProject->fees()->createMany(
-                $project->fees->map(function ($fee) {
-                    return [
-                        'expense_key' => $fee->expense_key,
-                        'is_fixed' => $fee->is_fixed,
-                        'product_code' => $fee->product_code,
-                        'item_description' => $fee->item_description,
-                        'qty' => $fee->qty,
-                        'unit_price' => $fee->unit_price,
-                        'total' => $fee->total,
-                    ];
-                })->all()
-            );
-
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->forceDelete();
-        });
-
-        return to_route('sprf.current')->with('success', 'SPRF project rejected and archived.');
+    try {
+        SprfActivityLogger::log(
+            activityType: 'approved',
+            sprf: $archiveProject,
+            details: 'SPRF project approved and archived',
+            oldValues: $oldValues,
+            newValues: $archiveProject->fresh()->toArray()
+        );
+    } catch (\Throwable $e) {
+        Log::error('SPRF approve activity log failed', [
+            'message' => $e->getMessage(),
+            'sprf_archive_project_id' => $archiveProject->id ?? null,
+        ]);
     }
 
-    public function approve(SprfCurrentProject $project)
-    {
-        $this->assertAssignedApprover($project);
-
-        $finalLevel = $this->finalApprovalLevel($project);
-
-        if ((int) $project->current_level !== $finalLevel) {
-            throw ValidationException::withMessages([
-                'project' => 'Only the final approver can approve this SPRF project.',
-            ]);
-        }
-
-        DB::transaction(function () use ($project) {
-            $archiveProject = SprfArchiveProject::create([
-                'entry_project_id' => $project->entry_project_id,
-                'current_project_id' => $project->id,
-                'sprf_no' => $project->sprf_no,
-                'document_datetime' => $project->document_datetime,
-
-                'status' => 'approved',
-                'current_level' => $project->current_level,
-                'approval_level' => $project->approval_level,
-
-                'prepared_by_user_id' => $project->prepared_by_user_id,
-                'director_customer_engagement_user_id' => $project->director_customer_engagement_user_id,
-                'esd_director_user_id' => $project->esd_director_user_id,
-                'vp_ccto_user_id' => $project->vp_ccto_user_id,
-                'president_ceo_user_id' => $project->president_ceo_user_id,
-                'current_approver_user_id' => null,
-                'approved_by_user_id' => Auth::id(),
-                'rejected_by_user_id' => null,
-
-                'sub_category' => $project->sub_category,
-                'account' => $project->account,
-                'account_manager' => $project->account_manager,
-
-                'remarks' => $project->remarks,
-                'rebate_justification' => $project->rebate_justification,
-                'last_reject_note' => null,
-
-                'revenue' => $project->revenue,
-                'cogs' => $project->cogs,
-                'other_expense_total' => $project->other_expense_total,
-                'total_expense' => $project->total_expense,
-                'gp_value' => $project->gp_value,
-                'gp_percent' => $project->gp_percent,
-
-                'requires_vp_ccto' => $project->requires_vp_ccto,
-                'requires_president_ceo' => $project->requires_president_ceo,
-                'requires_rebate_justification' => $project->requires_rebate_justification,
-
-                'last_saved_at' => now(),
-                'submitted_at' => $project->submitted_at,
-                'approved_at' => now(),
-                'rejected_at' => null,
-            ]);
-
-            $archiveProject->items()->createMany(
-                $project->items->map(function ($item) {
-                    return [
-                        'product_code' => $item->product_code,
-                        'item_description' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'cost_per_unit' => $item->cost_per_unit,
-                        'total_cost' => $item->total_cost,
-                        'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
-                        'total_selling_price_vat_inc' => $item->total_selling_price_vat_inc,
-                        'markup_value' => $item->markup_value,
-                        'markup_percent' => $item->markup_percent,
-                    ];
-                })->all()
-            );
-
-            $archiveProject->fees()->createMany(
-                $project->fees->map(function ($fee) {
-                    return [
-                        'expense_key' => $fee->expense_key,
-                        'is_fixed' => $fee->is_fixed,
-                        'product_code' => $fee->product_code,
-                        'item_description' => $fee->item_description,
-                        'qty' => $fee->qty,
-                        'unit_price' => $fee->unit_price,
-                        'total' => $fee->total,
-                    ];
-                })->all()
-            );
-
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->forceDelete();
-        });
-
-        return to_route('sprf.current')->with('success', 'SPRF project approved and archived.');
-    }
+    return to_route('sprf.current')->with('success', 'SPRF project approved and archived.');
+}
 
     private function currentProjectAssignedToUser(SprfCurrentProject $project, int $userId): bool
     {
