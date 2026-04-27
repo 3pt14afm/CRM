@@ -45,6 +45,37 @@ const displayPercent = (value) => {
   return `${Number(value).toFixed(2)}%`;
 };
 
+const normalizePrintRows = (value) => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value : [''];
+  }
+
+  if (isBlank(value)) return [''];
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (!trimmed) return [''];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+
+      if (Array.isArray(parsed)) {
+        return parsed.length > 0 ? parsed : [''];
+      }
+    } catch (error) {
+      // Keep checking the original string if it is not JSON.
+    }
+
+    return trimmed
+      .split(/\r?\n/)
+      .map((row) => row.trim())
+      .filter(Boolean);
+  }
+
+  return [value];
+};
+
 const hasItemValue = (row) => {
   return (
     displayText(row.productCode) ||
@@ -429,15 +460,24 @@ function PrintInfoBlock({ rows }) {
 }
 
 function PrintTextBlock({ label, value }) {
+  const rows = normalizePrintRows(value);
+
   return (
     <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-3 py-2">
-      <div className="grid grid-cols-[90px_minmax(0,1fr)] items-center gap-5">
+      <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-5">
         <label className="text-[11px] uppercase font-semibold tracking-[0.01em]">
           {label}
         </label>
 
-        <div className="min-h-[60px] rounded-xl border border-gray-200 px-3 py-3 text-[11px] whitespace-pre-wrap bg-white">
-          {displayText(value)}
+        <div className="min-w-0 space-y-1">
+          {rows.map((row, index) => (
+            <div
+              key={`${label}-${index}`}
+              className="min-w-0 min-h-[32px] max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11px] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+            >
+              {displayText(row) || '—'}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -452,7 +492,7 @@ function PrintRejectNoteBlock({ value }) {
           Reject Note
         </label>
 
-        <div className="px-3 py-1 text-[11px] text-slate-700">
+        <div className="px-3 py-1 text-[11px] text-slate-700 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {displayText(value)}
         </div>
       </div>
@@ -758,13 +798,13 @@ function PrintNamesBlock({
             <PrintSignatory {...(signatories?.directorCustomerEngagement ?? {})} />
           </div>
 
-          {showRebateJustification && (
+          {showRebateJustification && displayText(rebateJustification) && (
             <div className="mt-10">
               <label className="text-[10px] font-extrabold text-gray-800 tracking-tight uppercase">
                 JUSTIFICATION FOR REBATE
               </label>
 
-              <div className="mt-2 w-full max-w-[195px] text-[11px] min-h-[54px] whitespace-pre-wrap text-slate-700">
+              <div className="mt-2 w-full max-w-[195px] text-[11px] min-h-[54px] whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-slate-700">
                 {displayText(rebateJustification)}
               </div>
             </div>
