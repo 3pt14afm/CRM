@@ -106,6 +106,7 @@ class UserController extends Controller
                 'users.last_name',
                 'users.employee_id',
                 'users.department_id',
+                'users.company_position_id',
                 'users.position',
                 'users.email',
                 'users.primary_location_id',
@@ -177,6 +178,7 @@ class UserController extends Controller
                 'users.last_name',
                 'users.employee_id',
                 'users.department_id',
+                'users.company_position_id',
                 'users.position',
                 'users.email',
                 'users.primary_location_id',
@@ -228,21 +230,23 @@ class UserController extends Controller
             'last_name'           => ['required', 'string', 'max:255'],
             'employee_id'         => ['required', 'regex:/^\d{1,4}$/', 'unique:users,employee_id'],
             'department_id'       => ['required', 'integer', 'exists:company_departments,id'],
-            'position'            => ['required', 'string', 'max:255'],
+            'company_position_id' => ['required', 'integer', 'exists:company_positions,id'],
+            'position'            => ['nullable', 'string', 'max:255'],
             'email'               => ['required', 'email', 'unique:users,email'],
             'primary_location_id' => ['required', 'integer', 'exists:locations,id'],
         ], [
             'employee_id.regex' => 'Employee ID must be 1 to 4 digits only.',
         ]);
 
-        $validPosition = CompanyPosition::query()
-            ->where('name', $request->position)
+        $selectedPosition = CompanyPosition::query()
+            ->whereKey((int) $request->company_position_id)
             ->where('department_id', (int) $request->department_id)
             ->where('is_active', true)
-            ->exists();
+            ->first();
 
-        if (! $validPosition) {
+        if (! $selectedPosition) {
             return back()->withErrors([
+                'company_position_id' => 'Selected position does not belong to the chosen department.',
                 'position' => 'Selected position does not belong to the chosen department.',
             ])->withInput();
         }
@@ -252,7 +256,8 @@ class UserController extends Controller
             'last_name'                    => $request->last_name,
             'employee_id'                  => $request->employee_id,
             'department_id'                => (int) $request->department_id,
-            'position'                     => $request->position,
+            'company_position_id'          => $selectedPosition->id,
+            'position'                     => $selectedPosition->name,
             'email'                        => $request->email,
             'primary_location_id'          => (int) $request->primary_location_id,
             'password'                     => Hash::make('P@ssw0rd'),
@@ -273,7 +278,8 @@ class UserController extends Controller
             'last_name'           => ['required', 'string', 'max:255'],
             'employee_id'         => ['required', 'regex:/^\d{1,4}$/', 'unique:users,employee_id,' . $user->id],
             'department_id'       => ['required', 'integer', 'exists:company_departments,id'],
-            'position'            => ['required', 'string', 'max:255'],
+            'company_position_id' => ['required', 'integer', 'exists:company_positions,id'],
+            'position'            => ['nullable', 'string', 'max:255'],
             'email'               => ['required', 'email', 'unique:users,email,' . $user->id],
             'primary_location_id' => ['required', 'integer', 'exists:locations,id'],
             'password'            => ['nullable', 'string', 'min:8'],
@@ -281,14 +287,15 @@ class UserController extends Controller
             'employee_id.regex' => 'Employee ID must be 1 to 4 digits only.',
         ]);
 
-        $validPosition = CompanyPosition::query()
-            ->where('name', $request->position)
+        $selectedPosition = CompanyPosition::query()
+            ->whereKey((int) $request->company_position_id)
             ->where('department_id', (int) $request->department_id)
             ->where('is_active', true)
-            ->exists();
+            ->first();
 
-        if (! $validPosition) {
+        if (! $selectedPosition) {
             return back()->withErrors([
+                'company_position_id' => 'Selected position does not belong to the chosen department.',
                 'position' => 'Selected position does not belong to the chosen department.',
             ])->withInput();
         }
@@ -298,7 +305,8 @@ class UserController extends Controller
             'last_name'           => $request->last_name,
             'employee_id'         => $request->employee_id,
             'department_id'       => (int) $request->department_id,
-            'position'            => $request->position,
+            'company_position_id' => $selectedPosition->id,
+            'position'            => $selectedPosition->name,
             'email'               => $request->email,
             'primary_location_id' => (int) $request->primary_location_id,
         ];
@@ -393,6 +401,7 @@ class UserController extends Controller
             'last_name'           => ['required', 'string', 'max:255'],
             'employee_id'         => ['required', 'regex:/^\d{1,4}$/', 'unique:users,employee_id'],
             'department_id'       => ['required', 'integer', 'exists:company_departments,id'],
+            'company_position_id' => ['required', 'integer', 'exists:company_positions,id'],
             'position'            => ['required', 'string', 'max:255'],
             'email'               => ['required', 'email', 'unique:users,email'],
             'primary_location_id' => ['required', 'integer', 'exists:locations,id'],
@@ -412,12 +421,26 @@ class UserController extends Controller
             ])->withInput();
         }
 
+        $selectedPosition = CompanyPosition::query()
+            ->whereKey((int) $request->company_position_id)
+            ->where('department_id', (int) $request->department_id)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $selectedPosition) {
+            return back()->withErrors([
+                'company_position_id' => 'Selected position does not belong to the chosen department.',
+                'position' => 'Selected position does not belong to the chosen department.',
+            ])->withInput();
+        }
+
         User::create([
             'first_name'                   => $request->first_name,
             'last_name'                    => $request->last_name,
             'employee_id'                  => $request->employee_id,
             'department_id'                => (int) $request->department_id,
-            'position'                     => $request->position,
+            'company_position_id' => $selectedPosition->id,
+            'position' => $selectedPosition->name,
             'email'                        => $request->email,
             'primary_location_id'          => (int) $request->primary_location_id,
             'password'                     => Hash::make('P@ssw0rd'),

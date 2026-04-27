@@ -21,6 +21,9 @@ class SprfArchiveProject extends Model
         'current_level',
         'approval_level',
 
+        'sprf_approval_matrix_id',
+        'approval_condition_code',
+
         'prepared_by_user_id',
         'director_customer_engagement_user_id',
         'esd_director_user_id',

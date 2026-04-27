@@ -50,7 +50,10 @@ export default function useEditUserModal() {
       employee_id: Number(editForm.employee_id),
       department_id: Number(editForm.department_id),
       department: editForm.department,
+
+      company_position_id: Number(editForm.company_position_id),
       position: editForm.position,
+
       email: editForm.email,
       primary_location_id: Number(editForm.primary_location_id),
       password: editForm.password ? editForm.password : null,
