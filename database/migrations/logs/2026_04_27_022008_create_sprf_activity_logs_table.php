@@ -42,7 +42,7 @@ return new class extends Migration
     // SPRF status info
     $table->string('sprf_status')->nullable();
     $table->integer('current_level')->nullable();
-    $table->integer('approval_level')->nullable();
+    $table->string('approval_level')->nullable();
     $table->string('approval_condition_code')->nullable();
 
     // SPRF business info
@@ -81,7 +81,7 @@ return new class extends Migration
     $table->index(['sprf_entry_project_id', 'created_at']);
     $table->index(['user_id', 'created_at']);
  });
- 
+
     }
 
     public function down(): void
