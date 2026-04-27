@@ -8,6 +8,11 @@ use Illuminate\Auth\Events\Logout;
 
 use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\PasswordReset;
+use App\Listeners\LogFailedLogin;
+use App\Listeners\LogPasswordReset;
+
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -24,8 +29,16 @@ class EventServiceProvider extends ServiceProvider
         Logout::class => [
             LogSuccessfulLogout::class,
         ],
+          Failed::class => [
+        LogFailedLogin::class,
+    ],
+
+    PasswordReset::class => [
+        LogPasswordReset::class,
+    ],
     ];
 
+    
     /**
      * Register any events for your application.
      */

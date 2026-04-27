@@ -24,7 +24,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Concerns\StreamsEntryRemarkAttachments;
 use Illuminate\Validation\ValidationException;
-use App\Services\ActivityLogger;
+use App\Services\RoiActivityLogger;
 use Illuminate\Support\Facades\Log;
 
 class RoiEntryProjectController extends Controller
@@ -312,7 +312,7 @@ public function saveDraft(Request $request)
             ]
             : $this->getChangedValues($oldSnapshot, $newSnapshot);
 
-        ActivityLogger::log(
+        RoiActivityLogger::log(
             activityType: $isNewProject ? 'save_draft' : 'update_draft',
             moduleType: 'ROI Entry',
             details: $isNewProject
@@ -464,7 +464,7 @@ public function saveDraft(Request $request)
     });
 
     try {
-        ActivityLogger::log(
+        RoiActivityLogger::log(
             activityType: 'submit',
             moduleType: 'ROI Entry',
             details: 'Submitted ROI #' . $newProject->reference,
@@ -524,7 +524,7 @@ public function saveDraft(Request $request)
 
         // 🔥 Log AFTER delete (safe)
         try {
-            ActivityLogger::log(
+            RoiActivityLogger::log(
                 activityType: 'delete',
                 moduleType: 'ROI Entry',
                 details: 'Deleted ROI draft #' . ($oldValues['project']['reference'] ?? ''),
@@ -739,7 +739,7 @@ private function validateDraftPayload(Request $request): array
 
         if (!empty($uploadedLogs) || !empty($removed)) {
             try {
-                ActivityLogger::log(
+                RoiActivityLogger::log(
                     activityType: 'update_attachments',
                     moduleType: 'ROI Entry',
                     details: 'Updated entry remark attachments for ROI #' . $project->reference,
@@ -850,7 +850,7 @@ private function validateDraftPayload(Request $request): array
 
             // ✅ LOG
             try {
-                ActivityLogger::log(
+                RoiActivityLogger::log(
                     activityType: 'add_note',
                     moduleType: 'ROI Entry',
                     details: 'Added note to ROI #' . $project->reference,
@@ -901,7 +901,7 @@ private function validateDraftPayload(Request $request): array
 
             // ✅ LOG
             try {
-                ActivityLogger::log(
+                RoiActivityLogger::log(
                     activityType: 'add_comment',
                     moduleType: 'ROI Current',
                     details: 'Added comment to ROI #' . $project->reference,

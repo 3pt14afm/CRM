@@ -3,21 +3,21 @@
 namespace App\Listeners;
 
 use App\Services\AuthActivityLogger;
-use App\Services\RoiActivityLogger;
-use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Log;
 
-class LogSuccessfulLogin
+class LogPasswordReset
 {
-    public function handle(Login $event): void
+    public function handle(PasswordReset $event): void
     {
-       try {
+        try {
             AuthActivityLogger::log(
-                activityType: 'login',
-                details: 'User log in successfully'
+                activityType: 'password_reset',
+                details: 'User reset password',
+                user: $event->user
             );
         } catch (\Throwable $e) {
-            Log::error('login activity log failed', [
+            Log::error('Password reset activity log failed', [
                 'message' => $e->getMessage(),
                 'user_id' => $event->user?->id,
             ]);

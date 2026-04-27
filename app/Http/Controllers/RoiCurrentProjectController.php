@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use App\Services\ActivityLogger;
+use App\Services\RoiActivityLogger;
 
 class RoiCurrentProjectController extends Controller
 {
@@ -692,7 +692,7 @@ public function sendBack(Request $request, $id)
             }
 
             try {
-                ActivityLogger::log(
+                RoiActivityLogger::log(
                     activityType: 'send_back',
                     moduleType: 'ROI Current',
                     details: 'Sent back ROI #' . $project->reference . ' to ' . $backStatus,
@@ -731,7 +731,7 @@ public function sendBack(Request $request, $id)
         $project->save();
 
         try {
-            ActivityLogger::log(
+            RoiActivityLogger::log(
                 activityType: 'send_back',
                 moduleType: 'ROI Current',
                 details: 'Sent back ROI #' . $project->reference . ' to ' . $backStatus,
@@ -802,7 +802,7 @@ public function sendBack(Request $request, $id)
             ]);
 
             try {
-               ActivityLogger::log(
+               RoiActivityLogger::log(
                 activityType: 'advance',
                 moduleType: 'ROI Current',
                 details: 'Advanced ROI #' . $project->reference . ' to ' . $nextStatus,
@@ -860,7 +860,7 @@ public function reject($id)
         ]);
 
         try {
-            ActivityLogger::log(
+            RoiActivityLogger::log(
                 activityType: 'reject',
                 moduleType: 'ROI Current',
                 details: 'Rejected ROI #' . $reference,
@@ -921,7 +921,7 @@ public function approve($id)
         ]);
 
         try {
-            ActivityLogger::log(
+            RoiActivityLogger::log(
                 activityType: 'approve',
                 moduleType: 'ROI Current',
                 details: 'Approved ROI #' . $reference,
@@ -992,7 +992,7 @@ public function storeNote(Request $request, RoiCurrentProject $project)
     ]);
 
     try {
-        ActivityLogger::log(
+        RoiActivityLogger::log(
             activityType: 'add_note',
             moduleType: 'ROI Current',
             details: 'Added note to ROI #' . $project->reference,
