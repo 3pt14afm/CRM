@@ -4,13 +4,14 @@ namespace App\Http\Controllers\SPRF;
 
 use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfApprovalMatrix;
-use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfCurrentProject;
 use App\Models\SPRF\SprfEntryFee;
 use App\Models\SPRF\SprfEntryItem;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
+use App\Services\SPRF\SprfNumberGenerator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -48,7 +49,7 @@ class SprfEntryProjectController extends Controller
         ]);
     }
 
-    public function saveDraft(Request $request)
+    public function saveDraft(Request $request, SprfNumberGenerator $sprfNumberGenerator)
     {
         $payload = $this->validatePayload($request);
 
@@ -99,15 +100,22 @@ class SprfEntryProjectController extends Controller
             $items,
             $fees,
             $sprfApprovalMatrixId,
-            $approvalConditionCode
+            $approvalConditionCode,
+            $sprfNumberGenerator
         ) {
             $project = $existingProject ?: new SprfEntryProject();
+
+            $documentDatetime = $existingProject?->document_datetime
+                ? Carbon::parse($existingProject->document_datetime)
+                : now();
+
+            $sprfNo = $existingProject?->sprf_no ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
 
             $companyInfo = (array) data_get($payload, 'company_info', []);
 
             $project->fill([
-                'sprf_no' => data_get($payload, 'sprf_no') ?: ($existingProject?->sprf_no ?: $this->generateNextSprfNo()),
-                'document_datetime' => $existingProject?->document_datetime ?: now(),
+                'sprf_no' => $sprfNo,
+                'document_datetime' => $documentDatetime,
 
                 'status' => 'draft',
                 'current_level' => 1,
@@ -170,7 +178,7 @@ class SprfEntryProjectController extends Controller
             ->with('success', 'SPRF draft saved.');
     }
 
-    public function submit(Request $request, SprfEntryProject $project)
+    public function submit( Request $request, SprfEntryProject $project, SprfNumberGenerator $sprfNumberGenerator)
     {
         if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
             abort(403);
@@ -238,14 +246,22 @@ class SprfEntryProjectController extends Controller
             $fees,
             $rebateJustification,
             $sprfApprovalMatrixId,
-            $approvalConditionCode
+            $approvalConditionCode,
+            $sprfNumberGenerator
         ) {
             $companyInfo = (array) data_get($payload, 'company_info', []);
 
+            $documentDatetime = $project->document_datetime
+                ? Carbon::parse($project->document_datetime)
+                : now();
+
+            $sprfNo = $project->sprf_no
+                ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
+
             $currentProject = SprfCurrentProject::create([
                 'entry_project_id' => $project->id,
-                'sprf_no' => $project->sprf_no ?: $this->generateNextSprfNo(),
-                'document_datetime' => $project->document_datetime ?: now(),
+                'sprf_no' => $sprfNo,
+                'document_datetime' => $documentDatetime,
 
                 'status' => 'for_review',
                 'current_level' => 2,
@@ -330,7 +346,6 @@ class SprfEntryProjectController extends Controller
     {
         return $request->validate([
             'project_id' => ['nullable', 'integer', 'exists:sprf_entry_projects,id'],
-            'sprf_no' => ['nullable', 'string', 'max:50'],
             'approval_condition_code' => ['nullable', 'string', 'max:50'],
 
             'company_info' => ['nullable', 'array'],
@@ -916,25 +931,5 @@ class SprfEntryProjectController extends Controller
                 'email' => $project->preparer?->email,
             ],
         ];
-    }
-
-    private function generateNextSprfNo(): string
-    {
-        $allNumbers = collect()
-            ->merge(SprfEntryProject::query()->pluck('sprf_no'))
-            ->merge(SprfCurrentProject::query()->pluck('sprf_no'))
-            ->merge(SprfArchiveProject::query()->pluck('sprf_no'))
-            ->filter()
-            ->map(function ($sprfNo) {
-                if (preg_match('/(\d+)$/', (string) $sprfNo, $matches)) {
-                    return (int) $matches[1];
-                }
-
-                return 0;
-            });
-
-        $nextNumber = ((int) $allNumbers->max()) + 1;
-
-        return 'SPRFIT-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 }
