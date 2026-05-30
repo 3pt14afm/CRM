@@ -234,12 +234,12 @@ const validateBusinessLogic = () => {
             return false;
           }
 
-          // Machine/Printer Rule: Never allow Yields
-          if (isMachine && yieldVal > 0) {
-            toast.error(`Yields cannot be entered for Machines.`);
-            setTab("Machine");
-            return false;
-          }
+         // ✅ Machine/Printer Rule: Allow Yields ONLY if mode is "others"
+      if (isMachine && item.mode !== "others" && yieldVal > 0) {
+        toast.error(`Yields cannot be entered for Machines (unless set to 'Others').`);
+        setTab("Machine");
+        return false;
+      }
 
           // Toner Rule: Require Yields for consumables (except Fixed models)
           if (!isMachine && isMonoColor && !isFixed && yieldVal <= 0 && !isOutrightOnly ) {

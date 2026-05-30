@@ -322,6 +322,20 @@ class UserController extends Controller
         return back()->with('success', 'User updated.');
     }
 
+    public function userResetPassword(User $user)
+    {
+        $user->update([
+            'password'                     => Hash::make('P@ssw0rd'),
+            'password_expiry'              => now()->subDay()->toDateString(),
+            'default_password_login_count' => 0,
+            'must_change_password'         => false,
+        ]);
+
+        $fullName = trim($user->first_name . ' ' . $user->last_name);
+
+        return back()->with('success', "Password for {$fullName} has been reset to default.");
+    }
+
     public function userAssignLocations(Request $request, User $user)
     {
         return back()->withErrors([

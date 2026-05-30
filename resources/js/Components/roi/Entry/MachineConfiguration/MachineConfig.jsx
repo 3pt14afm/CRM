@@ -628,7 +628,9 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
 
                 // General Machine Rule: Never allow Yields for hardware.
                 // Toner Rule: Always require Yields for consumables.
-                const isYieldDisabled = isMachineRow || (isFixed && isMachineRow) || isFixed;
+                const isOtherMachine = isMachineRow && modeStr === 'others';
+
+                  const isYieldDisabled = isMachineRow && !isOtherMachine;
                 
                 // Selling Price Logic
                 // PROHIBITED for non-outright machines

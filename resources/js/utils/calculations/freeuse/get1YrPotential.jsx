@@ -9,13 +9,7 @@ export const get1YrPotential = (projectData) => {
 
   // Rule: Only Outright contracts allow a Machine selling price
   const isOutright = normalizedContractType.includes("outright");
-
   const isMonthlyRental = normalizedContractType === "fixed monthly only";
-
-  const isRentalClick = normalizedContractType === "rental + click charge";
-  const isFixClick = normalizedContractType === "free use + click charge";
-  const isOutrightClick = normalizedContractType === "outright + click charge";
-  const usesExactClickQty = isRentalClick || isFixClick || isOutrightClick;
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
   const bundleDeduction = (isMonthlyRental && isBundleChecked)
@@ -29,106 +23,124 @@ export const get1YrPotential = (projectData) => {
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
 
- // 2. PROCESS MACHINES
-const processedMachines = rawMachines.map(m => {
-  const machineQty = Number(m.qty) || 1;
-  const unitCost = Number(m.cost) || 0;
-  const unitMargin = Number(m.margin) || 0; // Ensure 'margin' exists in your data
-  
-  // Combine them here if that is your requirement
-  const loadedCost = unitCost + unitMargin;
-  
-  const unitSell = isOutright ? (Number(m.price) || 0) : 0;
+  // Helper to ensure clean 2 decimal points everywhere
+  const to2Decimals = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
-  return {
-    ...m,
-    qty: machineQty,
-    price: unitSell,
-    // totalCost now includes the margin
-    totalCost: machineQty * loadedCost, 
-    totalSell: machineQty * unitSell
+  // --- HELPER FUNCTIONS ---
+  const getQtyFromYields = (annualYields, itemYields) => {
+    const safeItemYields = Number(itemYields);
+    if (!safeItemYields || safeItemYields <= 0) {
+      return 0;
+    }
+    const exactQty = annualYields / safeItemYields;
+    return to2Decimals(exactQty);
   };
-});
 
- const getQtyFromYields = (annualYields, itemYields) => {
-  const safeItemYields = Number(itemYields);
+  const getSafeNumber = (val, fallback = 0) => {
+    const num = Number(val);
+    return isNaN(num) ? fallback : num;
+  };
 
-  // 🚫 Prevent division by 0 or invalid yields
-  if (!safeItemYields || safeItemYields <= 0) {
-    return 0;
-  }
+  const hasValidYield = (y) => {
+    const num = Number(y);
+    return !isNaN(num) && num > 0;
+  };
 
-  const exactQty = annualYields / safeItemYields;
-
-  return usesExactClickQty
-    ? Math.round(exactQty * 100) / 100  // max 2 decimals
-    : Math.ceil(exactQty);
-};
-
-const getSafeNumber = (val, fallback = 0) => {
-  const num = Number(val);
-  return isNaN(num) ? fallback : num;
-};
-
-const hasValidYield = (y) => {
-  const num = Number(y);
-  return !isNaN(num) && num > 0;
-};
-
-const processedConsumables = rawConsumables.map(c => {
-  const mode = c.mode?.toLowerCase();
-  const itemYields = Number(c.yields);
-
-  let qty = 0;
+  // 2. PROCESS CONSUMABLES
+  const processedConsumables = rawConsumables.map(c => {
+    const mode = c.mode?.toLowerCase();
+    const itemYields = Number(c.yields);
+    let qty = 0;
 
     if (isMonthlyRental) {
-    qty = 0;
-    const unitCost = 0;
+      return {
+        ...c,
+        qty: 0,
+        yields: 0,
+        price: 0,
+        totalCost: 0,
+        totalSell: 0,
+      };
+    }
+
+    if (mode === 'others') {
+      if (hasValidYield(itemYields)) {
+        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        if (baseYields > 0) {
+          qty = getQtyFromYields(baseYields, itemYields);
+        } else {
+          qty = getSafeNumber(c.qty, 1);
+        }
+      } else {
+        qty = getSafeNumber(c.qty, 1);
+      }
+    } else if ((mode === 'mono' || mode === 'color') && hasValidYield(itemYields)) {
+      const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
+      qty = getQtyFromYields(baseYields, itemYields);
+    } else if (mode === 'mono' || mode === 'color') {
+      qty = 0;
+    } else {
+      qty = getSafeNumber(c.qty, 1);
+    }
+
+    const unitCost = getSafeNumber(c.cost);
+    const unitSell = getSafeNumber(c.price);
+
     return {
       ...c,
-      qty,
-      yields: 0,
-      price: 0,
-      totalCost: qty * unitCost,
-      totalSell: 0,
+      qty: to2Decimals(qty),
+      totalCost: to2Decimals(qty * unitCost),
+      totalSell: to2Decimals(qty * unitSell)
     };
-  }
+  });
 
+  // 3. PROCESS MACHINES
+  const processedMachines = rawMachines.map(m => {
+    const mode = m.mode?.toLowerCase();
+    const machineYields = Number(m.yields);
+    let machineQty = Number(m.qty);
+    
+    // ✅ Replicated logic for "others" machines
+    if (mode === 'others') {
+      if (hasValidYield(machineYields)) {
+        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        if (baseYields > 0) {
+          machineQty = getQtyFromYields(baseYields, machineYields);
+        } else {
+          machineQty = getSafeNumber(m.qty, 1);
+        }
+      } else {
+        machineQty = getSafeNumber(m.qty, 1);
+      }
+    } 
+    // ✅ Standard fallback for mono/color machines if QTY is missing/0
+    else if (!machineQty || machineQty <= 0) {
+      if (hasValidYield(machineYields)) {
+        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : 1;
+      } else {
+        machineQty = 1; 
+      }
+    }
 
-  // ✅ CASE 1: OTHERS → always manual
-  if (mode === 'others') {
-    qty = getSafeNumber(c.qty, 1);
-  }
+    const unitCost = Number(m.cost) || 0;
+    const unitMargin = Number(m.margin) || 0; 
+    
+    const loadedCost = unitCost + unitMargin;
+    const unitSell = isOutright ? (Number(m.price) || 0) : 0;
 
-  // ✅ CASE 2: MONO / COLOR with valid yields → computed
-  else if ((mode === 'mono' || mode === 'color') && hasValidYield(itemYields)) {
-    const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
-    qty = getQtyFromYields(baseYields, itemYields);
-  }
-
-  // 🚫 CASE 3: MONO / COLOR but ZERO/INVALID yields → FORCE 0
-  else if (mode === 'mono' || mode === 'color') {
-    qty = 0;
-  }
-
-  // ✅ CASE 4: UNKNOWN mode → safe fallback
-  else {
-    qty = getSafeNumber(c.qty, 1);
-  }
-
-  const unitCost = getSafeNumber(c.cost);
-  const unitSell = getSafeNumber(c.price);
-
-  return {
-    ...c,
-    qty,
-    totalCost: qty * unitCost,
-    totalSell: qty * unitSell
-  };
-});
+    return {
+      ...m,
+      qty: to2Decimals(machineQty),
+      price: unitSell,
+      totalCost: to2Decimals(machineQty * loadedCost), 
+      totalSell: to2Decimals(machineQty * unitSell)
+    };
+  });
+  
   // 4. CALCULATION LOGIC
   const totalMachineQty = processedMachines.reduce((sum, m) => sum + (Number(m.qty) || 0), 0);
-  const totalMachineCost = rawMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
+  const totalMachineCost = processedMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
   const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
   
   const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
@@ -144,26 +156,26 @@ const processedConsumables = rawConsumables.map(c => {
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-  // 5. RETURN ALL VALUES
+  // 5. RETURN ALL VALUES (Wrapped in to2Decimals for clean UI rendering)
   return {
-    totalMachineQty,
-    totalMachineCost,
-    totalMachineSales,
-    totalConsumableQty,
-    totalConsumableCost,
-    totalConsumableSales,
-    totalCompanyFeesAmount,
-    totalCustomerFeesAmount,
-    grandtotalCost: Number(grandtotalCost || 0),
-    grandtotalSell: Number(grandtotalSell || 0),
-    grossProfit: grossProfit || 0,
-    roiPercentage,
+    totalMachineQty: to2Decimals(totalMachineQty),
+    totalMachineCost: to2Decimals(totalMachineCost),
+    totalMachineSales: to2Decimals(totalMachineSales),
+    totalConsumableQty: to2Decimals(totalConsumableQty),
+    totalConsumableCost: to2Decimals(totalConsumableCost),
+    totalConsumableSales: to2Decimals(totalConsumableSales),
+    totalCompanyFeesAmount: to2Decimals(totalCompanyFeesAmount),
+    totalCustomerFeesAmount: to2Decimals(totalCustomerFeesAmount),
+    grandtotalCost: to2Decimals(grandtotalCost),
+    grandtotalSell: to2Decimals(grandtotalSell),
+    grossProfit: to2Decimals(grossProfit),
+    roiPercentage: to2Decimals(roiPercentage),
     machines: processedMachines,
     consumables: processedConsumables,
-    companyFees, // Explicitly return as array for .map() in Totals.jsx
-    customerFees, // Explicitly return as array for .map() in Totals.jsx
-    bundleDeduction,
-    firstYearTotalCost: totalMachineCost + totalConsumableCost,
-    fistYearTotalSell: totalMachineSales + totalConsumableSales
+    companyFees, 
+    customerFees, 
+    bundleDeduction: to2Decimals(bundleDeduction),
+    firstYearTotalCost: to2Decimals(totalMachineCost + totalConsumableCost),
+    firstYearTotalSell: to2Decimals(totalMachineSales + totalConsumableSales)
   };
 };

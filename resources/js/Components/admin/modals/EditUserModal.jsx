@@ -21,6 +21,7 @@ export default function EditUserModal({
 
   // actions
   onSubmit,
+  onResetPassword,
 }) {
   const filteredPositions = useMemo(() => {
     if (!editForm.department_id) return [];
@@ -223,26 +224,44 @@ export default function EditUserModal({
           ) : null}
         </div>
 
-        <div className="flex items-center justify-between rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2">
-          <div>
-            <p className="text-xs font-semibold text-slate-700">Account Status</p>
-            <p className="text-[11px] text-slate-500">
-              Activate or deactivate this account.
-            </p>
+        {/* --- 75% / 25% Split for Account Status & Reset Password --- */}
+        <div className="grid grid-cols-1 md:grid-cols-4">
+          
+          {/* Account Status (Spans 3/4) */}
+          <div className="flex items-center justify-between rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 md:col-span-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Account Status</p>
+              <p className="text-[11px] text-slate-500">
+                Activate or deactivate this account.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditForm((p) => ({ ...p, is_banned: !p.is_banned }))}
+              className="rounded-md px-2 py-1 hover:bg-white"
+              disabled={!editingUser?.id}
+              title={!editForm.is_banned ? "Deactivate" : "Activate"}
+            >
+              {!editForm.is_banned ? (
+                <BsToggleOn className="text-[34px] text-[#289800]" />
+              ) : (
+                <BsToggleOff className="text-[34px] text-slate-400" />
+              )}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditForm((p) => ({ ...p, is_banned: !p.is_banned }))}
-            className="rounded-md px-2 py-1 hover:bg-white"
-            disabled={!editingUser?.id}
-            title={!editForm.is_banned ? "Deactivate" : "Activate"}
-          >
-            {!editForm.is_banned ? (
-              <BsToggleOn className="text-[34px] text-[#289800]" />
-            ) : (
-              <BsToggleOff className="text-[34px] text-slate-400" />
-            )}
-          </button>
+
+          {/* Reset Password (Spans 1/4) */}
+          <div className="flex items-center justify-center rounded-lg px-3 py-2 md:col-span-1">
+            <button
+              type="button"
+              onClick={() => onResetPassword(editingUser.id)}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#289800] disabled:opacity-50"
+              disabled={processing || !editingUser?.id}
+            >
+              Reset Password
+            </button>
+          </div>
+          
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-black/10 pt-4">

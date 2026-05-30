@@ -31,9 +31,10 @@ export const getRowCalculations = (row, projectData) => {
     /** * RULE: Machine/Printer Rule 
      * Yields are NEVER allowed for hardware.
      */
-    let yields =  rawYields;
-    if (isMachine) {
-    yields = 0;
+  let yields = rawYields;
+
+if (isMachine) {
+    yields = isModeOthers ? rawYields : 0;
 }
 
 if (isMonthlyRental && isConsumable) {
