@@ -21,7 +21,7 @@ export const succeedingYears = (projectData) => {
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
-const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
+  const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
     
     // --- REPLACE YOUR OLD FILTER LINES WITH THIS ---
     const companyFees = (addFeesObj.company || []).map(f => ({
@@ -87,9 +87,8 @@ const addFeesObj = projectData?.additionalFees || { company: [], customer: [], t
 
   const exactQty = annualYields / safeItemYields;
 
-  return usesExactClickQty
-    ? Math.round(exactQty * 100) / 100  // max 2 decimals
-    : Math.ceil(exactQty);
+  // Capped at max 2 decimal points
+  return Math.round(exactQty * 100) / 100; 
 };
 
 const getSafeNumber = (val, fallback = 0) => {
@@ -121,9 +120,18 @@ const processedConsumables = rawConsumables.map(c => {
     };
   }
 
-  // ✅ CASE 1: OTHERS → always manual
+  // ✅ CASE 1: OTHERS → calculated based on Mono (default) or Color
   if (mode === 'others') {
-    qty = getSafeNumber(c.qty, 1);
+    if (hasValidYield(itemYields)) {
+      const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+      if (baseYields > 0) {
+        qty = getQtyFromYields(baseYields, itemYields);
+      } else {
+        qty = getSafeNumber(c.qty, 1);
+      }
+    } else {
+      qty = getSafeNumber(c.qty, 1);
+    }
   }
 
   // ✅ CASE 2: MONO / COLOR with valid yields → computed

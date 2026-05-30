@@ -426,6 +426,7 @@ function UserManagement({
         setEditForm={editModal.setEditForm}
         editErrors={editModal.editErrors}
         onSubmit={editModal.submitEdit}
+        onResetPassword={editModal.onResetPassword}
       />
 
       <div className="min-h-screen flex flex-col">

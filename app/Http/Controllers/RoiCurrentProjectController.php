@@ -107,27 +107,41 @@ class RoiCurrentProjectController extends Controller
         return (int) ($project->{$column} ?? 0) === $userId;
     }
 
+    // private function applyCurrentVisibilityScope($query, $user)
+    // {
+    //     $userId = (int) $user->id;
+
+    //     return $query->where(function ($q) use ($userId) {
+    //         $q->where('user_id', $userId)
+    //             ->orWhere(function ($sub) use ($userId) {
+    //                 $sub->where('current_level', 2)->where('reviewed_by', $userId);
+    //             })
+    //             ->orWhere(function ($sub) use ($userId) {
+    //                 $sub->where('current_level', 3)->where('checked_by', $userId);
+    //             })
+    //             ->orWhere(function ($sub) use ($userId) {
+    //                 $sub->where('current_level', 4)->where('endorsed_by', $userId);
+    //             })
+    //             ->orWhere(function ($sub) use ($userId) {
+    //                 $sub->where('current_level', 5)->where('confirmed_by', $userId);
+    //             })
+    //             ->orWhere(function ($sub) use ($userId) {
+    //                 $sub->where('current_level', 6)->where('approved_by', $userId);
+    //             });
+    //     });
+    // }
+
     private function applyCurrentVisibilityScope($query, $user)
     {
         $userId = (int) $user->id;
 
         return $query->where(function ($q) use ($userId) {
             $q->where('user_id', $userId)
-                ->orWhere(function ($sub) use ($userId) {
-                    $sub->where('current_level', 2)->where('reviewed_by', $userId);
-                })
-                ->orWhere(function ($sub) use ($userId) {
-                    $sub->where('current_level', 3)->where('checked_by', $userId);
-                })
-                ->orWhere(function ($sub) use ($userId) {
-                    $sub->where('current_level', 4)->where('endorsed_by', $userId);
-                })
-                ->orWhere(function ($sub) use ($userId) {
-                    $sub->where('current_level', 5)->where('confirmed_by', $userId);
-                })
-                ->orWhere(function ($sub) use ($userId) {
-                    $sub->where('current_level', 6)->where('approved_by', $userId);
-                });
+                ->orWhere('reviewed_by', $userId)
+                ->orWhere('checked_by', $userId)
+                ->orWhere('endorsed_by', $userId)
+                ->orWhere('confirmed_by', $userId)
+                ->orWhere('approved_by', $userId);
         });
     }
 
@@ -138,13 +152,31 @@ class RoiCurrentProjectController extends Controller
         }
     }
 
+    // private function ensureCanView(RoiCurrentProject $project, $user): void
+    // {
+    //     $userId = (int) $user->id;
+
+    //     $canView =
+    //         (int) $project->user_id === $userId ||
+    //         $this->currentProjectAssignedToUser($project, $userId);
+
+    //     if (!$canView) {
+    //         abort(403, 'Not allowed to view this project.');
+    //     }
+    // }
+
     private function ensureCanView(RoiCurrentProject $project, $user): void
     {
         $userId = (int) $user->id;
 
+        // Check if the user is the creator OR if they are listed in ANY approver column
         $canView =
             (int) $project->user_id === $userId ||
-            $this->currentProjectAssignedToUser($project, $userId);
+            (int) ($project->reviewed_by ?? 0) === $userId ||
+            (int) ($project->checked_by ?? 0) === $userId ||
+            (int) ($project->endorsed_by ?? 0) === $userId ||
+            (int) ($project->confirmed_by ?? 0) === $userId ||
+            (int) ($project->approved_by ?? 0) === $userId;
 
         if (!$canView) {
             abort(403, 'Not allowed to view this project.');

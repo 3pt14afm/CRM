@@ -33,9 +33,7 @@ Route::get('/', function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::post('/force-password-change', [ForcePasswordChangeController::class, 'store'])
-        ->name('force-password.change');
-
+    Route::post('/force-password-change', [ForcePasswordChangeController::class, 'store'])->name('force-password.change');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -99,6 +97,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::patch('/users/{user}/ban', [UserController::class, 'userBan'])->name('users.ban');
         Route::patch('/users/{user}/unban', [UserController::class, 'userUnban'])->name('users.unban');
         Route::delete('/users/{user}', [UserController::class, 'userDestroy'])->name('users.destroy');
+        Route::post('/users/{user}/reset-password', [UserController::class, 'userResetPassword'])->name('users.reset-password');
 
         // Approver Matrix CRUD
         Route::post('/approver-matrix', [ApproverMatrixController::class, 'store'])->name('approver-matrix.store');

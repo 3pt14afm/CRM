@@ -96,6 +96,25 @@ export default function useEditUserModal() {
     });
   }, [editForm, editingUser, finishEditSuccess]);
 
+  const onResetPassword = useCallback((userId) => {
+    if (!userId) return;
+    
+    if (!confirm("Are you sure you want to reset this user's password?")) {
+      return;
+    }
+
+    router.post(route("admin.users.reset-password", userId), {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        // The modal can stay open. 
+        // The flash message toast we set up will automatically trigger here!
+      },
+      onError: (errors) => {
+        console.error("Password reset failed:", errors);
+      }
+    });
+  }, []);
+
   return {
     showEditModal,
     editProcessing,
@@ -106,5 +125,6 @@ export default function useEditUserModal() {
     openEditModal,
     closeEditModal,
     submitEdit,
+    onResetPassword
   };
 }
