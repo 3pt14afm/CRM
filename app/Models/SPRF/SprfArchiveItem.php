@@ -10,6 +10,9 @@ class SprfArchiveItem extends Model
 
     protected $fillable = [
         'project_id',
+        'row_key',
+        'row_type',
+        'parent_row_key',
         'product_code',
         'item_description',
         'qty',

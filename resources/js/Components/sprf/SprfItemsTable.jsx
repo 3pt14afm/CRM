@@ -1,3 +1,7 @@
+import React, { useState } from 'react';
+import { PackagePlus } from 'lucide-react';
+import { MdSubdirectoryArrowRight, MdKeyboardArrowDown, MdKeyboardArrowRight, MdOutlineDelete } from 'react-icons/md';
+
 const peso = (value) => {
   if (value === '' || value === null || value === undefined) return '';
 
@@ -22,23 +26,50 @@ export default function SprfItemsTable({
   computedItems,
   onUpdateItem,
   onAddItemRow,
+  onAddBundleItemRow,
   onRemoveItemRow,
   totals,
   readOnly = false,
 }) {
   const showActionColumn = !readOnly;
 
+  const [collapsedParents, setCollapsedParents] = useState({});
+  const toggleParent = (key) => setCollapsedParents((p) => ({ ...p, [key]: !p[key] }));
+
   const inputClass =
     'w-full min-w-0 h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
+  // bundle-specific smaller input and readonly sizes
+  const bundleInputClass =
+    'w-full min-w-0 h-7 italic text-[10px] xl:text-[11px] text-center rounded-md bg-white px-2 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] border border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+  const bundleInputLeftClass = bundleInputClass.replace('text-center', 'text-left');
+
   const readonlyClass =
-    'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
+    'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end font-medium';
+  const readonlyClassBundle = 'w-full h-6 text-[10px] italic xl:text-[11px] text-center px-1 flex items-center justify-end';
 
   const readonlyTextClass =
     'w-full min-w-0 h-8 text-xs rounded-sm px-1 flex items-center';
+  const readonlyTextClassBundle = 'w-full min-w-0 h-6 text-xs rounded-sm px-1 flex items-center';
 
   const footerCellClass =
     'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
+
+  // helper to compute sums of direct bundle children for a parent row
+  const getChildSums = (parentIndex) => {
+    let sumCost = 0;
+    let sumTotalSelling = 0;
+    let sumMarkupValue = 0;
+    let p = parentIndex + 1;
+    while (p < computedItems.length && (items[p]?.rowType === 'bundle' || computedItems[p]?.rowType === 'bundle')) {
+      const child = computedItems[p] ?? {};
+      sumCost += Number(child.totalCost || 0);
+      sumTotalSelling += Number(child.totalSellingPriceVatInc || 0);
+      sumMarkupValue += Number(child.markupValue || 0);
+      p += 1;
+    }
+    return { sumCost, sumTotalSelling, sumMarkupValue };
+  };
 
   return (
     <div>
@@ -62,23 +93,23 @@ export default function SprfItemsTable({
 
           <thead>
             <tr className="bg-lightgreen/30 text-[10px] uppercase">
-              <th className="border-b border-r border-darkgreen/15 py-2">Item Lot</th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Product Code</th>
-              <th className="border-b border-r border-darkgreen/15 py-2">Item Description</th>
-              <th className="border-b border-r border-darkgreen/15 py-2">Qty</th>
-              <th className="border-b border-r border-darkgreen/15 py-2">Disty</th>
-              <th className="border-b border-r border-darkgreen/15 py-2">Cost / unit</th>
-              <th className="border-b border-r border-darkgreen/15 py-2">Total Cost</th>
-              <th className="border-b border-r border-darkgreen/15 py-2 px-1">
+              <th className="border-r border-darkgreen/15 py-2">Item Lot</th>
+              <th className="border-r border-darkgreen/15 p-2">Product Code</th>
+              <th className="border-r border-darkgreen/15 py-2">Item Description</th>
+              <th className="border-r border-darkgreen/15 py-2">Qty</th>
+              <th className="border-r border-darkgreen/15 py-2">Disty</th>
+              <th className="border-r border-darkgreen/15 py-2">Cost / unit</th>
+              <th className="border-r border-darkgreen/15 py-2">Total Cost</th>
+              <th className="border-r border-darkgreen/15 py-2 px-1">
                 Selling Price/unit (VAT INC)
               </th>
-              <th className="border-b border-r border-darkgreen/15 p-2">
+              <th className="border-r border-darkgreen/15 p-2">
                 Total Selling Price (VAT INC)
               </th>
-              <th className="border-b border-r border-darkgreen/15 p-2">Mark Up Value</th>
+              <th className="border-r border-darkgreen/15 p-2">Mark Up Value</th>
 
               <th
-                className={`border-b border-darkgreen/15 p-2 ${
+                className={`border-darkgreen/15 p-2 ${
                   showActionColumn ? 'border-r' : ''
                 }`}
               >
@@ -86,62 +117,136 @@ export default function SprfItemsTable({
               </th>
 
               {showActionColumn && (
-                <th className="border-b border-darkgreen/15 p-1 xl:p-2">+/-</th>
+                <th className="border-darkgreen/15 p-1 xl:p-2">+/-</th>
               )}
             </tr>
           </thead>
 
           <tbody>
-            {computedItems.map((row, index) => (
+            {computedItems.map((row, index) => {
+              const item = items[index] ?? {};
+              const isBundleRow = item.rowType === 'bundle';
+              // compute visible row number (counts only non-bundle rows)
+              const rowNumber = computedItems
+                .slice(0, index + 1)
+                .filter((itemRow) => itemRow?.rowType !== 'bundle').length;
+
+              // determine parent key for bundle rows (previous non-bundle row)
+              let parentKey;
+              if (isBundleRow) {
+                let p = index - 1;
+                while (p >= 0 && computedItems[p]?.rowType === 'bundle') p--;
+                parentKey = items[p]?.rowKey ?? `item-${p}`;
+              } else {
+                parentKey = item.rowKey ?? `item-${index}`;
+              }
+
+              // whether this non-bundle row has bundle children directly after it
+              const hasBundles = !isBundleRow && computedItems[index + 1]?.rowType === 'bundle';
+
+              // hide bundle rows when their parent is collapsed
+              if (isBundleRow && collapsedParents[parentKey]) return null;
+
+              return (
               <tr
-                key={`item-${index}`}
-                className="border-b relative hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)] transition-all duration-100"
+                key={item.rowKey ?? `item-${index}`}
+                className={`border-t relative transition-all duration-100 bg-white ${
+                  isBundleRow
+                    ? ''
+                    : ''
+                }`}
               >
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className="w-full h-8 flex items-center justify-center text-[11px] xl:text-[13px]">
-                    {index + 1}
+                <td className={`border-t border-darkgreen/15 ${isBundleRow ? 'p-0 border-t-0' : 'p-1'}`}>
+                  <div
+                    className={`w-full h-full flex items-stretch ${
+                      isBundleRow
+                        ? 'justify-start pl-10 text-[10px] font-semibold uppercase text-slate-400'
+                        : 'justify-center text-[11px] xl:text-[13px]'
+                    }`}
+                  >
+                    {isBundleRow ? (
+                      <span className="shrink-0 h-9 w-6 flex items-center justify-center pl-1 text-slate-400"></span>
+                    ) : (
+                      <div className="flex items-center gap-1 justify-center">
+                        <div className="text-[11px] xl:text-[13px] pl-2">{rowNumber}</div>
+
+                        {hasBundles && (
+                          <button
+                            type="button"
+                            onClick={() => toggleParent(parentKey)}
+                            className="w-3 h-6 flex items-center justify-end text-slate-600 hover:cursor-pointer rounded"
+                            aria-label={collapsedParents[parentKey] ? 'Expand bundles' : 'Collapse bundles'}
+                          >
+                            {collapsedParents[parentKey] ? (
+                              <MdKeyboardArrowRight size={14} />
+                            ) : (
+                              <MdKeyboardArrowDown size={14} />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
+                <td className={`border-t border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 border-r bg-neutral-100 border-l border-l-darkgreen/10' : 'p-1 border-r'}`}>
                   {readOnly ? (
-                    <div className={readonlyTextClass}>
-                      {blankIfEmpty(items[index]?.productCode)}
+                    <div className={`${isBundleRow ? readonlyTextClassBundle + ' pl-4' : readonlyTextClass}`}>
+                      {blankIfEmpty(item?.productCode)}
                     </div>
                   ) : (
                     <input
                       type="text"
-                      value={items[index].productCode}
+                      value={item.productCode}
                       onChange={(e) => onUpdateItem(index, 'productCode', e.target.value)}
-                      className={`${inputClass} normal-case`}
+                      className={`${isBundleRow ? bundleInputClass : inputClass} normal-case`}
                     />
                   )}
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
                   {readOnly ? (
-                    <div className={`${readonlyTextClass} justify-start`}>
-                      {blankIfEmpty(items[index]?.itemDescription)}
+                    <div className={`${isBundleRow ? readonlyTextClassBundle + ' pl-5 text-slate-600' : readonlyTextClass}`}>
+                      {isBundleRow && blankIfEmpty(item?.itemDescription) ? '' : blankIfEmpty(item?.itemDescription)}
                     </div>
                   ) : (
-                    <input
-                      type="text"
-                      value={items[index].itemDescription}
-                      onChange={(e) => onUpdateItem(index, 'itemDescription', e.target.value)}
-                      className={`${inputClass} normal-case text-left`}
-                    />
+                    <div className="flex items-center gap-1">
+                      {/* Icon moved to first column for bundle rows */}
+
+                      <input
+                        type="text"
+                        value={item.itemDescription}
+                        onChange={(e) => onUpdateItem(index, 'itemDescription', e.target.value)}
+                        className={`${isBundleRow ? bundleInputLeftClass : inputClass} normal-case text-left`}
+                      />
+
+                      {!isBundleRow && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onAddBundleItemRow(index);
+                            const key = parentKey ?? `item-${index}`;
+                            setCollapsedParents((p) => ({ ...p, [key]: false }));
+                          }}
+                          title="Add bundled item"
+                          className="shrink-0 w-6 h-6 rounded border border-darkgreen/20 bg-lightgreen/40 text-green-700 hover:bg-green-100 flex items-center justify-center"
+                        >
+                          <PackagePlus size={14} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
                   {readOnly ? (
-                    <div className={readonlyClass}>{peso(items[index]?.qty)}</div>
+                    <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>{peso(item?.qty)}</div>
                   ) : (
                     <input
                       type="number"
                       min="0"
                       step="1"
-                      value={items[index].qty}
+                      value={item.qty}
                       onChange={(e) => {
                         const value = e.target.value;
                         onUpdateItem(
@@ -150,102 +255,134 @@ export default function SprfItemsTable({
                           value === '' ? '' : String(Math.floor(Number(value)))
                         );
                       }}
-                      className={inputClass}
+                      className={`${isBundleRow ? bundleInputClass : inputClass}`}
                       placeholder="0"
                     />
                   )}
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
                   {readOnly ? (
-                    <div className={`${readonlyTextClass} justify-start`}>
-                      {blankIfEmpty(items[index]?.disty)}
+                    <div className={`${isBundleRow ? readonlyTextClassBundle : readonlyTextClass} justify-start`}>
+                      {blankIfEmpty(item?.disty)}
                     </div>
                   ) : (
                     <input
                       type="text"
-                      value={items[index].disty}
+                      value={item.disty}
                       onChange={(e) => onUpdateItem(index, 'disty', e.target.value)}
-                      className={`${inputClass} normal-case`}
+                      className={`${isBundleRow ? bundleInputClass : inputClass} normal-case`}
                     />
                   )}
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
                   {readOnly ? (
-                    <div className={readonlyClass}>{peso(items[index]?.costPerUnit)}</div>
+                    <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>{peso(item?.costPerUnit)}</div>
                   ) : (
                     <input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={items[index].costPerUnit}
+                      value={item.costPerUnit}
                       onChange={(e) => onUpdateItem(index, 'costPerUnit', e.target.value)}
-                      className={inputClass}
+                      className={`${isBundleRow ? bundleInputClass : inputClass}`}
                       placeholder="0.00"
                     />
                   )}
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>{peso(row.totalCost)}</div>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
+                  <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>
+                    {(() => {
+                      if (isBundleRow) return peso(row.totalCost);
+                      const { sumCost } = getChildSums(index);
+                      return peso(Number(row.totalCost || 0) + sumCost);
+                    })()}
+                  </div>
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>{peso(row.sellingPricePerUnitVatInc)}</div>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
+                  <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>{peso(row.sellingPricePerUnitVatInc)}</div>
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>{peso(row.totalSellingPriceVatInc)}</div>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'p-1 bg-neutral-100' : 'p-1'}`}>
+                  <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>
+                    {(() => {
+                      if (isBundleRow) return peso(row.totalSellingPriceVatInc);
+                      const { sumTotalSelling } = getChildSums(index);
+                      return peso(Number(row.totalSellingPriceVatInc || 0) + sumTotalSelling);
+                    })()}
+                  </div>
                 </td>
 
-                <td className="border-b border-r border-darkgreen/15 p-1">
-                  <div className={readonlyClass}>{peso(row.markupValue)}</div>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'p-1 bg-neutral-100' : 'p-1'}`}>
+                  <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>
+                    {(() => {
+                      if (isBundleRow) return peso(row.markupValue);
+                      const { sumMarkupValue } = getChildSums(index);
+                      return peso(Number(row.markupValue || 0) + sumMarkupValue);
+                    })()}
+                  </div>
                 </td>
 
                 <td
-                  className={`border-b border-darkgreen/15 xl:p-1 ${
+                  className={`border-t border-darkgreen/15 xl:p-1 ${isBundleRow ? 'bg-neutral-100' : ''} ${
                     showActionColumn ? 'border-r' : ''
                   }`}
                 >
                   {readOnly ? (
-                    <div className={readonlyClass}>{percent(row.markupPercent)}</div>
+                    <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>{percent(row.markupPercent)}</div>
                   ) : (
                     <input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={items[index].markupPercent}
+                      value={item.markupPercent}
                       onChange={(e) => onUpdateItem(index, 'markupPercent', e.target.value)}
-                      className={inputClass}
+                      className={`${isBundleRow ? bundleInputClass : inputClass}`}
                       placeholder="0"
                     />
                   )}
                 </td>
 
                 {showActionColumn && (
-                  <td className="border-b border-darkgreen/15 p-1 xl:py-2 flex items-center justify-center">
-                    <div className="flex flex-col xl:flex-row gap-0.5 xl:gap-1 justify-center">
-                      <button
-                        type="button"
-                        onClick={() => onAddItemRow(index)}
-                        className="w-5 h-5 xl:w-6 xl:h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
-                      >
-                        +
-                      </button>
+                  <td className={`border-t border-darkgreen/15 flex items-center justify-center ${isBundleRow ? 'bg-neutral-100 p-2' : 'p-1 xl:py-2'}`}>
+                    {!isBundleRow ? (
+                      <div className="flex flex-col xl:flex-row gap-0.5 xl:gap-1 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => onAddItemRow(index)}
+                          className="w-5 h-5 xl:w-6 xl:h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                        >
+                          +
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => onRemoveItemRow(index)}
-                        className="w-5 h-5 xl:w-6 xl:h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                      >
-                        -
-                      </button>
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => onRemoveItemRow(index)}
+                          className="w-5 h-5 xl:w-6 xl:h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                        >
+                          -
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => onRemoveItemRow(index)}
+                          className="w-4 h-4 xl:w-5 xl:h-5 flex items-center justify-center rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                          title="Remove bundled item"
+                        >
+                          <MdOutlineDelete className="text-[10px] md:text-[11px] lg:text-xs xl:text-[13px]" />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
 
           <tfoot>

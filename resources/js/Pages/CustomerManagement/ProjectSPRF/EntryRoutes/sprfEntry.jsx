@@ -33,13 +33,29 @@ const isBlank = (value) =>
 
 const toNumber = (value) => Number(value || 0);
 
-const makeItemRow = () => ({
-  productCode: '',
-  itemDescription: '',
-  qty: '',
-  disty: '',
-  costPerUnit: '',
-  markupPercent: '',
+const makeRowKey = () =>
+  `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const makeItemRow = ({
+  rowKey = makeRowKey(),
+  rowType = 'item',
+  parentRowKey = null,
+  productCode = '',
+  itemDescription = '',
+  qty = '',
+  disty = '',
+  costPerUnit = '',
+  markupPercent = '',
+} = {}) => ({
+  rowKey,
+  rowType,
+  parentRowKey,
+  productCode,
+  itemDescription,
+  qty,
+  disty,
+  costPerUnit,
+  markupPercent,
 });
 
 const makeExpenseRow = ({
@@ -354,14 +370,19 @@ function Entry({
 
               setItems(
                 Array.isArray(sourceProject?.items) && sourceProject.items.length > 0
-                  ? sourceProject.items.map((row) => ({
-                      productCode: row?.productCode ?? '',
-                      itemDescription: row?.itemDescription ?? '',
-                      qty: row?.qty ?? '',
-                      disty: row?.disty ?? '',
-                      costPerUnit: row?.costPerUnit ?? '',
-                      markupPercent: row?.markupPercent ?? '',
-                    }))
+                  ? sourceProject.items.map((row) =>
+                      makeItemRow({
+                        rowKey: row?.rowKey || makeRowKey(),
+                        rowType: row?.rowType === 'bundle' ? 'bundle' : 'item',
+                        parentRowKey: row?.parentRowKey ?? null,
+                        productCode: row?.productCode ?? '',
+                        itemDescription: row?.itemDescription ?? '',
+                        qty: row?.qty ?? '',
+                        disty: row?.disty ?? '',
+                        costPerUnit: row?.costPerUnit ?? '',
+                        markupPercent: row?.markupPercent ?? '',
+                      })
+                    )
                   : [makeItemRow()]
               );
 
@@ -496,7 +517,41 @@ function Entry({
   const addItemRow = (index) => {
     setItems((prev) => {
       const next = [...prev];
-      next.splice(index + 1, 0, makeItemRow());
+      const row = next[index];
+      let insertAt = index + 1;
+
+      if (row?.rowType !== 'bundle') {
+        while (insertAt < next.length && next[insertAt]?.parentRowKey === row?.rowKey) {
+          insertAt += 1;
+        }
+      }
+
+      next.splice(insertAt, 0, makeItemRow());
+      return next;
+    });
+  };
+
+  const addBundleItemRow = (index) => {
+    setItems((prev) => {
+      const parent = prev[index];
+      if (!parent || parent.rowType === 'bundle') return prev;
+
+      const next = [...prev];
+      let insertAt = index + 1;
+
+      while (insertAt < next.length && next[insertAt]?.parentRowKey === parent.rowKey) {
+        insertAt += 1;
+      }
+
+      next.splice(
+        insertAt,
+        0,
+        makeItemRow({
+          rowType: 'bundle',
+          parentRowKey: parent.rowKey,
+        })
+      );
+
       return next;
     });
   };
@@ -504,7 +559,15 @@ function Entry({
   const removeItemRow = (index) => {
     setItems((prev) => {
       if (prev.length === 1) return prev;
-      return prev.filter((_, i) => i !== index);
+      const row = prev[index];
+
+      const next = prev.filter((item, i) => {
+        if (i === index) return false;
+        if (row?.rowType !== 'bundle' && item?.parentRowKey === row?.rowKey) return false;
+        return true;
+      });
+
+      return next.length > 0 ? next : [makeItemRow()];
     });
   };
 
@@ -890,6 +953,7 @@ const handleClearAll = () => {
                   computedItems={computedItems}
                   onUpdateItem={updateItem}
                   onAddItemRow={addItemRow}
+                  onAddBundleItemRow={addBundleItemRow}
                   onRemoveItemRow={removeItemRow}
                   totals={itemTotals}
                   readOnly={readOnly}

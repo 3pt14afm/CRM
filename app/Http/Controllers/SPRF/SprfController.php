@@ -268,6 +268,9 @@ class SprfController extends Controller
                 ->map(function ($item) {
                     return [
                         'productCode' => $item->product_code,
+                        'rowKey' => $item->row_key,
+                        'rowType' => $item->row_type ?: 'item',
+                        'parentRowKey' => $item->parent_row_key,
                         'itemDescription' => $item->item_description,
                         'qty' => $item->qty,
                         'disty' => $item->disty,
@@ -317,6 +320,9 @@ class SprfController extends Controller
                 ->map(function ($item) {
                     return [
                         'productCode' => $item->product_code,
+                        'rowKey' => $item->row_key,
+                        'rowType' => $item->row_type ?: 'item',
+                        'parentRowKey' => $item->parent_row_key,
                         'itemDescription' => $item->item_description,
                         'qty' => $item->qty,
                         'disty' => $item->disty,
