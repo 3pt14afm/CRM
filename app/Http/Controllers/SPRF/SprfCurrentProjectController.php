@@ -256,6 +256,9 @@ public function reject(Request $request, SprfCurrentProject $project)
         $archiveProject->items()->createMany(
             $project->items->map(function ($item) {
                 return [
+                    'row_key' => $item->row_key,
+                    'row_type' => $item->row_type ?: 'item',
+                    'parent_row_key' => $item->parent_row_key,
                     'product_code' => $item->product_code,
                     'item_description' => $item->item_description,
                     'qty' => $item->qty,
@@ -378,6 +381,9 @@ public function approve(SprfCurrentProject $project)
         $archiveProject->items()->createMany(
             $project->items->map(function ($item) {
                 return [
+                    'row_key' => $item->row_key,
+                    'row_type' => $item->row_type ?: 'item',
+                    'parent_row_key' => $item->parent_row_key,
                     'product_code' => $item->product_code,
                     'item_description' => $item->item_description,
                     'qty' => $item->qty,
@@ -568,6 +574,9 @@ public function approve(SprfCurrentProject $project)
                 ->map(function ($item) {
                     return [
                         'productCode' => $item->product_code,
+                        'rowKey' => $item->row_key,
+                        'rowType' => $item->row_type ?: 'item',
+                        'parentRowKey' => $item->parent_row_key,
                         'itemDescription' => $item->item_description,
                         'qty' => $item->qty,
                         'disty' => $item->disty,
@@ -613,6 +622,9 @@ public function approve(SprfCurrentProject $project)
                 ->map(function ($item) {
                     return [
                         'productCode' => $item->product_code,
+                        'rowKey' => $item->row_key,
+                        'rowType' => $item->row_type ?: 'item',
+                        'parentRowKey' => $item->parent_row_key,
                         'itemDescription' => $item->item_description,
                         'qty' => $item->qty,
                         'disty' => $item->disty,

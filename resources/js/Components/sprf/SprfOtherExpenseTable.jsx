@@ -27,7 +27,7 @@ export default function SprfOtherExpenseTable({
     'w-full min-w-0 h-7 xl:h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyCellClass =
-    'w-full h-8 text-[11px] xl:text-xs px-2 flex items-center rounded-sm text-slate-700';
+    'w-full h-8 text-[11px] xl:text-xs px-2 flex items-center rounded-sm';
 
   const readonlyAmountClass =
     'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
@@ -41,7 +41,7 @@ export default function SprfOtherExpenseTable({
         Other Expense
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md">
+      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-white shadow-md">
         <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
             <col className="w-[5.5%]" />

@@ -609,18 +609,28 @@ function PrintItemsTable({ rows, totals }) {
           ) : (
             rows.map((row, index) => {
               const rowHasValue = hasItemValue(row);
+              const isBundleRow = row?.rowType === 'bundle';
+              const rowNumber = rows
+                .slice(0, index + 1)
+                .filter((itemRow) => itemRow?.rowType !== 'bundle')
+                .length;
 
               return (
-                <tr key={`item-${index}`}>
+                <tr key={row?.rowKey ?? `item-${index}`} className={isBundleRow ? 'bg-slate-50 text-slate-600' : ''}>
                   <td className="border-b border-r border-darkgreen/15 p-2 text-center">
-                    {rowHasValue ? index + 1 : ''}
+                    {rowHasValue ? (isBundleRow ? 'Bundle' : rowNumber) : ''}
                   </td>
 
                   <td className="border-b border-r border-darkgreen/15 p-2">
                     {displayText(row.productCode)}
                   </td>
 
-                  <td className="border-b border-r border-darkgreen/15 p-2">
+                  <td className={`border-b border-r border-darkgreen/15 p-2 ${isBundleRow ? 'pl-5' : ''}`}>
+                    {isBundleRow && (
+                      <span className="mr-2 text-[8px] font-semibold uppercase text-slate-400">
+                        Add-on
+                      </span>
+                    )}
                     {displayText(row.itemDescription)}
                   </td>
 

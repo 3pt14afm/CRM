@@ -417,6 +417,9 @@ public function destroy(SprfEntryProject $project)
             'rebate_justification' => ['nullable', 'string'],
 
             'items' => ['nullable', 'array'],
+            'items.*.rowKey' => ['nullable', 'string', 'max:255'],
+            'items.*.rowType' => ['nullable', 'string', 'in:item,bundle'],
+            'items.*.parentRowKey' => ['nullable', 'string', 'max:255'],
             'items.*.productCode' => ['nullable', 'string', 'max:255'],
             'items.*.itemDescription' => ['nullable', 'string'],
             'items.*.qty' => ['nullable', 'integer', 'min:0'],
@@ -481,6 +484,9 @@ public function destroy(SprfEntryProject $project)
                         : $totalSellingPriceVatInc - $totalCost;
 
                 return [
+                    'row_key' => data_get($row, 'rowKey'),
+                    'row_type' => data_get($row, 'rowType') === 'bundle' ? 'bundle' : 'item',
+                    'parent_row_key' => data_get($row, 'parentRowKey'),
                     'product_code' => data_get($row, 'productCode'),
                     'item_description' => data_get($row, 'itemDescription'),
                     'qty' => $qty,
@@ -911,6 +917,9 @@ public function destroy(SprfEntryProject $project)
                 ->map(function (SprfEntryItem $item) {
                     return [
                         'productCode' => $item->product_code,
+                        'rowKey' => $item->row_key,
+                        'rowType' => $item->row_type ?: 'item',
+                        'parentRowKey' => $item->parent_row_key,
                         'itemDescription' => $item->item_description,
                         'qty' => $item->qty,
                         'disty' => $item->disty,
@@ -959,6 +968,9 @@ public function destroy(SprfEntryProject $project)
                 ->map(function (SprfEntryItem $item) {
                     return [
                         'productCode' => $item->product_code,
+                        'rowKey' => $item->row_key,
+                        'rowType' => $item->row_type ?: 'item',
+                        'parentRowKey' => $item->parent_row_key,
                         'itemDescription' => $item->item_description,
                         'qty' => $item->qty,
                         'disty' => $item->disty,
