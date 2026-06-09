@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
-use App\Services\ActivityLogger;
+use App\Services\AuthActivityLogger; // <-- Updated import here
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,74 +29,83 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-public function update(ProfileUpdateRequest $request): RedirectResponse
-{
-    $user = $request->user();
+    public function update(ProfileUpdateRequest $request): RedirectResponse
+    {
+        $user = $request->user();
 
-    $oldValues = $user->only(array_keys($request->validated()));
+        // 1. Capture original values before they change
+        $oldValues = $user->only(array_keys($request->validated()));
 
-    $user->fill($request->validated());
+        $user->fill($request->validated());
 
-    if ($user->isDirty('email')) {
-        $user->email_verified_at = null;
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        // 2. CRITICAL: Get dirty changes BEFORE saving
+        $changes = $user->getDirty();
+
+        $user->save();
+
+        // 3. Log using your real AuthActivityLogger
+        try {
+            AuthActivityLogger::log(
+                activityType: 'update_profile',
+                details: 'User updated profile info',
+                status: 'success',
+                user: $user,
+                metadata: [
+                    'module' => 'Profile',
+                    'old_values' => array_intersect_key($oldValues, $changes),
+                    'new_values' => $changes
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Profile update activity log failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->id,
+            ]);
+        }
+
+        return Redirect::route('profile.edit');
     }
 
-    $changes = $user->getDirty();
-
-    $user->save();
-
-    try {
-        ActivityLogger::log(
-            activityType: 'update_profile',
-            moduleType: 'Profile',
-            details: 'User updated profile',
-            oldValues: array_intersect_key($oldValues, $changes),
-            newValues: $changes
-        );
-    } catch (\Throwable $e) {
-        Log::error('Profile update activity log failed', [
-            'message' => $e->getMessage(),
-            'user_id' => $user->id,
-        ]);
-    }
-
-    return Redirect::route('profile.edit');
-}
     /**
      * Delete the user's account.
      */
-public function destroy(Request $request): RedirectResponse
-{
-    $request->validate([
-        'password' => ['required', 'current_password'],
-    ]);
-
-    $user = $request->user();
-
-    try {
-        ActivityLogger::log(
-            activityType: 'delete_account',
-            moduleType: 'Profile',
-            details: 'User deleted account',
-            oldValues: [
-                'user_id' => $user->id,
-                'email' => $user->email,
-            ]
-        );
-    } catch (\Throwable $e) {
-        Log::error('Account deletion activity log failed', [
-            'message' => $e->getMessage(),
-            'user_id' => $user->id,
+    public function destroy(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'password' => ['required', 'current_password'],
         ]);
+
+        $user = $request->user();
+
+        // Log the event BEFORE logging the user out or deleting them
+        try {
+            AuthActivityLogger::log(
+                activityType: 'delete_account',
+                details: 'User voluntarily deleted their account',
+                status: 'success',
+                user: $user,
+                metadata: [
+                    'module' => 'Profile'
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Account deletion activity log failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->id,
+            ]);
+        }
+
+        Auth::logout();
+
+        $user->delete();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return Redirect::to('/');
     }
-
-    Auth::logout();
-
-    $user->delete();
-
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return Redirect::to('/');
-}
 }
