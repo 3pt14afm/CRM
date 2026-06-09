@@ -2,7 +2,7 @@ import React from 'react';
 import { usePage } from '@inertiajs/react';
 import { useProjectData } from '@/Context/ProjectContext';
 import { useMachineRows } from '@/hooks/useMachineRows';
-import { getRowDisplayFlags } from '@/utils/machineconfig/Rowlogic';
+import { getRowDisplayFlags } from '@/utils/machineconfig/rowLogic';
 import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculations';
 import { format2dpWithCommas, formatIntWithCommas, formatNum, sanitizeInt, sanitize2dp, normalize2dp } from '@/utils/machineconfig/formatter';
 import { ROW_TYPE, MODE, EMPTY_TOTALS } from '@/utils/machineconfig/const';

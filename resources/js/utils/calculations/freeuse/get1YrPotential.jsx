@@ -24,7 +24,10 @@ export const get1YrPotential = (projectData) => {
   const customerFees = addFeesObj.customer || [];
 
   // Helper to ensure clean 2 decimal points everywhere
-  const to2Decimals = (num) => Math.round((Number(num) || 0) * 100) / 100;
+  const to2Decimals = (num) => {
+    const parsed = Number(num);
+    return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
+  };
 
   // --- HELPER FUNCTIONS ---
   const getQtyFromYields = (annualYields, itemYields) => {
@@ -50,7 +53,9 @@ export const get1YrPotential = (projectData) => {
   const processedConsumables = rawConsumables.map(c => {
     const mode = c.mode?.toLowerCase();
     const itemYields = Number(c.yields);
-    let qty = 0;
+    
+    // ✅ SANITIZED: Immediately clean quantities against NaN strings
+    let qty = getSafeNumber(c.qty, 0);
 
     if (isMonthlyRental) {
       return {
@@ -98,9 +103,10 @@ export const get1YrPotential = (projectData) => {
   const processedMachines = rawMachines.map(m => {
     const mode = m.mode?.toLowerCase();
     const machineYields = Number(m.yields);
-    let machineQty = Number(m.qty);
     
-    // ✅ Replicated logic for "others" machines
+    // ✅ SANITIZED: Instantly catch NaN strings
+    let machineQty = getSafeNumber(m.qty, 0); 
+    
     if (mode === 'others') {
       if (hasValidYield(machineYields)) {
         const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
@@ -113,7 +119,6 @@ export const get1YrPotential = (projectData) => {
         machineQty = getSafeNumber(m.qty, 1);
       }
     } 
-    // ✅ Standard fallback for mono/color machines if QTY is missing/0
     else if (!machineQty || machineQty <= 0) {
       if (hasValidYield(machineYields)) {
         const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
@@ -138,25 +143,25 @@ export const get1YrPotential = (projectData) => {
     };
   });
   
-  // 4. CALCULATION LOGIC
-  const totalMachineQty = processedMachines.reduce((sum, m) => sum + (Number(m.qty) || 0), 0);
-  const totalMachineCost = processedMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
-  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
+  // 4. CALCULATION LOGIC WITH REAL-TIME NaN INTERCEPTION
+  const totalMachineQty = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.qty, 0)), 0);
+  const totalMachineCost = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.totalCost, 0)), 0);
+  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.totalSell, 0)), 0);
   
-  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
-  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (Number(c.totalSell) || 0), 0);
+  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (getSafeNumber(item.qty, 0)), 0);
+  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (getSafeNumber(c.totalCost, 0)), 0);
+  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (getSafeNumber(c.totalSell, 0)), 0);
 
-  const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
-  const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (Number(f.total) || 0), 0);
+  const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (getSafeNumber(f.total, 0)), 0);
+  const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (getSafeNumber(f.total, 0)), 0);
 
-  const grandtotalCost = (totalMachineCost + totalConsumableCost + totalCompanyFeesAmount) - bundleDeduction;
+  const grandtotalCost = (totalMachineCost + totalConsumableCost + totalCompanyFeesAmount) - getSafeNumber(bundleDeduction, 0);
   const grandtotalSell = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
 
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-  // 5. RETURN ALL VALUES (Wrapped in to2Decimals for clean UI rendering)
+  // 5. RETURN ALL VALUES
   return {
     totalMachineQty: to2Decimals(totalMachineQty),
     totalMachineCost: to2Decimals(totalMachineCost),
