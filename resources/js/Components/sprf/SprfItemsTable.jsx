@@ -1,25 +1,14 @@
 import React, { useState } from 'react';
 import { PackagePlus } from 'lucide-react';
 import { MdSubdirectoryArrowRight, MdKeyboardArrowDown, MdKeyboardArrowRight, MdOutlineDelete } from 'react-icons/md';
-
-const peso = (value) => {
-  if (value === '' || value === null || value === undefined) return '';
-
-  return Number(value).toLocaleString('en-PH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-};
-
-const blankIfEmpty = (value) => {
-  if (value === '' || value === null || value === undefined) return '';
-  return value;
-};
-
-const percent = (value) => {
-  if (value === '' || value === null || value === undefined) return '';
-  return `${Number(value).toFixed(2)}%`;
-};
+import {
+  peso,
+  blankIfEmpty,
+  percent,
+  getChildSums,
+  getGroupUnitSums,
+  getParentIndexForRow,
+} from '../../utils/sprf/calculations';
 
 export default function SprfItemsTable({
   items,
@@ -37,16 +26,16 @@ export default function SprfItemsTable({
   const toggleParent = (key) => setCollapsedParents((p) => ({ ...p, [key]: !p[key] }));
 
   const inputClass =
-    'w-full min-w-0 h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+    'w-full min-w-0 h-8 text-[11px] xl:text-xs text-center rounded-sm border-0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   // bundle-specific smaller input and readonly sizes
   const bundleInputClass =
-    'w-full min-w-0 h-7 italic text-[10px] xl:text-[11px] text-center rounded-md bg-white px-2 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] border border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
-  const bundleInputLeftClass = bundleInputClass.replace('text-center', 'text-left');
+    'w-full min-w-0 h-7 text-[11px] xl:text-xs text-center rounded-sm bg-transparent px-2 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+  const bundleInputLeftClass = bundleInputClass.replace('text-center', 'text-center');
 
   const readonlyClass =
     'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end font-medium';
-  const readonlyClassBundle = 'w-full h-6 text-[10px] italic xl:text-[11px] text-center px-1 flex items-center justify-end';
+  const readonlyClassBundle = 'w-full h-6 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
 
   const readonlyTextClass =
     'w-full min-w-0 h-8 text-xs rounded-sm px-1 flex items-center';
@@ -55,21 +44,7 @@ export default function SprfItemsTable({
   const footerCellClass =
     'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
 
-  // helper to compute sums of direct bundle children for a parent row
-  const getChildSums = (parentIndex) => {
-    let sumCost = 0;
-    let sumTotalSelling = 0;
-    let sumMarkupValue = 0;
-    let p = parentIndex + 1;
-    while (p < computedItems.length && (items[p]?.rowType === 'bundle' || computedItems[p]?.rowType === 'bundle')) {
-      const child = computedItems[p] ?? {};
-      sumCost += Number(child.totalCost || 0);
-      sumTotalSelling += Number(child.totalSellingPriceVatInc || 0);
-      sumMarkupValue += Number(child.markupValue || 0);
-      p += 1;
-    }
-    return { sumCost, sumTotalSelling, sumMarkupValue };
-  };
+  
 
   return (
     <div>
@@ -131,6 +106,14 @@ export default function SprfItemsTable({
                 .slice(0, index + 1)
                 .filter((itemRow) => itemRow?.rowType !== 'bundle').length;
 
+              // determine parent index (parent for bundles, self for parent rows)
+              let parentIndex = index;
+              if (isBundleRow) {
+                let p = index - 1;
+                while (p >= 0 && computedItems[p]?.rowType === 'bundle') p -= 1;
+                parentIndex = p >= 0 ? p : index;
+              }
+
               // determine parent key for bundle rows (previous non-bundle row)
               let parentKey;
               if (isBundleRow) {
@@ -141,20 +124,24 @@ export default function SprfItemsTable({
                 parentKey = item.rowKey ?? `item-${index}`;
               }
 
-              // whether this non-bundle row has bundle children directly after it
-              const hasBundles = !isBundleRow && computedItems[index + 1]?.rowType === 'bundle';
+              // whether this parent has bundle children directly after it
+              const hasBundles = computedItems[parentIndex + 1]?.rowType === 'bundle';
 
               // hide bundle rows when their parent is collapsed
               if (isBundleRow && collapsedParents[parentKey]) return null;
 
+              // compute parent parity for row background (parent + its bundles share same bg)
+              let parentIndexForParity = parentIndex;
+              const parentRowNumber = computedItems
+                .slice(0, parentIndexForParity + 1)
+                .filter((itemRow) => itemRow?.rowType !== 'bundle').length;
+              const isOddParent = parentRowNumber % 2 === 1;
+              const rowBgClass = isOddParent ? 'bg-neutral-200/35' : 'bg-white';
+
               return (
               <tr
                 key={item.rowKey ?? `item-${index}`}
-                className={`border-t relative transition-all duration-100 bg-white ${
-                  isBundleRow
-                    ? ''
-                    : ''
-                }`}
+                className={`border-t relative transition-all duration-100 ${rowBgClass}`}
               >
                 <td className={`border-t border-darkgreen/15 ${isBundleRow ? 'p-0 border-t-0' : 'p-1'}`}>
                   <div
@@ -189,7 +176,7 @@ export default function SprfItemsTable({
                   </div>
                 </td>
 
-                <td className={`border-t border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 border-r bg-neutral-100 border-l border-l-darkgreen/10' : 'p-1 border-r'}`}>
+                <td className={`border-t border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 border-r' : 'p-1 border-r'}`}>
                   {readOnly ? (
                     <div className={`${isBundleRow ? readonlyTextClassBundle + ' pl-4' : readonlyTextClass}`}>
                       {blankIfEmpty(item?.productCode)}
@@ -199,12 +186,13 @@ export default function SprfItemsTable({
                       type="text"
                       value={item.productCode}
                       onChange={(e) => onUpdateItem(index, 'productCode', e.target.value)}
-                      className={`${isBundleRow ? bundleInputClass : inputClass} normal-case`}
+                      className={`${isBundleRow ? bundleInputClass : inputClass} normal-case placeholder:text-slate-400`}
+                      placeholder="Enter product code"
                     />
                   )}
                 </td>
 
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1' : 'p-1'}`}>
                   {readOnly ? (
                     <div className={`${isBundleRow ? readonlyTextClassBundle + ' pl-5 text-slate-600' : readonlyTextClass}`}>
                       {isBundleRow && blankIfEmpty(item?.itemDescription) ? '' : blankIfEmpty(item?.itemDescription)}
@@ -217,7 +205,8 @@ export default function SprfItemsTable({
                         type="text"
                         value={item.itemDescription}
                         onChange={(e) => onUpdateItem(index, 'itemDescription', e.target.value)}
-                        className={`${isBundleRow ? bundleInputLeftClass : inputClass} normal-case text-left`}
+                        className={`${isBundleRow ? bundleInputLeftClass : inputClass} normal-case text-left placeholder:text-slate-400`}
+                        placeholder="Enter item description"
                       />
 
                       {!isBundleRow && (
@@ -238,7 +227,7 @@ export default function SprfItemsTable({
                   )}
                 </td>
 
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1' : 'p-1'}`}>
                   {readOnly ? (
                     <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>{peso(item?.qty)}</div>
                   ) : (
@@ -261,7 +250,7 @@ export default function SprfItemsTable({
                   )}
                 </td>
 
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1' : 'p-1'}`}>
                   {readOnly ? (
                     <div className={`${isBundleRow ? readonlyTextClassBundle : readonlyTextClass} justify-start`}>
                       {blankIfEmpty(item?.disty)}
@@ -271,12 +260,13 @@ export default function SprfItemsTable({
                       type="text"
                       value={item.disty}
                       onChange={(e) => onUpdateItem(index, 'disty', e.target.value)}
-                      className={`${isBundleRow ? bundleInputClass : inputClass} normal-case`}
+                      className={`${isBundleRow ? bundleInputClass : inputClass} normal-case placeholder:text-slate-400`}
+                      placeholder="Enter disty"
                     />
                   )}
                 </td>
 
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1' : 'p-1'}`}>
                   {readOnly ? (
                     <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>{peso(item?.costPerUnit)}</div>
                   ) : (
@@ -292,42 +282,48 @@ export default function SprfItemsTable({
                   )}
                 </td>
 
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1' : 'p-1'}`}>
+                  <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>
+                    {peso(row.totalCost)}
+                  </div>
+                </td>
+
+                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1' : 'p-1'}`}>
                   <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>
                     {(() => {
-                      if (isBundleRow) return peso(row.totalCost);
-                      const { sumCost } = getChildSums(index);
-                      return peso(Number(row.totalCost || 0) + sumCost);
+                      if (isBundleRow) return '';
+                      const { sumCostPerUnit, sumMarkupPerUnit } = getGroupUnitSums(computedItems, items, parentIndex);
+                      const finalSellingPerUnit = Number(sumCostPerUnit || 0) + Number(sumMarkupPerUnit || 0);
+                      return peso(finalSellingPerUnit);
                     })()}
                   </div>
                 </td>
 
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'py-0.1 px-1 bg-neutral-100' : 'p-1'}`}>
-                  <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>{peso(row.sellingPricePerUnitVatInc)}</div>
-                </td>
-
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'p-1 bg-neutral-100' : 'p-1'}`}>
+                <td className={`border-t border-r border-darkgreen/15 p-1`}>
                   <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>
                     {(() => {
-                      if (isBundleRow) return peso(row.totalSellingPriceVatInc);
-                      const { sumTotalSelling } = getChildSums(index);
-                      return peso(Number(row.totalSellingPriceVatInc || 0) + sumTotalSelling);
+                      if (isBundleRow) return '';
+                      const { sumCostPerUnit, sumMarkupPerUnit } = getGroupUnitSums(computedItems, items, parentIndex);
+                      const finalSellingPerUnit = Number(sumCostPerUnit || 0) + Number(sumMarkupPerUnit || 0);
+                      const qty = Number(item.qty || 0);
+                      return peso(finalSellingPerUnit * qty);
                     })()}
                   </div>
                 </td>
 
-                <td className={`border-t border-r border-darkgreen/15 ${isBundleRow ? 'p-1 bg-neutral-100' : 'p-1'}`}>
+                <td className={`border-t border-r border-darkgreen/15 p-1`}>
                   <div className={isBundleRow ? readonlyClassBundle : readonlyClass}>
                     {(() => {
-                      if (isBundleRow) return peso(row.markupValue);
-                      const { sumMarkupValue } = getChildSums(index);
-                      return peso(Number(row.markupValue || 0) + sumMarkupValue);
+                      if (isBundleRow) return '';
+                      const { sumMarkupPerUnit } = getGroupUnitSums(computedItems, items, parentIndex);
+                      const qty = Number(item.qty || 0);
+                      return peso(Number(sumMarkupPerUnit || 0) * qty);
                     })()}
                   </div>
                 </td>
 
                 <td
-                  className={`border-t border-darkgreen/15 xl:p-1 ${isBundleRow ? 'bg-neutral-100' : ''} ${
+                  className={`border-t border-darkgreen/15 xl:p-1 ${
                     showActionColumn ? 'border-r' : ''
                   }`}
                 >
@@ -347,7 +343,7 @@ export default function SprfItemsTable({
                 </td>
 
                 {showActionColumn && (
-                  <td className={`border-t border-darkgreen/15 flex items-center justify-center ${isBundleRow ? 'bg-neutral-100 p-2' : 'p-1 xl:py-2'}`}>
+                  <td className={`border-t border-darkgreen/15 flex items-center justify-center ${isBundleRow ? 'p-2' : 'p-1 xl:py-2'}`}>
                     {!isBundleRow ? (
                       <div className="flex flex-col xl:flex-row gap-0.5 xl:gap-1 justify-center">
                         <button
