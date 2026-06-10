@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\PrinterSupplyController;
 use App\Http\Controllers\Admin\SprfApproverMatrixController;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
+use App\Http\Controllers\RoiArchiveController;
 use App\Http\Controllers\Customer\RoiController;
 use App\Http\Controllers\ForcePasswordChangeController;
 use App\Http\Controllers\ProfileController;
@@ -317,10 +318,10 @@ Route::middleware(['auth', 'verified'])
             | Archive
             |--------------------------------------------------------------------------
             */
-            Route::get('/archive', [RoiController::class, 'archive'])
+            Route::get('/archive', [RoiArchiveController::class, 'index'])
                 ->name('roi.archive');
 
-            Route::get('/archive/{id}', [RoiController::class, 'archiveShow'])
+            Route::get('/archive/{id}', [RoiArchiveController::class, 'show'])
                 ->name('roi.archive.show');
 
            // routes/web.php — archive print route
@@ -362,7 +363,7 @@ Route::middleware(['auth', 'verified'])
             // Route::get('/archive/{id}/attachments/{attachmentId}', [RoiController::class, 'showArchiveAttachment'])
             //     ->name('roi.archive.attachments.show');
             
-            Route::get('/archive/{id}/attachments/{attachmentIndex}/{filename?}', [RoiController::class, 'showArchiveAttachment'])
+            Route::get('/archive/{id}/attachments/{attachmentIndex}/{filename?}', [RoiArchiveController::class, 'showArchiveAttachment'])
                ->name('roi.archive.attachments.show');
 
             /*

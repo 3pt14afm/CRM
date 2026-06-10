@@ -146,4 +146,9 @@ class User extends Authenticatable
     {
         return $query->where('is_banned', false);
     }
+    public function roiArchiveProjects()
+{
+    // Adjust 'RoiArchiveProject::class' if your model uses a different name or namespace
+    return $this->hasMany(\App\Models\RoiArchiveProject::class, 'user_id');
+}
 }

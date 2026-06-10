@@ -76,9 +76,16 @@ class RoiCurrentProjectController extends Controller
         return match ($level) { 2, 3, 4 => 'note', 5, 6 => 'comment', default => null };
     }
 
-    public function current()
+public function current(Request $request)
     {
         $user = $this->getAuthenticatedUser();
+
+        // Capture filtration requests sent over from Axios or initial page load parameters
+        $search    = $request->input('search');
+        $status    = $request->input('status');
+        $dateFrom  = $request->input('date_from');
+        $dateTo    = $request->input('date_to');
+        $perPage   = (int) $request->input('per_page', 10);
 
         $query = RoiCurrentProject::with([
             'items', 'fees', 'user',
@@ -87,11 +94,84 @@ class RoiCurrentProjectController extends Controller
             'endorsedByUser:id,first_name,last_name',
             'confirmedByUser:id,first_name,last_name',
             'approvedByUser:id,first_name,last_name',
-        ])->orderBy('last_saved_at', 'desc');
+        ]);
 
+        // Enforce user pipeline visualization constraints
         $this->applyCurrentVisibilityScope($query, $user);
 
-        $currentProjects = $query->paginate(10)->through(function ($p) use ($user) {
+        // 1. Text Exploration Search Logic
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('roi_current_projects.company_name', 'like', "%{$search}%")
+                  ->orWhere('roi_current_projects.reference', 'like', "%{$search}%")
+                  ->orWhere('roi_current_projects.company_sap_code', 'like', "%{$search}%")
+                  ->orWhere('roi_current_projects.contract_type', 'like', "%{$search}%")
+                  ->orWhere('roi_current_projects.status', 'like', "%{$search}%")
+                  ->orWhereHas('user', function ($userQuery) use ($search) {
+                      $userQuery->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // 2. State Mapping Logic (Matches frontend select parameters with dual-state fallback)
+        if (!empty($status)) {
+            match ($status) {
+                'for_review' => $query->where(function ($q) {
+                    $q->where('roi_current_projects.status', '=', 'For Review')
+                      ->orWhere(function ($sub) {
+                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
+                              ->where('roi_current_projects.current_level', '=', 2);
+                      });
+                }),
+                'for_checking' => $query->where(function ($q) {
+                    $q->where('roi_current_projects.status', '=', 'For Checking')
+                      ->orWhere(function ($sub) {
+                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
+                              ->where('roi_current_projects.current_level', '=', 3);
+                      });
+                }),
+                'for_endorsement' => $query->where(function ($q) {
+                    $q->where('roi_current_projects.status', '=', 'For Endorsement')
+                      ->orWhere(function ($sub) {
+                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
+                              ->where('roi_current_projects.current_level', '=', 4);
+                      });
+                }),
+                'for_confirmation' => $query->where(function ($q) {
+                    $q->where('roi_current_projects.status', '=', 'For Confirmation')
+                      ->orWhere(function ($sub) {
+                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
+                              ->where('roi_current_projects.current_level', '=', 5);
+                      });
+                }),
+                'for_approval' => $query->where(function ($q) {
+                    $q->where('roi_current_projects.status', '=', 'For Approval')
+                      ->orWhere(function ($sub) {
+                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
+                              ->where('roi_current_projects.current_level', '=', 6);
+                      });
+                }),
+                default => $query->where('roi_current_projects.status', '=', $status),
+            };
+        }
+
+        // 3. Activity Timeline Boundaries Filter
+        if (!empty($dateFrom)) {
+            $query->whereDate('roi_current_projects.last_saved_at', '>=', $dateFrom);
+        }
+
+        if (!empty($dateTo)) {
+            $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
+        }
+
+        // Apply chronological defaults
+        $query->orderBy('last_saved_at', 'desc');
+
+        // Clone base instance prior to pagination processing for dynamic KPI block metrics
+        $statsQuery = clone $query;
+
+        $currentProjects = $query->paginate($perPage)->withQueryString()->through(function ($p) use ($user) {
             $p->last_saved_display = $p->last_saved_at ? $p->last_saved_at->diffForHumans() : '—';
             $lvl = (int) ($p->current_level ?? 0);
             $p->level_display = ($lvl >= 1 && $lvl <= 6) ? ('Level ' . $lvl . ' — ' . $this->workflowService->levelLabel($lvl)) : '—';
@@ -112,20 +192,32 @@ class RoiCurrentProjectController extends Controller
             return $p;
         });
 
-        $statsQuery = RoiCurrentProject::query();
-        $this->applyCurrentVisibilityScope($statsQuery, $user);
-        $latest = (clone $statsQuery)->orderBy('last_saved_at', 'desc')->first();
+        $latest = (clone $statsQuery)->first();
 
         $stats = [
-            'totalCurrentProjects' => (clone $statsQuery)->count(),
+            'totalCurrentProjects' => $statsQuery->count(),
             'recentlyModifiedText' => $latest?->last_saved_at?->diffForHumans() ?? '—',
-            'recentlyAddedToday' => (clone $statsQuery)->whereDate('last_saved_at', now()->toDateString())->count() . ' Today',
+            'recentlyAddedToday'   => (clone $statsQuery)->whereDate('last_saved_at', now()->toDateString())->count() . ' Today',
         ];
+
+        // Capture direct JSON requests triggered by your search/filter UI actions
+        if ($request->wantsJson()) {
+            return response()->json([
+                'currentProjects' => $currentProjects,
+                'stats' => $stats,
+            ]);
+        }
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
             'currentProjects' => $currentProjects,
             'stats' => $stats,
             'viewerId' => (int) $user->id,
+            'filters' => [
+                'search'    => $search,
+                'status'    => $status,
+                'date_from' => $dateFrom,
+                'date_to'   => $dateTo,
+            ],
         ]);
     }
 
