@@ -127,3 +127,87 @@ export const finalApprovalLevelNumber = (approvalLevel) => {
 
   return 3;
 };
+
+// Formatting helpers used by UI
+export const peso = (value) => {
+  if (isBlank(value)) return '';
+  return Number(value).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+export const blankIfEmpty = (value) => (isBlank(value) ? '' : value);
+
+export const percent = (value) => {
+  if (isBlank(value)) return '';
+  return `${Number(value).toFixed(2)}%`;
+};
+
+// Helpers to compute child/group sums used by SprfItemsTable
+export const getChildSums = (computedItems, items, parentIndex) => {
+  let sumCost = 0;
+  let sumTotalSelling = 0;
+  let sumMarkupValue = 0;
+  let p = parentIndex + 1;
+  while (p < computedItems.length && (items[p]?.rowType === 'bundle' || computedItems[p]?.rowType === 'bundle')) {
+    const child = computedItems[p] ?? {};
+    sumCost += Number(child.totalCost || 0);
+    sumTotalSelling += Number(child.totalSellingPriceVatInc || 0);
+    sumMarkupValue += Number(child.markupValue || 0);
+    p += 1;
+  }
+  return { sumCost, sumTotalSelling, sumMarkupValue };
+};
+
+export const getGroupUnitSums = (computedItems, items, parentIndex) => {
+  const getSellingPerUnitForRow = (idx) => {
+    const row = computedItems[idx] ?? {};
+    const itemRow = items[idx] ?? {};
+    let sellingPU = Number(row.sellingPricePerUnitVatInc || 0);
+    if (!sellingPU) {
+      const totalSelling = Number(row.totalSellingPriceVatInc || 0);
+      const qty = Number(itemRow.qty || 0) || 1;
+      if (totalSelling) sellingPU = totalSelling / qty;
+    }
+    return sellingPU;
+  };
+
+  let sumCostPerUnit = 0;
+  let sumSellingPerUnit = 0;
+
+  if (parentIndex < 0 || parentIndex >= computedItems.length) return { sumCostPerUnit: 0, sumMarkupPerUnit: 0, sumSellingPerUnit: 0 };
+
+  let p = parentIndex;
+  // include parent and any subsequent bundle rows
+  while (p < computedItems.length) {
+    const curItem = items[p] ?? {};
+    sumCostPerUnit += Number(curItem.costPerUnit || 0);
+    sumSellingPerUnit += Number(getSellingPerUnitForRow(p) || 0);
+
+    // if at parent and next is bundle, consume bundles
+    if (p === parentIndex) {
+      if (items[p + 1]?.rowType === 'bundle' || computedItems[p + 1]?.rowType === 'bundle') {
+        p += 1;
+        continue;
+      }
+      break;
+    }
+
+    if (items[p + 1]?.rowType === 'bundle' || computedItems[p + 1]?.rowType === 'bundle') {
+      p += 1;
+      continue;
+    }
+    break;
+  }
+
+  const sumMarkupPerUnit = sumSellingPerUnit - sumCostPerUnit;
+  return { sumCostPerUnit, sumMarkupPerUnit, sumSellingPerUnit };
+};
+
+export const getParentIndexForRow = (computedItems, index) => {
+  if (!computedItems[index]?.rowType || computedItems[index].rowType !== 'bundle') return index;
+  let p = index - 1;
+  while (p >= 0 && computedItems[p]?.rowType === 'bundle') p -= 1;
+  return p >= 0 ? p : index;
+};
