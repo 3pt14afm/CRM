@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Location;
 use App\Models\RoiArchiveProject;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -15,98 +17,171 @@ class RoiArchiveController extends Controller
     /**
      * Display a listing of the archived projects.
      */
-public function index(Request $request)
-{
-    $perPage  = (int) $request->input('per_page', 10);
-    $search   = $request->input('search');
-    $status   = $request->input('status');
-    $dateFrom = $request->input('date_from');
-    $dateTo   = $request->input('date_to');
+   public function index(Request $request)
+    {
+        $perPage    = $request->integer('per_page', 10);
+        $search     = $request->input('search');
+        $status     = $request->input('status');
+        $dateFrom   = $request->input('date_from');
+        $dateTo     = $request->input('date_to');
+        $decidedBy  = $request->input('decided_by');
+        $preparedBy = $request->input('prepared_by');
+        $locationId = $request->input('location_id');
 
-    // Wrap as subquery so we can filter on the computed decided_at column cleanly
-    $baseQuery = RoiArchiveProject::query()
-        ->with('user')
-        ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
-        ->leftJoin('users as rejected_user', 'roi_archive_projects.rejected_by', '=', 'rejected_user.id')
-        ->selectRaw("
-            roi_archive_projects.*,
-            TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, ''))) as approved_by_name,
-            TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, ''))) as rejected_by_name,
-            COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at) as decided_at
-        ");
+        $baseQuery = RoiArchiveProject::query()
+            ->with('user')
+            ->leftJoin('users as creator_user', 'roi_archive_projects.user_id', '=', 'creator_user.id')
+            ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
+            ->leftJoin('users as rejected_user', 'roi_archive_projects.rejected_by', '=', 'rejected_user.id')
+            ->selectRaw("
+                roi_archive_projects.*,
+                TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, ''))) as prepared_by_name,
+                TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, ''))) as approved_by_name,
+                TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, ''))) as rejected_by_name,
+                COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at) as decided_at,
+                CASE
+                    WHEN LOWER(roi_archive_projects.status) = 'rejected'
+                        THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
+                    ELSE TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
+                END as decided_by_name_computed
+            ");
 
-    if (!empty($status)) {
-        $baseQuery->where('roi_archive_projects.status', '=', $status);
-    }
+        // Status
+        if (!empty($status)) {
+            $baseQuery->where('roi_archive_projects.status', '=', $status);
+        }
 
-    if (!empty($search)) {
-        $baseQuery->where(function ($q) use ($search) {
-            $q->where('roi_archive_projects.company_name', 'like', "%{$search}%")
-              ->orWhere('roi_archive_projects.reference', 'like', "%{$search}%")
-              ->orWhere('roi_archive_projects.company_sap_code', 'like', "%{$search}%")
-              ->orWhere('roi_archive_projects.contract_type', 'like', "%{$search}%")
-              ->orWhere('roi_archive_projects.status', 'like', "%{$search}%")
-              ->orWhereHas('user', function ($userQuery) use ($search) {
-                  $userQuery->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%");
-              });
-        });
-    }
+        // Location — Force table prefix to prevent subquery binding pollution
+        if (!empty($locationId)) {
+            $baseQuery->where('roi_archive_projects.location_id', '=', (int) $locationId);
+        }
 
-    // Filter on decided_at using HAVING so it works on the computed column
-    if (!empty($dateFrom)) {
-        $baseQuery->havingRaw('decided_at >= ?', [$dateFrom . ' 00:00:00']);
-    }
+        // General search
+        if (!empty($search)) {
+            $baseQuery->where(function ($q) use ($search) {
+                $q->where('roi_archive_projects.company_name',      'like', "%{$search}%")
+                ->orWhere('roi_archive_projects.reference',        'like', "%{$search}%")
+                ->orWhere('roi_archive_projects.company_sap_code', 'like', "%{$search}%")
+                ->orWhere('roi_archive_projects.contract_type',    'like', "%{$search}%")
+                ->orWhere('roi_archive_projects.status',           'like', "%{$search}%")
+                ->orWhereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name',  'like', "%{$search}%");
+                });
+            });
+        }
 
-    if (!empty($dateTo)) {
-        $baseQuery->havingRaw('decided_at <= ?', [$dateTo . ' 23:59:59']);
-    }
+        // Prepared By
+        if (!empty($preparedBy)) {
+            $baseQuery->whereHas('user', function ($q) use ($preparedBy) {
+                $q->where('first_name', 'like', "%{$preparedBy}%")
+                ->orWhere('last_name',  'like', "%{$preparedBy}%")
+                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+            });
+        }
 
-    $baseQuery->orderByRaw('decided_at DESC');
+        $needsSubquery = !empty($dateFrom) || !empty($dateTo) || !empty($decidedBy);
 
-    $archiveProjects = (clone $baseQuery)
-        ->paginate($perPage)
-        ->withQueryString()
-        ->through(function ($p) {
-            $statusStr  = strtolower((string) ($p->status ?? ''));
-            $isRejected = $statusStr === 'rejected';
+        if ($needsSubquery) {
+            $baseQuery->orderByRaw('decided_at DESC');
 
-            $p->decided_by_name    = $isRejected ? ($p->rejected_by_name ?: '—') : ($p->approved_by_name ?: '—');
-            $decidedAt             = $isRejected ? $p->rejected_at : $p->approved_at;
-            $p->decided_at_display = $decidedAt ? \Carbon\Carbon::parse($decidedAt)->diffForHumans() : '—';
+            // CRITICAL: Explicitly select * from the nested raw SQL subquery mapping
+            $sub = DB::table(DB::raw("({$baseQuery->toSql()}) as sub"))
+                ->select('sub.*') 
+                ->mergeBindings($baseQuery->getQuery());
 
-            return $p;
-        });
+            if (!empty($dateFrom)) {
+                $sub->where('sub.decided_at', '>=', $dateFrom . ' 00:00:00');
+            }
+            if (!empty($dateTo)) {
+                $sub->where('sub.decided_at', '<=', $dateTo . ' 23:59:59');
+            }
+            if (!empty($decidedBy)) {
+                $sub->where('sub.decided_by_name_computed', 'like', "%{$decidedBy}%");
+            }
 
-    if ($request->wantsJson()) {
-        return response()->json([
+            $archiveProjects = $sub
+                ->orderByRaw('decided_at DESC')
+                ->paginate($perPage)
+                ->withQueryString()
+                ->through(function ($p) {
+                    $p           = (object) (array) $p;
+                    $statusStr   = strtolower((string) ($p->status ?? ''));
+                    $isRejected  = $statusStr === 'rejected';
+
+                    $p->decided_by_name    = $isRejected
+                        ? ($p->rejected_by_name ?: '—')
+                        : ($p->approved_by_name ?: '—');
+
+                    $decidedAt             = $isRejected ? $p->rejected_at : $p->approved_at;
+                    $p->decided_at_display = $decidedAt
+                        ? \Carbon\Carbon::parse($decidedAt)->diffForHumans()
+                        : '—';
+
+                    return $p;
+                });
+        } else {
+            $baseQuery->orderByRaw('decided_at DESC');
+
+            $archiveProjects = (clone $baseQuery)
+                ->paginate($perPage)
+                ->withQueryString()
+                ->through(function ($p) {
+                    $statusStr  = strtolower((string) ($p->status ?? ''));
+                    $isRejected = $statusStr === 'rejected';
+
+                    $p->decided_by_name    = $isRejected
+                        ? ($p->rejected_by_name ?: '—')
+                        : ($p->approved_by_name ?: '—');
+
+                    $decidedAt             = $isRejected ? $p->rejected_at : $p->approved_at;
+                    $p->decided_at_display = $decidedAt
+                        ? \Carbon\Carbon::parse($decidedAt)->diffForHumans()
+                        : '—';
+
+                    return $p;
+                });
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'archiveProjects' => $archiveProjects,
+            ]);
+        }
+
+        $totalArchiveProjects  = RoiArchiveProject::query()->count();
+        $recentlyArchivedToday = RoiArchiveProject::query()
+            ->where(function ($q) {
+                $q->whereDate('approved_at', now()->toDateString())
+                ->orWhereDate('rejected_at', now()->toDateString());
+            })
+            ->count();
+
+        $locations = Location::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
+            'filters' => [
+                'search'      => $search,
+                'status'      => $status,
+                'date_from'   => $dateFrom,
+                'date_to'     => $dateTo,
+                'decided_by'  => $decidedBy,
+                'prepared_by' => $preparedBy,
+                'location_id' => $locationId,
+                'per_page'    => $perPage,
+            ],
             'archiveProjects' => $archiveProjects,
+            'locations'       => $locations,
+            'stats'           => [
+                'totalArchiveProjects'  => $totalArchiveProjects,
+                'recentlyArchivedToday' => $recentlyArchivedToday . ' Today',
+            ],
         ]);
     }
-
-    $totalArchiveProjects  = RoiArchiveProject::query()->count();
-    $recentlyArchivedToday = RoiArchiveProject::query()
-        ->where(function ($q) {
-            $q->whereDate('approved_at', now()->toDateString())
-              ->orWhereDate('rejected_at', now()->toDateString());
-        })
-        ->count();
-
-    return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
-        'filters' => [
-            'search'    => $search,
-            'status'    => $status,
-            'date_from' => $dateFrom,
-            'date_to'   => $dateTo,
-        ],
-        'archiveProjects' => $archiveProjects,
-        'stats' => [
-            'totalArchiveProjects'  => $totalArchiveProjects,
-            'recentlyArchivedToday' => $recentlyArchivedToday . ' Today',
-        ],
-    ]);
-}
-
+    
     /**
      * Display the specified archived project.
      */
@@ -138,24 +213,24 @@ public function index(Request $request)
 
         $usersById = User::query()
             ->whereIn('id', $userIds)
-            ->get(['id', 'first_name', 'last_name', 'position']) 
+            ->get(['id', 'first_name', 'last_name', 'position'])
             ->mapWithKeys(fn ($u) => [
                 (string) $u->id => [
-                    'id' => $u->id,
-                    'name' => trim($u->first_name . ' ' . $u->last_name),
+                    'id'       => $u->id,
+                    'name'     => trim($u->first_name . ' ' . $u->last_name),
                     'position' => $u->position,
                 ],
             ]);
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
-            'project' => $project,
-            'entryProject' => $project,
-            'readOnly' => true,
-            'route' => 'archive',
-            'createdBy' => $project->user?->name ?? '—',
-            'role' => Auth::user()->workflow_role,
-            'usersById' => $usersById,
-            'machineCatalog' => $this->buildMachineCatalog(),
+            'project'           => $project,
+            'entryProject'      => $project,
+            'readOnly'          => true,
+            'route'             => 'archive',
+            'createdBy'         => $project->user?->name ?? '—',
+            'role'              => Auth::user()->workflow_role,
+            'usersById'         => $usersById,
+            'machineCatalog'    => $this->buildMachineCatalog(),
             'consumableCatalog' => $this->buildConsumableCatalog(),
         ]);
     }
@@ -192,14 +267,14 @@ public function index(Request $request)
         $userId = (int) $user->id;
 
         $canView =
-            (int) $project->user_id === $userId
-            || (int) ($project->reviewed_by ?? 0) === $userId
-            || (int) ($project->checked_by ?? 0) === $userId
-            || (int) ($project->endorsed_by ?? 0) === $userId
+            (int) $project->user_id              === $userId
+            || (int) ($project->reviewed_by  ?? 0) === $userId
+            || (int) ($project->checked_by   ?? 0) === $userId
+            || (int) ($project->endorsed_by  ?? 0) === $userId
             || (int) ($project->confirmed_by ?? 0) === $userId
-            || (int) ($project->approved_by ?? 0) === $userId
-            || (int) ($project->rejected_by ?? 0) === $userId;
-            
+            || (int) ($project->approved_by  ?? 0) === $userId
+            || (int) ($project->rejected_by  ?? 0) === $userId;
+
         abort_unless($canView, 403);
     }
 
@@ -212,22 +287,24 @@ public function index(Request $request)
             ->get()
             ->map(function ($printer) {
                 return [
-                    'id' => (string) $printer->id,
-                    'name' => $printer->printer_name,
-                    'unitCost' => number_format((float) ($printer->unit_cost ?? 0), 2, '.', ''),
+                    'id'           => (string) $printer->id,
+                    'name'         => $printer->printer_name,
+                    'unitCost'     => number_format((float) ($printer->unit_cost     ?? 0), 2, '.', ''),
                     'sellingPrice' => number_format((float) ($printer->selling_price ?? 0), 2, '.', ''),
-                    'consumables' => $printer->printerModelSupplies
+                    'consumables'  => $printer->printerModelSupplies
                         ->filter(fn ($link) => $link->supply && $link->supply->status === 'Active')
                         ->map(function ($link) {
                             $supply = $link->supply;
-                            $mode = strtolower($supply->category ?? '') === 'part' ? 'others' : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+                            $mode   = strtolower($supply->category ?? '') === 'part'
+                                ? 'others'
+                                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
                             return [
-                                'id' => (string) $supply->id,
-                                'mode' => $mode,
-                                'name' => $supply->supply_name,
-                                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                                'id'           => (string) $supply->id,
+                                'mode'         => $mode,
+                                'name'         => $supply->supply_name,
+                                'unitCost'     => number_format((float) ($supply->unit_cost     ?? 0), 2, '.', ''),
                                 'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-                                'yields' => (string) ($supply->yield ?? ''),
+                                'yields'       => (string) ($supply->yield ?? ''),
                             ];
                         })->values(),
                 ];
@@ -236,19 +313,23 @@ public function index(Request $request)
 
     private function buildConsumableCatalog()
     {
-        $catalog = ['mono' => [], 'color' => [], 'others' => []];
+        $catalog  = ['mono' => [], 'color' => [], 'others' => []];
         $supplies = \App\Models\Supply::query()->where('status', 'Active')->orderBy('supply_name')->get();
 
         foreach ($supplies as $supply) {
-            $mode = strtolower($supply->category ?? '') === 'part' ? 'others' : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+            $mode = strtolower($supply->category ?? '') === 'part'
+                ? 'others'
+                : (strtolower($supply->print_type ?? '') === 'mono' ? 'mono' : 'color');
+
             $catalog[$mode][] = [
-                'id' => (string) $supply->id,
-                'name' => $supply->supply_name,
-                'unitCost' => number_format((float) ($supply->unit_cost ?? 0), 2, '.', ''),
+                'id'           => (string) $supply->id,
+                'name'         => $supply->supply_name,
+                'unitCost'     => number_format((float) ($supply->unit_cost     ?? 0), 2, '.', ''),
                 'sellingPrice' => number_format((float) ($supply->selling_price ?? 0), 2, '.', ''),
-                'yields' => (string) ($supply->yield ?? ''),
+                'yields'       => (string) ($supply->yield ?? ''),
             ];
         }
+
         return $catalog;
     }
 }

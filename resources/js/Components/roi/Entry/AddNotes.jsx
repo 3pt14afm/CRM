@@ -72,6 +72,12 @@ const isAssignedEndorser =
   Number(project.endorsed_by) === Number(userId) &&
   Number(currentLevel) === 4;
 
+// 👇 Define the entry owner check here
+const isEntryOwner = 
+  !!userId && 
+  !!project?.created_by && 
+  Number(project.created_by) === Number(userId);
+
 const canNote = isCurrentRoute
   ? (isAssignedReviewer || isAssignedChecker || isAssignedEndorser)
   : (isEntryOwner || isAssignedReviewer || isAssignedChecker || isAssignedEndorser);

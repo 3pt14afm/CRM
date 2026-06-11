@@ -3,7 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import ArchiveList from './ArchiveList';
 
-export default function Archive({ archiveProjects = null, stats = null, filters = null }) {
+export default function Archive({ archiveProjects = null, stats = null, filters = null, locations={locations} }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -33,6 +33,7 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
 
           <ArchiveList
             archiveProjects={archiveProjects}
+            locations={locations}
             stats={stats}
             filters={filters}
           />
