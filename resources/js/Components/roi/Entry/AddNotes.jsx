@@ -52,29 +52,29 @@ export default function AddNotes({ scopeKey = "default" }) {
   const isArchiveRoute = pageRoute === "archive";
   const isEntryRoute = !isCurrentRoute && !isArchiveRoute;
 
-  const isEntryOwner =
-    !!userId &&
-    !!project?.user_id &&
-    Number(project.user_id) === Number(userId);
+const currentLevel = project?.current_level ?? null;
 
-  const isAssignedReviewer =
-    !!userId &&
-    !!project?.reviewed_by &&
-    Number(project.reviewed_by) === Number(userId);
+const isAssignedReviewer =
+  !!userId &&
+  !!project?.reviewed_by &&
+  Number(project.reviewed_by) === Number(userId) &&
+  Number(currentLevel) === 2;
 
-  const isAssignedChecker =
-    !!userId &&
-    !!project?.checked_by &&
-    Number(project.checked_by) === Number(userId);
+const isAssignedChecker =
+  !!userId &&
+  !!project?.checked_by &&
+  Number(project.checked_by) === Number(userId) &&
+  Number(currentLevel) === 3;
 
-  const isAssignedEndorser =
-    !!userId &&
-    !!project?.endorsed_by &&
-    Number(project.endorsed_by) === Number(userId);
+const isAssignedEndorser =
+  !!userId &&
+  !!project?.endorsed_by &&
+  Number(project.endorsed_by) === Number(userId) &&
+  Number(currentLevel) === 4;
 
-  const canNote = isCurrentRoute
-    ? (isAssignedReviewer || isAssignedChecker || isAssignedEndorser)
-    : (isEntryOwner || isAssignedReviewer || isAssignedChecker || isAssignedEndorser);
+const canNote = isCurrentRoute
+  ? (isAssignedReviewer || isAssignedChecker || isAssignedEndorser)
+  : (isEntryOwner || isAssignedReviewer || isAssignedChecker || isAssignedEndorser);
 
   const isPrintPreview =
   projectData?.metadata?.isPrintPreview === true ||

@@ -245,6 +245,72 @@ public function current(Request $request)
         ]);
     }
 
+    public function storeNote(Request $request, $id)
+    {
+        $user = $this->getAuthenticatedUser();
+        $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+        abort_unless($this->canNoteOnCurrentProject($project, $user), 403, 'Not allowed to add a note.');
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $notes = is_array($project->notes) ? $project->notes : [];
+
+        $note = [
+            'id'         => (string) \Illuminate\Support\Str::ulid(),
+            'body'       => trim($validated['body']),
+            'created_at' => now()->toISOString(),
+            'author'     => [
+                'id'   => $user->id,
+                'name' => $user->name ?? 'Unknown',
+                'role' => $user->role,
+            ],
+        ];
+
+        $notes[] = $note;
+
+        $project->update([
+            'notes'         => $this->workflowService->sortTimelineEntries($notes),
+            'last_saved_at' => now(),
+        ]);
+
+        try {
+            \App\Services\RoiActivityLogger::log(
+                activityType: 'add_note',
+                moduleType:   'ROI Current',
+                details:      'Added note to ROI #' . $project->reference,
+                subject:      $project,
+                newValues:    [
+                    'note_id' => $note['id'],
+                    'body'    => $note['body'],
+                ]
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('ROI current note log failed', [
+                'message'    => $e->getMessage(),
+                'project_id' => $project->id,
+            ]);
+        }
+
+        return back()->with('success', 'Note added.');
+    }
+
+private function canNoteOnCurrentProject(RoiCurrentProject $project, $user): bool
+{
+    if (!$user) return false;
+
+    $userId = (int) $user->id;
+    $level  = (int) $project->current_level;
+
+    $column = $this->approverColumnForLevel($level);
+
+    if (!$column) return false;
+
+    return (int) ($project->{$column} ?? 0) === $userId;
+}
+
     public function sendBack(SendBackProjectRequest $request, $id)
     {
         $user = $this->getAuthenticatedUser();
