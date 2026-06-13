@@ -7,6 +7,7 @@ use App\Models\SPRF\SprfApprovalMatrix;
 use App\Models\SPRF\SprfCurrentProject;
 use App\Models\SPRF\SprfEntryFee;
 use App\Models\SPRF\SprfEntryItem;
+use App\Models\SPRF\SprfEntryItemSubitem;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
 use App\Services\SPRF\SprfNumberGenerator;
@@ -17,18 +18,22 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use App\Services\SprfActivityLogger;
+use App\Services\SPRF\SprfItemCalculationService;
 use Illuminate\Support\Facades\Log;
-
 
 class SprfEntryProjectController extends Controller
 {
+    public function __construct(
+        private readonly SprfItemCalculationService $itemCalc
+    ) {}
+
     public function show(SprfEntryProject $project)
     {
         if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
             abort(403);
         }
 
-        $project->load(['items', 'fees', 'preparer:id,first_name,last_name,position,email']);
+        $project->load(['items.subitems', 'fees', 'preparer:id,first_name,last_name,position,email']);
 
         return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
             'approverUsers' => $this->mapApproverUsersFromProject($project),
@@ -42,7 +47,7 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        $project->load(['items', 'fees', 'preparer:id,first_name,last_name,position,email']);
+        $project->load(['items.subitems', 'fees', 'preparer:id,first_name,last_name,position,email']);
 
         return Inertia::render('CustomerManagement/ProjectSPRF/sprfEntryPrint', [
             'entryProject' => $this->transformProjectForPrint($project),
@@ -171,8 +176,17 @@ public function saveDraft(Request $request, SprfNumberGenerator $sprfNumberGener
         $project->items()->delete();
         $project->fees()->delete();
 
-        if (! empty($items)) {
-            $project->items()->createMany($items);
+        if (! empty($items['parentRows'])) {
+            $createdItems = $project->items()->createMany($items['parentRows']);
+
+            foreach ($createdItems as $createdItem) {
+                $rowKey = $createdItem->row_key;
+                if (!empty($items['subitemsByRowKey'][$rowKey])) {
+                    $createdItem->subitems()->createMany(
+                        $items['subitemsByRowKey'][$rowKey]
+                    );
+                }
+            }
         }
 
         if (! empty($fees)) {
@@ -324,8 +338,17 @@ public function submit(Request $request, SprfEntryProject $project, SprfNumberGe
             'rejected_at' => null,
         ]);
 
-        if (! empty($items)) {
-            $currentProject->items()->createMany($items);
+        if (! empty($items['parentRows'])) {
+            $createdItems = $currentProject->items()->createMany($items['parentRows']);
+
+            foreach ($createdItems as $createdItem) {
+                $rowKey = $createdItem->row_key;
+                if (!empty($items['subitemsByRowKey'][$rowKey])) {
+                    $createdItem->subitems()->createMany(
+                        $items['subitemsByRowKey'][$rowKey]
+                    );
+                }
+            }
         }
 
         if (! empty($fees)) {
@@ -418,14 +441,14 @@ public function destroy(SprfEntryProject $project)
 
             'items' => ['nullable', 'array'],
             'items.*.rowKey' => ['nullable', 'string', 'max:255'],
-            'items.*.rowType' => ['nullable', 'string', 'in:item,bundle'],
-            'items.*.parentRowKey' => ['nullable', 'string', 'max:255'],
-            'items.*.productCode' => ['nullable', 'string', 'max:255'],
-            'items.*.itemDescription' => ['nullable', 'string'],
-            'items.*.qty' => ['nullable', 'integer', 'min:0'],
-            'items.*.disty' => ['nullable', 'string', 'max:255'],
-            'items.*.costPerUnit' => ['nullable', 'numeric'],
-            'items.*.markupPercent' => ['nullable', 'numeric'],
+            'items.*.subitems' => ['nullable', 'array'],
+            'items.*.subitems.*.rowKey' => ['nullable', 'string', 'max:255'],
+            'items.*.subitems.*.productCode' => ['nullable', 'string', 'max:255'],
+            'items.*.subitems.*.itemDescription' => ['nullable', 'string'],
+            'items.*.subitems.*.qty' => ['nullable', 'integer', 'min:0'],
+            'items.*.subitems.*.disty' => ['nullable', 'string', 'max:255'],
+            'items.*.subitems.*.costPerUnit' => ['nullable', 'numeric'],
+            'items.*.subitems.*.markupPercent' => ['nullable', 'numeric'],
 
             'other_expenses' => ['nullable', 'array'],
             'other_expenses.*.expenseKey' => ['nullable', 'string', 'max:255'],
@@ -457,60 +480,30 @@ public function destroy(SprfEntryProject $project)
 
     private function mapItemsPayload(array $items): array
     {
-        return collect($items)
-            ->map(function ($row) {
-                $qty = $this->toNullableFloat(data_get($row, 'qty'));
-                $costPerUnit = $this->toNullableFloat(data_get($row, 'costPerUnit'));
-                $markupPercent = $this->toNullableFloat(data_get($row, 'markupPercent'));
+        $mapped = $this->itemCalc->mapPayload($items);
 
-                $totalCost =
-                    $qty === null || $costPerUnit === null
-                        ? null
-                        : $qty * $costPerUnit;
+        // Keep only groups that have at least one non-blank subitem
+        $validRowKeys = collect($mapped['subitemsByRowKey'])
+            ->filter(fn($subitems) => collect($subitems)->contains(fn($row) =>
+                !blank($row['product_code']) ||
+                !blank($row['item_description']) ||
+                !blank($row['disty']) ||
+                $row['qty'] !== null ||
+                $row['cost_per_unit'] !== null ||
+                $row['markup_percent'] !== null
+            ))
+            ->keys();
 
-                $sellingPricePerUnitVatInc =
-                    $costPerUnit === null || $markupPercent === null
-                        ? null
-                        : $costPerUnit * (1 + ($markupPercent / 100));
-
-                $totalSellingPriceVatInc =
-                    $qty === null || $sellingPricePerUnitVatInc === null
-                        ? null
-                        : $qty * $sellingPricePerUnitVatInc;
-
-                $markupValue =
-                    $totalSellingPriceVatInc === null || $totalCost === null
-                        ? null
-                        : $totalSellingPriceVatInc - $totalCost;
-
-                return [
-                    'row_key' => data_get($row, 'rowKey'),
-                    'row_type' => data_get($row, 'rowType') === 'bundle' ? 'bundle' : 'item',
-                    'parent_row_key' => data_get($row, 'parentRowKey'),
-                    'product_code' => data_get($row, 'productCode'),
-                    'item_description' => data_get($row, 'itemDescription'),
-                    'qty' => $qty,
-                    'disty' => data_get($row, 'disty'),
-                    'cost_per_unit' => $costPerUnit,
-                    'total_cost' => $totalCost,
-                    'selling_price_per_unit_vat_inc' => $sellingPricePerUnitVatInc,
-                    'total_selling_price_vat_inc' => $totalSellingPriceVatInc,
-                    'markup_value' => $markupValue,
-                    'markup_percent' => $markupPercent,
-                ];
-            })
-            ->filter(function ($row) {
-                return !(
-                    blank($row['product_code']) &&
-                    blank($row['item_description']) &&
-                    blank($row['disty']) &&
-                    $row['qty'] === null &&
-                    $row['cost_per_unit'] === null &&
-                    $row['markup_percent'] === null
-                );
-            })
+        $mapped['parentRows'] = collect($mapped['parentRows'])
+            ->filter(fn($row) => $validRowKeys->contains($row['row_key']))
             ->values()
             ->all();
+
+        $mapped['subitemsByRowKey'] = collect($mapped['subitemsByRowKey'])
+            ->only($validRowKeys)
+            ->all();
+
+        return $mapped;
     }
 
     private function mapFeesPayload(array $fees): array
@@ -916,15 +909,24 @@ public function destroy(SprfEntryProject $project)
             'items' => $project->items
                 ->map(function (SprfEntryItem $item) {
                     return [
-                        'productCode' => $item->product_code,
-                        'rowKey' => $item->row_key,
-                        'rowType' => $item->row_type ?: 'item',
-                        'parentRowKey' => $item->parent_row_key,
-                        'itemDescription' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'costPerUnit' => $item->cost_per_unit,
-                        'markupPercent' => $item->markup_percent,
+                        'rowKey'                    => $item->row_key,
+                        'totalCost'                 => $item->total_cost,
+                        'sellingPricePerUnitVatInc' => $item->selling_price_per_unit_vat_inc,
+                        'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
+                        'markupValue'               => $item->markup_value,
+                        'subitems' => $item->subitems
+                            ->map(fn(SprfEntryItemSubitem $sub) => [
+                                'rowKey'          => $sub->row_key,
+                                'productCode'     => $sub->product_code,
+                                'itemDescription' => $sub->item_description,
+                                'qty'             => $sub->qty,
+                                'disty'           => $sub->disty,
+                                'costPerUnit'     => $sub->cost_per_unit,
+                                'markupPercent'   => $sub->markup_percent,
+                                'totalCost'       => $sub->total_cost,
+                            ])
+                            ->values()
+                            ->all(),
                     ];
                 })
                 ->values()
@@ -967,15 +969,24 @@ public function destroy(SprfEntryProject $project)
             'items' => $project->items
                 ->map(function (SprfEntryItem $item) {
                     return [
-                        'productCode' => $item->product_code,
-                        'rowKey' => $item->row_key,
-                        'rowType' => $item->row_type ?: 'item',
-                        'parentRowKey' => $item->parent_row_key,
-                        'itemDescription' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'costPerUnit' => $item->cost_per_unit,
-                        'markupPercent' => $item->markup_percent,
+                        'rowKey'                    => $item->row_key,
+                        'totalCost'                 => $item->total_cost,
+                        'sellingPricePerUnitVatInc' => $item->selling_price_per_unit_vat_inc,
+                        'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
+                        'markupValue'               => $item->markup_value,
+                        'subitems' => $item->subitems
+                            ->map(fn(SprfEntryItemSubitem $sub) => [
+                                'rowKey'          => $sub->row_key,
+                                'productCode'     => $sub->product_code,
+                                'itemDescription' => $sub->item_description,
+                                'qty'             => $sub->qty,
+                                'disty'           => $sub->disty,
+                                'costPerUnit'     => $sub->cost_per_unit,
+                                'markupPercent'   => $sub->markup_percent,
+                                'totalCost'       => $sub->total_cost,
+                            ])
+                            ->values()
+                            ->all(),
                     ];
                 })
                 ->values()

@@ -33,13 +33,11 @@ const isBlank = (value) =>
 
 const toNumber = (value) => Number(value || 0);
 
-const makeRowKey = () =>
-  `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const makeRowKey = (prefix = 'row') =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const makeItemRow = ({
-  rowKey = makeRowKey(),
-  rowType = 'item',
-  parentRowKey = null,
+const makeSubitemRow = ({
+  rowKey = makeRowKey('sub'),
   productCode = '',
   itemDescription = '',
   qty = '',
@@ -48,8 +46,6 @@ const makeItemRow = ({
   markupPercent = '',
 } = {}) => ({
   rowKey,
-  rowType,
-  parentRowKey,
   productCode,
   itemDescription,
   qty,
@@ -57,6 +53,39 @@ const makeItemRow = ({
   costPerUnit,
   markupPercent,
 });
+
+const makeGroupRow = ({
+  rowKey = makeRowKey('group'),
+  subitems = [makeSubitemRow()],
+} = {}) => ({
+  rowKey,
+  subitems,
+});
+
+const flattenItemsFromApi = (apiItems = []) => {
+  if (!Array.isArray(apiItems) || apiItems.length === 0) {
+    return [makeGroupRow()];
+  }
+
+  return apiItems.map((group) =>
+    makeGroupRow({
+      rowKey: group.rowKey || makeRowKey('group'),
+      subitems: (group.subitems || []).length > 0
+        ? group.subitems.map((sub) =>
+            makeSubitemRow({
+              rowKey: sub.rowKey || makeRowKey('sub'),
+              productCode: sub.productCode ?? '',
+              itemDescription: sub.itemDescription ?? '',
+              qty: sub.qty ?? '',
+              disty: sub.disty ?? '',
+              costPerUnit: isBlank(sub.costPerUnit) ? '' : Number(sub.costPerUnit),
+              markupPercent: isBlank(sub.markupPercent) ? '' : Number(sub.markupPercent),
+            })
+          )
+        : [makeSubitemRow()],
+    })
+  );
+};
 
 const makeExpenseRow = ({
   expenseKey = null,
@@ -153,42 +182,50 @@ const serializeRemarksRows = (rows) => {
     .join('\n');
 };
 
-const computeItem = (row) => {
-  const qtyBlank = isBlank(row.qty);
-  const costBlank = isBlank(row.costPerUnit);
-  const markupBlank = isBlank(row.markupPercent);
-
+const computeSubitem = (row) => {
   const qty = toNumber(row.qty);
   const costPerUnit = toNumber(row.costPerUnit);
   const markupPercent = toNumber(row.markupPercent);
 
-  const totalCost =
-    qtyBlank || costBlank
-      ? ''
-      : qty * costPerUnit;
+  const qtyBlank = isBlank(row.qty);
+  const costBlank = isBlank(row.costPerUnit);
+  const markupBlank = isBlank(row.markupPercent);
 
-  const sellingPricePerUnitVatInc =
-    costBlank || markupBlank
-      ? ''
-      : costPerUnit * (1 + markupPercent / 100);
+  const markupPerUnit = costBlank || markupBlank ? '' : costPerUnit * (markupPercent / 100);
+  const totalCost = qtyBlank || costBlank ? '' : qty * costPerUnit;
+  const totalMarkup = qtyBlank || markupPerUnit === '' ? '' : qty * markupPerUnit;
 
-  const totalSellingPriceVatInc =
-    qtyBlank || sellingPricePerUnitVatInc === ''
-      ? ''
-      : qty * sellingPricePerUnitVatInc;
+  return { ...row, markupPerUnit, totalCost, totalMarkup };
+};
 
-  const markupValue =
-    totalSellingPriceVatInc === '' || totalCost === ''
-      ? ''
-      : totalSellingPriceVatInc - totalCost;
+const computeGroup = (group) => {
+  const computedSubitems = (group.subitems || []).map(computeSubitem);
+
+  let sumCostPerUnit = 0;
+  let sumMarkupPerUnit = 0;
+  let grandTotalCost = 0;
+  let grandTotalMarkup = 0;
+  let hasIncompleteMarkup = false;
+
+  computedSubitems.forEach((row) => {
+    if (!isBlank(row.costPerUnit)) sumCostPerUnit += toNumber(row.costPerUnit);
+    if (row.totalCost !== '') grandTotalCost += toNumber(row.totalCost);
+
+    if (isBlank(row.markupPercent)) {
+      hasIncompleteMarkup = true;
+    } else {
+      sumMarkupPerUnit += toNumber(row.markupPerUnit);
+      grandTotalMarkup += toNumber(row.totalMarkup);
+    }
+  });
 
   return {
-    ...row,
-    totalCost,
-    sellingPricePerUnitVatInc,
-    totalSellingPriceVatInc,
-    markupValue,
-    markupPercent: row.markupPercent,
+    ...group,
+    computedSubitems,
+    totalCost: grandTotalCost,
+    sellingPricePerUnitVatInc: hasIncompleteMarkup ? '' : sumCostPerUnit + sumMarkupPerUnit,
+    totalSellingPriceVatInc: hasIncompleteMarkup ? '' : grandTotalCost + grandTotalMarkup,
+    markupValue: hasIncompleteMarkup ? '' : grandTotalMarkup,
   };
 };
 
@@ -331,7 +368,7 @@ function Entry({
   const [remarks, setRemarks] = useState(['']);
   const [rebateJustification, setRebateJustification] = useState('');
 
-  const [items, setItems] = useState([makeItemRow()]);
+  const [items, setItems] = useState([makeGroupRow()]);
   const [otherExpenses, setOtherExpenses] = useState(() => makeInitialExpenseRows());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -354,7 +391,7 @@ function Entry({
                 });
                 setRemarks(['']);
                 setRebateJustification('');
-                setItems([makeItemRow()]);
+                setItems([makeGroupRow()]);
                 setOtherExpenses(makeInitialExpenseRows());
                 return;
               }
@@ -368,59 +405,30 @@ function Entry({
               setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
               setRebateJustification(sourceProject?.rebate_justification ?? '');
 
-              setItems(
-                Array.isArray(sourceProject?.items) && sourceProject.items.length > 0
-                  ? sourceProject.items.map((row) =>
-                      makeItemRow({
-                        rowKey: row?.rowKey || makeRowKey(),
-                        rowType: row?.rowType === 'bundle' ? 'bundle' : 'item',
-                        parentRowKey: row?.parentRowKey ?? null,
-                        productCode: row?.productCode ?? '',
-                        itemDescription: row?.itemDescription ?? '',
-                        qty: row?.qty ?? '',
-                        disty: row?.disty ?? '',
-                        costPerUnit: row?.costPerUnit ?? '',
-                        markupPercent: row?.markupPercent ?? '',
-                      })
-                    )
-                  : [makeItemRow()]
-              );
+              setItems(flattenItemsFromApi(sourceProject?.items ?? []));
 
-                setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
+              setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
       }, [sourceProject?.id]);
 
-  const computedItems = useMemo(() => items.map(computeItem), [items]);
+  const computedItems = useMemo(() => items.map(computeGroup), [items]);
   const computedExpenses = useMemo(() => otherExpenses.map(computeExpense), [otherExpenses]);
 
   const summary = useMemo(() => {
-    const revenue = computedItems.reduce((sum, row) => sum + toNumber(row.totalSellingPriceVatInc), 0 );
-    const cogs = computedItems.reduce((sum, row) => sum + toNumber(row.totalCost), 0 );
-    const otherExpense = computedExpenses.reduce((sum, row) => sum + toNumber(row.total), 0 );
+    const revenue = computedItems.reduce((sum, g) => sum + toNumber(g.totalSellingPriceVatInc), 0);
+    const cogs = computedItems.reduce((sum, g) => sum + toNumber(g.totalCost), 0);
+    const otherExpense = computedExpenses.reduce((sum, row) => sum + toNumber(row.total), 0);
 
     const totalExpense = cogs + otherExpense;
     const gpValue = revenue - totalExpense;
     const totalGpPercent = revenue > 0 ? (gpValue / revenue) * 100 : 0;
 
-    return {
-      revenue,
-      cogs,
-      otherExpense,
-      totalExpense,
-      gpValue,
-      totalGpPercent,
-    };
+    return { revenue, cogs, otherExpense, totalExpense, gpValue, totalGpPercent };
   }, [computedItems, computedExpenses]);
 
-  const itemTotals = useMemo(() => {
-    const ttlCost = computedItems.reduce(
-      (sum, row) => sum + toNumber(row.totalCost), 0 );
-    const ttlRev = computedItems.reduce((sum, row) => sum + toNumber(row.totalSellingPriceVatInc), 0 );
-
-    return {
-      ttlCost,
-      ttlRev,
-    };
-  }, [computedItems]);
+  const itemTotals = useMemo(() => ({
+    ttlCost: computedItems.reduce((sum, g) => sum + toNumber(g.totalCost), 0),
+    ttlRev: computedItems.reduce((sum, g) => sum + toNumber(g.totalSellingPriceVatInc), 0),
+  }), [computedItems]);
 
   const rebateTotal = useMemo(() => {
     return computedExpenses
@@ -508,66 +516,53 @@ function Entry({
     approverUsers,
   ]);
 
-  const updateItem = (index, field, value) => {
+  const updateSubitem = (groupIndex, subIndex, field, value) => {
     setItems((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+      prev.map((group, gi) => {
+        if (gi !== groupIndex) return group;
+        return {
+          ...group,
+          subitems: group.subitems.map((sub, si) =>
+            si === subIndex ? { ...sub, [field]: value } : sub
+          ),
+        };
+      })
     );
   };
 
-  const addItemRow = (index) => {
-    setItems((prev) => {
-      const next = [...prev];
-      const row = next[index];
-      let insertAt = index + 1;
+  const addGroup = () => {
+    setItems((prev) => [...prev, makeGroupRow()]);
+  };
 
-      if (row?.rowType !== 'bundle') {
-        while (insertAt < next.length && next[insertAt]?.parentRowKey === row?.rowKey) {
-          insertAt += 1;
+  const addSubitem = (groupIndex, subIndex) => {
+    setItems((prev) =>
+      prev.map((group, gi) => {
+        if (gi !== groupIndex) return group;
+        const next = [...group.subitems];
+        next.splice(subIndex + 1, 0, makeSubitemRow());
+        return { ...group, subitems: next };
+      })
+    );
+  };
+
+  const removeSubitem = (groupIndex, subIndex) => {
+    setItems((prev) => {
+      const group = prev[groupIndex];
+      if (!group) return prev;
+
+      if (group.subitems.length === 1) {
+        // last subitem in group — remove the whole group (unless it's the only group)
+        if (prev.length === 1) {
+          return [makeGroupRow()];
         }
+        return prev.filter((_, gi) => gi !== groupIndex);
       }
 
-      next.splice(insertAt, 0, makeItemRow());
-      return next;
-    });
-  };
-
-  const addBundleItemRow = (index) => {
-    setItems((prev) => {
-      const parent = prev[index];
-      if (!parent || parent.rowType === 'bundle') return prev;
-
-      const next = [...prev];
-      let insertAt = index + 1;
-
-      while (insertAt < next.length && next[insertAt]?.parentRowKey === parent.rowKey) {
-        insertAt += 1;
-      }
-
-      next.splice(
-        insertAt,
-        0,
-        makeItemRow({
-          rowType: 'bundle',
-          parentRowKey: parent.rowKey,
-        })
+      return prev.map((g, gi) =>
+        gi === groupIndex
+          ? { ...g, subitems: g.subitems.filter((_, si) => si !== subIndex) }
+          : g
       );
-
-      return next;
-    });
-  };
-
-  const removeItemRow = (index) => {
-    setItems((prev) => {
-      if (prev.length === 1) return prev;
-      const row = prev[index];
-
-      const next = prev.filter((item, i) => {
-        if (i === index) return false;
-        if (row?.rowType !== 'bundle' && item?.parentRowKey === row?.rowKey) return false;
-        return true;
-      });
-
-      return next.length > 0 ? next : [makeItemRow()];
     });
   };
 
@@ -685,14 +680,14 @@ const hasValidCompanyInfo = (companyInfo) => {
 };
 
 const hasValidItems = (items) => {
-  return items.some((row) => {
-    return (
+  return items.some((group) =>
+    (group.subitems || []).some((row) =>
       row.productCode?.trim() ||
       row.itemDescription?.trim() ||
       Number(row.qty) > 0 ||
       Number(row.costPerUnit) > 0
-    );
-  });
+    )
+  );
 };
 
 const hasValidExpenses = (expenses) => {
@@ -811,7 +806,7 @@ const handleClearAll = () => {
             });
             setRemarks(['']);
             setRebateJustification('');
-            setItems([makeItemRow()]);
+            setItems([makeGroupRow()]);
             setOtherExpenses(makeInitialExpenseRows());
 
             toast.success('All data cleared.');
@@ -951,11 +946,12 @@ const handleClearAll = () => {
                 <SprfItemsTable
                   items={items}
                   computedItems={computedItems}
-                  onUpdateItem={updateItem}
-                  onAddItemRow={addItemRow}
-                  onAddBundleItemRow={addBundleItemRow}
-                  onRemoveItemRow={removeItemRow}
+                  onUpdateSubitem={updateSubitem}
+                  onAddGroup={addGroup}
+                  onAddSubitem={addSubitem}
+                  onRemoveSubitem={removeSubitem}
                   totals={itemTotals}
+                  summary={summary}
                   readOnly={readOnly}
                 />
               </div>

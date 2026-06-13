@@ -3,6 +3,8 @@
 namespace App\Models\SPRF;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SprfCurrentItem extends Model
 {
@@ -11,32 +13,28 @@ class SprfCurrentItem extends Model
     protected $fillable = [
         'project_id',
         'row_key',
-        'row_type',
-        'parent_row_key',
-        'product_code',
-        'item_description',
-        'qty',
-        'disty',
-        'cost_per_unit',
+        'sort_order',
         'total_cost',
         'selling_price_per_unit_vat_inc',
         'total_selling_price_vat_inc',
         'markup_value',
-        'markup_percent',
     ];
 
     protected $casts = [
-        'qty' => 'integer',
-        'cost_per_unit' => 'decimal:2',
-        'total_cost' => 'decimal:2',
+        'total_cost'                     => 'decimal:2',
         'selling_price_per_unit_vat_inc' => 'decimal:2',
-        'total_selling_price_vat_inc' => 'decimal:2',
-        'markup_value' => 'decimal:2',
-        'markup_percent' => 'decimal:2',
+        'total_selling_price_vat_inc'    => 'decimal:2',
+        'markup_value'                   => 'decimal:2',
     ];
 
-    public function project()
+    public function project(): BelongsTo
     {
         return $this->belongsTo(SprfCurrentProject::class, 'project_id');
+    }
+
+    public function subitems(): HasMany
+    {
+        return $this->hasMany(SprfCurrentItemSubitem::class, 'item_id')
+                    ->orderBy('sort_order');
     }
 }
