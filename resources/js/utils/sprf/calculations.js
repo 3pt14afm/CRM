@@ -141,7 +141,13 @@ export const blankIfEmpty = (value) => (isBlank(value) ? '' : value);
 
 export const percent = (value) => {
   if (isBlank(value)) return '';
-  return `${Number(value).toFixed(2)}%`;
+
+  const num = Number(value);
+  const rounded = Math.round(num * 100) / 100;
+  const fixed = rounded.toFixed(2); // "9.00", "9.50", "9.57"
+  const trimmed = fixed.replace(/0+$/, '').replace(/\.$/, '');
+
+  return `${trimmed}%`;
 };
 
 // Helpers to compute child/group sums used by SprfItemsTable

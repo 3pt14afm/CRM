@@ -96,89 +96,76 @@ const hasExpenseValue = (row) => {
   );
 };
 
-function computeSummary(items = [], otherExpenses = []) {
-  const computedItems = items.map((row) => {
-    const qtyBlank = isBlank(row.qty);
-    const costBlank = isBlank(row.costPerUnit);
-    const markupBlank = isBlank(row.markupPercent);
+const computeSubitemPrint = (row) => {
+  const qty = toNumber(row.qty);
+  const costPerUnit = toNumber(row.costPerUnit); // blank defaults to 0
+  const markupPercent = toNumber(row.markupPercent);
 
-    const qty = toNumber(row.qty);
-    const costPerUnit = toNumber(row.costPerUnit);
-    const markupPercent = toNumber(row.markupPercent);
+  const qtyBlank = isBlank(row.qty);
+  const markupBlank = isBlank(row.markupPercent);
 
-    const totalCost =
-      qtyBlank || costBlank
-        ? ''
-        : qty * costPerUnit;
+  const markupPerUnit = markupBlank ? '' : costPerUnit * (markupPercent / 100);
+  const totalCost = qtyBlank ? '' : qty * costPerUnit;
+  const totalMarkup = qtyBlank || markupPerUnit === '' ? '' : qty * markupPerUnit;
 
-    const sellingPricePerUnitVatInc =
-      costBlank || markupBlank
-        ? ''
-        : costPerUnit * (1 + markupPercent / 100);
+  return { ...row, markupPerUnit, totalCost, totalMarkup };
+};
 
-    const totalSellingPriceVatInc =
-      qtyBlank || sellingPricePerUnitVatInc === ''
-        ? ''
-        : qty * sellingPricePerUnitVatInc;
+const computeGroupPrint = (group) => {
+  const computedSubitems = (group.subitems || []).map(computeSubitemPrint);
 
-    const markupValue =
-      totalSellingPriceVatInc === '' || totalCost === ''
-        ? ''
-        : totalSellingPriceVatInc - totalCost;
+  let sumCostPerUnit = 0;
+  let sumMarkupPerUnit = 0;
+  let grandTotalCost = 0;
+  let grandTotalMarkup = 0;
+  let hasIncompleteMarkup = false;
 
-    return {
-      ...row,
-      totalCost,
-      sellingPricePerUnitVatInc,
-      totalSellingPriceVatInc,
-      markupValue,
-      markupPercent: row.markupPercent,
-    };
+  computedSubitems.forEach((row) => {
+    if (!isBlank(row.costPerUnit)) sumCostPerUnit += toNumber(row.costPerUnit);
+    if (row.totalCost !== '') grandTotalCost += toNumber(row.totalCost);
+
+    if (isBlank(row.markupPercent)) {
+      hasIncompleteMarkup = true;
+    } else {
+      sumMarkupPerUnit += toNumber(row.markupPerUnit);
+      grandTotalMarkup += toNumber(row.totalMarkup);
+    }
   });
+
+  return {
+    ...group,
+    computedSubitems,
+    totalCost: grandTotalCost,
+    sellingPricePerUnitVatInc: hasIncompleteMarkup ? '' : sumCostPerUnit + sumMarkupPerUnit,
+    totalSellingPriceVatInc: hasIncompleteMarkup ? '' : grandTotalCost + grandTotalMarkup,
+    markupValue: hasIncompleteMarkup ? '' : grandTotalMarkup,
+  };
+};
+
+function computeSummary(items = [], otherExpenses = []) {
+  const computedGroups = items.map(computeGroupPrint);
 
   const computedExpenses = otherExpenses.map((row) => {
     const qtyBlank = isBlank(row.qty);
     const unitPriceBlank = isBlank(row.unitPrice);
-
     const qty = toNumber(row.qty);
     const unitPrice = toNumber(row.unitPrice);
 
-    return {
-      ...row,
-      total: qtyBlank || unitPriceBlank ? '' : qty * unitPrice,
-    };
+    return { ...row, total: qtyBlank || unitPriceBlank ? '' : qty * unitPrice };
   });
 
-  const revenue = computedItems.reduce(
-    (sum, row) => sum + toNumber(row.totalSellingPriceVatInc),
-    0
-  );
-
-  const cogs = computedItems.reduce(
-    (sum, row) => sum + toNumber(row.totalCost),
-    0
-  );
-
-  const otherExpense = computedExpenses.reduce(
-    (sum, row) => sum + toNumber(row.total),
-    0
-  );
+  const revenue = computedGroups.reduce((sum, g) => sum + toNumber(g.totalSellingPriceVatInc), 0);
+  const cogs = computedGroups.reduce((sum, g) => sum + toNumber(g.totalCost), 0);
+  const otherExpense = computedExpenses.reduce((sum, row) => sum + toNumber(row.total), 0);
 
   const totalExpense = cogs + otherExpense;
   const gpValue = revenue - totalExpense;
   const totalGpPercent = revenue > 0 ? (gpValue / revenue) * 100 : 0;
 
   return {
-    computedItems,
+    computedGroups,
     computedExpenses,
-    summary: {
-      revenue,
-      cogs,
-      otherExpense,
-      totalExpense,
-      gpValue,
-      totalGpPercent,
-    },
+    summary: { revenue, cogs, otherExpense, totalExpense, gpValue, totalGpPercent },
   };
 }
 
@@ -189,6 +176,22 @@ function resolveApprovalLevel({ revenue, totalGpPercent, hasRebate }) {
   if (totalGpPercent > 15 || revenue > 1000000) return APPROVAL_LEVEL.VP_AND_CCTO;
   return APPROVAL_LEVEL.ESD_ONLY;
 }
+
+const flattenPrintItems = (items = []) => {
+  const flat = [];
+
+  for (const item of items) {
+    const { subitems = [], ...parent } = item;
+
+    flat.push({ ...parent, rowType: 'item' });
+
+    for (const sub of subitems) {
+      flat.push({ ...sub, rowType: 'bundle', parentRowKey: parent.rowKey });
+    }
+  }
+
+  return flat;
+};
 
 function mapProjectToPrintData(project) {
   if (!project) return null;
@@ -279,16 +282,15 @@ export default function SprfEntryPrint({
   const resolved = useMemo(() => {
     if (!printData) return null;
 
-    const { computedItems, computedExpenses, summary } = computeSummary(
+    const { computedGroups, computedExpenses, summary } = computeSummary(
       printData.items,
       printData.otherExpenses
     );
 
     const rebateTotal = computedExpenses
-      .filter(
-        (row) =>
-          row?.expenseKey === 'rebate' ||
-          String(row?.productCode || '').trim().toLowerCase() === 'rebate'
+      .filter((row) =>
+        row?.expenseKey === 'rebate' ||
+        String(row?.productCode || '').trim().toLowerCase() === 'rebate'
       )
       .reduce((sum, row) => sum + toNumber(row.total), 0);
 
@@ -302,7 +304,7 @@ export default function SprfEntryPrint({
 
     return {
       ...printData,
-      computedItems,
+      computedGroups,
       computedExpenses,
       summary,
       hasRebate,
@@ -348,12 +350,6 @@ export default function SprfEntryPrint({
             </button>
           </div>
         </div>
-
-        {loaded && resolved && resolved.status === 'draft' && (
-          <div className="print-watermark" aria-hidden="true">
-            DRAFT
-          </div>
-        )}
 
         <div className="print-root">
           {!resolved ? (
@@ -402,10 +398,11 @@ export default function SprfEntryPrint({
                 </div>
 
                 <PrintItemsTable
-                  rows={resolved.computedItems}
+                  groups={resolved.computedGroups}
                   totals={{
                     ttlCost: resolved.summary.cogs,
                     ttlRev: resolved.summary.revenue,
+                    gpValue: resolved.summary.gpValue,
                   }}
                 />
 
@@ -473,7 +470,7 @@ function PrintTextBlock({ label, value }) {
           {rows.map((row, index) => (
             <div
               key={`${label}-${index}`}
-              className="min-w-0 min-h-[32px] max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]"
+              className="min-w-0 min-h-[30px] max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]"
             >
               {displayText(row) || '—'}
             </div>
@@ -558,25 +555,27 @@ function PrintSummaryRow({ label, value, isPercent = false, isLast = false }) {
   );
 }
 
-function PrintItemsTable({ rows, totals }) {
-  const footerCellClass =
-    'bg-[#D9F2D0] p-2 py-1 text-[10px] font-semibold';
+function PrintItemsTable({ groups, totals }) {
+  const footerCellClass = 'bg-[#D9F2D0] p-2 py-1 text-[10px] font-semibold';
+
+  const allSubitemsBlank = (group) =>
+    !(group.computedSubitems || []).some(hasItemValue);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA]">
       <table className="w-full table-fixed border-separate border-spacing-0 text-[10px]">
         <colgroup>
           <col className="w-[2.5%]" />
-          <col className="w-[10%]" />
-          <col className="w-[23.5%]" />
+          <col className="w-[8%]" />
+          <col className="w-[21.1%]" />
           <col className="w-[4.5%]" />
-          <col className="w-[6%]" />
-          <col className="w-[9%]" />
-          <col className="w-[10%]" />
-          <col className="w-[9%]" />
-          <col className="w-[10%]" />
-          <col className="w-[8.8%]" />
-          <col className="w-[6.7%]" />
+          <col className="w-[5.6%]" />
+          <col className="w-[9.4%]" />
+          <col className="w-[11.8%]" />
+          <col className="w-[9.3%]" />
+          <col className="w-[11.4%]" />
+          <col className="w-[10.3%]" />
+          <col className="w-[6.1%]" />
         </colgroup>
 
         <thead>
@@ -588,85 +587,56 @@ function PrintItemsTable({ rows, totals }) {
             <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Disty</th>
             <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Cost / Unit</th>
             <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Total Cost</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">
-              Selling Price/unit (VAT INC)
-            </th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">
-              Total Selling Price (VAT INC)
-            </th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Selling Price/unit (VAT INC)</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Total Selling Price (VAT INC)</th>
             <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Mark Up Value</th>
             <th className="border-b border-darkgreen/15 p-1.5 py-2 font-semibold">Mark-up %</th>
           </tr>
         </thead>
 
         <tbody>
-          {rows.length === 0 ? (
+          {groups.length === 0 ? (
             <tr>
-              <td colSpan={11} className="p-4 text-center text-slate-500">
-                No items available.
-              </td>
+              <td colSpan={11} className="p-4 text-center text-slate-500">No items available.</td>
             </tr>
           ) : (
-            rows.map((row, index) => {
-              const rowHasValue = hasItemValue(row);
-              const isBundleRow = row?.rowType === 'bundle';
-              const rowNumber = rows
-                .slice(0, index + 1)
-                .filter((itemRow) => itemRow?.rowType !== 'bundle')
-                .length;
+            groups.map((group, gIndex) => {
+              const subitems = group.computedSubitems || [];
+              const rowSpanCount = subitems.length || 1;
+              const groupHasValue = !allSubitemsBlank(group);
 
-              return (
-                <tr key={row?.rowKey ?? `item-${index}`} className={isBundleRow ? 'bg-slate-50 text-slate-600' : ''}>
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">
-                    {rowHasValue ? (isBundleRow ? 'Bundle' : rowNumber) : ''}
-                  </td>
+              return subitems.length > 0 ? subitems.map((sub, sIndex) => (
+                <tr key={sub.rowKey ?? `${group.rowKey}-${sIndex}`}>
+                  {sIndex === 0 && (
+                    <td className="border-b border-r border-darkgreen/15 p-2 text-center" rowSpan={rowSpanCount}>
+                      {groupHasValue ? gIndex + 1 : ''}
+                    </td>
+                  )}
 
-                  <td className="border-b border-r border-darkgreen/15 p-2">
-                    {displayText(row.productCode)}
-                  </td>
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">{displayText(sub.productCode)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-2">{displayText(sub.itemDescription)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">{isBlank(sub.qty) ? '' : sub.qty}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">{displayText(sub.disty)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">{displayPeso(sub.costPerUnit)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">{displayPeso(sub.totalCost)}</td>
 
-                  <td className={`border-b border-r border-darkgreen/15 p-2 ${isBundleRow ? 'pl-5' : ''}`}>
-                    {isBundleRow && (
-                      <span className="mr-2 text-[8px] font-semibold uppercase text-slate-400">
-                        Add-on
-                      </span>
-                    )}
-                    {displayText(row.itemDescription)}
-                  </td>
+                  {sIndex === 0 && (
+                    <>
+                      <td className="border-b border-r border-darkgreen/15 p-2 text-right" rowSpan={rowSpanCount}>
+                        {displayPeso(group.sellingPricePerUnitVatInc)}
+                      </td>
+                      <td className="border-b border-r border-darkgreen/15 p-2 text-right" rowSpan={rowSpanCount}>
+                        {displayPeso(group.totalSellingPriceVatInc)}
+                      </td>
+                      <td className="border-b border-r border-darkgreen/15 p-2 text-right" rowSpan={rowSpanCount}>
+                        {displayPeso(group.markupValue)}
+                      </td>
+                    </>
+                  )}
 
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">
-                    {isBlank(row.qty) ? '' : row.qty}
-                  </td>
-
-                  <td className="border-b border-r border-darkgreen/15 p-2">
-                    {displayText(row.disty)}
-                  </td>
-
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
-                    {displayPeso(row.costPerUnit)}
-                  </td>
-
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
-                    {displayPeso(row.totalCost)}
-                  </td>
-
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
-                    {displayPeso(row.sellingPricePerUnitVatInc)}
-                  </td>
-
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
-                    {displayPeso(row.totalSellingPriceVatInc)}
-                  </td>
-
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">
-                    {displayPeso(row.markupValue)}
-                  </td>
-
-                  <td className="border-b border-darkgreen/15 p-2 text-right">
-                    {displayPercent(row.markupPercent)}
-                  </td>
+                  <td className="border-b border-darkgreen/15 p-2 text-right">{displayPercent(sub.markupPercent)}</td>
                 </tr>
-              );
+              )) : null;
             })
           )}
         </tbody>
@@ -679,14 +649,10 @@ function PrintItemsTable({ rows, totals }) {
             <td className={footerCellClass}></td>
             <td className={footerCellClass}></td>
             <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
-            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>
-              {displayPeso(totals?.ttlCost)}
-            </td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{displayPeso(totals?.ttlCost)}</td>
             <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
-            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>
-              {displayPeso(totals?.ttlRev)}
-            </td>
-            <td className={footerCellClass}></td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{displayPeso(totals?.ttlRev)}</td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{displayPeso(totals?.gpValue)}</td>
             <td className={`${footerCellClass} rounded-br-xl`}></td>
           </tr>
         </tfoot>
