@@ -368,7 +368,7 @@ export default function EntryList({
         >
           <option value="all">All Status</option>
           <option value="draft">Draft</option>
-          <option value="returned">Sent Back</option>
+          <option value="returned">Returned</option>
         </select>
       </div>
 
