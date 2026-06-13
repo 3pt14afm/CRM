@@ -787,7 +787,10 @@ const handleSubmit = () => {
  const formData = buildFormDataPayload();
   formData.append("_method", "patch");
 
-  router.post(ziggyRoute("roi.entry.projects.submit", projectId), formData, {
+ // Force the query parameter explicitly into the destination URI
+ const submissionUrl = `${ziggyRoute("roi.entry.projects.submit", projectId)}?_method=PATCH`;
+
+ router.post(submissionUrl, formData, {
     preserveScroll: true,
     forceFormData: true,
     onStart: () => toast.loading("Submitting project...", { id: "submitProject" }),
@@ -799,7 +802,7 @@ const handleSubmit = () => {
       const message = Object.values(errors)[0] || "Failed to submit.";
       toast.error(message, { id: "submitProject" });
     },
-  });
+ });
 };
 
 

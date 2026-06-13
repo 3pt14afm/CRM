@@ -177,9 +177,8 @@ class RoiProjectService
         });
     }
 
-/**
+    /**
      * Map payload calculations, attach files, and overwrite items/fees records.
-     * Uses the Backend Calculator as the sole Source of Truth.
      */
     public function persistDraftData(Request $request, RoiEntryProject $project, array $data): void
     {
@@ -193,11 +192,10 @@ class RoiProjectService
 
         $attachments = $this->storeEntryRemarkAttachments($request, $project);
 
-        // 1. PERFORM ALL CALCULATIONS ON BACKEND
-        // This ensures the DB matches your logic, not the potentially stale frontend state
+        // 1. Calculations performed via the Backend Calculator engine
         $calculated = $this->calculator->calculateAll($data);
 
-        // 2. MAP EVERYTHING FROM CALCULATED DATA
+        // 2. Map payload calculations safely
         $project->update([
             'company_name' => (string) ($company['companyName'] ?? ''),
             'company_sap_code' => $company['companySapCode'] ?? null,
@@ -214,7 +212,6 @@ class RoiProjectService
             'entry_remarks' => (string) ($entryRemarks['remarks'] ?? ''),
             'entry_remarks_attachments' => $attachments,
             
-            // Financials: STRICTLY from backend calculator output
             'mc_unit_cost' => 0,
             'mc_qty' => 0,
             'mc_total_cost' => (float) ($calculated['breakdown']['machine']      ?? 0),
@@ -229,8 +226,8 @@ class RoiProjectService
             'last_saved_at' => now(),
         ]);
 
-        // 3. PERSIST ITEM ROWS
-        if ($request->exists('machineConfiguration.machine') || $request->exists('machineConfiguration.consumable')) {
+        // 3. PERSIST ITEM ROWS (Bypasses input verification failure drops)
+        if (array_key_exists('machineConfiguration', $data)) {
             RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
             $itemRows = [];
             foreach ($data['machineConfiguration']['machine'] ?? [] as $row) { $itemRows[] = $this->mapItemRow($project->id, $row, 'machine'); }
@@ -239,7 +236,7 @@ class RoiProjectService
         }
 
         // 4. PERSIST FEE ROWS
-        if ($request->exists('additionalFees.company') || $request->exists('additionalFees.customer')) {
+        if (array_key_exists('additionalFees', $data)) {
             RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
             $feeRows = [];
             foreach ($data['additionalFees']['company'] ?? [] as $row) { $feeRows[] = $this->mapFeeRow($project->id, $row, 'company'); }
@@ -249,7 +246,7 @@ class RoiProjectService
     }
 
     /**
-     * Generate sequential prefix identifiers safely.
+     * Generate sequential prefix identifiers safely using efficient database queries.
      */
     private function createNewDraftRecord(array $data, $user): RoiEntryProject
     {
@@ -258,7 +255,6 @@ class RoiProjectService
         $monoMonthly  = (int) ($yield['monoAmvpYields']['monthly']  ?? 0);
         $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
-        // Validate location once — outside the retry loop, it never changes
         if (!$user?->primary_location_id) {
             abort(422, 'Your account has no primary location.');
         }
@@ -268,7 +264,7 @@ class RoiProjectService
         }
         $prefix = strtoupper(trim($location->code));
 
-        // Find max reference number across all 3 tables in the DB — not in PHP
+        // OPTIMIZED: Handled sequence calculations down at database level using regular extraction expression matching
         $tables = [
             (new RoiEntryProject)->getTable(),
             (new RoiCurrentProject)->getTable(),
@@ -277,18 +273,13 @@ class RoiProjectService
 
         $maxNumber = 0;
         foreach ($tables as $table) {
-            // Works on both MySQL and PostgreSQL:
-            // Pull only references matching the prefix, extract the numeric suffix in PHP.
-            // The LIKE filter keeps the result set tiny so the PHP loop is never expensive.
-            $references = DB::table($table)
-                ->where('reference', 'like', $prefix . '-%')
-                ->pluck('reference');
+            // Extracts raw trailing integers natively out of the text schemas
+            $highestRef = DB::table($table)
+                ->where('reference', 'LIKE', $prefix . '-%')
+                ->selectRaw("MAX(CAST(SUBSTRING_INDEX(reference, '-', -1) AS UNSIGNED)) as max_val")
+                ->value('max_val');
 
-            foreach ($references as $reference) {
-                if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $reference, $matches)) {
-                    $maxNumber = max($maxNumber, (int) $matches[1]);
-                }
-            }
+            $maxNumber = max($maxNumber, (int) $highestRef);
         }
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
@@ -326,7 +317,6 @@ class RoiProjectService
                     throw $e;
                 }
 
-                // Increment and retry on duplicate reference collision
                 $maxNumber++;
             }
         }
