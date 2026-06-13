@@ -105,7 +105,7 @@ class SprfItemCalculationService
             $mappedSubitems = [];
 
             foreach ($subitems as $sub) {
-                $qty           = $this->toNullableFloat($sub['qty'] ?? null);
+                $qty           = $this->toNullableInt($sub['qty'] ?? null);
                 $costPerUnit   = $this->toNullableFloat($sub['costPerUnit'] ?? null);
                 $markupPercent = $this->toNullableFloat($sub['markupPercent'] ?? null);
                 $calc          = $this->computeSubitemRow($qty, $costPerUnit, $markupPercent);
@@ -139,5 +139,10 @@ class SprfItemCalculationService
     public function toNullableFloat($value): ?float
     {
         return ($value === null || $value === '') ? null : (float) $value;
+    }
+
+    public function toNullableInt($value): ?int
+    {
+        return ($value === null || $value === '') ? null : (int) round((float) $value);
     }
 }

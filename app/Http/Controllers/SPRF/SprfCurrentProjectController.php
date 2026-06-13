@@ -23,14 +23,18 @@ class SprfCurrentProjectController extends Controller
 
         $query = SprfCurrentProject::query()
             ->with([
-                'items',
+                'items.subitems',
                 'fees',
                 'preparer:id,first_name,last_name,position',
                 'currentApprover:id,first_name,last_name,position',
             ])
             ->where(function ($q) use ($userId) {
                 $q->where('prepared_by_user_id', $userId)
-                    ->orWhere('current_approver_user_id', $userId);
+                    ->orWhere('current_approver_user_id', $userId)
+                    ->orWhere('director_customer_engagement_user_id', $userId)
+                    ->orWhere('esd_director_user_id', $userId)
+                    ->orWhere('vp_ccto_user_id', $userId)
+                    ->orWhere('president_ceo_user_id', $userId);
             })
             ->whereIn('status', ['for_review', 'under_review'])
             ->orderByDesc('last_saved_at')
@@ -86,7 +90,7 @@ class SprfCurrentProjectController extends Controller
         $this->ensureCanView($project);
 
         $project->load([
-            'items',
+            'items.subitems',
             'fees',
             'preparer:id,first_name,last_name,position,email',
             'currentApprover:id,first_name,last_name,position,email',
@@ -110,7 +114,7 @@ class SprfCurrentProjectController extends Controller
         $this->ensureCanView($project);
 
         $project->load([
-            'items',
+            'items.subitems',
             'fees',
             'preparer:id,first_name,last_name,position,email',
             'currentApprover:id,first_name,last_name,position,email',
@@ -200,7 +204,7 @@ public function reject(Request $request, SprfCurrentProject $project)
 
     $this->assertAssignedApprover($project);
 
-    $project->load(['items', 'fees']);
+    $project->load(['items.subitems', 'fees']);
 
     $oldValues = [
         'project' => $project->toArray(),
@@ -253,25 +257,40 @@ public function reject(Request $request, SprfCurrentProject $project)
             'rejected_at' => now(),
         ]);
 
-        $archiveProject->items()->createMany(
+        $createdItems = $archiveProject->items()->createMany(
             $project->items->map(function ($item) {
                 return [
-                    'row_key' => $item->row_key,
-                    'row_type' => $item->row_type ?: 'item',
-                    'parent_row_key' => $item->parent_row_key,
-                    'product_code' => $item->product_code,
-                    'item_description' => $item->item_description,
-                    'qty' => $item->qty,
-                    'disty' => $item->disty,
-                    'cost_per_unit' => $item->cost_per_unit,
-                    'total_cost' => $item->total_cost,
+                    'row_key'                        => $item->row_key,
+                    'sort_order'                     => $item->sort_order,
+                    'total_cost'                     => $item->total_cost,
                     'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
-                    'total_selling_price_vat_inc' => $item->total_selling_price_vat_inc,
-                    'markup_value' => $item->markup_value,
-                    'markup_percent' => $item->markup_percent,
+                    'total_selling_price_vat_inc'    => $item->total_selling_price_vat_inc,
+                    'markup_value'                   => $item->markup_value,
                 ];
             })->all()
         );
+
+        foreach ($createdItems as $i => $createdItem) {
+            $sourceItem = $project->items[$i];
+
+            if ($sourceItem->subitems->isNotEmpty()) {
+                $createdItem->subitems()->createMany(
+                    $sourceItem->subitems->map(function ($sub) {
+                        return [
+                            'row_key'          => $sub->row_key,
+                            'sort_order'       => $sub->sort_order,
+                            'product_code'     => $sub->product_code,
+                            'item_description' => $sub->item_description,
+                            'qty'              => $sub->qty,
+                            'disty'            => $sub->disty,
+                            'cost_per_unit'    => $sub->cost_per_unit,
+                            'total_cost'       => $sub->total_cost,
+                            'markup_percent'   => $sub->markup_percent,
+                        ];
+                    })->all()
+                );
+            }
+        }
 
         $archiveProject->fees()->createMany(
             $project->fees->map(function ($fee) {
@@ -325,7 +344,7 @@ public function approve(SprfCurrentProject $project)
         ]);
     }
 
-    $project->load(['items', 'fees']);
+    $project->load(['items.subitems', 'fees']);
 
     $oldValues = [
         'project' => $project->toArray(),
@@ -378,25 +397,40 @@ public function approve(SprfCurrentProject $project)
             'rejected_at' => null,
         ]);
 
-        $archiveProject->items()->createMany(
+        $createdItems = $archiveProject->items()->createMany(
             $project->items->map(function ($item) {
                 return [
-                    'row_key' => $item->row_key,
-                    'row_type' => $item->row_type ?: 'item',
-                    'parent_row_key' => $item->parent_row_key,
-                    'product_code' => $item->product_code,
-                    'item_description' => $item->item_description,
-                    'qty' => $item->qty,
-                    'disty' => $item->disty,
-                    'cost_per_unit' => $item->cost_per_unit,
-                    'total_cost' => $item->total_cost,
+                    'row_key'                        => $item->row_key,
+                    'sort_order'                     => $item->sort_order,
+                    'total_cost'                     => $item->total_cost,
                     'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
-                    'total_selling_price_vat_inc' => $item->total_selling_price_vat_inc,
-                    'markup_value' => $item->markup_value,
-                    'markup_percent' => $item->markup_percent,
+                    'total_selling_price_vat_inc'    => $item->total_selling_price_vat_inc,
+                    'markup_value'                   => $item->markup_value,
                 ];
             })->all()
         );
+
+        foreach ($createdItems as $i => $createdItem) {
+            $sourceItem = $project->items[$i];
+
+            if ($sourceItem->subitems->isNotEmpty()) {
+                $createdItem->subitems()->createMany(
+                    $sourceItem->subitems->map(function ($sub) {
+                        return [
+                            'row_key'          => $sub->row_key,
+                            'sort_order'       => $sub->sort_order,
+                            'product_code'     => $sub->product_code,
+                            'item_description' => $sub->item_description,
+                            'qty'              => $sub->qty,
+                            'disty'            => $sub->disty,
+                            'cost_per_unit'    => $sub->cost_per_unit,
+                            'total_cost'       => $sub->total_cost,
+                            'markup_percent'   => $sub->markup_percent,
+                        ];
+                    })->all()
+                );
+            }
+        }
 
         $archiveProject->fees()->createMany(
             $project->fees->map(function ($fee) {
@@ -443,15 +477,22 @@ public function approve(SprfCurrentProject $project)
     }
 
     private function ensureCanView(SprfCurrentProject $project): void
-    {
-        $userId = (int) Auth::id();
+{
+    $userId = (int) Auth::id();
 
-        $canView =
-            (int) $project->prepared_by_user_id === $userId
-            || $this->currentProjectAssignedToUser($project, $userId);
+    $approverIds = array_filter([
+        $project->director_customer_engagement_user_id,
+        $project->esd_director_user_id,
+        $project->vp_ccto_user_id,
+        $project->president_ceo_user_id,
+    ]);
 
-        abort_unless($canView, 403);
-    }
+    $canView =
+        (int) $project->prepared_by_user_id === $userId
+        || in_array($userId, array_map('intval', $approverIds), true);
+
+    abort_unless($canView, 403);
+}
 
     private function assertAssignedApprover(SprfCurrentProject $project): void
     {
@@ -573,15 +614,24 @@ public function approve(SprfCurrentProject $project)
             'items' => $project->items
                 ->map(function ($item) {
                     return [
-                        'productCode' => $item->product_code,
-                        'rowKey' => $item->row_key,
-                        'rowType' => $item->row_type ?: 'item',
-                        'parentRowKey' => $item->parent_row_key,
-                        'itemDescription' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'costPerUnit' => $item->cost_per_unit,
-                        'markupPercent' => $item->markup_percent,
+                        'rowKey'                    => $item->row_key,
+                        'totalCost'                 => $item->total_cost,
+                        'sellingPricePerUnitVatInc' => $item->selling_price_per_unit_vat_inc,
+                        'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
+                        'markupValue'               => $item->markup_value,
+                        'subitems' => $item->subitems
+                            ->map(fn($sub) => [
+                                'rowKey'          => $sub->row_key,
+                                'productCode'     => $sub->product_code,
+                                'itemDescription' => $sub->item_description,
+                                'qty'             => $sub->qty,
+                                'disty'           => $sub->disty,
+                                'costPerUnit'     => $sub->cost_per_unit,
+                                'markupPercent'   => $sub->markup_percent,
+                                'totalCost'       => $sub->total_cost,
+                            ])
+                            ->values()
+                            ->all(),
                     ];
                 })
                 ->values()
@@ -621,15 +671,24 @@ public function approve(SprfCurrentProject $project)
             'items' => $project->items
                 ->map(function ($item) {
                     return [
-                        'productCode' => $item->product_code,
-                        'rowKey' => $item->row_key,
-                        'rowType' => $item->row_type ?: 'item',
-                        'parentRowKey' => $item->parent_row_key,
-                        'itemDescription' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'costPerUnit' => $item->cost_per_unit,
-                        'markupPercent' => $item->markup_percent,
+                        'rowKey'                    => $item->row_key,
+                        'totalCost'                 => $item->total_cost,
+                        'sellingPricePerUnitVatInc' => $item->selling_price_per_unit_vat_inc,
+                        'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
+                        'markupValue'               => $item->markup_value,
+                        'subitems' => $item->subitems
+                            ->map(fn($sub) => [
+                                'rowKey'          => $sub->row_key,
+                                'productCode'     => $sub->product_code,
+                                'itemDescription' => $sub->item_description,
+                                'qty'             => $sub->qty,
+                                'disty'           => $sub->disty,
+                                'costPerUnit'     => $sub->cost_per_unit,
+                                'markupPercent'   => $sub->markup_percent,
+                                'totalCost'       => $sub->total_cost,
+                            ])
+                            ->values()
+                            ->all(),
                     ];
                 })
                 ->values()

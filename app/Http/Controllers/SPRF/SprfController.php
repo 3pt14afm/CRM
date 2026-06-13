@@ -140,7 +140,7 @@ class SprfController extends Controller
     public function archiveShow(SprfArchiveProject $project)
     {
         $project->load([
-            'items',
+            'items.subitems',
             'fees',
             'preparer:id,first_name,last_name,position,email',
             'approvedBy:id,first_name,last_name,position,email',
@@ -160,7 +160,7 @@ class SprfController extends Controller
     public function archivePrint(SprfArchiveProject $project)
     {
         $project->load([
-            'items',
+            'items.subitems',
             'fees',
             'preparer:id,first_name,last_name,position,email',
             'approvedBy:id,first_name,last_name,position,email',
