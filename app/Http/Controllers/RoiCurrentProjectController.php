@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\RoiCurrentProject;
 use App\Models\User;
 use App\Http\Requests\Roi\Current\SendBackProjectRequest;
+use App\Models\Location;
 use App\Services\Roi\Current\RoiCurrentWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -76,17 +77,18 @@ class RoiCurrentProjectController extends Controller
         return match ($level) { 2, 3, 4 => 'note', 5, 6 => 'comment', default => null };
     }
 
-public function current(Request $request)
+ public function current(Request $request)
     {
         $user = $this->getAuthenticatedUser();
-
-        // Capture filtration requests sent over from Axios or initial page load parameters
-        $search    = $request->input('search');
-        $status    = $request->input('status');
-        $dateFrom  = $request->input('date_from');
-        $dateTo    = $request->input('date_to');
-        $perPage   = (int) $request->input('per_page', 10);
-
+ 
+        $search     = $request->input('search');
+        $status     = $request->input('status');
+        $dateFrom   = $request->input('date_from');
+        $dateTo     = $request->input('date_to');
+        $preparedBy = $request->input('prepared_by');
+        $locationId = $request->input('location_id');
+        $perPage    = (int) $request->input('per_page', 10);
+ 
         $query = RoiCurrentProject::with([
             'items', 'fees', 'user',
             'reviewedByUser:id,first_name,last_name',
@@ -95,11 +97,11 @@ public function current(Request $request)
             'confirmedByUser:id,first_name,last_name',
             'approvedByUser:id,first_name,last_name',
         ]);
-
-        // Enforce user pipeline visualization constraints
+ 
+        // Enforce user pipeline visibility constraints
         $this->applyCurrentVisibilityScope($query, $user);
-
-        // 1. Text Exploration Search Logic
+ 
+        // 1. Text search
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('roi_current_projects.company_name', 'like', "%{$search}%")
@@ -113,8 +115,8 @@ public function current(Request $request)
                   });
             });
         }
-
-        // 2. State Mapping Logic (Matches frontend select parameters with dual-state fallback)
+ 
+        // 2. Status filter (with Sent Back dual-state fallback)
         if (!empty($status)) {
             match ($status) {
                 'for_review' => $query->where(function ($q) {
@@ -155,71 +157,95 @@ public function current(Request $request)
                 default => $query->where('roi_current_projects.status', '=', $status),
             };
         }
-
-        // 3. Activity Timeline Boundaries Filter
+ 
+        // 3. Prepared By filter
+        if (!empty($preparedBy)) {
+            $query->whereHas('user', function ($q) use ($preparedBy) {
+                $q->where('first_name', 'like', "%{$preparedBy}%")
+                  ->orWhere('last_name', 'like', "%{$preparedBy}%")
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+            });
+        }
+ 
+        // 4. Location filter
+        if (!empty($locationId)) {
+            $query->where('roi_current_projects.location_id', '=', (int) $locationId);
+        }
+ 
+        // 5. Date range filter (against last_saved_at)
         if (!empty($dateFrom)) {
             $query->whereDate('roi_current_projects.last_saved_at', '>=', $dateFrom);
         }
-
+ 
         if (!empty($dateTo)) {
             $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
         }
-
-        // Apply chronological defaults
+ 
+        // Apply chronological ordering
         $query->orderBy('last_saved_at', 'desc');
-
-        // Clone base instance prior to pagination processing for dynamic KPI block metrics
+ 
+        // Clone before pagination for KPI stats
         $statsQuery = clone $query;
-
+ 
         $currentProjects = $query->paginate($perPage)->withQueryString()->through(function ($p) use ($user) {
             $p->last_saved_display = $p->last_saved_at ? $p->last_saved_at->diffForHumans() : '—';
             $lvl = (int) ($p->current_level ?? 0);
             $p->level_display = ($lvl >= 1 && $lvl <= 6) ? ('Level ' . $lvl . ' — ' . $this->workflowService->levelLabel($lvl)) : '—';
-
+ 
             $assignedUser = match ($lvl) {
                 2 => $p->reviewedByUser, 3 => $p->checkedByUser, 4 => $p->endorsedByUser,
                 5 => $p->confirmedByUser, 6 => $p->approvedByUser, default => null
             };
             $p->status_assignee_name = $assignedUser ? trim(($assignedUser->first_name ?? '') . ' ' . ($assignedUser->last_name ?? '')) : '—';
-
+ 
             $isSentBack = strtolower((string) $p->status) === 'sent back';
-            $p->status_display_main = $isSentBack ? $this->workflowService->getQueueLabelForLevel($lvl) : ($p->status ?? '—');
+            $p->status_display_main   = $isSentBack ? $this->workflowService->getQueueLabelForLevel($lvl) : ($p->status ?? '—');
             $p->status_display_suffix = $isSentBack ? ' (Sent Back)' : '';
-            
-            $p->viewer_is_preparer = (int) $p->user_id === (int) $user->id;
-            $p->viewer_is_current_approver = $this->currentProjectAssignedToUser($p, (int) $user->id);
-
+ 
+            $p->viewer_is_preparer             = (int) $p->user_id === (int) $user->id;
+            $p->viewer_is_current_approver     = $this->currentProjectAssignedToUser($p, (int) $user->id);
+ 
             return $p;
         });
-
+ 
         $latest = (clone $statsQuery)->first();
-
+ 
         $stats = [
             'totalCurrentProjects' => $statsQuery->count(),
             'recentlyModifiedText' => $latest?->last_saved_at?->diffForHumans() ?? '—',
             'recentlyAddedToday'   => (clone $statsQuery)->whereDate('last_saved_at', now()->toDateString())->count() . ' Today',
         ];
-
-        // Capture direct JSON requests triggered by your search/filter UI actions
+ 
+        // JSON response for Axios filter requests
         if ($request->wantsJson()) {
             return response()->json([
                 'currentProjects' => $currentProjects,
-                'stats' => $stats,
+                'stats'           => $stats,
             ]);
         }
-
+ 
+        $locations = Location::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+ 
         return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
             'currentProjects' => $currentProjects,
-            'stats' => $stats,
-            'viewerId' => (int) $user->id,
-            'filters' => [
-                'search'    => $search,
-                'status'    => $status,
-                'date_from' => $dateFrom,
-                'date_to'   => $dateTo,
+            'stats'           => $stats,
+            'viewerId'        => (int) $user->id,
+            'locations'       => $locations,
+            'filters'         => [
+                'search'      => $search,
+                'status'      => $status,
+                'date_from'   => $dateFrom,
+                'date_to'     => $dateTo,
+                'prepared_by' => $preparedBy,
+                'location_id' => $locationId,
+                'per_page'    => $perPage,
             ],
         ]);
     }
+ 
 
     public function show($id)
     {
@@ -243,6 +269,72 @@ public function current(Request $request)
             'requiredSendBackType' => $this->requiredSendBackTypeForLevel((int) $project->current_level),
             'machineCatalog' => $this->buildMachineCatalog(), 'consumableCatalog' => $this->buildConsumableCatalog(),
         ]);
+    }
+
+    public function storeNote(Request $request, $id)
+    {
+        $user = $this->getAuthenticatedUser();
+        $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+        abort_unless($this->canNoteOnCurrentProject($project, $user), 403, 'Not allowed to add a note.');
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $notes = is_array($project->notes) ? $project->notes : [];
+
+        $note = [
+            'id'         => (string) \Illuminate\Support\Str::ulid(),
+            'body'       => trim($validated['body']),
+            'created_at' => now()->toISOString(),
+            'author'     => [
+                'id'   => $user->id,
+                'name' => $user->name ?? 'Unknown',
+                'role' => $user->role,
+            ],
+        ];
+
+        $notes[] = $note;
+
+        $project->update([
+            'notes'         => $this->workflowService->sortTimelineEntries($notes),
+            'last_saved_at' => now(),
+        ]);
+
+        try {
+            \App\Services\RoiActivityLogger::log(
+                activityType: 'add_note',
+                moduleType:   'ROI Current',
+                details:      'Added note to ROI #' . $project->reference,
+                subject:      $project,
+                newValues:    [
+                    'note_id' => $note['id'],
+                    'body'    => $note['body'],
+                ]
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('ROI current note log failed', [
+                'message'    => $e->getMessage(),
+                'project_id' => $project->id,
+            ]);
+        }
+
+        return back()->with('success', 'Note added.');
+    }
+
+    private function canNoteOnCurrentProject(RoiCurrentProject $project, $user): bool
+    {
+        if (!$user) return false;
+
+        $userId = (int) $user->id;
+        $level  = (int) $project->current_level;
+
+        $column = $this->approverColumnForLevel($level);
+
+        if (!$column) return false;
+
+        return (int) ($project->{$column} ?? 0) === $userId;
     }
 
     public function sendBack(SendBackProjectRequest $request, $id)

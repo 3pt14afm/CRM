@@ -362,9 +362,17 @@ class RoiEntryProjectController extends Controller
         return back()->with('success', 'Note added.');
     }
 
-    public function storeComment(Request $request, RoiCurrentProject $project)
+    public function storeComment(Request $request, RoiCurrentProject $project, $id)
     {
+        $project = RoiCurrentProject::find($id);
+
+        if (!$project) {
+            return response()->json(['message' => 'This project has been archived and no longer accepts comments.'], 403);
+        }
+
+
         abort_unless($this->canCommentOnCurrentProject($project), 403);
+
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000']
@@ -429,15 +437,29 @@ class RoiEntryProjectController extends Controller
             || (int) $currentProject->endorsed_by === $userId;
     }
 
+    // private function canCommentOnCurrentProject(RoiCurrentProject $project): bool
+    // {
+    //     $user = Auth::user();
+    //     if (!$user) return false;
+
+    //     $userId = (int) $user->id;
+
+    //     return (int) $project->confirmed_by === $userId
+    //         || (int) $project->approved_by === $userId;
+    // }
+
     private function canCommentOnCurrentProject(RoiCurrentProject $project): bool
     {
         $user = Auth::user();
         if (!$user) return false;
 
         $userId = (int) $user->id;
+        $level  = (int) $project->current_level;
 
-        return (int) $project->confirmed_by === $userId
-            || (int) $project->approved_by === $userId;
+        if ((int) ($project->confirmed_by ?? 0) === $userId && $level === 5) return true;
+        if ((int) ($project->approved_by  ?? 0) === $userId && $level === 6) return true;
+
+        return false;
     }
 
     private function sortTimelineEntries(?array $entries): array

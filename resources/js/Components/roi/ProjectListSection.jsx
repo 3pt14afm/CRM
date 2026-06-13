@@ -76,6 +76,7 @@ export default function ProjectListSection({
   loading = false,
   rightControls = null,
   searchControl = null,
+  filterControl = null, // Injected precisely after stats cards
   pagination = null,
 }) {
   const hasRows = rows?.length > 0;
@@ -129,6 +130,13 @@ export default function ProjectListSection({
           </div>
         ))}
       </div>
+
+      {/* Filter Toolbar Section */}
+      {filterControl && (
+        <div className="mt-6">
+          {filterControl}
+        </div>
+      )}
 
       {/* Table Container */}
       <div className="mt-6 bg-white rounded-xl border border-[#00000012] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">

@@ -12,6 +12,7 @@ use App\Models\RoiEntryItem;
 use App\Models\RoiEntryFee;
 use App\Models\LocationDepartment;
 use App\Services\RoiActivityLogger;
+use App\Services\Roi\Entry\RoiCalculator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,13 @@ use Illuminate\Validation\ValidationException;
 
 class RoiProjectService
 {
+    protected RoiCalculator $calculator;
+
+    public function __construct(RoiCalculator $calculator)
+    {
+        $this->calculator = $calculator;
+    }
+
     /**
      * Coordinate the database transaction for saving or updating an entry draft.
      */
@@ -169,8 +177,9 @@ class RoiProjectService
         });
     }
 
-    /**
+/**
      * Map payload calculations, attach files, and overwrite items/fees records.
+     * Uses the Backend Calculator as the sole Source of Truth.
      */
     public function persistDraftData(Request $request, RoiEntryProject $project, array $data): void
     {
@@ -178,14 +187,17 @@ class RoiProjectService
         $interest = $data['interest'] ?? [];
         $yield = $data['yield'] ?? [];
         $entryRemarks = $data['entryRemarks'] ?? [];
-        $mcTotals = $data['machineConfiguration']['totals'] ?? [];
-        $grand = $data['totalProjectCost'] ?? [];
 
         $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
         $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
         $attachments = $this->storeEntryRemarkAttachments($request, $project);
 
+        // 1. PERFORM ALL CALCULATIONS ON BACKEND
+        // This ensures the DB matches your logic, not the potentially stale frontend state
+        $calculated = $this->calculator->calculateAll($data);
+
+        // 2. MAP EVERYTHING FROM CALCULATED DATA
         $project->update([
             'company_name' => (string) ($company['companyName'] ?? ''),
             'company_sap_code' => $company['companySapCode'] ?? null,
@@ -201,24 +213,23 @@ class RoiProjectService
             'color_yield_annual' => $colorMonthly * 12,
             'entry_remarks' => (string) ($entryRemarks['remarks'] ?? ''),
             'entry_remarks_attachments' => $attachments,
-            'mc_unit_cost' => (float) ($mcTotals['unitCost'] ?? 0),
-            'mc_qty' => (float) ($mcTotals['qty'] ?? 0),
-            'mc_total_cost' => (float) ($mcTotals['totalCost'] ?? 0),
-            'mc_yields' => (float) ($mcTotals['yields'] ?? 0),
-            'mc_cost_cpp' => (float) ($mcTotals['costCpp'] ?? 0),
-            'mc_selling_price' => (float) ($mcTotals['sellingPrice'] ?? 0),
-            'mc_total_sell' => (float) ($mcTotals['totalSell'] ?? 0),
-            'mc_sell_cpp' => (float) ($mcTotals['sellCpp'] ?? 0),
-            'mc_total_bundled_price' => (float) ($mcTotals['totalBundledPrice'] ?? 0),
-            'fees_total' => (float) ($data['additionalFees']['total'] ?? 0),
-            'grand_total_cost' => (float) ($grand['grandTotalCost'] ?? 0),
-            'grand_total_revenue' => (float) ($grand['grandTotalRevenue'] ?? 0),
-            'grand_roi' => (float) ($grand['grandROI'] ?? 0),
-            'grand_roi_percentage' => (float) ($grand['grandROIPercentage'] ?? 0),
-            'yearly_breakdown' => $data['yearlyBreakdown'] ?? null,
+            
+            // Financials: STRICTLY from backend calculator output
+            'mc_unit_cost' => 0,
+            'mc_qty' => 0,
+            'mc_total_cost' => (float) ($calculated['breakdown']['machine']      ?? 0),
+            'mc_total_sell' => (float) ($calculated['firstYear']['totalMachineSales'] ?? 0),
+            'fees_total' => (float) ($calculated['feesTotal']                    ?? 0),
+            'grand_total_cost' => (float) ($calculated['grandTotalCost']         ?? 0),
+            'grand_total_revenue' => (float) ($calculated['grandTotalRevenue']   ?? 0),
+            'grand_roi' => (float) ($calculated['grandRoi']                      ?? 0),
+            'grand_roi_percentage' => (float) ($calculated['grandRoiPercentage'] ?? 0),
+
+            'yearly_breakdown' => $calculated['yearlyBreakdown'] ?? null,
             'last_saved_at' => now(),
         ]);
 
+        // 3. PERSIST ITEM ROWS
         if ($request->exists('machineConfiguration.machine') || $request->exists('machineConfiguration.consumable')) {
             RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
             $itemRows = [];
@@ -227,6 +238,7 @@ class RoiProjectService
             if (!empty($itemRows)) { RoiEntryItem::insert($itemRows); }
         }
 
+        // 4. PERSIST FEE ROWS
         if ($request->exists('additionalFees.company') || $request->exists('additionalFees.customer')) {
             RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
             $feeRows = [];
@@ -239,64 +251,102 @@ class RoiProjectService
     /**
      * Generate sequential prefix identifiers safely.
      */
-    private function createNewDraftRecord(array $data, $user): \App\Models\RoiEntryProject
+    private function createNewDraftRecord(array $data, $user): RoiEntryProject
     {
-        $company = $data['companyInfo'] ?? [];
-        $yield = $data['yield'] ?? [];
-        $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
+        $company      = $data['companyInfo'] ?? [];
+        $yield        = $data['yield']       ?? [];
+        $monoMonthly  = (int) ($yield['monoAmvpYields']['monthly']  ?? 0);
         $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
-        for ($attempt = 0; $attempt < 3; $attempt++) {
-            try {
-                if (!$user?->primary_location_id) { abort(422, 'Your account has no primary location.'); }
-                $location = Location::find($user->primary_location_id);
-                if (!$location || empty($location->code)) { abort(422, 'Primary location has no code.'); }
-                $prefix = strtoupper(trim($location->code));
+        // Validate location once — outside the retry loop, it never changes
+        if (!$user?->primary_location_id) {
+            abort(422, 'Your account has no primary location.');
+        }
+        $location = Location::find($user->primary_location_id);
+        if (!$location || empty($location->code)) {
+            abort(422, 'Primary location has no code.');
+        }
+        $prefix = strtoupper(trim($location->code));
 
-                $allReferences = RoiEntryProject::where('reference', 'like', $prefix . '-%')->pluck('reference')
-                    ->merge(RoiCurrentProject::where('reference', 'like', $prefix . '-%')->pluck('reference'))
-                    ->merge(RoiArchiveProject::where('reference', 'like', $prefix . '-%')->pluck('reference'));
+        // Find max reference number across all 3 tables in the DB — not in PHP
+        $tables = [
+            (new RoiEntryProject)->getTable(),
+            (new RoiCurrentProject)->getTable(),
+            (new RoiArchiveProject)->getTable(),
+        ];
 
-                $maxNumber = 0;
-                foreach ($allReferences as $reference) {
-                    if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $reference, $matches)) {
-                        $maxNumber = max($maxNumber, (int) $matches[1]);
-                    }
-                }
+        $maxNumber = 0;
+        foreach ($tables as $table) {
+            // Works on both MySQL and PostgreSQL:
+            // Pull only references matching the prefix, extract the numeric suffix in PHP.
+            // The LIKE filter keeps the result set tiny so the PHP loop is never expensive.
+            $references = DB::table($table)
+                ->where('reference', 'like', $prefix . '-%')
+                ->pluck('reference');
 
-                return RoiEntryProject::create([
-                    'user_id' => $user->id,
-                    'location_id' => $user->primary_location_id,
-                    'project_uid' => (string) Str::ulid(),
-                    'reference' => $prefix . '-' . str_pad((string) ($maxNumber + 1), 4, '0', STR_PAD_LEFT),
-                    'version' => 1,
-                    'status' => 'draft',
-                    'company_name' => (string) ($company['companyName'] ?? ''),
-                    'company_sap_code' => $company['companySapCode'] ?? null,
-                    'contract_years' => (int) ($company['contractYears'] ?? 0),
-                    'contract_type' => (string) ($company['contractType'] ?? ''),
-                    'purpose' => (string) ($company['purpose'] ?? ''),
-                    'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
-                    'mono_yield_monthly' => $monoMonthly,
-                    'mono_yield_annual' => $monoMonthly * 12,
-                    'color_yield_monthly' => $colorMonthly,
-                    'color_yield_annual' => $colorMonthly * 12,
-                    'last_saved_at' => now(),
-                ]);
-            } catch (QueryException $e) {
-                $errorInfo = $e->errorInfo;
-                $sqlState = $errorInfo[0] ?? null;
-                $driverCode = $errorInfo[1] ?? null;
-                $message = strtolower($errorInfo[2] ?? $e->getMessage());
-
-                $isDuplicateKey = $sqlState === '23000' || $sqlState === '23505' || in_array($driverCode, [1062, 1555, 2067], true);
-                if (!($isDuplicateKey && str_contains($message, 'reference')) || $attempt === 2) {
-                    throw $e;
+            foreach ($references as $reference) {
+                if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $reference, $matches)) {
+                    $maxNumber = max($maxNumber, (int) $matches[1]);
                 }
             }
         }
 
-        throw new \RuntimeException('Failed to generate a unique project reference after 3 sequential attempts due to concurrency.');
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                return RoiEntryProject::create([
+                    'user_id'            => $user->id,
+                    'location_id'        => $user->primary_location_id,
+                    'project_uid'        => (string) Str::ulid(),
+                    'reference'          => $this->generateDraftReference($user->id, $prefix, $maxNumber),
+                    'version'            => 1,
+                    'status'             => 'draft',
+                    'company_name'       => (string) ($company['companyName']    ?? ''),
+                    'company_sap_code'   => $company['companySapCode']            ?? null,
+                    'contract_years'     => (int)    ($company['contractYears']  ?? 0),
+                    'contract_type'      => (string) ($company['contractType']   ?? ''),
+                    'purpose'            => (string) ($company['purpose']        ?? ''),
+                    'bundled_std_ink'    => (bool)   ($company['bundledStdInk']  ?? false),
+                    'mono_yield_monthly' => $monoMonthly,
+                    'mono_yield_annual'  => $monoMonthly  * 12,
+                    'color_yield_monthly'=> $colorMonthly,
+                    'color_yield_annual' => $colorMonthly * 12,
+                    'last_saved_at'      => now(),
+                ]);
+            } catch (QueryException $e) {
+                $errorInfo  = $e->errorInfo;
+                $sqlState   = $errorInfo[0] ?? null;
+                $driverCode = $errorInfo[1] ?? null;
+                $message    = strtolower($errorInfo[2] ?? $e->getMessage());
+
+                $isDuplicateKey = $sqlState === '23000'
+                    || $sqlState === '23505'
+                    || in_array($driverCode, [1062, 1555, 2067], true);
+
+                if (!($isDuplicateKey && str_contains($message, 'reference')) || $attempt === 2) {
+                    throw $e;
+                }
+
+                // Increment and retry on duplicate reference collision
+                $maxNumber++;
+            }
+        }
+
+        throw new \RuntimeException('Failed to generate a unique project reference after 3 attempts due to concurrency.');
+    }
+
+    /**
+     * Generate a unique reference ID for new draft projects.
+     */
+    private function generateDraftReference(int $userId, string $prefix = null, int $maxNumber = null): string
+    {
+        if ($prefix && $maxNumber !== null) {
+            return $prefix . '-' . str_pad((string) ($maxNumber + 1), 4, '0', STR_PAD_LEFT);
+        }
+
+        $date = now()->format('Ymd');
+        $randomStr = strtoupper(Str::random(4));
+        
+        return "DRAFT-{$userId}-{$date}-{$randomStr}";
     }
 
     /**
