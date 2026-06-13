@@ -24,7 +24,7 @@ const displayText = (value) => {
 const displayPeso = (value) => {
   if (isBlank(value)) return '';
 
-  return `₱${Number(value).toLocaleString('en-PH', {
+  return `${Number(value).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -566,7 +566,7 @@ function PrintItemsTable({ groups, totals }) {
       <table className="w-full table-fixed border-separate border-spacing-0 text-[10px]">
         <colgroup>
           <col className="w-[2.5%]" />
-          <col className="w-[8%]" />
+          <col className="w-[8.4%]" />
           <col className="w-[21.1%]" />
           <col className="w-[4.5%]" />
           <col className="w-[5.6%]" />
@@ -575,7 +575,7 @@ function PrintItemsTable({ groups, totals }) {
           <col className="w-[9.3%]" />
           <col className="w-[11.4%]" />
           <col className="w-[10.3%]" />
-          <col className="w-[6.1%]" />
+          <col className="w-[5.7%]" />
         </colgroup>
 
         <thead>
@@ -634,7 +634,9 @@ function PrintItemsTable({ groups, totals }) {
                     </>
                   )}
 
-                  <td className="border-b border-darkgreen/15 p-2 text-right">{displayPercent(sub.markupPercent)}</td>
+                  <td className="border-b border-darkgreen/15 p-2 text-center">
+                    {isBlank(sub.markupPercent) ? '' : parseFloat(Number(sub.markupPercent).toFixed(2))}
+                  </td>
                 </tr>
               )) : null;
             })
@@ -663,7 +665,7 @@ function PrintItemsTable({ groups, totals }) {
 
 function PrintOtherExpenseTable({ rows, totalOtherExpense }) {
   return (
-    <div className="w-[80%]">
+    <div className="w-[80%] print:break-before-page">
       <div className="mb-1 text-[11px] xl:text-xs ml-3 font-bold uppercase text-[#111]">
         Other Expense
       </div>

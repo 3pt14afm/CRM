@@ -16,7 +16,10 @@ export default function SprfItemsTable({
 }) {
   const showActionColumn = !readOnly;
   const [expanded, setExpanded] = useState({});
-  const toggleExpand = (key) => setExpanded((p) => ({ ...p, [key]: !p[key] }));
+  const toggleExpand = (key) => setExpanded((p) => ({ 
+    ...p, 
+    [key]: p[key] === undefined ? false : !p[key] 
+  }));
 
   const inputClass =
     'w-full min-w-0 min-h-5 text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
@@ -272,7 +275,7 @@ export default function SprfItemsTable({
                   {/* Qty */}
                   <td className="border-t border-r border-darkgreen/15 px-1">
                     {readOnly ? (
-                      <div className={readonlyClass}>{peso(sub.qty)}</div>
+                      <div className={`${readonlyClass} justify-center`}>{sub.qty}</div>
                     ) : (
                       <input
                         type="number"
@@ -292,7 +295,7 @@ export default function SprfItemsTable({
                   {/* Disty */}
                   <td className="border-t border-r border-darkgreen/15 px-1">
                     {readOnly ? (
-                      <div className={`${readonlyTextClass} justify-start`}>{blankIfEmpty(sub.disty)}</div>
+                      <div className={`${readonlyTextClass} justify-center`}>{blankIfEmpty(sub.disty)}</div>
                     ) : (
                       <input
                         type="text"
