@@ -326,7 +326,7 @@ export default function Sidebar() {
               <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-[0px_0px_0px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_2px_5px_rgba(0,0,0,0.3)] mb-7 lg:pl-6">
                 {!activeSubMenu && (
                   <Link
-                    href="#"
+                    href="/customerinfo/companies"
                     className="block px-8 py-2 text-[11px] text-darkgreen/70 hover:text-darkgreen font-medium hover:font-semibold opacity-80 lg:text-xs"
                   >
                     Customer Information Details

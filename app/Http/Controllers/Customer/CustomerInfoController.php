@@ -53,10 +53,9 @@ class CustomerInfoController extends Controller
             ->withQueryString();
 
         // Send data directly to your React View component
-        return Inertia::render('Companies/Index', [
-            'companies' => $companies,
-            // 3. Keep tracking 'per_page' in your frontend filters state
-            'filters'   => $request->only(['search', 'category', 'type', 'status', 'per_page']),
+      return Inertia::render('CustomerManagement/CustomerInfo/Index', [
+        'companies' => $companies,
+        'filters'   => $request->only(['search', 'category', 'type', 'status', 'per_page']),
         ]);
     }
 
