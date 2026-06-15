@@ -15,6 +15,7 @@ use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\RoiArchiveController;
 use App\Http\Controllers\Customer\RoiController;
+use App\Http\Controllers\CustomerInfoController;
 use App\Http\Controllers\ForcePasswordChangeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoiChatController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\RoiEntryProjectController;
 use App\Http\Controllers\SPRF\SprfController;
 use App\Http\Controllers\SPRF\SprfCurrentProjectController;
 use App\Http\Controllers\SPRF\SprfEntryProjectController;
+use App\Models\CustomerInfo\Company;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -173,6 +175,15 @@ Route::middleware(['auth', 'verified'])
         | Current approval actions are still temporary until Approver Matrix replaces
         | the hardcoded workflow runtime.
         */
+        Route::prefix('customerinfo') // Adds 'customerinfo/' to the URL (e.g., /customerinfo/companies)
+            ->name('customerinfo.')   // Prepends 'customerinfo.' to the route names
+            ->group(function () {
+                
+                Route::get('/companies', [CustomerInfoController::class, 'index'])->name('companies.index');
+                Route::get('/companies/{id}', [CustomerInfoController::class, 'show'])->name('companies.show');
+                
+            });
+
         Route::prefix('roi')->group(function () {
 
             /*
