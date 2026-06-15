@@ -9,8 +9,8 @@ class Company extends Model
 {
     use HasFactory;
 
-    // Explicitly link the model to your exact database table name
-    protected $table = 'tbl_company';
+    // Prefix the database name before the table name
+    protected $table = 'erms.tbl_company';
 
     // Disable timestamps if your table doesn't use standard created_at/updated_at columns,
     // though your diagram shows they exist, so keeping them active is perfect.
