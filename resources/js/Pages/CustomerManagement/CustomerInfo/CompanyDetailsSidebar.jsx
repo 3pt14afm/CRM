@@ -170,7 +170,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                 <div className="px-5 flex flex-wrap gap-2 mt-2">
                                     <div className="flex items-center gap-2 bg-[#F6F7F8] shadow-inner border border-gray-300 px-3 py-1.5 rounded-md text-[13px] font-medium text-slate-700">
                                         <div className="w-1.5 h-1.5 rounded-full bg-[#195c00]"></div>
-                                        Manila
+                                        N/A
                                     </div>
                                     
                                     <button className="flex items-center justify-center w-8 h-[34px] rounded-md border border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors">
