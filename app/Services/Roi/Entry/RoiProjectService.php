@@ -198,7 +198,7 @@ class RoiProjectService
         // 2. Map payload calculations safely
         $project->update([
             'company_name' => (string) ($company['companyName'] ?? ''),
-            'company_sap_code' => $company['companySapCode'] ?? null,
+           'company_sap_code' => $company['companySapCode'] ?? $project->company_sap_code, // Keep existing if null
             'contract_years' => (int) ($company['contractYears'] ?? 0),
             'contract_type' => (string) ($company['contractType'] ?? ''),
             'purpose' => (string) ($company['purpose'] ?? ''),
@@ -292,7 +292,7 @@ class RoiProjectService
                     'version'            => 1,
                     'status'             => 'draft',
                     'company_name'       => (string) ($company['companyName']    ?? ''),
-                    'company_sap_code'   => $company['companySapCode']            ?? null,
+                    'company_sap_code'   => $company['companySapCode'] ?? null,
                     'contract_years'     => (int)    ($company['contractYears']  ?? 0),
                     'contract_type'      => (string) ($company['contractType']   ?? ''),
                     'purpose'            => (string) ($company['purpose']        ?? ''),
