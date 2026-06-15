@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Customer;
 
+use App\Http\Controllers\Controller; // <-- CRITICAL: This was missing!
 use App\Models\CustomerInfo\Company;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
