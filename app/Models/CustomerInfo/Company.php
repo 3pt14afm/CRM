@@ -46,6 +46,6 @@ class Company extends Model
         'status' => 'integer',
         'latitude' => 'float',
         'longitude' => 'float',
-        'date_last_visit' => 'date',
+        // 'date_last_visit' => 'date',
     ];
 }

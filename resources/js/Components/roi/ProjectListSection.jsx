@@ -76,8 +76,9 @@ export default function ProjectListSection({
   loading = false,
   rightControls = null,
   searchControl = null,
-  filterControl = null, // Injected precisely after stats cards
+  filterControl = null, 
   pagination = null,
+  onRowClick = null, // ADDED: accept the onRowClick prop
 }) {
   const hasRows = rows?.length > 0;
 
@@ -109,7 +110,8 @@ export default function ProjectListSection({
     return rows.map((r) => (
       <tr
         key={rowKey(r)}
-        className="border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] border-black/5"
+        onClick={() => onRowClick && onRowClick(r)} // ADDED: Trigger the click event
+        className={`border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] border-black/5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`} // ADDED: Pointer cursor
       >
         {columns.map((c) => (
           <td key={c.key} className="px-8 py-2 md:px-2 md:text-[11px] lg:text-xs lg:px-3 xl:text-sm xl:px-6">
