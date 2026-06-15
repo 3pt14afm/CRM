@@ -259,7 +259,7 @@ function Index({ companies, filters, stats }) {
                 <div className="flex-1 pb-24">
 
                     {/* HEADER */}
-                    <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
+                    <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end ">
                         <div className="flex items-baseline gap-1">
                             <p className="text-2xl sm:text-3xl font-semibold text-slate-900">
                                 Customer Information Details

@@ -34,14 +34,12 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
 
             {/* Backdrop - Now fades in and out smoothly */}
             <div 
-                className={`fixed inset-0 bg-black/10 z-40 transition-all duration-500 ease-out ${
-                    isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
-                }`}
+                className={`fixed inset-0 bg-black/10 z-40 transition-all duration-500 ease-out ${ isOpen ? 'opacity-100 visible' : 'opacity-0 invisible' }`}
                 onClick={onClose}
             />
 
             {/* Sidebar Panel - Now slides in and out smoothly using translate-x */}
-            <div className={`fixed inset-y-0 right-4 z-50 w-full max-w-[500px] my-5 bg-gradient-to-br from-[#FDFDFD] via-[#f2faee] to-[#FDFDFD] animate-moving-gradient shadow-[-10px_0_20px_rgba(0,0,0,0.05)] border-l border-black/5 flex flex-col rounded-3xl transform transition-transform duration-500 ease-out ${
+            <div className={`fixed inset-y-0 right-4 z-50 w-full max-w-[500px] my-5 bg-gradient-to-br from-[#FDFDFD] via-[#f2faee] to-[#FDFDFD] animate-moving-gradient shadow-[-10px_0_20px_rgba(0,0,0,0.05)] border-l border-black/5 flex flex-col rounded-3xl transform transition-transform duration-500 ease-out  ${
                 isOpen ? 'translate-x-0' : 'translate-x-[120%]'
             }`}>
                 
@@ -60,7 +58,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                 </div>
 
                 {/* Scrollable Body */}
-                <div className="flex-1 overflow-y-auto px-8 pt-1 pb-10">
+                <div className="flex-1 overflow-y-auto px-8 pt-1 pb-10 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#195c0059]">
                     {company ? (
                         <div className="flex flex-col">
                             
