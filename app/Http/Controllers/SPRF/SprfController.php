@@ -68,74 +68,98 @@ class SprfController extends Controller
         ]);
     }
 
-    public function archive(Request $request)
-    {
-        $perPage = (int) $request->input('per_page', 10);
+public function archive(Request $request)
+{
+    $perPage = (int) $request->input('per_page', 10);
+    
+    // Updated filters array to include 'approval_level' and remove 'decided_by'
+    $filters = $request->only([
+        'search', 'status', 'per_page', 'approval_level', 'prepared_by', 'date_from', 'date_to'
+    ]);
 
-        $archiveQuery = SprfArchiveProject::query()
-            ->with([
-                'preparer:id,first_name,last_name,position',
-                'approvedBy:id,first_name,last_name,position',
-                'rejectedBy:id,first_name,last_name,position',
-            ])
-            ->whereIn('status', ['approved', 'rejected'])
-            ->orderByDesc('updated_at');
+    $archiveQuery = SprfArchiveProject::query()
+        ->with([
+            'preparer:id,first_name,last_name',
+            'approvedBy:id,first_name,last_name',
+            'rejectedBy:id,first_name,last_name',
+        ])
+        ->whereIn('status', ['approved', 'rejected']);
 
-        $archiveProjects = (clone $archiveQuery)
-            ->paginate($perPage)
-            ->withQueryString()
-            ->through(function (SprfArchiveProject $project) {
-                $status = strtolower((string) ($project->status ?? ''));
-                $isRejected = $status === 'rejected';
-
-                $decidedByName = $isRejected
-                    ? ($project->rejectedBy?->name ?? '—')
-                    : ($project->approvedBy?->name ?? '—');
-
-                $decidedAt = $isRejected
-                    ? $project->rejected_at
-                    : $project->approved_at;
-
-                return [
-                    'id' => $project->id,
-                    'sprf_no' => $project->sprf_no,
-                    'status' => $project->status,
-                    'approval_level' => $project->approval_level,
-                    'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
-                    'approval_condition_code' => $project->approval_condition_code,
-                    'company_name' => $project->account,
-                    'sub_category' => $project->sub_category,
-                    'account_manager' => $project->account_manager,
-                    'revenue' => $project->revenue,
-                    'gp_percent' => $project->gp_percent,
-                    'prepared_by' => $project->preparer?->name,
-                    'approved_by_name' => $project->approvedBy?->name,
-                    'rejected_by_name' => $project->rejectedBy?->name,
-                    'decided_by_name' => $decidedByName,
-                    'approved_at' => optional($project->approved_at)?->toISOString(),
-                    'rejected_at' => optional($project->rejected_at)?->toISOString(),
-                    'decided_at_display' => $decidedAt ? $decidedAt->diffForHumans() : '—',
-                ];
-            });
-
-        $totalArchiveProjects = (clone $archiveQuery)->count();
-
-        $recentlyArchivedToday = SprfArchiveProject::query()
-            ->whereIn('status', ['approved', 'rejected'])
-            ->where(function ($query) {
-                $query->whereDate('approved_at', now()->toDateString())
-                    ->orWhereDate('rejected_at', now()->toDateString());
-            })
-            ->count();
-
-        return Inertia::render('CustomerManagement/ProjectSPRF/ArchiveRoutes/Archive', [
-            'archiveProjects' => $archiveProjects,
-            'stats' => [
-                'totalArchiveProjects' => $totalArchiveProjects,
-                'recentlyArchivedToday' => $recentlyArchivedToday . ' Today',
-            ],
-        ]);
+    // 1. Search
+    if ($request->filled('search')) {
+        $search = $request->input('search');
+        $archiveQuery->where(function ($q) use ($search) {
+            $q->where('sprf_no', 'like', "%{$search}%")
+              ->orWhere('account', 'like', "%{$search}%")
+              ->orWhere('sub_category', 'like', "%{$search}%")
+              ->orWhere('account_manager', 'like', "%{$search}%");
+        });
     }
+
+    // 2. Status
+    if ($request->filled('status')) {
+        $archiveQuery->where('status', $request->input('status'));
+    }
+
+    // 3. Approval Level Filter (NEW)
+    if ($request->filled('approval_level')) {
+        $archiveQuery->where('approval_level', $request->input('approval_level'));
+    }
+
+    // 4. Prepared By
+    if ($request->filled('prepared_by')) {
+        $preparedBy = $request->input('prepared_by');
+        $archiveQuery->whereHas('preparer', function ($q) use ($preparedBy) {
+            $q->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+        });
+    }
+
+    // 5. Date Range
+    if ($request->filled('date_from')) {
+        $archiveQuery->where(function ($q) use ($request) {
+            $q->whereDate('approved_at', '>=', $request->input('date_from'))
+              ->orWhereDate('rejected_at', '>=', $request->input('date_from'));
+        });
+    }
+    if ($request->filled('date_to')) {
+        $archiveQuery->where(function ($q) use ($request) {
+            $q->whereDate('approved_at', '<=', $request->input('date_to'))
+              ->orWhereDate('rejected_at', '<=', $request->input('date_to'));
+        });
+    }
+
+    $archiveQuery->orderByDesc('updated_at');
+
+    $archiveProjects = (clone $archiveQuery)
+        ->paginate($perPage)
+        ->withQueryString()
+        ->through(function (SprfArchiveProject $project) {
+            $isRejected = strtolower((string)($project->status ?? '')) === 'rejected';
+            return [
+                'id' => $project->id,
+                'sprf_no' => $project->sprf_no,
+                'status' => $project->status,
+                'approval_level' => $project->approval_level,
+                'company_name' => $project->account,
+                'sub_category' => $project->sub_category,
+                'account_manager' => $project->account_manager,
+                'prepared_by' => $project->preparer?->first_name . ' ' . $project->preparer?->last_name,
+                'decided_by_name' => $isRejected ? ($project->rejectedBy?->first_name . ' ' . $project->rejectedBy?->last_name ?? '—') : ($project->approvedBy?->first_name . ' ' . $project->approvedBy?->last_name ?? '—'),
+                'decided_at_display' => ($isRejected ? $project->rejected_at : $project->approved_at)?->format('M d, Y') ?? '—',
+            ];
+        });
+
+    return Inertia::render('CustomerManagement/ProjectSPRF/ArchiveRoutes/ArchiveList', [
+        'archiveProjects' => $archiveProjects,
+        'filters' => $filters,
+        'stats' => [
+            'totalArchiveProjects' => (clone $archiveQuery)->count(),
+            'recentlyArchivedToday' => SprfArchiveProject::whereIn('status', ['approved', 'rejected'])
+                ->where(fn($q) => $q->whereDate('approved_at', now()->toDateString())->orWhereDate('rejected_at', now()->toDateString()))
+                ->count() . ' Today',
+        ],
+    ]);
+}
 
     public function archiveShow(SprfArchiveProject $project)
     {
