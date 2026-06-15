@@ -16,6 +16,10 @@ body{
   scrollbar-width: none;     /* Firefox */
 }
 
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 9999px; background: #195c0059; }
+
 @layer base {
   html {
     font-family: 'Inter', sans-serif;
