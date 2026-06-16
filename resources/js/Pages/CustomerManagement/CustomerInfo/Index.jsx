@@ -157,14 +157,14 @@ function Index({ companies, filters, stats }) {
 
     /* ── Search control ── */
     const searchControl = (
-        <div className="relative h-9 flex items-center">
+        <div className="relative h-6 flex items-center">
             <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
             <input
                 type="text"
                 placeholder="Search name, SAP code, address..."
                 value={searchState.search}
                 onChange={(e) => updateFilters({ search: e.target.value })}
-                className="h-9 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
+                className="h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
                     placeholder:text-slate-400 focus:outline-none focus:ring-0 focus:border-[#4FA34E]
                     transition-[border-color,box-shadow] duration-150"
             />
@@ -173,7 +173,7 @@ function Index({ companies, filters, stats }) {
 
     /* ── Filter toolbar ── */
     const filterToolbar = (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
 
             {/* Delsan Company */}
             <div className="relative h-9 flex items-center flex-shrink-0">
@@ -259,7 +259,7 @@ function Index({ companies, filters, stats }) {
                 <div className="flex-1 pb-24">
 
                     {/* HEADER */}
-                    <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end ">
+                    <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-0 flex justify-between items-end ">
                         <div className="flex items-baseline gap-1">
                             <p className="text-2xl sm:text-3xl font-semibold text-slate-900">
                                 Customer Information Details

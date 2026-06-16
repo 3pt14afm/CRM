@@ -62,6 +62,7 @@ export default function Sidebar() {
 
   const activeByRoute =
     route().current('customers.*') ||
+    route().current('customerinfo.*') ||
     route().current('roi.*') ||
     route().current('sprf.*') ||
     route().current('proposals.*')
@@ -310,7 +311,7 @@ export default function Sidebar() {
                         route('roi.current')
                       )
                     }
-                    className="p-2"
+                    className="p-2" 
                     aria-label="Toggle customer menu"
                     type="button"
                   >
@@ -326,8 +327,12 @@ export default function Sidebar() {
               <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-[0px_0px_0px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_2px_5px_rgba(0,0,0,0.3)] mb-7 lg:pl-6">
                 {!activeSubMenu && (
                   <Link
-                    href="/customerinfo/companies"
-                    className="block px-8 py-2 text-[11px] text-darkgreen/70 hover:text-darkgreen font-medium hover:font-semibold opacity-80 lg:text-xs"
+                    href={route('customerinfo.companies.index')} 
+                    className={`block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs ${
+                      route().current('customerinfo.*')
+                        ? 'text-darkgreen font-semibold opacity-100'
+                        : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                    }`}
                   >
                     Customer Information Details
                   </Link>
@@ -405,7 +410,11 @@ export default function Sidebar() {
 
                 {!activeSubMenu && (
                   <>
-                    <Link href={route('proposals.index')} className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
+                    <Link href={route('proposals.index')} className={`block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs ${
+                      route().current('proposals.*')
+                        ? 'text-darkgreen font-semibold opacity-100'
+                        : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                    }`}>
                       Proposal Generation
                     </Link>
                     <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
