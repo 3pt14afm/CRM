@@ -8,7 +8,8 @@ import { route } from 'ziggy-js';
 import { UserPen, LogOut } from "lucide-react";
 
 export default function Sidebar() {
-  const { url } = usePage();
+  const { url, props: { auth } } = usePage();
+  const user = auth?.user;
   const [isOpen, setIsOpen] = useState(true);
 
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
@@ -19,6 +20,29 @@ export default function Sidebar() {
   const [activeServiceSubMenu, setActiveServiceSubMenu] = useState(null);
   const [activeDeliverySubMenu, setActiveDeliverySubMenu] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
+
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [profileMenuEntered, setProfileMenuEntered] = useState(false);
+
+  useEffect(() => {
+    let enterFrame;
+    let exitTimeout;
+
+    if (activeItem === "profile") {
+      setShowProfileMenu(true);
+      enterFrame = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setProfileMenuEntered(true));
+      });
+    } else {
+      setProfileMenuEntered(false);
+      exitTimeout = setTimeout(() => setShowProfileMenu(false), 180);
+    }
+
+    return () => {
+      cancelAnimationFrame(enterFrame);
+      clearTimeout(exitTimeout);
+    };
+  }, [activeItem]);
 
   const profileBtnRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -274,13 +298,13 @@ export default function Sidebar() {
             <div className={`group ${isCustomerActive ? 'bg-lightgreen shadow-[0px_0px_2px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_1px_3px_rgba(0,0,0,0.4)]' : 'hover:bg-lightgreen/50'} ${customerExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
               <div className="flex items-center px-2 py-2">
                 <Link
-                  href={route('roi.current')}
+                  href={route('customerinfo.companies.index')}
                   onClick={(e) =>
                     handleRealModuleClick(
                       e,
                       'customer',
                       isCustomerActive,
-                      route('roi.current')
+                      route('customerinfo.companies.index')
                     )
                   }
                   className={`flex items-center flex-1 min-w-0 hover:text-black transition-colors ${
@@ -311,7 +335,7 @@ export default function Sidebar() {
                         route('roi.current')
                       )
                     }
-                    className="p-2" 
+                    className="p-2"
                     aria-label="Toggle customer menu"
                     type="button"
                   >
@@ -327,7 +351,7 @@ export default function Sidebar() {
               <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-[0px_0px_0px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_2px_5px_rgba(0,0,0,0.3)] mb-7 lg:pl-6">
                 {!activeSubMenu && (
                   <Link
-                    href={route('customerinfo.companies.index')} 
+                    href={route('customerinfo.companies.index')}
                     className={`block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs ${
                       route().current('customerinfo.*')
                         ? 'text-darkgreen font-semibold opacity-100'
@@ -344,8 +368,10 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleSubToggle('roi')}
-                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen font-medium hover:font-semibold transition-opacity lg:text-xs ${
-                          activeSubMenu === 'roi' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-1 mb-2' : 'text-darkgreen/70 opacity-80'
+                        className={`flex-1 pl-8 text-[11px] tracking-tight font-medium hover:font-semibold transition-opacity lg:text-xs ${
+                          route().current('roi.*') || activeSubMenu === 'roi'
+                            ? 'text-darkgreen font-semibold opacity-100 pt-1 mb-2'
+                            : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                         }`}
                       >
                         Project ROI Approval
@@ -379,8 +405,10 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleSubToggle('sprf')}
-                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen font-medium hover:font-semibold transition-opacity lg:text-xs ${
-                          activeSubMenu === 'sprf' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-3 mb-2' : 'text-darkgreen/70 opacity-80'
+                        className={`flex-1 pl-8 text-[11px] tracking-tight font-medium hover:font-semibold transition-opacity lg:text-xs ${
+                          route().current('sprf.*') || activeSubMenu === 'sprf'
+                            ? 'text-darkgreen font-semibold opacity-100 pt-3 mb-2'
+                            : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                         }`}
                       >
                         Project SPRF
@@ -417,7 +445,7 @@ export default function Sidebar() {
                     }`}>
                       Proposal Generation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Sales Activities Log
                     </Link>
                   </>
@@ -429,8 +457,10 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleSubToggle('contract')}
-                        className={`flex-1 pl-8 text-[11px] tracking-tight hover:text-darkgreen font-medium hover:font-semibold transition-opacity lg:text-xs ${
-                          activeSubMenu === 'contract' ? 'text-darkgreen/85 hover:font-semibold font-semibold pt-3 mb-2' : 'text-darkgreen/70 opacity-80'
+                        className={`flex-1 pl-8 text-[11px] tracking-tight font-medium hover:font-semibold transition-opacity lg:text-xs ${
+                          activeSubMenu === 'contract'
+                            ? 'text-darkgreen font-semibold opacity-100 pt-3 mb-2'
+                            : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                         }`}
                       >
                         Contract Generation
@@ -460,13 +490,13 @@ export default function Sidebar() {
 
                 {!activeSubMenu && (
                   <>
-                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Client Leads & Alerts
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Machine Reservation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-[11px] text-darkgreen/70 opacity-80 hover:text-darkgreen font-medium hover:font-semibold lg:text-xs">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Machine Request
                     </Link>
                   </>
@@ -478,8 +508,10 @@ export default function Sidebar() {
                       <Link
                         href="#"
                         onClick={() => handleSubToggle('reports')}
-                        className={`flex-1 pl-8 py-2 text-[11px] font-medium tracking-tight transition-opacity hover:text-darkgreen hover:font-semibold lg:text-xs ${
-                          activeSubMenu === 'reports' ? 'text-darkgreen/85 font-semibold' : 'text-darkgreen/70 opacity-80'
+                        className={`flex-1 pl-8 py-2 text-[11px] font-medium tracking-tight transition-opacity hover:font-semibold lg:text-xs ${
+                          activeSubMenu === 'reports'
+                            ? 'text-darkgreen font-semibold opacity-100'
+                            : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                         }`}
                       >
                         Reports/View Only
@@ -1140,32 +1172,55 @@ export default function Sidebar() {
       </nav>
 
       {/* FOOTER */}
-      <div className="relative p-2.5 lg:p-4 lg:pl-3 ml-2 flex flex-col gap-4 items-start">
+      <div className="relative p-2.5 lg:p-4 lg:pl-3.5 ml-1 flex flex-col gap-4 items-start">
         <div className="relative">
           <button
             ref={profileBtnRef}
             onClick={() => setActiveItem(activeItem === "profile" ? null : "profile")}
-            className="text-darkgreen transition"
+            className="flex items-center gap-3 text-darkgreen transition hover:opacity-80"
             title="Profile"
             aria-label="Profile"
             type="button"
           >
-            {activeItem === "profile" ? (
-              <FaUserCircle className="w-6 h-6 lg:w-6 lg:h-6" />
+            {/* Avatar */}
+            {user?.profile_photo_url ? (
+              <img
+                src={user.profile_photo_url}
+                alt={user.name}
+                className="w-7 h-7 rounded-full object-cover ring-2 ring-darkgreen/20"
+              />
             ) : (
-              <FaRegUserCircle className="w-6 h-6 lg:w-6 lg:h-6" />
+              <div className="w-7 h-7 rounded-full bg-darkgreen/10 ring-2 ring-darkgreen/20 flex items-center justify-center text-darkgreen font-semibold text-xs">
+                {user?.name ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('') : '?'}
+              </div>
             )}
+
+            {/* Name & Position */}
+            <div className={`flex flex-col items-start leading-tight gap-0.5 ${labelClass}`}>
+              <span className="text-xs lg:text-[13px] font-semibold text-darkgreen truncate max-w-[110px]">
+                {user?.name ?? 'User'}
+              </span>
+              <span className="text-[10px] lg:text-[11px] text-darkgreen/60 truncate max-w-[110px]">
+                {user?.position ?? user?.role ?? ''}
+              </span>
+            </div>
           </button>
 
-          {activeItem === "profile" &&
+          {showProfileMenu &&
             createPortal(
               <div
                 ref={dropdownRef}
-                className="fixed z-[9999] w-36 overflow-hidden rounded-xl border border-white/20 bg-green-500/20 backdrop-blur-2xl shadow-[0_4px_12px_rgba(0,0,0,0.18)]"
+                className={`fixed z-[9999] w-36 origin-bottom-left overflow-hidden rounded-xl border border-white/20 bg-green-500/20 backdrop-blur-2xl shadow-[0_4px_12px_rgba(0,0,0,0.18)] transition-all duration-200 ease-out ${
+                  profileMenuEntered
+                    ? "opacity-100 scale-100 translate-x-0"
+                    : "opacity-0 scale-95 -translate-x-3"
+                }`}
                 style={{
-                  top: dropdownPos.top - 16,
-                  left: dropdownPos.left,
-                  transform: "translateY(-100%)",
+                  top: dropdownPos.top + 12,
+                  left: dropdownPos.left + 2,
+                  transform: `translateY(-100%) ${
+                    profileMenuEntered ? "translateX(0)" : "translateX(-0.75rem)"
+                  }`,
                 }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-green-300/10 to-green-600/10 pointer-events-none" />
