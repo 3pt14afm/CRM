@@ -313,7 +313,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && runQuery({ search: e.target.value })}
-        className="w-full h-9 pl-9 pr-8 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
+        className="w-full h-8 pl-9 pr-8 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
       />
       {search && (
         <button 
@@ -328,7 +328,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
 
   /* ─── Filter toolbar ─── */
   const filterToolbar = (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
 
       {/* Status */}
       <div className="relative h-9 flex items-center flex-shrink-0">

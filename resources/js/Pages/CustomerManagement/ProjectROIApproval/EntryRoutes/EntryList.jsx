@@ -344,25 +344,25 @@ export default function EntryList({
   // --- Search Control Bar Markup Segment Layout ---
   const searchControl = (
     <div className="flex flex-row items-center gap-1.5 min-w-0 w-full sm:w-auto">
-      <div className="relative h-9 flex items-center min-w-0 flex-1 sm:flex-none">
+      <div className="relative h-6 flex items-center min-w-0 flex-1 sm:flex-none">
         <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
         <input
           type="text"
           placeholder="Search projects…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-9 w-full sm:w-52 min-w-0 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black placeholder:text-slate-400
+          className="h-8 w-full sm:w-52 min-w-0 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black placeholder:text-slate-400
             focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
             transition-[border-color,box-shadow] duration-150"
         />
       </div>
 
-      <div className="relative h-9 flex items-center flex-shrink-0">
+      <div className="relative h-6 flex items-center flex-shrink-0">
         <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-9 w-28 sm:w-32 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white text-black appearance-none cursor-pointer
+          className="h-8 w-28 sm:w-32 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white text-black appearance-none cursor-pointer
             focus:outline-none flex items-center focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
             transition-[border-color,box-shadow] duration-150"
         >
@@ -376,7 +376,7 @@ export default function EntryList({
         <button
           type="button"
           onClick={() => setShowDatePicker((p) => !p)}
-          className={`h-9 flex items-center gap-1.5 px-2.5 text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap
+          className={`h-8 flex items-center gap-1.5 px-2.5 text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap
             ${hasDateFilter
               ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
               : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"

@@ -416,11 +416,11 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
 
   /* ── Search control (top bar) ── */
   const searchControl = (
-    <div className="relative h-9 flex items-center">
+    <div className="relative h-7 flex items-center">
       <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
       <input type="text" placeholder="Search archives..." value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className={`h-9 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
+        className={`h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
           placeholder:text-slate-400 focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
           ${loading ? "opacity-60 pointer-events-none" : ""}`} />
     </div>
@@ -428,7 +428,7 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
 
   /* ── Filter toolbar ── */
   const filterToolbar = (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
 
       {/* Status */}
       <div className="relative h-9 flex items-center flex-shrink-0">
