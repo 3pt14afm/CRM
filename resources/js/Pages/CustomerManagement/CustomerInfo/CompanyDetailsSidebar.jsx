@@ -66,7 +66,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                             <div className="flex flex-col items-center">
                                 {/* Initials Avatar with Badge */}
                                 <div className="relative inline-block">
-                                    <div className="w-[100px] h-[100px] bg-[#195c00] rounded-full flex items-center justify-center text-white text-3xl font-medium shadow-sm">
+                                    <div className="w-[90px] h-[90px] bg-[#195c00] rounded-full flex items-center justify-center text-white text-3xl font-medium shadow-sm">
                                         {getInitials(company.company_name)}
                                     </div>
                                     <div className="absolute bottom-0 right-0 bg-white p-[2px] rounded-full shadow-sm">
@@ -74,7 +74,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                     </div>
                                 </div>
                                 
-                                <h2 className="text-[22px] font-extrabold text-slate-800 mt-5 text-center uppercase tracking-tight">
+                                <h2 className="text-[21px] font-extrabold text-slate-800 mt-5 text-center uppercase tracking-tight">
                                     {company.company_name}
                                 </h2>
                                 <p className="text-[13px] font-medium text-slate-500 mt-1 uppercase text-center">
@@ -152,7 +152,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                         <div className="pt-0.5">
                                             <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Contact Number</div>
                                             <div className="text-[14px] font-medium text-slate-800 leading-tight">
-                                                {company.contact_no || 'N/A'}
+                                                {company.contact_no || 'Not Provided'}
                                             </div>
                                         </div>
                                     </div>
