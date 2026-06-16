@@ -445,7 +445,7 @@ export default function Sidebar() {
                     }`}>
                       Proposal Generation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Sales Activities Log
                     </Link>
                   </>
@@ -490,13 +490,13 @@ export default function Sidebar() {
 
                 {!activeSubMenu && (
                   <>
-                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Client Leads & Alerts
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Machine Reservation
                     </Link>
-                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium">
+                    <Link href="#" className="block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs text-darkgreen/70 opacity-80 hover:text-darkgreen">
                       Machine Request
                     </Link>
                   </>
