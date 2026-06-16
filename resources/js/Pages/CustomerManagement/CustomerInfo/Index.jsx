@@ -4,12 +4,12 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { route } from 'ziggy-js';
 import { Building2 } from 'lucide-react';
-import {
-    MdSearch, MdOutlineFilterAlt, MdExpandMore,
-} from 'react-icons/md';
+import { MdSearch, MdOutlineFilterAlt, MdExpandMore } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { usePage } from '@inertiajs/react';
 import CompanyDetailsSidebar from './CompanyDetailsSidebar';
+import { FaBuildingUser } from 'react-icons/fa6';
+import { BsBuildingFillAdd } from 'react-icons/bs';
 
 function Index({ companies, filters, stats }) {
     const [searchState, setSearchState] = useState({
@@ -83,11 +83,15 @@ function Index({ companies, filters, stats }) {
         {
             key:    'company_name',
             header: 'COMPANY NAME',
-            cell:   (r) => (
-                <span className="font-medium text-[#195c00]">
-                    {r.company_name ?? '—'}
-                </span>
-            ),
+            cell:   (r) => {
+                const isActive = r.status == 1;
+                return (
+                    <div className={`font-medium flex items-center ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
+                        <FaBuildingUser className="w-4 h-4 mr-2 flex-shrink-0" />
+                        {r.company_name ?? '—'}
+                    </div>
+                );
+            },
         },
         {
             key:    'sap_code',
@@ -275,6 +279,17 @@ function Index({ companies, filters, stats }) {
                         rows={rows}
                         rowKey={(r) => String(r.id)}
                         pagination={pagination}
+                        rightControls={
+                                            <button
+                                              type="button"
+                                              title="Add New Company"
+                                              aria-label="Add New Company"
+                                              className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                                              
+                                            >
+                                              <BsBuildingFillAdd className="w-5 h-5" />
+                                            </button>
+                                          }
                         searchControl={searchControl}
                         filterControl={filterToolbar}
                         onRowClick={(r) => {

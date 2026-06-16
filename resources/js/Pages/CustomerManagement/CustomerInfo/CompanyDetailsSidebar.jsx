@@ -5,7 +5,9 @@ import {
     MdBusiness, 
     MdPhone, 
     MdInfoOutline,
-    MdAdd
+    MdAdd,
+    MdPersonOutline,
+    MdPerson3
 } from 'react-icons/md';
 import { BsPatchCheckFill } from 'react-icons/bs'; 
 
@@ -110,6 +112,42 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                 </div>
                             </div>
 
+                            {/* Client Manager Card */}
+                            <div className="mt-6 border border-[#00000010] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,0.8),0px_0px_0_rgba(255,255,255,0.8),2px_2px_4px_rgba(0,0,0,0.2)] rounded-2xl bg-[#F6F7F8]/80 backdrop-blur-sm overflow-hidden">
+                                <div className="px-5 pt-4 border-b border-gray-50 flex justify-between items-center bg-[#F6F7F8]">
+                                    <h3 className="text-xs font-bold text-slate-600 tracking-wide uppercase">Client Manager</h3>
+                                    <MdPersonOutline className="text-slate-400 text-lg" />
+                                </div>
+                                <div className="p-5">
+                                    {company.id_client_mngr ? (
+                                        <div className="flex items-center gap-4">
+                                            {/* Manager Avatar */}
+                                            <div className="relative flex-shrink-0">
+                                                <div className="w-9 h-9 rounded-full bg-[#289800]/10 border border-[#289800]/10 flex items-center justify-center text-[#195c00] text-sm font-semibold shadow-sm">
+                                                    <MdPerson3 className="text-xl" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Assigned Manager</div>
+                                                <div className="text-[14px] font-semibold text-slate-800 leading-tight">
+                                                    {company.id_client_mngr}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 border border-dashed border-slate-300">
+                                                <MdPersonOutline className="text-slate-400 text-xl" />
+                                            </div>
+                                            <div>
+                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Assigned Manager</div>
+                                                <div className="text-[13px] font-medium text-slate-400 italic">Not assigned</div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             {/* Contact & Location Card */}
                             <div className="mt-6 border border-[#00000010] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,0.8),0px_0px_0_rgba(255,255,255,0.8),2px_2px_4px_rgba(0,0,0,0.2)] rounded-2xl bg-[#F6F7F8]/80 backdrop-blur-sm overflow-hidden">
                                 <div className="px-5 pt-4 border-b border-gray-50 flex justify-between items-center bg-[#F6F7F8]">
@@ -139,7 +177,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                         <div className="pt-0.5">
                                             <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Branch</div>
                                             <div className="text-[14px] font-medium text-slate-800 leading-tight">
-                                              Not Provided
+                                              {company.main_location || 'Not provided'}
                                             </div>
                                         </div>
                                     </div>
@@ -159,17 +197,34 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                 </div>
                             </div>
 
-                            {/* Operating Regions Card */}
+                            {/* Branches Card */}
                             <div className="mt-6 border border-[#00000010] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,0.8),0px_0px_0_rgba(255,255,255,0.8),2px_2px_4px_rgba(0,0,0,0.2)] rounded-2xl bg-[#F6F7F8]/80 backdrop-blur-sm overflow-hidden pb-5">
-                                <div className="px-5 py-4 bg-[#F6F7F8]">
+                                <div className="px-5 py-4 bg-[#F6F7F8] flex justify-between items-center">
                                     <h3 className="text-xs font-bold text-slate-600 tracking-wide uppercase">Branches</h3>
+                                    {company.branches?.length > 0 && (
+                                        <span className="text-[10px] font-semibold text-[#195c00] bg-[#195c00]/10 px-2 py-0.5 rounded-full">
+                                            {company.branches.length}
+                                        </span>
+                                    )}
                                 </div>
                                 
                                 <div className="px-5 flex flex-wrap gap-2 mt-2">
-                                    <div className="flex items-center gap-2 bg-[#F6F7F8] shadow-inner border border-gray-300 px-3 py-1.5 rounded-md text-[13px] font-medium text-slate-700">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[#195c00]"></div>
-                                        N/A
-                                    </div>
+                                    {company.branches && company.branches.length > 0 ? (
+                                        company.branches.map((branch, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center gap-2 bg-[#F6F7F8] shadow-inner border border-gray-300 px-3 py-1.5 rounded-md text-[13px] font-medium text-slate-700"
+                                            >
+                                                <div className="w-1.5 h-1.5 rounded-full bg-[#195c00]"></div>
+                                                {typeof branch === 'object' ? (branch.name || branch.branch_name || JSON.stringify(branch)) : branch}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="flex items-center gap-2 bg-[#F6F7F8] shadow-inner border border-gray-300 px-3 py-1.5 rounded-md text-[13px] font-medium text-slate-400 italic">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                                            No branches listed
+                                        </div>
+                                    )}
                                     
                                     <button className="flex items-center justify-center w-8 h-[34px] rounded-md border border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors">
                                         <MdAdd size={18} />
