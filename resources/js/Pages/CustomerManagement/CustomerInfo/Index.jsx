@@ -62,22 +62,6 @@ function Index({ companies, filters, stats }) {
 
     const { auth } = usePage().props;
 
-    /* ── Tiles ── */
-    const tiles = useMemo(() => [
-        {
-            label: 'Total Companies',
-            value: stats?.totalCompanies ?? companies?.total ?? 0,
-            icon:  <Building2 className="w-4 h-4" />,
-            variant: 'normal',
-        },
-        {
-            label: 'Active',
-            value: stats?.totalActive ?? '—',
-            icon:  <Building2 className="w-4 h-4" />,
-            variant: 'normal',
-        },
-    ], [stats, companies]);
-
     /* ── Columns ── */
     const columns = useMemo(() => [
         {
@@ -165,7 +149,7 @@ function Index({ companies, filters, stats }) {
             <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
             <input
                 type="text"
-                placeholder="Search name, SAP code, address..."
+                placeholder="Search"
                 value={searchState.search}
                 onChange={(e) => updateFilters({ search: e.target.value })}
                 className="h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
@@ -280,16 +264,15 @@ function Index({ companies, filters, stats }) {
                         rowKey={(r) => String(r.id)}
                         pagination={pagination}
                         rightControls={
-                                            <button
-                                              type="button"
-                                              title="Add New Company"
-                                              aria-label="Add New Company"
-                                              className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
-                                              
-                                            >
-                                              <BsBuildingFillAdd className="w-5 h-5" />
-                                            </button>
-                                          }
+                                        <button
+                                            type="button"
+                                            title="Add New Company"
+                                            aria-label="Add New Company"
+                                            className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"  
+                                        >
+                                          <BsBuildingFillAdd className="w-5 h-5" />
+                                        </button>
+                                      }
                         searchControl={searchControl}
                         filterControl={filterToolbar}
                         onRowClick={(r) => {
