@@ -95,6 +95,11 @@ class User extends Authenticatable
         return $this->belongsTo(\App\Models\CompanyDepartment::class, 'department_id');
     }
 
+    public function location()
+    {
+        return $this->belongsTo(\App\Models\Location::class, 'primary_location_id');
+    }
+
     public function getNameAttribute(): string
     {
         return trim(

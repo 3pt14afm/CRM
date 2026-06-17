@@ -158,7 +158,7 @@ export default function ForceChangePasswordModal() {
           <button
             type="submit"
             disabled={processing}
-            className="w-full rounded-lg bg-[#289800] px-4 py-2 font-medium text-white hover:bg-green disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-full bg-[#289800] px-4 py-2 font-medium text-white hover:bg-green disabled:cursor-not-allowed disabled:opacity-50"
           >
             {processing ? "Saving..." : "Update Password"}
           </button>

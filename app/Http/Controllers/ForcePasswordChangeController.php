@@ -25,7 +25,7 @@ class ForcePasswordChangeController extends Controller
 
         $nextExpiry = PreferenceHelper::passwordExpiryDate();
 
-        // ❗ FIX: Always hash password
+        // Always hash password
         $user->password = Hash::make($request->password);
         $user->password_expiry = $nextExpiry->toDateString();
         $user->default_password_login_count = 0;
