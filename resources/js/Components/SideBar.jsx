@@ -5,7 +5,7 @@ import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
 import { IoMdArrowDropdown, IoIosArrowForward } from "react-icons/io";
 import { route } from 'ziggy-js';
-import { UserPen, LogOut } from "lucide-react";
+import { UserPen, LogOut, ChevronDownIcon } from "lucide-react";
 
 export default function Sidebar() {
   const { url, props: { auth } } = usePage();
@@ -1172,38 +1172,50 @@ export default function Sidebar() {
       </nav>
 
       {/* FOOTER */}
-      <div className="relative p-2.5 lg:p-4 lg:pl-3.5 ml-1 flex flex-col gap-4 items-start">
-        <div className="relative">
+      <div className="relative p-2.5 lg:p-4 lg:pl-3.5 ml-1 flex flex-col gap-4 w-full">
+        <div className="relative w-full">
           <button
             ref={profileBtnRef}
             onClick={() => setActiveItem(activeItem === "profile" ? null : "profile")}
-            className="flex items-center gap-3 text-darkgreen transition hover:opacity-80"
+            className="flex w-full items-center justify-between text-darkgreen transition hover:opacity-80 pr-2"
             title="Profile"
             aria-label="Profile"
             type="button"
           >
-            {/* Avatar */}
-            {user?.profile_photo_url ? (
-              <img
-                src={user.profile_photo_url}
-                alt={user.name}
-                className="w-7 h-7 rounded-full object-cover ring-2 ring-darkgreen/20"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-darkgreen/10 ring-2 ring-darkgreen/20 flex items-center justify-center text-darkgreen font-semibold text-xs">
-                {user?.name ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('') : '?'}
-              </div>
-            )}
+            {/* Left side: Avatar + Info grouped together */}
+            <div className="flex items-center gap-5">
+              {/* Avatar */}
+              {user?.profile_photo_url ? (
+                <img
+                  src={user.profile_photo_url}
+                  alt={user.name}
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-darkgreen/20"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-darkgreen/10 ring-2 ring-darkgreen/20 flex items-center justify-center text-darkgreen font-semibold text-xs">
+                  {user?.name ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('') : '?'}
+                </div>
+              )}
 
-            {/* Name & Position */}
-            <div className={`flex flex-col items-start leading-tight gap-0.5 ${labelClass}`}>
-              <span className="text-xs lg:text-[13px] font-semibold text-darkgreen truncate max-w-[110px]">
-                {user?.name ?? 'User'}
-              </span>
-              <span className="text-[10px] lg:text-[11px] text-darkgreen/60 truncate max-w-[110px]">
-                {user?.position ?? user?.role ?? ''}
-              </span>
+              {/* Name & Position */}
+              <div className={`flex flex-col items-start leading-tight gap-0.5 ${labelClass}`}>
+                <span className="text-xs lg:text-[13px] font-semibold text-darkgreen truncate max-w-[176px]">
+                  {user?.name ?? 'User'}
+                </span>
+                <span className="text-[10px] lg:text-[11px] text-darkgreen/60 truncate max-w-[190px]">
+                  {user?.position ?? user?.role ?? ''}
+                </span>
+              </div>
             </div>
+
+            {/* Right side: Chevron */}
+          <div className="text-darkgreen">
+            <ChevronDownIcon 
+              className={`w-4 h-4 transition-transform duration-200 ease-in-out ${
+                activeItem === "profile" ? "-rotate-90" : "rotate-0"
+              }`} 
+            />
+          </div>
           </button>
 
           {showProfileMenu &&
@@ -1247,8 +1259,8 @@ export default function Sidebar() {
               </div>,
               document.body
             )}
-                  </div>
-                </div>
-              </aside>
-            );
-          }
+        </div>
+      </div>
+    </aside>
+  );
+}
