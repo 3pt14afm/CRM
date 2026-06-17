@@ -323,7 +323,7 @@ const columns = useMemo(
       <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
       <input
         type="text"
-        placeholder="Search archives..."
+        placeholder="Search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && runQuery({ search: e.target.value })}

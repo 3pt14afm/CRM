@@ -110,7 +110,7 @@ function LocationFilterPopup({ locations = [], selectedId, onApply, open, onClos
           <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
           <input ref={inputRef} type="text" value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search location…"
+            placeholder="Search"
             className="w-full h-8 pl-8 pr-3 text-[13px] bg-slate-50 text-slate-700 border border-gray-200 rounded-lg
               focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
               transition-[border-color,box-shadow] duration-150" />
@@ -418,7 +418,7 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
   const searchControl = (
     <div className="relative h-7 flex items-center">
       <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
-      <input type="text" placeholder="Search archives..." value={search}
+      <input type="text" placeholder="Search" value={search}
         onChange={(e) => setSearch(e.target.value)}
         className={`h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
           placeholder:text-slate-400 focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]

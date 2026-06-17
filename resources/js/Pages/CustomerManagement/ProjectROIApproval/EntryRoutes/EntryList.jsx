@@ -348,7 +348,7 @@ export default function EntryList({
         <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
         <input
           type="text"
-          placeholder="Search projects…"
+          placeholder="Search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 w-full sm:w-52 min-w-0 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black placeholder:text-slate-400
