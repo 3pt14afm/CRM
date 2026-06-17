@@ -5,7 +5,7 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
   const clickable = typeof onClick === "function";
 
   const base =
-    "rounded-xl border border-gray-200 border-b-gray-300 shadow-md flex items-center md:px-3 md:py-3 lg:px-4 lg:py-3 gap-2 xl:gap-4 xl:px-8";
+    "rounded-xl border border-gray-200 border-b-gray-300 shadow-sm flex items-center md:px-3 md:py-3 lg:px-4 lg:py-3 gap-2 xl:gap-4 xl:px-8";
   const styles =
     variant === "highlight" || variant === "action"
       ? "bg-[#4FA34E] border-[#4FA34E] text-white"
@@ -125,9 +125,9 @@ export default function ProjectListSection({
   return (
     <div className="mx-4 md:mx-6 lg:mx-10">
       {/* Tiles */}
-      <div className="grid grid-cols-12 gap-6 md:gap-4 xl:gap-6">
+      <div className="grid grid-cols-12 gap-6 md:gap-4 xl:gap-6 ">
         {tiles.map((t) => (
-          <div key={t.label} className="col-span-12 md:col-span-4">
+          <div key={t.label} className="col-span-12 md:col-span-4 ">
             <Tile {...t} />
           </div>
         ))}
@@ -135,13 +135,13 @@ export default function ProjectListSection({
 
       {/* Filter Toolbar Section */}
       {filterControl && (
-        <div className="mt-6">
+        <div className="mt-4">
           {filterControl}
         </div>
       )}
 
       {/* Table Container */}
-      <div className="mt-6 bg-white rounded-xl border border-[#00000012] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
+      <div className="mt-4 bg-white rounded-xl border border-[#00000012] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
 
         {/* Table Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b border-black/10 md:px-3 lg:px-4 xl:px-6 min-w-0">
