@@ -259,24 +259,11 @@ class RoiArchiveController extends Controller
     /**
      * Authorization gate logic check.
      */
-    private function ensureCanViewArchive(RoiArchiveProject $project): void
-    {
-        $user = Auth::user();
-        abort_unless($user, 403);
-
-        $userId = (int) $user->id;
-
-        $canView =
-            (int) $project->user_id              === $userId
-            || (int) ($project->reviewed_by  ?? 0) === $userId
-            || (int) ($project->checked_by   ?? 0) === $userId
-            || (int) ($project->endorsed_by  ?? 0) === $userId
-            || (int) ($project->confirmed_by ?? 0) === $userId
-            || (int) ($project->approved_by  ?? 0) === $userId
-            || (int) ($project->rejected_by  ?? 0) === $userId;
-
-        abort_unless($canView, 403);
-    }
+private function ensureCanViewArchive(RoiArchiveProject $project): void
+{
+    // Simply ensure they are logged in
+    abort_unless(Auth::check(), 403);
+}
 
     private function buildMachineCatalog()
     {
