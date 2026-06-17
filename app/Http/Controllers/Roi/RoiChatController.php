@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Roi;
 
+use App\Http\Controllers\Controller;
 use App\Models\PrinterModel;
 use App\Models\RoiChatSession;
 use App\Services\RoiChatService;

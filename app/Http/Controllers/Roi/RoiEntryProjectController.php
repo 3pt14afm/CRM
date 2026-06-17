@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Roi;
 
 use App\Models\LocationDepartment;
 use App\Models\RoiCurrentProject;
@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Concerns\StreamsEntryRemarkAttachments;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Log;
 
 class RoiEntryProjectController extends Controller
