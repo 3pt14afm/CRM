@@ -20,6 +20,21 @@ body{
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { border-radius: 9999px; background: #195c0059; }
 
+/* Standard default scrollbar measurements and colors */
+.table-scrollbar-reset::-webkit-scrollbar {
+  width: 5px;
+  height: 5px; /* Important for the horizontal table scrollbar */
+}
+
+.table-scrollbar-reset::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;  
+}
+
+.table-scrollbar-reset::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8; /* Slightly darker on hover */
+}
+
 @layer base {
   html {
     font-family: 'Inter', sans-serif;

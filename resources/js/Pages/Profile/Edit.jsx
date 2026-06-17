@@ -11,6 +11,10 @@ export default function Edit({ profile }) {
     // Reusing the exact card styling from the original code
     const cardStyle = "overflow-hidden rounded-2xl bg-white border border-[#00000010] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,0.8),0px_0px_0_rgba(255,255,255,0.8),2px_2px_4px_rgba(0,0,0,0.2)]";
 
+    const locationName = typeof profile.location === 'object' && profile.location !== null ? profile.location.name : profile.location;
+    const locationAddress = typeof profile.location === 'object' && profile.location !== null ? profile.location.address : profile.location;
+    const mapQuery = encodeURIComponent(locationAddress || 'Cebu City, Philippines');
+
     return (
         <AuthenticatedLayout
             header={
@@ -55,14 +59,14 @@ export default function Edit({ profile }) {
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                         </svg>
                                         <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                                            Personal Information
+                                            Basic Information
                                         </h4>
                                     </div>
                                     <div className="mt-2 grid grid-cols-1 gap-6 sm:grid-cols-2">
                                         <InfoField label="Employee ID" value={profile.employeeId} />
                                         <InfoField label="Full Name" value={profile.name} />
                                         <InfoField label="Email" value={profile.email} />
-                                        <InfoField label="Location" value={profile.location} />
+                                        <InfoField label="Location" value={locationName} />
                                     </div>
                                 </div>
                             </div>
@@ -117,7 +121,7 @@ export default function Edit({ profile }) {
                                             style={{ border: 0 }}
                                             loading="lazy"
                                             allowFullScreen
-                                            src={`https://www.google.com/maps?q=${encodeURIComponent(profile.location || 'Cebu City, Philippines')}&output=embed`}
+                                            src={`https://maps.google.com/maps?q=${mapQuery}&output=embed`}
                                         ></iframe>
                                     </div>
                                 </div>
