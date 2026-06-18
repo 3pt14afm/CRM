@@ -46,7 +46,7 @@ createInertiaApp({
             richColors
             toastOptions={{
               classNames: {
-                toast: 'bg-zinc-900 border border-zinc-700 text-white rounded-2xl shadow-xl',
+                toast: 'bg-zinc-900 border-none text-white rounded-2xl shadow-xl',
                 title: 'text-sm font-semibold',
                 description: 'text-sm text-zinc-400',
                 success: 'bg-green-950 border border-green-800/60 text-green-100 [&_[data-icon]]:text-green-400',

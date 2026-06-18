@@ -45,9 +45,9 @@ class RoiCurrentProjectController extends Controller
     private function applyCurrentVisibilityScope($query, $user)
     {
           // Super Viewer
-    if ($user->id === 1) {
-        return $query;
-    }
+        if ($user->id === 1) {
+            return $query;
+        }
 
         $userId = (int) $user->id;
         return $query->where(function ($q) use ($userId) {
