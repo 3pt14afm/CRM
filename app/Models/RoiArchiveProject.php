@@ -18,6 +18,7 @@ class RoiArchiveProject extends Model
         'version',
         'last_saved_at',
         'status',
+        'submitted_at',
         'reviewed_by',
         'reviewed_at',
         'checked_by',
@@ -26,10 +27,10 @@ class RoiArchiveProject extends Model
         'endorsed_at',
         'confirmed_by',
         'confirmed_at',
-        'approved_at',
         'approved_by',
-        'rejected_at',
+        'approved_at',
         'rejected_by',
+        'rejected_at',
         'rejected_by_level',
         'company_name',
         'company_sap_code',
@@ -66,6 +67,7 @@ class RoiArchiveProject extends Model
 
     protected $casts = [
         'last_saved_at' => 'datetime',
+        'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'bundled_std_ink' => 'boolean',
