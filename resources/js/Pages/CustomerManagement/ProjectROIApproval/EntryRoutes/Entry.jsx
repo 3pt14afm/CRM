@@ -134,6 +134,10 @@ export default function Entry({
 
   const canApprove = isAssignedApproverLevel && levelNum === 6;
 
+  const isApprover = levelNum >= 2 && levelNum <= 6;
+  const showApprovalButtons = showCurrentSummaryApprovalActions && isAssignedApproverLevel && isApprover;
+  const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showApprovalButtons;
+
   // --- Tab refs (used by child components) ---
 
   const summaryRef = useRef(null);
@@ -301,7 +305,8 @@ export default function Entry({
               </>
             )}
 
-            {showCurrentSummaryApprovalActions && isAssignedApproverLevel && (
+            {/* Approval actions — only visible to assigned approvers */}
+            {showApprovalButtons && (
               <>
                 <div className="flex items-center gap-3">
                   <button
@@ -361,7 +366,8 @@ export default function Entry({
               </>
             )}
 
-            {showPrintFooter && !showEntrySummaryDraftActions && !showCurrentSummaryApprovalActions && (
+            {/* Print-only footer — visible to all non-draft, non-approver viewers */}
+            {showPrintOnly && (
               <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
@@ -429,7 +435,9 @@ export default function Entry({
             </div>
           </div>
         </div>
+
       )}
+
     </>
   );
 }
