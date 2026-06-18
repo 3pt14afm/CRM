@@ -27,16 +27,19 @@ class SprfCurrentProjectController extends Controller
                     'fees',
                     'preparer:id,first_name,last_name,position',
                     'currentApprover:id,first_name,last_name,position',
-                ])
-                ->where(function ($q) use ($userId) {
+                ]);
+              // Apply visibility restriction only if the user is not ID 1
+            if ($userId !== 1) {
+                $query->where(function ($q) use ($userId) {
                     $q->where('prepared_by_user_id', $userId)
                         ->orWhere('current_approver_user_id', $userId)
                         ->orWhere('director_customer_engagement_user_id', $userId)
                         ->orWhere('esd_director_user_id', $userId)
                         ->orWhere('vp_ccto_user_id', $userId)
                         ->orWhere('president_ceo_user_id', $userId);
-                })
-                ->whereIn('status', ['for_review', 'under_review']);
+                });
+            }
+                $query->whereIn('status', ['for_review', 'under_review']);
 
             // ─── ALIGNED SPRF DYNAMIC FILTERS ────────────────────────────────────
             
@@ -554,6 +557,11 @@ class SprfCurrentProjectController extends Controller
     {
         $userId = (int) Auth::id();
 
+        // Allow user 1 to bypass checks
+            if ($userId === 1) {
+                return;
+            }
+            
         $approverIds = array_filter([
             $project->director_customer_engagement_user_id,
             $project->esd_director_user_id,
