@@ -20,16 +20,11 @@ class RoiArchiveController extends Controller
 public function index(Request $request)
 {
     $user = Auth::user();
-    $perPage    = $request->integer('per_page', 10);
-    $search     = $request->input('search');
-    $status     = $request->input('status');
-    $dateFrom   = $request->input('date_from');
-    $dateTo     = $request->input('date_to');
-    $decidedBy  = $request->input('decided_by');
-    $preparedBy = $request->input('prepared_by');
-    $locationId = $request->input('location_id');
+    $perPage = $request->integer('per_page', 10);
+    $userId = (int) ($user->id ?? 0);
 
-    $baseQuery = RoiArchiveProject::query()
+    // Build the query using Eloquent
+    $query = RoiArchiveProject::query()
         ->with('user')
         ->leftJoin('users as creator_user', 'roi_archive_projects.user_id', '=', 'creator_user.id')
         ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
@@ -39,152 +34,84 @@ public function index(Request $request)
             TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, ''))) as prepared_by_name,
             TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, ''))) as approved_by_name,
             TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, ''))) as rejected_by_name,
-            COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at) as decided_at,
-            CASE
-                WHEN LOWER(roi_archive_projects.status) = 'rejected'
-                    THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
-                ELSE TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
-            END as decided_by_name_computed
+            COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at) as decided_at
         ");
 
-    // Status
-    if (!empty($status)) {
-        $baseQuery->where('roi_archive_projects.status', '=', $status);
+    // Apply Filters
+    if ($request->filled('status')) {
+        $query->where('roi_archive_projects.status', $request->status);
     }
 
-    // Location
-    if (!empty($locationId)) {
-        $baseQuery->where('roi_archive_projects.location_id', '=', (int) $locationId);
+    if ($request->filled('location_id')) {
+        $query->where('roi_archive_projects.location_id', (int) $request->location_id);
     }
 
-    // General search
-    if (!empty($search)) {
-        $baseQuery->where(function ($q) use ($search) {
-            $q->where('roi_archive_projects.company_name',       'like', "%{$search}%")
-            ->orWhere('roi_archive_projects.reference',        'like', "%{$search}%")
-            ->orWhere('roi_archive_projects.company_sap_code', 'like', "%{$search}%")
-            ->orWhere('roi_archive_projects.contract_type',    'like', "%{$search}%")
-            ->orWhere('roi_archive_projects.status',           'like', "%{$search}%")
-            ->orWhereHas('user', function ($userQuery) use ($search) {
-                $userQuery->where('first_name', 'like', "%{$search}%")
-                          ->orWhere('last_name',  'like', "%{$search}%");
-            });
+    if ($request->filled('date_from')) {
+        $query->where('decided_at', '>=', $request->date_from . ' 00:00:00');
+    }
+
+    if ($request->filled('date_to')) {
+        $query->where('decided_at', '<=', $request->date_to . ' 23:59:59');
+    }
+
+    if ($request->filled('decided_by')) {
+        $decidedBy = $request->decided_by;
+        $query->whereRaw("
+            CASE 
+                WHEN LOWER(roi_archive_projects.status) = 'rejected' 
+                THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
+                ELSE TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
+            END LIKE ?", ["%{$decidedBy}%"]);
+    }
+
+    // General Search
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('company_name', 'like', "%{$search}%")
+              ->orWhere('reference', 'like', "%{$search}%")
+              ->orWhere('company_sap_code', 'like', "%{$search}%")
+              ->orWhereHas('user', function ($u) use ($search) {
+                  $u->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%");
+              });
         });
     }
 
-    // Prepared By
-    if (!empty($preparedBy)) {
-        $baseQuery->whereHas('user', function ($q) use ($preparedBy) {
-            $q->where('first_name', 'like', "%{$preparedBy}%")
-            ->orWhere('last_name',  'like', "%{$preparedBy}%")
-            ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+            // Add this after the General Search block
+        if ($request->filled('prepared_by')) {
+            $preparedBy = $request->prepared_by;
+            $query->whereHas('user', function ($q) use ($preparedBy) {
+                $q->where('first_name', 'like', "%{$preparedBy}%")
+                ->orWhere('last_name', 'like', "%{$preparedBy}%")
+                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+            });
+        }
+
+    // Sorting and Pagination
+    $archiveProjects = $query
+        ->orderByRaw("CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, decided_at DESC", [$userId])
+        ->paginate($perPage)
+        ->withQueryString()
+        ->through(function ($p) {
+            $isRejected = strtolower((string)($p->status ?? '')) === 'rejected';
+            $p->decided_by_name = $isRejected ? ($p->rejected_by_name ?: '—') : ($p->approved_by_name ?: '—');
+            // Pass the raw date string to the frontend (e.g., '2026-06-13 10:00:00')
+            $p->decided_at_display = $isRejected ? $p->rejected_at : $p->approved_at;
+            return $p;
         });
-    }
-
-    // Apply Priority Sorting: 
-    // User's own projects (user_id) appear first, followed by most recent decided_at.
-    $userId = (int) ($user->id ?? 0);
-    $baseQuery->orderByRaw("
-        CASE 
-            WHEN user_id = ? THEN 0 
-            ELSE 1 
-        END ASC, decided_at DESC
-    ", [$userId]);
-
-    $needsSubquery = !empty($dateFrom) || !empty($dateTo) || !empty($decidedBy);
-
-    if ($needsSubquery) {
-        // CRITICAL: Explicitly select * from the nested raw SQL subquery mapping
-        $sub = DB::table(DB::raw("({$baseQuery->toSql()}) as sub"))
-            ->select('sub.*') 
-            ->mergeBindings($baseQuery->getQuery());
-
-        if (!empty($dateFrom)) {
-            $sub->where('sub.decided_at', '>=', $dateFrom . ' 00:00:00');
-        }
-        if (!empty($dateTo)) {
-            $sub->where('sub.decided_at', '<=', $dateTo . ' 23:59:59');
-        }
-        if (!empty($decidedBy)) {
-            $sub->where('sub.decided_by_name_computed', 'like', "%{$decidedBy}%");
-        }
-
-        $archiveProjects = $sub
-            ->orderByRaw('CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, decided_at DESC', [$userId])
-            ->paginate($perPage)
-            ->withQueryString()
-            ->through(function ($p) {
-                $p = (object) (array) $p;
-                $statusStr = strtolower((string) ($p->status ?? ''));
-                $isRejected = $statusStr === 'rejected';
-
-                $p->decided_by_name = $isRejected
-                    ? ($p->rejected_by_name ?: '—')
-                    : ($p->approved_by_name ?: '—');
-
-                $decidedAt = $isRejected ? $p->rejected_at : $p->approved_at;
-                $p->decided_at_display = $decidedAt
-                    ? \Carbon\Carbon::parse($decidedAt)->diffForHumans()
-                    : '—';
-
-                return $p;
-            });
-    } else {
-        $archiveProjects = $baseQuery
-            ->paginate($perPage)
-            ->withQueryString()
-            ->through(function ($p) {
-                $statusStr  = strtolower((string) ($p->status ?? ''));
-                $isRejected = $statusStr === 'rejected';
-
-                $p->decided_by_name = $isRejected
-                    ? ($p->rejected_by_name ?: '—')
-                    : ($p->approved_by_name ?: '—');
-
-                $decidedAt = $isRejected ? $p->rejected_at : $p->approved_at;
-                $p->decided_at_display = $decidedAt
-                    ? \Carbon\Carbon::parse($decidedAt)->diffForHumans()
-                    : '—';
-
-                return $p;
-            });
-    }
 
     if ($request->wantsJson()) {
-        return response()->json([
-            'archiveProjects' => $archiveProjects,
-        ]);
+        return response()->json(['archiveProjects' => $archiveProjects]);
     }
 
-    $totalArchiveProjects  = RoiArchiveProject::query()->count();
-    $recentlyArchivedToday = RoiArchiveProject::query()
-        ->where(function ($q) {
-            $q->whereDate('approved_at', now()->toDateString())
-              ->orWhereDate('rejected_at', now()->toDateString());
-        })
-        ->count();
-
-    $locations = Location::query()
-        ->where('is_active', true)
-        ->orderBy('name')
-        ->get(['id', 'name', 'code']);
-
     return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
-        'filters' => [
-            'search'      => $search,
-            'status'      => $status,
-            'date_from'   => $dateFrom,
-            'date_to'     => $dateTo,
-            'decided_by'  => $decidedBy,
-            'prepared_by' => $preparedBy,
-            'location_id' => $locationId,
-            'per_page'    => $perPage,
-        ],
+        'filters' => $request->only(['search', 'status', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page']),
         'archiveProjects' => $archiveProjects,
-        'locations'       => $locations,
-        'stats'           => [
-            'totalArchiveProjects'  => $totalArchiveProjects,
-            'recentlyArchivedToday' => $recentlyArchivedToday . ' Today',
+        'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
+        'stats' => [
+            'totalArchiveProjects' => RoiArchiveProject::count(),
+            'recentlyArchivedToday' => RoiArchiveProject::whereDate('approved_at', now()->toDateString())
+                                        ->orWhereDate('rejected_at', now()->toDateString())->count() . ' Today',
         ],
     ]);
 }

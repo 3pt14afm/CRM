@@ -14,11 +14,27 @@ import { route as ziggyRoute } from "ziggy-js";
 import { router } from '@inertiajs/react';
 
 function formatDateLabel(dateStr) {
-  if (!dateStr) return null;
-  const [year, month, day] = dateStr.split('-');
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    month: 'long', day: '2-digit', year: 'numeric'
-  });
+  try {
+    if (!dateStr) return "—";
+    
+    // Extract YYYY-MM-DD from '2026-06-18 14:00:00'
+    const datePart = dateStr.split(' ')[0];
+    const [year, month, day] = datePart.split('-');
+    
+    // Create date using Date.UTC to prevent timezone offsets
+    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
+    
+    if (isNaN(date.getTime())) return "—";
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
+  } catch (e) {
+    return "—";
+  }
 }
 
 /* ─── Text filter popup (Decided By / Prepared By) ───────────────────────── */
@@ -289,7 +305,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
       ),
       cell: (r) => (
         <span className="text-slate-600 text-xs flex justify-center items-center whitespace-nowrap">
-          {r.decided_at_display ?? "—"}
+          {/* Check if property exists and has content before calling the function */}
+      {r.decided_at_display ? formatDateLabel(r.decided_at_display) : "—"}
         </span>
       ),
     },
