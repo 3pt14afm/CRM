@@ -1,7 +1,7 @@
 // resources/js/Utils/getRowCalculations.test.js
 
 import { describe, it, expect } from "vitest";
-import { getRowCalculations } from "./getRowCalculations";
+import { getRowCalculations } from "../../roi/calculations/getRowCalculations";
 
 const baseProjectData = {
   interest: {

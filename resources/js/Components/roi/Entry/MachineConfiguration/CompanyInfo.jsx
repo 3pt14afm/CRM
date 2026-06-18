@@ -1,6 +1,6 @@
 import { useProjectData } from "@/Context/ProjectContext";
-import { get1YrPotential } from "@/utils/calculations/freeuse/get1YrPotential";
-import { succeedingYears } from "@/utils/calculations/freeuse/succeedingYears";
+import { get1YrPotential } from "@/utils/roi/calculations/get1YrPotential";
+import { succeedingYears } from "@/utils/roi/calculations/succeedingYears";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import { debounce } from "lodash";

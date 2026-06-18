@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from "react";
 import { useProjectData } from "@/Context/ProjectContext";
-import { calculateProjectPotentials } from "@/utils/calculations/freeuse/calculatProjectPotentials";
-import { succeedingYears } from "@/utils/calculations/freeuse/succeedingYears";
+import { calculateProjectPotentials } from "@/utils/roi/calculations/calculatProjectPotentials";
+import { succeedingYears } from "@/utils/roi/calculations/succeedingYears";
 
 function SucceTotals() {
   const { projectData, updateSection } = useProjectData();

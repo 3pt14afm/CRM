@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router, usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import { useRef } from 'react';
 import Summary1stYear from './Summary1stYear';
 import MachineConfigTab from './MachineConfigTab';
 import SucceedingYears from './SucceedingYears';
@@ -10,137 +10,14 @@ import { LuScanEye } from "react-icons/lu";
 import { MdDisabledByDefault } from "react-icons/md";
 import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { useProjectData } from '@/Context/ProjectContext';
-import { route as ziggyRoute } from "ziggy-js";
-import {toast} from 'sonner';
-import {Toaster} from 'sonner';
-import { IoAlertCircle } from "react-icons/io5";
-import { AlertTriangle  } from 'lucide-react';
+import { Toaster } from 'sonner';
 
-
-function mapEntryProjectToContext(entryProject) {
-  const items = entryProject?.items ?? [];
-  const fees = entryProject?.fees ?? [];
-
-  const mapItem = (r) => ({
-    id: r.client_row_id || String(r.id),
-    type: r.kind === "machine" ? "machine" : "consumable",
-    sku: r.sku ?? "",
-    qty: Number(r.qty ?? 0),
-    yields: Number(r.yields ?? 0),
-    mode: r.mode ?? "",
-    remarks: r.remarks ?? "",
-    inputtedCost: Number(r.inputted_cost ?? 0),
-    cost: Number(r.cost ?? 0),
-    price: Number(r.price ?? 0),
-    basePerYear: Number(r.base_per_year ?? 0),
-    totalCost: Number(r.total_cost ?? 0),
-    costCpp: Number(r.cost_cpp ?? 0),
-    totalSell: Number(r.total_sell ?? 0),
-    sellCpp: Number(r.sell_cpp ?? 0),
-    machineMargin: Number(r.machine_margin ?? 0),
-    machineMarginTotal: Number(r.machine_margin_total ?? 0),
-  });
-
-  const machine = items.filter((r) => r.kind === "machine").map(mapItem);
-  const consumable = items.filter((r) => r.kind === "consumable").map(mapItem);
-
-  const mapFee = (f) => ({
-    id: f.client_row_id || String(f.id),
-    label: f.label ?? "",
-    category: f.category ?? "",
-    remarks: f.remarks ?? "",
-    cost: Number(f.cost ?? 0),
-    qty: Number(f.qty ?? 0),
-    total: Number(f.total ?? 0),
-    isMachine: Boolean(f.is_machine),
-  });
-
-  const companyFees = fees.filter((f) => f.payer === "company").map(mapFee);
-  const customerFees = fees.filter((f) => f.payer === "customer").map(mapFee);
-
-  const feesTotal =
-    companyFees.reduce((s, r) => s + (r.total || 0), 0) +
-    customerFees.reduce((s, r) => s + (r.total || 0), 0);
-
-  return {
-    metadata: {
-      projectId: entryProject.id,
-      lastSaved: entryProject.last_saved_at ?? null,
-      version: entryProject.version ?? 1,
-      status: entryProject.status ?? "draft",
-    },
-
-    companyInfo: {
-      projectUid: entryProject.project_uid ?? "",
-      companyName: entryProject.company_name ?? "",
-      contractYears: Number(entryProject.contract_years ?? 0),
-      contractType: entryProject.contract_type ?? "",
-      reference: entryProject.reference ?? "",
-      purpose: entryProject.purpose ?? "",
-      bundledStdInk: Boolean(entryProject.bundled_std_ink ?? false),
-    },
-
-    interest: {
-      annualInterest: Number(entryProject.annual_interest ?? 0),
-      percentMargin: Number(entryProject.percent_margin ?? 0),
-    },
-
-    yield: {
-      monoAmvpYields: {
-        monthly: Number(entryProject.mono_yield_monthly ?? 0),
-        annual: Number(entryProject.mono_yield_annual ?? 0),
-      },
-      colorAmvpYields: {
-        monthly: Number(entryProject.color_yield_monthly ?? 0),
-        annual: Number(entryProject.color_yield_annual ?? 0),
-      },
-    },
-
-    entryRemarks: {
-      remarks: entryProject.entry_remarks ?? "",
-      attachments: Array.isArray(entryProject.entry_remarks_attachments)
-        ? entryProject.entry_remarks_attachments
-        : [],
-    },
-
-    machineConfiguration: {
-      machine,
-      consumable,
-      totals: {
-        unitCost: Number(entryProject.mc_unit_cost ?? 0),
-        qty: Number(entryProject.mc_qty ?? 0),
-        totalCost: Number(entryProject.mc_total_cost ?? 0),
-        yields: Number(entryProject.mc_yields ?? 0),
-        costCpp: Number(entryProject.mc_cost_cpp ?? 0),
-        sellingPrice: Number(entryProject.mc_selling_price ?? 0),
-        totalSell: Number(entryProject.mc_total_sell ?? 0),
-        sellCpp: Number(entryProject.mc_sell_cpp ?? 0),
-        totalBundledPrice: Number(entryProject.mc_total_bundled_price ?? 0),
-      },
-    },
-
-    additionalFees: {
-      company: companyFees,
-      customer: customerFees,
-      total: Number(entryProject.fees_total ?? feesTotal),
-    },
-
-    yearlyBreakdown: entryProject.yearly_breakdown ?? {},
-
-    totalProjectCost: {
-      grandTotalCost: Number(entryProject.grand_total_cost ?? 0),
-      grandTotalRevenue: Number(entryProject.grand_total_revenue ?? 0),
-      grandROI: Number(entryProject.grand_roi ?? 0),
-      grandROIPercentage: Number(entryProject.grand_roi_percentage ?? 0),
-    },
-
-    contractDetails: {
-      machine: [],
-      consumable: [],
-      totalInitial: 0,
-    },
-  };
-}
+import { useEntryHydration } from '@/hooks/roi/useEntryHydration';
+import { useEntryValidation } from '@/hooks/roi/useEntryValidation ';
+import { useEntryPayload } from '@/utils/roi/useEntryPayload';
+import { useEntryActions } from '@/hooks/roi/useEntryActions';
+import { useApprovalActions } from '@/hooks/roi/useApprovalActions';
+import { usePrintPage } from '@/hooks/roi/usePrintPage';
 
 export default function Entry({
   activeTab = 'Machine Configuration',
@@ -163,657 +40,68 @@ export default function Entry({
     year: "2-digit",
   }).format(today);
 
-  const { setProjectData, projectData, resetProject, saveDraft } = useProjectData();
+  const { projectData } = useProjectData();
 
   const projectRef =
     entryProject?.reference ||
     projectData?.companyInfo?.reference ||
     '—';
-    
 
-  const [tab, setTab] = useState("Machine");
-  const [buttonClicked, setButtonClicked] = useState(false);
-  const [resetKey, setResetKey] = useState(0);
-  const [showCompanyInfoErrors, setShowCompanyInfoErrors] = useState(false);
-  const [showOutrightErrors, setShowOutrightErrors] = useState(false);
+  // --- Hooks ---
 
-  const [showSendBackModal, setShowSendBackModal] = useState(false);
-  const [sendBackText, setSendBackText] = useState("");
+  const {
+    tab,
+    setTab,
+    resetKey,
+    setResetKey,
+    showCompanyInfoErrors,
+    setShowCompanyInfoErrors,
+  } = useEntryHydration(entryProject, activeTab);
 
+  const {
+    showOutrightErrors,
+    setShowOutrightErrors,
+    isCompanyInfoValid,
+    validateBusinessLogic,
+    validateEntryRemarks,
+  } = useEntryValidation({ setTab });
 
-const validateBusinessLogic = () => {
-        const ci = projectData?.companyInfo ?? {};
-        const contractType = String(ci.contractType ?? "").toLowerCase();
-        
-        // Model Flags - Fixed the .includes logic
-        const isOutright = contractType.includes("outright");
-       
-        const isRental = contractType.includes("rental");
-        const isFreeUseClick = contractType.includes("free use + click charge");
-        const isClick = contractType.includes("click");
-        const isFixed = contractType.includes("fixed monthly only");
-        const isOutrightOnly = contractType.toLowerCase().includes("outright only");
-
-        const outrightCart = contractType.includes("Outright + per Cartridge")
-        const machines = projectData?.machineConfiguration?.machine || [];
-        const consumables = projectData?.machineConfiguration?.consumable || [];
-        const allItems = [...machines, ...consumables];
-
-      
-            const monoAMVP = parseFloat(projectData?.yield?.monoAmvpYields?.monthly || 0);
-            const colorAMVP = parseFloat(projectData?.yield?.colorAmvpYields?.monthly || 0);
-
-      
-    // Only validate AMVP if it's NOT 'Outright Only' AND it's a type that requires usage data
-    if (!isOutrightOnly && !isFixed) {
-      if (monoAMVP <= 0 && colorAMVP <= 0) {
-        toast.error("At least one Monthly AMVP (Mono or Color) must be greater than zero.");
-        return false;
-      }
-    }
-      //    if (isOutright) {
-      //   if (monoAMVP <= 0 || colorAMVP <= 0) {
-      //     toast.error("Monthly AMVP (Mono or Color) must be greater than zero.");
-      //     return false;
-      //   }
-      // }
-      
-
-        // --- 1. ITEM VALIDATION LOOP ---
-        for (const item of allItems) {
-          const costVal = parseFloat(item.cost || 0);
-          const isMachine = item.type === "machine";
-          const isMonoColor = item.mode === "mono" || item.mode === "color";
-          const yieldVal = parseFloat(item.yields || 0);
-          const priceVal = parseFloat(item.price || 0);
-
-          // Mandatory Unit Cost (Global)
-          if (costVal <= 0) {
-            toast.error(`Unit Cost is mandatory for all items.`);
-            setTab("Machine");
-            return false;
-          }
-
-         // ✅ Machine/Printer Rule: Allow Yields ONLY if mode is "others"
-      if (isMachine && item.mode !== "others" && yieldVal > 0) {
-        toast.error(`Yields cannot be entered for Machines (unless set to 'Others').`);
-        setTab("Machine");
-        return false;
-      }
-
-          // Toner Rule: Require Yields for consumables (except Fixed models)
-          if (!isMachine && isMonoColor && !isFixed && yieldVal <= 0 && !isOutrightOnly ) {
-            toast.error(`Yields are mandatory for Mono/Color consumables.`);
-            setTab("Machine");
-            return false;
-          }
-        // AFTER — skip sell price check for ANY click contract
-        if (!isMachine && isMonoColor && !isFixed && !isClick && !isOutrightOnly) {
-          if (priceVal <= 0) {
-            toast.error(`Selling price is mandatory for Mono/Color consumables.`);
-            setTab("Machine");
-            return false;
-          }
-        }
-          // Outright Logic
-          if (isOutright) {
-            if (isMachine && priceVal <= 0) {
-              toast.error(`Missing Selling Price for Outright Machine.`);
-              setTab("Machine");
-              return false;
-            }
-            if (!isMachine && isMonoColor && priceVal <= 0) {
-              toast.error(`Selling Price required for Outright Consumables.`);
-              setTab("Machine");
-              return false;
-            }
-          }
-
-    
-        }
-
-        // --- 2. FEE VALIDATION (Logic Controller Rule) ---
-        const companyFees = projectData?.additionalFees?.company || [];
-        const customerFees = projectData?.additionalFees?.customer || [];
-        const allFees = [...companyFees, ...customerFees];
-
-    // Validation: Rental lines MUST have Unit Cost
-    if (isRental || isFixed) {
-        // We check if ANY fee row contains the word "rental" in label OR category 
-        // AND has a cost greater than 0.
-        const hasRentalFee = allFees.some(f => {
-            const category = String(f.category || "").toLowerCase();
-            const label = String(f.label || "").toLowerCase();
-            const cost = parseFloat(f.cost || 0);
-
-            return (category.includes('rental') || label.includes('rental')) && cost > 0;
-        });
-
-        if (!hasRentalFee) {
-            toast.error("Rental Fee cost required.");
-            setTab("Machine");
-            return false;
-        }
-    }
-
-        // Validation: Clicks in "Fees" MUST have at least one Cost
-    if (isClick) {
-        // 1. Use 'allFees' which is already the combined array from projectData
-        const clickFees = allFees.filter(f => {
-            const type = String(f.type || "").toLowerCase();
-            const label = String(f.label || "").toLowerCase();
-            const category = String(f.category || "").toLowerCase();
-            
-            return type.includes("click") || label.includes("click") || category.includes("click");
-        });
-
-        // 2. Check for valid cost
-        const hasValidClickCost = clickFees.some(f => {
-            const cost = parseFloat(f.cost);
-            return !isNaN(cost) && cost > 0;
-        });
-
-        // 3. Logic: If it's a Click contract, we EXPECT click fees to exist and have cost
-        if (clickFees.length === 0 || !hasValidClickCost) {
-            toast.error("At least one Click fee must have a valid Unit Cost.");
-            setTab("Machine");
-            return false;
-        }
-    }
-        setShowOutrightErrors(false);
-        return true;
- };
-
-
-
-  const isCompanyInfoValid = () => {
-    const ci = projectData?.companyInfo ?? {};
-    const nameOk = String(ci.companyName ?? "").trim().length > 0;
-    const typeOk = String(ci.contractType ?? "").trim().length > 0;
-
-    const years = Number(ci.contractYears);
-    const yearsOk = Number.isFinite(years) && years > 0;
-
-    return nameOk && typeOk && yearsOk;
-  };
-
-  const validateOutrightFields = () => {
-    const ci = projectData?.companyInfo ?? {};
-    const isOutright = String(ci.contractType ?? "").toLowerCase().includes("outright");
-
-    if (isOutright) {
-      const machines = projectData?.machineConfiguration?.machine || [];
-      const hasInvalidMachine = machines.some(m => {
-        const price = parseFloat(m.price || 0);
-        return price <= 0 || yields <= 0;
-      });
-
-      if (hasInvalidMachine) {
-        toast.error("Outright contracts require a Selling Price for all machines.");
-        setShowOutrightErrors(true);
-        setTab("Machine");
-        return false;
-      }
-    }
-    setShowOutrightErrors(false);
-    return true;
-  };
-
-  const requiresEntryRemarks = () => {
-    const monoMonthly = Number(projectData?.yield?.monoAmvpYields?.monthly || 0);
-    const colorMonthly = Number(projectData?.yield?.colorAmvpYields?.monthly || 0);
-
-    return monoMonthly > 5000 || colorMonthly > 2500;
-  };
-
-  const hasValidEntryRemarks = () => {
-    return String(projectData?.entryRemarks?.remarks ?? "").trim().length > 0;
-  };
-
-  const hasRequiredEntryRemarkAttachment = () => {
-    const attachments = projectData?.entryRemarks?.attachments;
-    return Array.isArray(attachments) && attachments.length > 0;
-  };
-
-  const validateEntryRemarks = () => {
-    if (!requiresEntryRemarks()) {
-      return true;
-    }
-
-    if (!hasValidEntryRemarks()) {
-      toast.error(
-        "Remarks required if Mono AMVP exceeds 5,000 or Color AMVP exceeds 2,500."
-      );
-      setTab("Machine");
-      return false;
-    }
-
-    if (!hasRequiredEntryRemarkAttachment()) {
-      toast.error(
-        "At least one attachment required."
-      );
-      setTab("Machine");
-      return false;
-    }
-
-    return true;
-  };
-
-  const hydratedEntryIdRef = useRef(null);
-
-  const summaryRef = useRef(null);
-  const succeedingRef = useRef(null);
-
-  const getCurrentTabRef = () => {
-    if (tab === 'Summary') return summaryRef;
-    if (tab === 'Succeeding') return succeedingRef;
-    return null;
-  };
-
-
-  const handleReject = () => {
-  toast.custom((t) => (
-    <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl w-[500px] outline-none ring-0">
-      {/* Icon + Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-50 shrink-0">
-          <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
-        </div>
-        <div>
-          <p className="font-semibold text-gray-900 text-sm">Reject this project?</p>
-          <p className="text-xs text-gray-500 mt-0.5">This action cannot be undone.</p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 justify-end">
-        <button
-          onClick={() => toast.dismiss(t)}
-          className="px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 transition"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => {
-            toast.dismiss(t);
-            router.post(ziggyRoute('roi.current.reject', entryProject.id), {}, {
-              onStart: () => toast.loading('Rejecting...', { id: 'reject-process' }),
-              onSuccess: () => toast.success('Project rejected.', { id: 'reject-process' }),
-              onError: () => toast.error('Failed to reject.', { id: 'reject-process' }),
-            });
-          }}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 active:scale-95 transition"
-        >
-          Yes, Reject
-        </button>
-      </div>
-    </div>
-  ), { duration: Infinity, position: 'top-center' });
-};
-
-
-  const handleBackToSender = () => {
-    setSendBackText("");
-    setShowSendBackModal(true);
-  };
-
-const submitSendBack = () => {
-  const trimmed = sendBackText.trim();
-  const processId = 'sendback-process';
-
-  if (!trimmed) {
-    toast.error(
-      sendBackType === 'comment'
-        ? 'Comment is required before sending back.'
-        : 'Note is required before sending back.'
-    );
-    return;
-  }
-
-  router.patch(
-    ziggyRoute('roi.current.send-back', entryProject.id),
-    {
-      body: trimmed,
-      type: sendBackType,
-    },
-    {
-      preserveScroll: true,
-      onStart: () => toast.loading('Sending back...', { id: processId }), // Added loading state for consistency
-      onSuccess: () => {
-        setSendBackText("");
-        toast.success('Project sent back to sender.', { id: processId });
-      },
-      onError: (errors) => {
-        setShowSendBackModal(true);
-        const message =
-          Object.values(errors ?? {})[0] ||
-          `Failed to send back. ${sendBackType === 'comment' ? 'Comment' : 'Note'} is required.`;
-        toast.error(message, { id: processId });
-      },
-    }
-  );
-};
-
-const handleAdvance = (projectId) => {
-  if (!projectId) {
-    toast.error("Invalid Project ID");
-    return;
-  }
-
-  toast.custom((t) => (
-    <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl w-[500px] outline-none ring-0">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-50 shrink-0">
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="18" cy="18" r="18" fill="#dcfce7"/>
-            <path d="M11 18 L25 18 M19 12 L25 18 L19 24"
-              stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <div>
-         <p className="font-semibold text-gray-900 text-sm">Advance this project?</p>
-          <p className="text-xs text-gray-500 mt-0.5">This will submit it to the next level.</p>
-        </div>
-      </div>
-
-      <div className="flex gap-2 justify-end">
-        <button
-          onClick={() => toast.dismiss(t)}
-          className="px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 transition"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => {
-            toast.dismiss(t);
-            const processId = `advance-${projectId}`;
-            router.post(ziggyRoute('roi.current.advance', projectId), {}, {
-              preserveScroll: true,
-              onStart: () => toast.loading("Submitting to next level...", { id: processId }),
-              onSuccess: () => toast.success("Project advanced successfully!", { id: processId }),
-              onError: (errors) => {
-                const message = Object.values(errors)[0] || "Failed to advance project.";
-                toast.error(message, { id: processId });
-              },
-            });
-          }}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 active:scale-95 transition"
-        >
-          Yes, Advance
-        </button>
-      </div>
-    </div>
-  ), { duration: Infinity, position: 'top-center',  unstyled: true  });
-};
-
-const handleApprove = (projectId) => {
-  if (!projectId) {
-    toast.error("Invalid Project ID");
-    return;
-  }
-
-  if (confirm("Approve this project? This will move it to Archive.")) {
-    const processId = `approve-${projectId}`;
-    toast.loading("Approving...", { id: processId });
-
-    router.post(ziggyRoute('roi.current.approve', projectId), {}, {
-      preserveScroll: true,
-      onSuccess: () => toast.success("Project approved.", { id: processId }),
-      onError: (errors) => {
-        const message = Object.values(errors)[0] || "Failed to approve project.";
-        toast.error(message, { id: processId });
-      },
-    });
-  }
-};
-
-  useEffect(() => {
-    const next =
-      activeTab === 'Summary' ? 'Summary' :
-      activeTab === 'Succeeding' ? 'Succeeding' :
-      'Machine';
-    setTab(next);
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (entryProject) return;
-
-    hydratedEntryIdRef.current = null;
-    setShowCompanyInfoErrors(false);
-    resetProject();
-    setResetKey((k) => k + 1);
-    setTab('Machine');
-  }, [entryProject, resetProject]);
-
-  useEffect(() => {
-    if (!entryProject?.id) return;
-    if (hydratedEntryIdRef.current === entryProject.id) return;
-
-    const mapped = mapEntryProjectToContext(entryProject);
-
-    setShowCompanyInfoErrors(false);
-    setProjectData(mapped);
-    saveDraft(mapped);
-
-    hydratedEntryIdRef.current = entryProject.id;
-    setResetKey((k) => k + 1);
-  }, [entryProject, setProjectData, saveDraft]);
-
-  const buildPayload = () => ({
-    ...projectData,
-    metadata: {
-      ...projectData?.metadata,
-      projectId: entryProject?.id ?? projectData?.metadata?.projectId ?? null,
-      lastSaved: formattedDate,
-      status:
-        projectData?.metadata?.status ??
-        entryProject?.status ??
-        "draft",
-    },
-    companyInfo: {
-      ...projectData?.companyInfo,
-      projectUid:
-        entryProject?.project_uid ??
-        projectData?.companyInfo?.projectUid ??
-        "",
-      reference:
-        entryProject?.reference ??
-        projectData?.companyInfo?.reference ??
-        "",
-    },
-    entryRemarks: {
-      remarks: projectData?.entryRemarks?.remarks ?? "",
-      attachments: Array.isArray(projectData?.entryRemarks?.attachments)
-        ? projectData.entryRemarks.attachments
-        : [],
-    },
+  const { buildPayload, buildFormDataPayload } = useEntryPayload({
+    entryProject,
+    formattedDate,
   });
 
-  const appendToFormData = (formData, value, key) => {
-    if (value === undefined || value === null) {
-      formData.append(key, "");
-      return;
-    }
+  const {
+    buttonClicked,
+    handleSaveDraft,
+    handleSubmit,
+    handleClearAll,
+  } = useEntryActions({
+    entryProject,
+    setTab,
+    setShowCompanyInfoErrors,
+    setShowOutrightErrors,
+    setResetKey,
+    isCompanyInfoValid,
+    validateBusinessLogic,
+    validateEntryRemarks,
+    buildPayload,
+    buildFormDataPayload,
+  });
 
-    if (value instanceof File) {
-      formData.append(key, value);
-      return;
-    }
+  const {
+    showSendBackModal,
+    setShowSendBackModal,
+    sendBackText,
+    setSendBackText,
+    handleReject,
+    handleBackToSender,
+    submitSendBack,
+    handleAdvance,
+    handleApprove,
+  } = useApprovalActions({ entryProject, sendBackType });
 
-    if (Array.isArray(value)) {
-      value.forEach((item, index) => {
-        appendToFormData(formData, item, `${key}[${index}]`);
-      });
-      return;
-    }
-
-    if (typeof value === "object") {
-      Object.entries(value).forEach(([childKey, childValue]) => {
-        appendToFormData(formData, childValue, `${key}[${childKey}]`);
-      });
-      return;
-    }
-
-    formData.append(key, value);
-  };
-
-  const buildFormDataPayload = () => {
-    const payload = buildPayload();
-    const formData = new FormData();
-
-    const attachments = Array.isArray(payload.entryRemarks?.attachments)
-      ? payload.entryRemarks.attachments
-      : [];
-
-    const existingAttachmentMeta = attachments
-      .filter((item) => !(item?.file instanceof File))
-      .map((item) => ({
-        id: item?.id ?? "",
-        original_name: item?.original_name ?? item?.name ?? "",
-        stored_name: item?.stored_name ?? "",
-        path: item?.path ?? "",
-        size: item?.size ?? 0,
-      }));
-
-    const payloadForForm = {
-      ...payload,
-      entryRemarks: {
-        ...payload.entryRemarks,
-        attachments: existingAttachmentMeta,
-      },
-    };
-
-    Object.entries(payloadForForm).forEach(([key, value]) => {
-      appendToFormData(formData, value, key);
-    });
-
-    attachments.forEach((item) => {
-      if (item?.file instanceof File) {
-        formData.append("entry_remarks_attachments[]", item.file);
-      }
-    });
-
-    return formData;
-  };
-
-  const triggerBlink = () => {
-    setButtonClicked(true);
-    setTimeout(() => setButtonClicked(false), 100);
-  };
-
-const handleSaveDraft = () => {
-    setShowCompanyInfoErrors(true);
-
-    // 1. Validate Required Company/Project Fields
-    if (!isCompanyInfoValid()) {
-      toast.error("Please fill in all required project fields.");
-      setTab("Machine");
-      return;
-    }
-
-    // 2. STRICT Business Logic Gate (Unit Cost, Yields, Selling Price)
-    // If this fails, it toast the error, sets tab to Machine, and stops execution
-    if (!validateBusinessLogic()) {
-      return;
-    }
-
-    // 3. Threshold Remarks & Attachments check
-    if (!validateEntryRemarks()) {
-      return;
-    }
-
-    const payload = buildPayload();
-    saveDraft(payload);
-    const formData = buildFormDataPayload();
-
-    router.post(ziggyRoute("roi.entry.draft.save"), formData, {
-      preserveScroll: true,
-      forceFormData: true,
-      onStart: () => toast.loading("Saving Draft...", { id: "saveDraft" }),
-      onSuccess: () => {
-        triggerBlink();
-        toast.success("Draft saved!", { id: "saveDraft" });
-        setShowCompanyInfoErrors(false);
-        setShowOutrightErrors(false); // Reset validation highlights on success
-      },
-      onError: (errors) => {
-        const message = Object.values(errors ?? {})[0] || "Failed to save draft.";
-        toast.error(message, { id: "saveDraft" });
-      },
-    });
-  };
-
-const handleSubmit = () => {
-  const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
-
-  if (!projectId) {
-    toast((t) => (
-      <div className="flex items-center gap-2 text-sm">
-        <IoAlertCircle className="text-red-500 text-lg shrink-0" />
-        <span>Please <b>Save Draft</b> first before submitting.</span>
-      </div>
-    ), { duration: 2000 });
-    return;
-  }
-
-  // ✅ NEW: Machine configuration check
-  const machines = projectData?.machineConfiguration?.machine || [];
-  const consumables = projectData?.machineConfiguration?.consumable || [];
-
-  if (machines.length === 0 && consumables.length === 0) {
-    toast.error("At least one machine or consumable is required before submitting.");
-    setTab("Machine");
-    return;
-  }
-
-  if (machines.length === 0) {
-    toast.error("At least one machine is required before submitting.");
-    setTab("Machine");
-    return;
-  }
-
-  // 1. STRICT Business Logic Gate
-  if (!validateBusinessLogic()) {
-    return;
-  }
-
-  // 2. Entry Remarks validation
-  if (!validateEntryRemarks()) {
-    return;
-  }
-
- const formData = buildFormDataPayload();
-  formData.append("_method", "patch");
-
- // Force the query parameter explicitly into the destination URI
- const submissionUrl = `${ziggyRoute("roi.entry.projects.submit", projectId)}?_method=PATCH`;
-
- router.post(submissionUrl, formData, {
-    preserveScroll: true,
-    forceFormData: true,
-    onStart: () => toast.loading("Submitting project...", { id: "submitProject" }),
-    onSuccess: () => {
-      toast.success("Project submitted successfully!", { id: "submitProject" });
-      setShowOutrightErrors(false);
-    },
-    onError: (errors) => {
-      const message = Object.values(errors)[0] || "Failed to submit.";
-      toast.error(message, { id: "submitProject" });
-    },
- });
-};
-
-
-  const handleClearAll = () => {
-    if (confirm("Are you sure you want to clear all data? This will wipe your draft.")) {
-      setShowCompanyInfoErrors(false);
-      resetProject();
-      setResetKey((k) => k + 1);
-      setTab('Machine');
-    }
-  };
+  // --- Derived UI flags ---
 
   const isCurrentRecord = routeName === 'current';
   const isSummaryLikeTab = tab === 'Summary' || tab === 'Succeeding';
@@ -828,82 +116,16 @@ const handleSubmit = () => {
   const showCurrentSummaryApprovalActions = isSummaryLikeTab && isCurrentRecord;
   const showPrintFooter = isSummaryLikeTab;
 
-  const buildSignatoriesForPrint = (preparedByName) => ({
-    preparedBy: preparedByName ?? entryProject?.user?.name ?? null,
-    reviewedBy: entryProject?.reviewed_by ?? null,
-    checkedBy: entryProject?.checked_by ?? null,
-    endorsedBy: entryProject?.endorsed_by ?? null,
-    confirmedBy: entryProject?.confirmed_by ?? null,
-    approvedBy: entryProject?.approved_by_name ?? entryProject?.approved_by ?? null,
+  const { openPrintPage } = usePrintPage({
+    tab,
+    entryProject,
+    routeName,
+    projectRef,
+    createdBy,
+    showDraftWatermark,
   });
 
-  const openPrintPage = (autoPrint = false) => {
-    if (!(tab === "Summary" || tab === "Succeeding")) return;
-
-    const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
-
-    if (!projectId) {
-      toast((t) => (
-        <div className="flex items-center gap-2 rounded-md text-sm">
-          <IoAlertCircle className="text-red-500 text-lg shrink-0" />
-          <span>
-            Please <b className="text-darkgreen/70">Save Draft</b> first before printing.
-          </span>
-        </div>
-      ), { duration: 1500 });
-
-      return;
-    }
-
-    const tabParam = tab === "Succeeding" ? "succeeding" : "summary";
-    let storageKey = null;
-
-    try {
-      storageKey = `roi-print:${projectRef}:${Date.now()}`;
-
-      const snapshot = {
-        ...projectData,
-        metadata: {
-          ...(projectData?.metadata ?? {}),
-          signatories: buildSignatoriesForPrint(createdBy),
-        },
-        projectNotes: entryProject?.notes ?? projectData?.projectNotes ?? [],
-        projectComments: entryProject?.comments ?? projectData?.projectComments ?? [],
-      };
-
-      sessionStorage.setItem(storageKey, JSON.stringify(snapshot));
-    } catch (e) {
-      console.warn("Print snapshot too large; continuing without sessionStorage snapshot.", e);
-      storageKey = null;
-    }
-
-    let printPath = "";
-
-    if (routeName === "current") {
-      printPath = ziggyRoute("roi.current.print", projectId);
-    } else if (routeName === "archive") {
-      printPath = ziggyRoute("roi.archive.print", projectId);
-    } else {
-      printPath = ziggyRoute("roi.entry.projects.print", projectId);
-    }
-
-    const params = new URLSearchParams();
-    params.set("tab", tabParam);
-    params.set("autoprint", autoPrint ? "1" : "0");
-    params.set("draftWatermark", showDraftWatermark ? "1" : "0");
-
-    if (storageKey) params.set("storageKey", storageKey);
-
-    const href = `${printPath}?${params.toString()}`;
-
-    const a = document.createElement("a");
-    a.href = href;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
+  // --- Approver level ---
 
   const levelNum = Number(viewerLevel ?? 0);
   const projectLevel = Number(entryProject?.current_level ?? 0);
@@ -912,8 +134,20 @@ const handleSubmit = () => {
 
   const canApprove = isAssignedApproverLevel && levelNum === 6;
 
+  // --- Tab refs (used by child components) ---
+
+  const summaryRef = useRef(null);
+  const succeedingRef = useRef(null);
+
+  const getCurrentTabRef = () => {
+    if (tab === 'Summary') return summaryRef;
+    if (tab === 'Succeeding') return succeedingRef;
+    return null;
+  };
+
   return (
     <>
+
       <Head
         title={
           routeName === 'current' || routeName === 'archive'

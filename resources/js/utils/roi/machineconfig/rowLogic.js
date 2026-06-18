@@ -1,4 +1,4 @@
-import { ROW_TYPE, MODE, CONTRACT_TYPE } from '@/utils/machineconfig/const';
+import { ROW_TYPE, MODE, CONTRACT_TYPE } from '@/utils/roi/machineconfig/const';
 
 /**
  * Derives all display/validation flags for a single row based on

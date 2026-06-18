@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
-import { getRowCalculations } from '@/utils/calculations/freeuse/getRowCalculations';
-import { ROW_TYPE, MODE } from '@/utils/machineconfig/const';
+import { getRowCalculations } from '@/utils/roi/calculations/getRowCalculations';
+import { ROW_TYPE, MODE } from '@/utils/roi/machineconfig/const';
 
 
 // ── Stable ID generator ────────────────────────────────────────────────────
