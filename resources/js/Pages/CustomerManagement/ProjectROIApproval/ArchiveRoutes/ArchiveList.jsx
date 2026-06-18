@@ -4,9 +4,10 @@ import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
 import {
-  MdSearch, MdCheckCircle, MdCancel, MdExpandMore,
+  MdSearch, MdCheck, MdCancel, MdExpandMore,
   MdOutlineFilterAlt, MdDateRange, MdClose, MdPerson,
   MdLocationOn, MdVerifiedUser,
+  MdOutlineClose,
 } from "react-icons/md";
 import { TbLayoutRows } from "react-icons/tb";
 import { route as ziggyRoute } from "ziggy-js";
@@ -214,14 +215,13 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
   const columns = useMemo(() => [
 {
     key: "PreparedBy",
-    header: "PREPARED BY",
-    // Checks for your newly added property if r.user is nullified by the query
+    header: <div>PREPARED BY</div>,
     cell: (r) => <span className="text-[#195c00] font-medium">{r.user?.name ?? r.prepared_by_name ?? "—"}</span>,
   },
     {
       key: "reference",
       header: <div className="text-center w-full">REFERENCE</div>,
-      cell: (r) => <span className="font-medium flex justify-center items-center">{r.reference ?? "—"}</span>,
+      cell: (r) => <span className="font-mono flex justify-center items-center">{r.reference ?? "—"}</span>,
     },
     {
       key: "company_sap_code",
@@ -235,11 +235,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     {
       key: "company_name",
       header: <div className="text-center w-full">COMPANY NAME</div>,
-      cell: (r) => <span className="font-medium flex justify-center items-center">{r.company_name ?? "—"}</span>,
+      cell: (r) => <span className="font-medium flex justify-center items-center text-center">{r.company_name ?? "—"}</span>,
     },
     {
       key: "contract_years",
-      header: <div className="text-center w-full">CONTRACT TERM</div>,
+      header: <div className="text-center max-w-16">CONTRACT TERM</div>,
       cell: (r) => (
         <span className="font-medium flex justify-center items-center">
           {r.contract_years != null ? `${r.contract_years}` : "—"}
@@ -260,27 +260,25 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
         const isApproved = s === "approved";
         return (
           <div className="flex justify-center items-center">
-            <span className={`rounded-full px-2 text-[9px] font-bold uppercase
+            <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
               ${isRejected
                 ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
                 : isApproved
                 ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
                 : "bg-blue-100 text-blue-700 border border-blue-200"
               }`}>
-              {row.status ?? "—"}
-            </span>
+              {isRejected ? (
+                <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
+              ) : isApproved ? (
+                <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
+              ) : (
+                <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" /> 
+              )}
+              <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">{row.decided_by_name ?? "—"}</span>
+            </div>
           </div>
         );
       },
-    },
-    {
-      key: "decided_by",
-      header: <div className="text-center w-full">DECIDED BY</div>,
-      cell: (r) => (
-        <span className="text-blue-500 font-medium text-xs flex items-center justify-center">
-          {r.decided_by_name ?? "—"}
-        </span>
-      ),
     },
     {
       key: "decided_at",
@@ -301,11 +299,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
       cell: (r) => (
         <div className="flex items-center justify-center gap-2">
           <button
-            className="px-1.5 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+            className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
             type="button"
             onClick={() => router.visit(ziggyRoute("roi.archive.show", r.id))}
           >
-            <IoEyeOutline className="text-[18px]" />
+            <IoEyeOutline className="text-[17px]" />
           </button>
         </div>
       ),

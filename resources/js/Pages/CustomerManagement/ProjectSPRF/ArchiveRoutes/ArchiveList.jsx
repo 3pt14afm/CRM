@@ -3,10 +3,7 @@ import { router, Head } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import {
-  MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose, MdExpandMore,
-  MdPerson, MdVerifiedUser, MdCheckCircle, MdCancel
-} from 'react-icons/md';
+import { MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose, MdExpandMore, MdPerson, MdVerifiedUser, MdCheckCircle, MdCancel, MdOutlineClose, MdCheck } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb'; 
 import { route as ziggyRoute } from 'ziggy-js';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -221,13 +218,13 @@ const columns = useMemo(
     () => [
       {
         key: 'prepared_by',
-        header: 'PREPARED BY',
+        header: <div className="">PREPARED BY</div>,
         cell: (r) => <span className="text-[#195c00] font-semibold">{r.prepared_by ?? '—'}</span>,
       },
       {
         key: 'sprf_no',
         header: <div className="text-center w-full">SPRF #</div>,
-        cell: (r) => <div className="text-center"><span className="font-medium">{r.sprf_no ?? '—'}</span></div>,
+        cell: (r) => <div className="text-center"><span className="font-mono text-xs flex justify-center items-center text-slate-500">{r.sprf_no ?? '—'}</span></div>,
       },
       {
         key: 'sub_category',
@@ -249,7 +246,6 @@ const columns = useMemo(
         header: <div className="text-center w-full">APPROVAL LEVEL</div>,
         cell: (r) => (
           <span className="font-medium text-blue-700 flex justify-center items-center text-center text-[11px] xl:text-xs">
-            {/* Ensure approvalLevelLabel function is imported/defined */}
             {approvalLevelLabel(r.approval_level)}
           </span>
         ),
@@ -262,19 +258,24 @@ const columns = useMemo(
           const isRejected = s === "rejected";
           const isApproved = s === "approved";
           return (
-            <div className="w-full flex justify-center items-center">
-              <div className="flex flex-col items-center leading-tight">
-                <span className={`inline-block px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider uppercase border
+            <div className="flex justify-center items-center">
+              <div 
+                className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
                   ${isRejected
-                    ? "bg-[#FDECEC] text-[#C40000] border-[#C40000]/20"
+                    ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
                     : isApproved
-                    ? "bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20"
-                    : "bg-blue-100 text-blue-700 border-blue-200"
-                  }`}>
-                  {row.status ?? "—"}
-                </span>
-                {/* Decision context replacing 'current_approver' */}
-                <span className="mt-1 text-[10px] text-center italic text-blue-700">by: {row.decided_by_name ?? '—'}</span>
+                    ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
+                    : "bg-blue-100 text-blue-700 border border-blue-200"
+                  }`}
+              >
+                {isRejected ? (
+                  <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
+                ) : isApproved ? (
+                  <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
+                ) : (
+                  <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" /> 
+                )}
+                <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">{row.decided_by_name ?? "—"}</span>
               </div>
             </div>
           );
@@ -282,7 +283,11 @@ const columns = useMemo(
       },
       {
         key: 'decided_at',
-        header: <div className="text-center w-full">SUBMITTED AT</div>,
+        header: (
+          <div className="flex justify-center items-center w-full text-slate-500">
+            <FaRegClock className="text-sm" title="Decision Date" />
+          </div>
+        ),
         cell: (r) => (
           <div className="w-full text-slate-600 flex justify-center items-center text-center">
             <span className="text-[10px] xl:text-[11px]">{r.decided_at_display ?? '—'}</span>
@@ -295,10 +300,10 @@ const columns = useMemo(
         cell: (r) => (
           <div className="flex justify-center items-center gap-2">
             <button
-              className="px-2 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
+              className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/3"
               onClick={() => router.visit(ziggyRoute('sprf.archive.show', r.id))}
             >
-              <IoEyeOutline className="text-[18px]" />
+              <IoEyeOutline className="text-[17px]" />
             </button>
           </div>
         ),
@@ -498,11 +503,8 @@ const columns = useMemo(
             searchControl={searchControl}
             filterControl={filterToolbar}
           />
- </div>
-
-        <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className="px-10 py-3 flex items-center justify-end" />
         </div>
+
       </div>
     </>
   );

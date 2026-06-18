@@ -113,8 +113,11 @@ export default function ProjectListSection({
         onClick={() => onRowClick && onRowClick(r)} // ADDED: Trigger the click event
         className={`border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] border-black/5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`} // ADDED: Pointer cursor
       >
-        {columns.map((c) => (
-          <td key={c.key} className="px-8 py-2 md:px-2 md:text-[11px] lg:text-xs lg:px-3 xl:text-sm xl:px-6">
+        {columns.map((c, index) => (
+          <td 
+            key={c.key} 
+            className={`py-1 md:px-2 md:text-[11px] lg:text-xs lg:px-1 ${index === 0 ? "!pl-4 xl:!pl-6" : ""}`}
+          >
             {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
           </td>
         ))}
@@ -144,7 +147,7 @@ export default function ProjectListSection({
       <div className="mt-4 bg-white rounded-xl border border-[#00000012] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
 
         {/* Table Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b border-black/10 md:px-3 lg:px-4 xl:px-6 min-w-0">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-3 border-b border-black/10 md:px-3 lg:px-4 xl:px-6 min-w-0">
           <h2 className="font-semibold text-[11px] md:text-xs lg:text-sm xl:text-lg text-slate-800 flex-shrink-0">
             {tableTitle}
           </h2>
@@ -165,8 +168,8 @@ export default function ProjectListSection({
           <table className="w-full text-sm">
             <thead className="bg-gray-100">
               <tr className="text-left text-slate-500">
-                {columns.map((c) => (
-                  <th key={c.key} className="px-1 py-1 font-bold tracking-wide leading-tight md:px-2 md:py-[6px] md:text-[8px] lg:px-3 lg:text-[10px] xl:text-[11px] xl:px-6">
+                {columns.map((c, index) => (
+                  <th key={c.key} className={`px-1 py-1 font-bold tracking-wide leading-tight md:px-2 md:py-[6px] md:text-[8px] lg:px-3 lg:text-[10px] xl:text-[11px] ${index === 0 ? "!pl-4 xl:!pl-6" : ""}`}>
                     {c.header}
                   </th>
                 ))}
