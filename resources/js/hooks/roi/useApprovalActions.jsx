@@ -164,25 +164,56 @@ export function useApprovalActions({ entryProject, sendBackType }) {
     ), { duration: Infinity, position: 'top-center' });
   };
 
-  const handleApprove = (projectId) => {
+const handleApprove = (projectId) => {
     if (!projectId) {
       toast.error("Invalid Project ID");
       return;
     }
 
-    if (confirm("Approve this project? This will move it to Archive.")) {
-      const processId = `approve-${projectId}`;
-      toast.loading("Approving...", { id: processId });
+    toast.custom((t) => (
+      <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl w-[500px] outline-none ring-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 shrink-0">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="18" cy="18" r="18" fill="#dcfce7"/>
+            <path d="M11 18.5 L16 23.5 L25 13"
+              stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Approve this project?</p>
+            <p className="text-xs text-gray-500 mt-0.5">This will move it to Archive.</p>
+          </div>
+        </div>
 
-      router.post(ziggyRoute('roi.current.approve', projectId), {}, {
-        preserveScroll: true,
-        onSuccess: () => toast.success("Project approved.", { id: processId }),
-        onError: (errors) => {
-          const message = Object.values(errors)[0] || "Failed to approve project.";
-          toast.error(message, { id: processId });
-        },
-      });
-    }
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => toast.dismiss(t)}
+            className="px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t);
+              const processId = `approve-${projectId}`;
+              router.post(ziggyRoute('roi.current.approve', projectId), {}, {
+                preserveScroll: true,
+                onStart: () => toast.loading("Approving...", { id: processId }),
+                onSuccess: () => toast.success("Project approved.", { id: processId }),
+                onError: (errors) => {
+                  const message = Object.values(errors)[0] || "Failed to approve project.";
+                  toast.error(message, { id: processId });
+                },
+              });
+            }}
+            className="text-white px-4 py-2 text-sm font-medium rounded-lg bg-[#289800] hover:bg-[#7bcc5d]"
+          >
+            Yes, Approve
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, position: 'top-center' });
   };
 
   return {
