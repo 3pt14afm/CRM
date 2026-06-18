@@ -156,7 +156,6 @@ class RoiCurrentWorkflowService
             'rejected_by' => $actor->id,
             'rejected_by_level' => $actorLevel,
             'approved_at' => null,
-            'approved_by' => null,
         ]);
 
         $this->logActivity('reject', 'Rejected ROI #' . $reference, $archived, $oldValues, [
@@ -258,9 +257,9 @@ class RoiCurrentWorkflowService
     private function archiveFromCurrent(RoiCurrentProject $current, array $archiveOverrides): RoiArchiveProject
     {
         $base = $current->only([
-            'user_id', 'location_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status',
+            'user_id', 'location_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status', 'submitted_at',
             'reviewed_by', 'reviewed_at', 'checked_by', 'checked_at', 'endorsed_by', 'endorsed_at',
-            'confirmed_by', 'confirmed_at', 'entry_remarks', 'entry_remarks_attachments',
+            'confirmed_by', 'confirmed_at', 'approved_by', 'entry_remarks', 'entry_remarks_attachments',
             'company_name', 'company_sap_code', 'contract_years', 'contract_type', 'purpose', 'bundled_std_ink',
             'annual_interest', 'percent_margin', 'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly',
             'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',

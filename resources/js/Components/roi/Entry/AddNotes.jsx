@@ -250,12 +250,11 @@ const canNote = isCurrentRoute
                     </span>
                   </div>
                   
-
                   <div className="text-[10px] text-gray-500 italic whitespace-nowrap">
                     {formatDateTime(n.created_at)}
                   </div>
                 </div>
-                <p className="mt-3 print:mt-1 text-gray-900 text-xs leading-relaxed">{n.body}</p>
+                <p className="mt-2 print:mt-1 text-gray-900 text-xs leading-relaxed">{n.body}</p>
               </div>
             ))}
           </div>

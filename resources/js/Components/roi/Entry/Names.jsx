@@ -22,18 +22,29 @@ function Names() {
     return usersById?.[String(id)]?.position ?? fallback;
   };
 
-    console.log('usersById:', usersById);
-  console.log('user_id:', project?.user_id);
-  console.log('positionOf result:', usersById?.[String(project?.user_id)]);
-
   const snapSigns = projectData?.metadata?.signatories ?? {};
   const fromSnap = (key) => snapSigns?.[key] ?? '—';
 
   const hasPageProject = !!project;
 
-  const preparedBy = hasPageProject
-    ? (project?.user?.name ?? nameOf(project?.user_id, '—'))
-    : fromSnap('preparedBy');
+  const formatTimestamp = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const datePart = date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+    });
+    const timePart = date
+      .toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+      .replace(' ', '');
+    return `${datePart} ${timePart}`;
+  };
+
+  const timestampOf = (value) => (hasPageProject ? formatTimestamp(value) : '');
+
+  const preparedBy = hasPageProject ? (project?.user?.name ?? nameOf(project?.user_id, '—')) : fromSnap('preparedBy');
 
   const reviewedBy = hasPageProject ? nameOf(project?.reviewed_by) : fromSnap('reviewedBy');
   const checkedBy = hasPageProject ? nameOf(project?.checked_by) : fromSnap('checkedBy');
@@ -41,16 +52,12 @@ function Names() {
   const confirmedBy = hasPageProject ? nameOf(project?.confirmed_by) : fromSnap('confirmedBy');
   const approvedBy = hasPageProject ? nameOf(project?.approved_by) : fromSnap('approvedBy');
 
-  const rejectedBy = hasPageProject
-    ? (isRejected ? nameOf(project?.rejected_by) : '—')
-    : fromSnap('rejectedBy');
+  const rejectedBy = hasPageProject ? (isRejected ? nameOf(project?.rejected_by) : '—') : fromSnap('rejectedBy');
 
   const rejectedLevel = Number(project?.rejected_by_level ?? 0);
 
   // Positions — all consistently use positionOf via usersById
-  const preparedByPosition = hasPageProject
-    ? positionOf(project?.user_id)
-    : fromSnap('preparedByPosition');
+  const preparedByPosition = hasPageProject ? positionOf(project?.user_id) : fromSnap('preparedByPosition');
 
   const reviewedByPosition = hasPageProject ? positionOf(project?.reviewed_by) : fromSnap('reviewedByPosition');
   const checkedByPosition = hasPageProject ? positionOf(project?.checked_by) : fromSnap('checkedByPosition');
@@ -59,27 +66,42 @@ function Names() {
   const approvedByPosition = hasPageProject ? positionOf(project?.approved_by) : fromSnap('approvedByPosition');
   const rejectedByPosition = hasPageProject ? positionOf(project?.rejected_by) : fromSnap('rejectedByPosition');
 
+  // Timestamps — straight from the model's _at columns; blank until that level has actually acted
+  const preparedAt = timestampOf(project?.submitted_at);
+  const reviewedAt = timestampOf(project?.reviewed_at);
+  const checkedAt = timestampOf(project?.checked_at);
+  const endorsedAt = timestampOf(project?.endorsed_at);
+  const confirmedAt = timestampOf(project?.confirmed_at);
+  const approvedAt = timestampOf(project?.approved_at);
+  const rejectedAt = isRejected ? timestampOf(project?.rejected_at) : '';
+
   return (
     <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-0">
-      <div className="grid grid-cols-4 gap-y-12 gap-x-8 px-2 print:px-1">
-        <Signatory label="PREPARED BY:" name={preparedBy} title={preparedByPosition} />
+      <div className="grid grid-cols-4 gap-y-12 gap-x-9 px-2 print:gap-x-6 print:px-1">
+        <Signatory label="PREPARED BY:" name={preparedBy} title={preparedByPosition} timestamp={preparedAt} />
 
         <Signatory
           label="REVIEWED BY:"
           name={isRejected && rejectedLevel === 2 ? rejectedBy : reviewedBy}
           title={isRejected && rejectedLevel === 2 ? rejectedByPosition : reviewedByPosition}
+          timestamp={isRejected && rejectedLevel === 2 ? rejectedAt : reviewedAt}
+          isRejectedAction={isRejected && rejectedLevel === 2}
         />
 
         <Signatory
           label="CHECKED BY:"
           name={isRejected && rejectedLevel === 3 ? rejectedBy : checkedBy}
           title={isRejected && rejectedLevel === 3 ? rejectedByPosition : checkedByPosition}
+          timestamp={isRejected && rejectedLevel === 3 ? rejectedAt : checkedAt}
+          isRejectedAction={isRejected && rejectedLevel === 3}
         />
 
         <Signatory
           label="ENDORSED BY:"
           name={isRejected && rejectedLevel === 4 ? rejectedBy : endorsedBy}
           title={isRejected && rejectedLevel === 4 ? rejectedByPosition : endorsedByPosition}
+          timestamp={isRejected && rejectedLevel === 4 ? rejectedAt : endorsedAt}
+          isRejectedAction={isRejected && rejectedLevel === 4}
         />
 
         <div className="col-start-3">
@@ -87,6 +109,8 @@ function Names() {
             label="CONFIRMED BY:"
             name={isRejected && rejectedLevel === 5 ? rejectedBy : confirmedBy}
             title={isRejected && rejectedLevel === 5 ? rejectedByPosition : confirmedByPosition}
+            timestamp={isRejected && rejectedLevel === 5 ? rejectedAt : confirmedAt}
+            isRejectedAction={isRejected && rejectedLevel === 5}
           />
         </div>
 
@@ -95,6 +119,8 @@ function Names() {
             label="APPROVED BY:"
             name={isRejected && rejectedLevel === 6 ? rejectedBy : approvedBy}
             title={isRejected && rejectedLevel === 6 ? rejectedByPosition : approvedByPosition}
+            timestamp={isRejected && rejectedLevel === 6 ? rejectedAt : approvedAt}
+            isRejectedAction={isRejected && rejectedLevel === 6}
           />
         </div>
       </div>
@@ -102,14 +128,18 @@ function Names() {
   );
 }
 
-const Signatory = ({ label, name, title }) => (
+const Signatory = ({ label, name, title, timestamp, isRejectedAction }) => (
   <div className="flex flex-col space-y-4 justify-center">
     <span className="text-[10px] font-extrabold text-gray-800 tracking-tight print:font-semibold">{label}</span>
     <div className="pt-2">
-      <p className="text-sm font-semibold text-gray-900 border-b border-gray-400 inline-block min-w-[175px] pb-0.5 print:font-medium print:text-xs print:min-w-[150px]">
+      <div className="flex text-[11px] justify-end gap-1 print:gap-0.5 min-w-[175px] print:min-w-[150px]">
+        <p className="text-gray-50/0">.</p>
+        <p className={isRejectedAction ? "text-red-500" : "text-[#175500]"}>{timestamp}</p>
+      </div>
+      <p className="text-sm text-center font-semibold text-gray-900 border-b border-gray-400 inline-block w-full pb-0.5 print:font-medium print:text-[13px] print:min-w-[150px]">
         {name || '—'}
       </p>
-      <p className="text-[11px] text-gray-500 mt-1">{title}</p>
+      <p className="text-[11px] text-center text-gray-500 mt-1">{title}</p>
     </div>
   </div>
 );

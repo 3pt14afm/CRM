@@ -9,6 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('roi_archive_projects', function (Blueprint $table) {
+            $table->timestamp('submitted_at')->nullable()->after('status');
             $table->timestamp('reviewed_at')->nullable()->after('reviewed_by');
             $table->timestamp('checked_at')->nullable()->after('checked_by');
             $table->timestamp('endorsed_at')->nullable()->after('endorsed_by');
@@ -16,11 +17,11 @@ return new class extends Migration
         });
     }
 
-
     public function down(): void
     {
         Schema::table('roi_archive_projects', function (Blueprint $table) {
             $table->dropColumn([
+                'submitted_at',
                 'reviewed_at',
                 'checked_at',
                 'endorsed_at',

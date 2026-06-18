@@ -217,20 +217,22 @@ const openModal = () => {
               {serverComments.map((c, idx) => (
                 <div
                   key={c.id ?? `${c.created_at ?? "comment"}-${idx}`}
-                  className="bg-white border border-gray-200 rounded-xl px-6 py-5 my-2 print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+                  className="bg-white border border-gray-200 rounded-xl px-4 py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <FaRegUserCircle className="text-lg text-gray-400 print:text-base" />
-                      <span className="font-semibold text-sm text-gray-900">
+                  <div className="flex h-4 items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center">
+                        <FaRegUserCircle className="text-gray-400 text-sm shrink-0" />
+                      </div>
+                      <span className="block text-[11px] font-medium text-gray-900">
                         {c.author?.name ?? "Unknown"}
                       </span>
                     </div>
-                    <div className="text-[11px] text-gray-500 italic whitespace-nowrap">
+                    <div className="text-[10px] text-gray-500 italic whitespace-nowrap">
                       {formatDateTime(c.created_at)}
                     </div>
                   </div>
-                  <p className="mt-3 text-gray-900 text-xs leading-relaxed">{c.body}</p>
+                  <p className="mt-2 text-gray-900 text-xs leading-relaxed">{c.body}</p>
                 </div>
               ))}
             </div>
