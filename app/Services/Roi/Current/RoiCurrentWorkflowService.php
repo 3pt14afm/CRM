@@ -104,25 +104,38 @@ class RoiCurrentWorkflowService
         $fromLevel = (int) $project->current_level;
         $toLevel = $fromLevel + 1;
         $nextStatus = $this->getQueueLabelForLevel($toLevel);
+        $timestampColumn = $this->approvalTimestampColumnForLevel($fromLevel);
 
         $oldValues = ['current_level' => $fromLevel, 'status' => $project->status];
         $workflow = $this->getRoiWorkflow($project);
 
-        $project->update([
+        $updates = [
             'current_level' => $toLevel,
             'status' => $nextStatus,
             'status_reason' => null,
             'status_updated_at' => now(),
             'status_updated_by' => $user->id,
             'last_saved_at' => now(),
-        ]);
+        ];
 
-        $this->logActivity('advance', 'Advanced ROI #' . $project->reference . ' to ' . $nextStatus, $project, $oldValues, [
+        if ($timestampColumn) {
+            $updates[$timestampColumn] = now();
+        }
+
+        $project->update($updates);
+
+        $newValues = [
             'current_level' => $project->current_level,
             'status' => $project->status,
             'status_updated_by' => $project->status_updated_by,
             'status_updated_at' => $project->status_updated_at,
-        ], $workflow);
+        ];
+
+        if ($timestampColumn) {
+            $newValues[$timestampColumn] = $project->{$timestampColumn};
+        }
+
+        $this->logActivity('advance', 'Advanced ROI #' . $project->reference . ' to ' . $nextStatus, $project, $oldValues, $newValues, $workflow);
 
         $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
         return $nextStatus;
@@ -203,6 +216,13 @@ class RoiCurrentWorkflowService
         };
     }
 
+    private function approvalTimestampColumnForLevel(int $level): ?string
+    {
+        return match ($level) {
+            2 => 'reviewed_at', 3 => 'checked_at', 4 => 'endorsed_at', 5 => 'confirmed_at', 6 => 'approved_at', default => null,
+        };
+    }
+
  public function getRoiWorkflow(RoiCurrentProject $project): array
     {
         return [
@@ -239,7 +259,8 @@ class RoiCurrentWorkflowService
     {
         $base = $current->only([
             'user_id', 'location_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status',
-            'reviewed_by', 'checked_by', 'endorsed_by', 'confirmed_by', 'entry_remarks', 'entry_remarks_attachments',
+            'reviewed_by', 'reviewed_at', 'checked_by', 'checked_at', 'endorsed_by', 'endorsed_at',
+            'confirmed_by', 'confirmed_at', 'entry_remarks', 'entry_remarks_attachments',
             'company_name', 'company_sap_code', 'contract_years', 'contract_type', 'purpose', 'bundled_std_ink',
             'annual_interest', 'percent_margin', 'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly',
             'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',

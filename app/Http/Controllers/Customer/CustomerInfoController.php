@@ -43,7 +43,7 @@ class CustomerInfoController extends Controller
                     $q->where('company_name', 'like', "%{$search}%")
                       ->orWhere('sap_code', 'like', "%{$search}%")
                       ->orWhere('address', 'like', "%{$search}%")
-                      ->orWhere('delsan_company', 'like', "%{$search}%"); // ✅ added
+                      ->orWhere('delsan_company', 'like', "%{$search}%");
                 });
             })
             ->when($request->input('category'), function ($query, $category) {
