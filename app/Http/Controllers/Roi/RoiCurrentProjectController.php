@@ -244,6 +244,19 @@ public function current(Request $request)
     ]);
 }
  
+private function getViewerLevel(RoiCurrentProject $project, $user): int
+{
+    $userId = (int) $user->id;
+
+    return match (true) {
+        (int) ($project->reviewed_by  ?? 0) === $userId => 2,
+        (int) ($project->checked_by   ?? 0) === $userId => 3,
+        (int) ($project->endorsed_by  ?? 0) === $userId => 4,
+        (int) ($project->confirmed_by ?? 0) === $userId => 5,
+        (int) ($project->approved_by  ?? 0) === $userId => 6,
+        default => 0,
+    };
+}
 
     public function show($id)
     {
@@ -261,7 +274,7 @@ public function current(Request $request)
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'project' => $project, 'entryProject' => $project, 'readOnly' => true, 'route' => 'current',
-            'createdBy' => $project->user?->name ?? '—', 'viewerLevel' => (int) $project->current_level,
+            'createdBy' => $project->user?->name ?? '—', 'viewerLevel' => $this->getViewerLevel($project, $user),
             'canActOnCurrentProject' => $this->currentProjectAssignedToUser($project, (int) $user->id), 'usersById' => $usersById,
             'projectNotes' => $project->notes ?? [], 'projectComments' => $project->comments ?? [],
             'requiredSendBackType' => $this->requiredSendBackTypeForLevel((int) $project->current_level),

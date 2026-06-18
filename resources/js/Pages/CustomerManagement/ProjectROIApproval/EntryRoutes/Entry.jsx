@@ -128,14 +128,15 @@ export default function Entry({
   // --- Approver level ---
 
   const levelNum = Number(viewerLevel ?? 0);
-  const projectLevel = Number(entryProject?.current_level ?? 0);
-  const isAssignedApproverLevel =
-    levelNum >= 2 && levelNum <= 6 && levelNum === projectLevel;
+const projectLevel = Number(
+  projectData?.metadata?.current_level ?? entryProject?.current_level ?? 0
+);
+
+const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === projectLevel;
 
   const canApprove = isAssignedApproverLevel && levelNum === 6;
 
-  const isApprover = levelNum >= 2 && levelNum <= 6;
-  const showApprovalButtons = showCurrentSummaryApprovalActions && isAssignedApproverLevel && isApprover;
+  const showApprovalButtons = showCurrentSummaryApprovalActions && isAssignedApproverLevel;
   const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showApprovalButtons;
 
   // --- Tab refs (used by child components) ---
@@ -435,9 +436,11 @@ export default function Entry({
             </div>
           </div>
         </div>
-
       )}
 
+<div className="text-xs text-red-500 px-10">
+  levelNum: {levelNum} | projectLevel: {projectLevel} | isAssignedApproverLevel: {String(isAssignedApproverLevel)}
+</div>
     </>
   );
 }

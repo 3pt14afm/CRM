@@ -161,7 +161,7 @@ export function useApprovalActions({ entryProject, sendBackType }) {
           </button>
         </div>
       </div>
-    ), { duration: Infinity, position: 'top-center', unstyled: true });
+    ), { duration: Infinity, position: 'top-center' });
   };
 
   const handleApprove = (projectId) => {
