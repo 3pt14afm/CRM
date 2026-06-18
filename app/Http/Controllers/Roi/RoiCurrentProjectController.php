@@ -44,22 +44,19 @@ class RoiCurrentProjectController extends Controller
 
     private function applyCurrentVisibilityScope($query, $user)
     {
-          // Super Viewer
-        if ($user->id === 1) {
-            return $query;
-        }
+        if ((int) $user->id === 1) return;
 
         $userId = (int) $user->id;
-        return $query->where(function ($q) use ($userId) {
-            $q->where('user_id', $userId)
-                ->orWhere('reviewed_by', $userId)
-                ->orWhere('checked_by', $userId)
-                ->orWhere('endorsed_by', $userId)
-                ->orWhere('confirmed_by', $userId)
-                ->orWhere('approved_by', $userId);
+
+        $query->where(function ($q) use ($userId) {
+            $q->where('user_id', $userId) // I created it
+            ->orWhere('reviewed_by', $userId)
+            ->orWhere('checked_by', $userId)
+            ->orWhere('endorsed_by', $userId)
+            ->orWhere('confirmed_by', $userId)
+            ->orWhere('approved_by', $userId); // I am an approver at any stage
         });
     }
-
     private function ensureCanAct(RoiCurrentProject $project, $user): void
     {
         abort_unless($this->currentProjectAssignedToUser($project, (int) $user->id), 403, 'Project is not assigned to you.');
@@ -88,6 +85,7 @@ class RoiCurrentProjectController extends Controller
     {
         return match ($level) { 2, 3, 4 => 'note', 5, 6 => 'comment', default => null };
     }
+
 
 public function current(Request $request)
 {
@@ -173,9 +171,9 @@ public function current(Request $request)
     if (!empty($dateFrom)) $query->whereDate('roi_current_projects.last_saved_at', '>=', $dateFrom);
     if (!empty($dateTo)) $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
 
-    // Apply Priority Sorting: 
-    // Projects assigned to the current user (based on current_level) appear first.
+    // Update the sorting logic in your current() method:
     $userId = (int) $user->id;
+
     $query->orderByRaw("
         CASE 
             WHEN current_level = 2 AND reviewed_by = ? THEN 0
@@ -183,10 +181,11 @@ public function current(Request $request)
             WHEN current_level = 4 AND endorsed_by = ? THEN 0
             WHEN current_level = 5 AND confirmed_by = ? THEN 0
             WHEN current_level = 6 AND approved_by = ? THEN 0
-            ELSE 1
+            WHEN user_id = ? THEN 1
+            ELSE 2
         END ASC, last_saved_at DESC
-    ", [$userId, $userId, $userId, $userId, $userId]);
-
+    ", [$userId, $userId, $userId, $userId, $userId, $userId]);
+    
     // Clone before pagination for KPI stats
     $statsQuery = clone $query;
 
