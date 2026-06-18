@@ -4,6 +4,7 @@ use App\Http\Controllers\Customer\CustomerInfoController;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
+use App\Http\Controllers\Roi\RoiPrintController;
 use App\Http\Controllers\Roi\RoiArchiveController;
 use App\Http\Controllers\Roi\RoiCurrentProjectController;
 use App\Http\Controllers\Roi\RoiEntryProjectController;
@@ -69,40 +70,8 @@ Route::middleware(['auth', 'verified'])
 
                 Route::get('/companies/search', [RoiEntryProjectController::class, 'getCompanySuggestions'])->name('companies.search');
 
-                Route::get('/projects/{project}/print', function ($project) {
-                    $p = \App\Models\RoiEntryProject::with(['items', 'fees', 'user'])->findOrFail($project);
-
-                    $userIds = collect([
-                        $p->user_id,
-                        $p->status_updated_by,
-                        $p->reviewed_by,
-                        $p->checked_by,
-                        $p->endorsed_by,
-                        $p->confirmed_by,
-                        $p->approved_by,
-                        $p->rejected_by,
-                    ])->filter()->unique()->values();
-
-                    $usersById = \App\Models\User::query()
-                        ->whereIn('id', $userIds)
-                        ->get(['id', 'first_name', 'last_name', 'position'])
-                        ->keyBy(fn ($u) => (string) $u->id)
-                        ->map(fn ($u) => [
-                            'id' => $u->id,
-                            'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
-                            'position' => $u->position ?? '—', // ← add position
-                        ]);
-
-                    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                        'tab' => request('tab', 'summary'),
-                        'storageKey' => request('storageKey'),
-                        'autoprint' => (bool) request('autoprint', false),
-                        'showDraftWatermark' => (bool) request('draftWatermark', true),
-                        'entryProject' => $p,
-                        'usersById' => $usersById,
-                        'route' => 'entry',
-                    ]);
-                })->name('roi.entry.projects.print');
+                Route::get('/entry/projects/{project}/print', [RoiPrintController::class, 'printEntry'])
+                        ->name('roi.entry.projects.print');
 
                 Route::get('/projects/{project}/attachments/{attachmentIndex}/{filename?}', [RoiEntryProjectController::class, 'showAttachment'])
                     ->name('roi.entry.projects.attachments.show');
@@ -140,39 +109,8 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/{id}/approve', [RoiCurrentProjectController::class, 'approve'])
                     ->name('roi.current.approve');
 
-                Route::get('/{id}/print', function ($id) {
-                    $p = \App\Models\RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
-
-                    $userIds = collect([
-                        $p->user_id,
-                        $p->status_updated_by,
-                        $p->reviewed_by,
-                        $p->checked_by,
-                        $p->endorsed_by,
-                        $p->confirmed_by,
-                        $p->approved_by,
-                    ])->filter()->unique()->values();
-
-                    $usersById = \App\Models\User::query()
-                        ->whereIn('id', $userIds)
-                        ->get(['id', 'first_name', 'last_name', 'position'])
-                        ->keyBy(fn ($u) => (string) $u->id)
-                        ->map(fn ($u) => [
-                            'id' => $u->id,
-                            'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
-                            'position' => $u->position ?? '—', // ← add position
-                        ]);
-
-                    return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                        'tab' => request('tab', 'summary'),
-                        'storageKey' => request('storageKey'),
-                        'autoprint' => (bool) request('autoprint', false),
-                        'showDraftWatermark' => false,
-                        'entryProject' => $p,
-                        'usersById' => $usersById,
-                        'route' => 'current',
-                    ]);
-                })->name('roi.current.print');
+                Route::get('/current/{id}/print', [RoiPrintController::class, 'printCurrent'])
+                        ->name('roi.current.print');
             
                 // Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])
                 //     ->name('roi.current.attachments.show');
@@ -193,40 +131,8 @@ Route::middleware(['auth', 'verified'])
                 ->name('roi.archive.show');
 
            // routes/web.php — archive print route
-            Route::get('/archive/{id}/print', function ($id) {
-                $p = \App\Models\RoiArchiveProject::with(['items', 'fees', 'user'])->findOrFail($id);
-
-                $userIds = collect([
-                    $p->user_id,
-                    $p->status_updated_by,
-                    $p->reviewed_by,
-                    $p->checked_by,
-                    $p->endorsed_by,
-                    $p->confirmed_by,
-                    $p->approved_by,
-                    $p->rejected_by,
-                ])->filter()->unique()->values();
-
-                $usersById = \App\Models\User::query()
-                    ->whereIn('id', $userIds)
-                    ->get(['id', 'first_name', 'last_name', 'position']) // ← add position
-                    ->keyBy(fn ($u) => (string) $u->id)
-                    ->map(fn ($u) => [
-                        'id' => $u->id,
-                        'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
-                        'position' => $u->position ?? '—', // ← add position
-                    ]);
-
-                return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-                    'tab' => request('tab', 'summary'),
-                    'storageKey' => request('storageKey'),
-                    'autoprint' => (bool) request('autoprint', false),
-                    'showDraftWatermark' => false,
-                    'entryProject' => $p,
-                    'usersById' => $usersById,
-                    'route' => 'archive',
-                ]);
-            })->name('roi.archive.print');
+            Route::get('/archive/{id}/print', [RoiPrintController::class, 'printArchive'])
+                    ->name('roi.archive.print');
 
             // Route::get('/archive/{id}/attachments/{attachmentId}', [RoiController::class, 'showArchiveAttachment'])
             //     ->name('roi.archive.attachments.show');
