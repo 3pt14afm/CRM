@@ -3,7 +3,6 @@ import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { route } from 'ziggy-js';
-import { Building2 } from 'lucide-react';
 import { MdSearch, MdOutlineFilterAlt, MdExpandMore } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { usePage } from '@inertiajs/react';
