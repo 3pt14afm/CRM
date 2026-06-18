@@ -90,7 +90,7 @@ function Index({ companies, filters, stats }) {
             key:    'client_category',
             header: <div className="text-center w-full">CATEGORY</div>,
             cell:   (r) => (
-                <span className="font-medium flex justify-center items-center">
+                <span className="font-medium flex min-w-28 justify-center items-center">
                     {r.client_category ?? '—'}
                 </span>
             ),

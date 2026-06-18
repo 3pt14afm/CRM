@@ -161,7 +161,7 @@ export default function ProjectListSection({
           )}
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto table-scrollbar-reset">
           <table className="w-full text-sm">
             <thead className="bg-gray-100">
               <tr className="text-left text-slate-500">
