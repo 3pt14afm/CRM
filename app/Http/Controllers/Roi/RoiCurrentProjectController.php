@@ -410,4 +410,29 @@ public function current(Request $request)
         }
         return $c;
     }
+
+    
+    public function showAttachment($id, int $attachmentIndex)
+    {
+        // 1. Ensure the user is logged in
+        abort_unless(Auth::check(), 403, 'You must be logged in to view attachments.');
+
+        // 2. Fetch the project
+        $project = RoiCurrentProject::findOrFail($id);
+
+        // 3. Get the attachments list
+        $attachments = is_array($project->entry_remarks_attachments)
+            ? array_values($project->entry_remarks_attachments)
+            : [];
+
+        // 4. Validate existence
+        abort_unless(array_key_exists($attachmentIndex, $attachments), 404, 'Attachment index not found.');
+        $attachment = $attachments[$attachmentIndex];
+
+        abort_unless(!empty($attachment['path']), 404, 'Attachment path is empty.');
+        abort_unless(Storage::disk('local')->exists($attachment['path']), 404, 'File not found on server.');
+
+        // 5. Return the file
+        return response()->file(Storage::disk('local')->path($attachment['path']));
+    }
 }
