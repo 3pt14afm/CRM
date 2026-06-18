@@ -20,6 +20,15 @@ createInertiaApp({
       import.meta.glob('./Pages/**/*.jsx'),
     ),
   setup({ el, App, props }) {
+
+          // Add this inside your setup() function
+    document.addEventListener('click', (e) => {
+        // Check if the click target is NOT a toast element
+        if (!e.target.closest('[data-sonner-toast]')) {
+            toast.dismiss();
+        }
+    });
+    
     router.on('invalid', (event) => {
       const response = event.detail.response;
 
@@ -34,6 +43,8 @@ createInertiaApp({
           });
         }, 50);
       }
+
+
     });
 
     const WrappedApp = (
@@ -45,6 +56,7 @@ createInertiaApp({
             duration={2000}
             richColors
             toastOptions={{
+              dismissible: true,
               classNames: {
                 toast: 'bg-zinc-900 border-none text-white rounded-2xl shadow-xl',
                 title: 'text-sm font-semibold',

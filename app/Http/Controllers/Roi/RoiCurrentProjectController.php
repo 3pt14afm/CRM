@@ -89,174 +89,161 @@ class RoiCurrentProjectController extends Controller
         return match ($level) { 2, 3, 4 => 'note', 5, 6 => 'comment', default => null };
     }
 
- public function current(Request $request)
-    {
-        $user = $this->getAuthenticatedUser();
- 
-        $search     = $request->input('search');
-        $status     = $request->input('status');
-        $dateFrom   = $request->input('date_from');
-        $dateTo     = $request->input('date_to');
-        $preparedBy = $request->input('prepared_by');
-        $locationId = $request->input('location_id');
-        $perPage    = (int) $request->input('per_page', 10);
- 
-        $query = RoiCurrentProject::with([
-            'items', 'fees', 'user',
-            'reviewedByUser:id,first_name,last_name',
-            'checkedByUser:id,first_name,last_name',
-            'endorsedByUser:id,first_name,last_name',
-            'confirmedByUser:id,first_name,last_name',
-            'approvedByUser:id,first_name,last_name',
-        ]);
- 
-        // Enforce user pipeline visibility constraints
-        $this->applyCurrentVisibilityScope($query, $user);
- 
-        // 1. Text search
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('roi_current_projects.company_name', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.reference', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.company_sap_code', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.contract_type', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.status', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%");
-                  });
-            });
-        }
- 
-        // 2. Status filter (with Sent Back dual-state fallback)
-        if (!empty($status)) {
-            match ($status) {
-                'for_review' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Review')
-                      ->orWhere(function ($sub) {
-                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
-                              ->where('roi_current_projects.current_level', '=', 2);
-                      });
-                }),
-                'for_checking' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Checking')
-                      ->orWhere(function ($sub) {
-                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
-                              ->where('roi_current_projects.current_level', '=', 3);
-                      });
-                }),
-                'for_endorsement' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Endorsement')
-                      ->orWhere(function ($sub) {
-                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
-                              ->where('roi_current_projects.current_level', '=', 4);
-                      });
-                }),
-                'for_confirmation' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Confirmation')
-                      ->orWhere(function ($sub) {
-                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
-                              ->where('roi_current_projects.current_level', '=', 5);
-                      });
-                }),
-                'for_approval' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Approval')
-                      ->orWhere(function ($sub) {
-                          $sub->where('roi_current_projects.status', '=', 'Sent Back')
-                              ->where('roi_current_projects.current_level', '=', 6);
-                      });
-                }),
-                default => $query->where('roi_current_projects.status', '=', $status),
-            };
-        }
- 
-        // 3. Prepared By filter
-        if (!empty($preparedBy)) {
-            $query->whereHas('user', function ($q) use ($preparedBy) {
-                $q->where('first_name', 'like', "%{$preparedBy}%")
-                  ->orWhere('last_name', 'like', "%{$preparedBy}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
-            });
-        }
- 
-        // 4. Location filter
-        if (!empty($locationId)) {
-            $query->where('roi_current_projects.location_id', '=', (int) $locationId);
-        }
- 
-        // 5. Date range filter (against last_saved_at)
-        if (!empty($dateFrom)) {
-            $query->whereDate('roi_current_projects.last_saved_at', '>=', $dateFrom);
-        }
- 
-        if (!empty($dateTo)) {
-            $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
-        }
- 
-        // Apply chronological ordering
-        $query->orderBy('last_saved_at', 'desc');
- 
-        // Clone before pagination for KPI stats
-        $statsQuery = clone $query;
- 
-        $currentProjects = $query->paginate($perPage)->withQueryString()->through(function ($p) use ($user) {
-            $p->last_saved_display = $p->last_saved_at ? $p->last_saved_at->diffForHumans() : '—';
-            $lvl = (int) ($p->current_level ?? 0);
-            $p->level_display = ($lvl >= 1 && $lvl <= 6) ? ('Level ' . $lvl . ' — ' . $this->workflowService->levelLabel($lvl)) : '—';
- 
-            $assignedUser = match ($lvl) {
-                2 => $p->reviewedByUser, 3 => $p->checkedByUser, 4 => $p->endorsedByUser,
-                5 => $p->confirmedByUser, 6 => $p->approvedByUser, default => null
-            };
-            $p->status_assignee_name = $assignedUser ? trim(($assignedUser->first_name ?? '') . ' ' . ($assignedUser->last_name ?? '')) : '—';
- 
-            $isSentBack = strtolower((string) $p->status) === 'sent back';
-            $p->status_display_main   = $isSentBack ? $this->workflowService->getQueueLabelForLevel($lvl) : ($p->status ?? '—');
-            $p->status_display_suffix = $isSentBack ? ' (Sent Back)' : '';
- 
-            $p->viewer_is_preparer             = (int) $p->user_id === (int) $user->id;
-            $p->viewer_is_current_approver     = $this->currentProjectAssignedToUser($p, (int) $user->id);
- 
-            return $p;
+public function current(Request $request)
+{
+    $user = $this->getAuthenticatedUser();
+
+    $search     = $request->input('search');
+    $status     = $request->input('status');
+    $dateFrom   = $request->input('date_from');
+    $dateTo     = $request->input('date_to');
+    $preparedBy = $request->input('prepared_by');
+    $locationId = $request->input('location_id');
+    $perPage    = (int) $request->input('per_page', 10);
+
+    $query = RoiCurrentProject::with([
+        'items', 'fees', 'user',
+        'reviewedByUser:id,first_name,last_name',
+        'checkedByUser:id,first_name,last_name',
+        'endorsedByUser:id,first_name,last_name',
+        'confirmedByUser:id,first_name,last_name',
+        'approvedByUser:id,first_name,last_name',
+    ]);
+
+    // Enforce user pipeline visibility constraints
+    $this->applyCurrentVisibilityScope($query, $user);
+
+    // 1. Text search
+    if (!empty($search)) {
+        $query->where(function ($q) use ($search) {
+            $q->where('roi_current_projects.company_name', 'like', "%{$search}%")
+              ->orWhere('roi_current_projects.reference', 'like', "%{$search}%")
+              ->orWhere('roi_current_projects.company_sap_code', 'like', "%{$search}%")
+              ->orWhere('roi_current_projects.contract_type', 'like', "%{$search}%")
+              ->orWhere('roi_current_projects.status', 'like', "%{$search}%")
+              ->orWhereHas('user', function ($userQuery) use ($search) {
+                  $userQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+              });
         });
- 
-        $latest = (clone $statsQuery)->first();
- 
-        $stats = [
-            'totalCurrentProjects' => $statsQuery->count(),
-            'recentlyModifiedText' => $latest?->last_saved_at?->diffForHumans() ?? '—',
-            'recentlyAddedToday'   => (clone $statsQuery)->whereDate('last_saved_at', now()->toDateString())->count() . ' Today',
-        ];
- 
-        // JSON response for Axios filter requests
-        if ($request->wantsJson()) {
-            return response()->json([
-                'currentProjects' => $currentProjects,
-                'stats'           => $stats,
-            ]);
-        }
- 
-        $locations = Location::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
- 
-        return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
+    }
+
+    // 2. Status filter
+    if (!empty($status)) {
+        match ($status) {
+            'for_review' => $query->where(function ($q) {
+                $q->where('roi_current_projects.status', '=', 'For Review')
+                  ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 2));
+            }),
+            'for_checking' => $query->where(function ($q) {
+                $q->where('roi_current_projects.status', '=', 'For Checking')
+                  ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 3));
+            }),
+            'for_endorsement' => $query->where(function ($q) {
+                $q->where('roi_current_projects.status', '=', 'For Endorsement')
+                  ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 4));
+            }),
+            'for_confirmation' => $query->where(function ($q) {
+                $q->where('roi_current_projects.status', '=', 'For Confirmation')
+                  ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 5));
+            }),
+            'for_approval' => $query->where(function ($q) {
+                $q->where('roi_current_projects.status', '=', 'For Approval')
+                  ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 6));
+            }),
+            default => $query->where('roi_current_projects.status', '=', $status),
+        };
+    }
+
+    // 3. Prepared By filter
+    if (!empty($preparedBy)) {
+        $query->whereHas('user', function ($q) use ($preparedBy) {
+            $q->where('first_name', 'like', "%{$preparedBy}%")
+              ->orWhere('last_name', 'like', "%{$preparedBy}%")
+              ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+        });
+    }
+
+    // 4. Location filter
+    if (!empty($locationId)) {
+        $query->where('roi_current_projects.location_id', '=', (int) $locationId);
+    }
+
+    // 5. Date range filter
+    if (!empty($dateFrom)) $query->whereDate('roi_current_projects.last_saved_at', '>=', $dateFrom);
+    if (!empty($dateTo)) $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
+
+    // Apply Priority Sorting: 
+    // Projects assigned to the current user (based on current_level) appear first.
+    $userId = (int) $user->id;
+    $query->orderByRaw("
+        CASE 
+            WHEN current_level = 2 AND reviewed_by = ? THEN 0
+            WHEN current_level = 3 AND checked_by = ? THEN 0
+            WHEN current_level = 4 AND endorsed_by = ? THEN 0
+            WHEN current_level = 5 AND confirmed_by = ? THEN 0
+            WHEN current_level = 6 AND approved_by = ? THEN 0
+            ELSE 1
+        END ASC, last_saved_at DESC
+    ", [$userId, $userId, $userId, $userId, $userId]);
+
+    // Clone before pagination for KPI stats
+    $statsQuery = clone $query;
+
+    $currentProjects = $query->paginate($perPage)->withQueryString()->through(function ($p) use ($user) {
+        $p->last_saved_display = $p->last_saved_at ? $p->last_saved_at->diffForHumans() : '—';
+        $lvl = (int) ($p->current_level ?? 0);
+        $p->level_display = ($lvl >= 1 && $lvl <= 6) ? ('Level ' . $lvl . ' — ' . $this->workflowService->levelLabel($lvl)) : '—';
+
+        $assignedUser = match ($lvl) {
+            2 => $p->reviewedByUser, 3 => $p->checkedByUser, 4 => $p->endorsedByUser,
+            5 => $p->confirmedByUser, 6 => $p->approvedByUser, default => null
+        };
+        $p->status_assignee_name = $assignedUser ? trim(($assignedUser->first_name ?? '') . ' ' . ($assignedUser->last_name ?? '')) : '—';
+
+        $isSentBack = strtolower((string) $p->status) === 'sent back';
+        $p->status_display_main   = $isSentBack ? $this->workflowService->getQueueLabelForLevel($lvl) : ($p->status ?? '—');
+        $p->status_display_suffix = $isSentBack ? ' (Sent Back)' : '';
+
+        $p->viewer_is_preparer          = (int) $p->user_id === (int) $user->id;
+        $p->viewer_is_current_approver    = $this->currentProjectAssignedToUser($p, (int) $user->id);
+
+        return $p;
+    });
+
+    $latest = (clone $statsQuery)->first();
+
+    $stats = [
+        'totalCurrentProjects' => $statsQuery->count(),
+        'recentlyModifiedText' => $latest?->last_saved_at?->diffForHumans() ?? '—',
+        'recentlyAddedToday'   => (clone $statsQuery)->whereDate('last_saved_at', now()->toDateString())->count() . ' Today',
+    ];
+
+    if ($request->wantsJson()) {
+        return response()->json([
             'currentProjects' => $currentProjects,
             'stats'           => $stats,
-            'viewerId'        => (int) $user->id,
-            'locations'       => $locations,
-            'filters'         => [
-                'search'      => $search,
-                'status'      => $status,
-                'date_from'   => $dateFrom,
-                'date_to'     => $dateTo,
-                'prepared_by' => $preparedBy,
-                'location_id' => $locationId,
-                'per_page'    => $perPage,
-            ],
         ]);
     }
+
+    $locations = Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']);
+
+    return Inertia::render('CustomerManagement/ProjectROIApproval/CurrentRoutes/CurrentList', [
+        'currentProjects' => $currentProjects,
+        'stats'           => $stats,
+        'viewerId'        => (int) $user->id,
+        'locations'       => $locations,
+        'filters'         => [
+            'search'      => $search,
+            'status'      => $status,
+            'date_from'   => $dateFrom,
+            'date_to'     => $dateTo,
+            'prepared_by' => $preparedBy,
+            'location_id' => $locationId,
+            'per_page'    => $perPage,
+        ],
+    ]);
+}
  
 
     public function show($id)
