@@ -44,6 +44,11 @@ class RoiCurrentProjectController extends Controller
 
     private function applyCurrentVisibilityScope($query, $user)
     {
+          // Super Viewer
+    if ($user->id === 1) {
+        return $query;
+    }
+
         $userId = (int) $user->id;
         return $query->where(function ($q) use ($userId) {
             $q->where('user_id', $userId)
@@ -62,6 +67,12 @@ class RoiCurrentProjectController extends Controller
 
     private function ensureCanView(RoiCurrentProject $project, $user): void
     {
+            // Super Viewer
+        if ($user->id === 1) {
+            return;
+        }
+
+
         $userId = (int) $user->id;
         $canView = (int) $project->user_id === $userId ||
             (int) ($project->reviewed_by ?? 0) === $userId ||
