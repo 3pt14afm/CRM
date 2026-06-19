@@ -1,5 +1,9 @@
 export default function NamesBlock({
   signatories,
+  timestamps = {},
+  status = null,
+  currentLevel = null,
+  rejectedAt = null,
   showVpCcto = false,
   showPresidentCeo = false,
   showRebateJustification = true,
@@ -9,33 +13,45 @@ export default function NamesBlock({
   isRebateJustificationRequired = false,
   readOnly = false,
 }) {
-  const leftPreparer = signatories?.preparer ?? { name: '', title: '' };
-  const leftDirectorCustomerEngagement =
-    signatories?.directorCustomerEngagement ?? { name: '', title: '' };
+  const isRejected = status === 'rejected';
 
-  const rightSignatories = [
-    signatories?.esdDirector ?? { name: '', title: '' },
-    ...(showVpCcto ? [signatories?.vpCcto ?? { name: '', title: '' }] : []),
-    ...(showPresidentCeo ? [signatories?.presidentCeo ?? { name: '', title: '' }] : []),
-  ];
+  const isRejectorAtLevel = (level) => isRejected && Number(currentLevel) === level;
+
+  const timestampForLevel = (level) => {
+    if (isRejectorAtLevel(level)) return rejectedAt;
+    return (
+      {
+        1: timestamps?.submitted_at,
+        2: timestamps?.dce_acted_at,
+        3: timestamps?.esd_acted_at,
+        4: timestamps?.vp_ccto_acted_at,
+        5: timestamps?.president_ceo_acted_at,
+      }[level] ?? null
+    );
+  };
+
+  const leftPreparer = signatories?.preparer ?? { name: '', title: '' };
+  const leftDce = signatories?.directorCustomerEngagement ?? { name: '', title: '' };
 
   return (
     <div className="w-full pb-10">
       <div className="mx-auto w-full">
-        <div className="grid grid-cols-1 gap-y-10 gap-x-1 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-y-10 gap-x-10 md:grid-cols-2">
+          {/* ── Left: Prepared By ── */}
           <div className="flex flex-col space-y-10">
             <SectionLabel label="PREPARED BY:" />
-
             <Signatory
               name={leftPreparer.name}
               title={leftPreparer.title}
+              timestamp={timestampForLevel(1)}
+              isRejector={isRejectorAtLevel(1)}
             />
-
             <Signatory
-              name={leftDirectorCustomerEngagement.name}
-              title={leftDirectorCustomerEngagement.title}
+              name={leftDce.name}
+              title={leftDce.title}
+              timestamp={timestampForLevel(2)}
+              isRejector={isRejectorAtLevel(2)}
             />
-
             {showRebateJustification && (
               <JustificationField
                 value={rebateJustification}
@@ -45,17 +61,31 @@ export default function NamesBlock({
               />
             )}
           </div>
-
+          {/* ── Right: Approved By ── */}
           <div className="flex flex-col space-y-10">
             <SectionLabel label="APPROVED BY:" />
-
-            {rightSignatories.map((signatory, index) => (
+            <Signatory
+              name={signatories?.esdDirector?.name}
+              title={signatories?.esdDirector?.title}
+              timestamp={timestampForLevel(3)}
+              isRejector={isRejectorAtLevel(3)}
+            />
+            {showVpCcto && (
               <Signatory
-                key={`${signatory?.title || 'signatory'}-${index}`}
-                name={signatory?.name}
-                title={signatory?.title}
+                name={signatories?.vpCcto?.name}
+                title={signatories?.vpCcto?.title}
+                timestamp={timestampForLevel(4)}
+                isRejector={isRejectorAtLevel(4)}
               />
-            ))}
+            )}
+            {showPresidentCeo && (
+              <Signatory
+                name={signatories?.presidentCeo?.name}
+                title={signatories?.presidentCeo?.title}
+                timestamp={timestampForLevel(5)}
+                isRejector={isRejectorAtLevel(5)}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -71,16 +101,48 @@ function SectionLabel({ label }) {
   );
 }
 
-function Signatory({ name, title }) {
+function Signatory({ name, title, timestamp = null, isRejector = false }) {
+  // --- UPDATED FORMATTER ---
+  const formatTimestamp = (ts) => {
+    if (!ts) return null;
+    try {
+      const date = new Date(ts);
+      if (Number.isNaN(date.getTime())) return null;
+      
+      const datePart = date.toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+      });
+      // Replace(' ', '') removes the space before AM/PM to match your design
+      const timePart = date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+      }).replace(' ', ''); 
+      
+      return `${datePart} ${timePart}`;
+    } catch {
+      return null;
+    }
+  };
+
+  const formatted = formatTimestamp(timestamp);
+
   return (
     <div className="flex flex-col space-y-4 justify-center">
-      <div className="w-[85%] xl:w-[80%]">
+      <div className="w-full">
+        <div className="text-[10px] xl:text-[10px] mb-1 flex items-center justify-end gap-1 font-medium">
+          <p className="text-gray-50/0">.</p>
+          <p className={isRejector ? "text-red-500" : "text-[#175500]"}>
+            {formatted}
+          </p>
+        </div>
         <div className="border-b border-gray-400 min-h-[25px] flex items-center justify-center xl:pb-0.5">
           <span className="text-xs xl:text-sm font-semibold text-gray-900 print:font-medium print:text-xs">
             {name?.trim() || '—'}
           </span>
         </div>
-
         <div className="text-[10px] xl:text-[11px] text-gray-500 mt-1 flex items-center justify-center">
           {title || ''}
         </div>
@@ -89,19 +151,13 @@ function Signatory({ name, title }) {
   );
 }
 
-function JustificationField({
-  value,
-  onChange,
-  canEdit = false,
-  required = false,
-}) {
+function JustificationField({ value, onChange, canEdit = false, required = false }) {
   return (
     <div className="flex flex-col space-y-1">
       <label className="text-[10px] pl-1 font-extrabold text-gray-800 tracking-tight">
         JUSTIFICATION FOR REBATE
         {required && <span className="text-red-500"> *</span>}
       </label>
-
       {!canEdit ? (
         <div className="w-[85%] xl:w-[80%] min-h-[72px] rounded-xl border border-gray-200 px-3 py-3 text-xs bg-white whitespace-pre-wrap">
           {value?.trim?.() ? value : ''}
@@ -115,12 +171,9 @@ function JustificationField({
           className="w-[85%] xl:w-[80%] rounded-xl border border-gray-200 p-3 text-[11px] leading-tight xl:text-xs outline-none placeholder:text-[#9AA08F] hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
         />
       )}
-
       {canEdit ? (
         <p className="text-[10px] italic pl-1 text-gray-500 w-[85%] xl:w-[80%]">
-          {required
-            ? 'Required because the Rebate row has a value.'
-            : 'Optional. You may add a rebate justification if needed.'}
+          {required ? 'Required because the Rebate row has a value.' : 'Optional. You may add a rebate justification if needed.'}
         </p>
       ) : (
         <p className="text-[10px] italic pl-1 text-gray-500 w-[85%] xl:w-[80%]">

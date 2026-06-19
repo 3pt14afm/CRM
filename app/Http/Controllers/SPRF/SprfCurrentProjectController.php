@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfCurrentProject;
 use App\Models\User;
+use App\Services\SPRF\Current\SprfCurrentWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use App\Services\SprfActivityLogger;
@@ -16,152 +16,145 @@ use Illuminate\Support\Facades\Log;
 
 class SprfCurrentProjectController extends Controller
 {
+    public function __construct(
+        private readonly SprfCurrentWorkflowService $workflowService
+    ) {}
+
     public function current(Request $request)
-        {
-            $userId = (int) Auth::id();
-            $perPage = (int) $request->input('per_page', 10);
+    {
+        $userId = (int) Auth::id();
+        $perPage = (int) $request->input('per_page', 10);
 
-            $query = SprfCurrentProject::query()
-                ->with([
-                    'items.subitems',
-                    'fees',
-                    'preparer:id,first_name,last_name,position',
-                    'currentApprover:id,first_name,last_name,position',
-                ]);
-              // Apply visibility restriction only if the user is not ID 1
-            if ($userId !== 1) {
-                $query->where(function ($q) use ($userId) {
-                    $q->where('prepared_by_user_id', $userId)
-                        ->orWhere('current_approver_user_id', $userId)
-                        ->orWhere('director_customer_engagement_user_id', $userId)
-                        ->orWhere('esd_director_user_id', $userId)
-                        ->orWhere('vp_ccto_user_id', $userId)
-                        ->orWhere('president_ceo_user_id', $userId);
-                });
-            }
-                $query->whereIn('status', ['for_review', 'under_review']);
-
-            // ─── ALIGNED SPRF DYNAMIC FILTERS ────────────────────────────────────
-            
-            // Global textual multi-search bar
-            $query->when(filled($request->input('search')), function ($q) use ($request) {
-                $search = trim($request->input('search'));
-                $q->where(function ($sub) use ($search) {
-                    $sub->where('sprf_no', 'like', "%{$search}%")
-                        ->orWhere('account', 'like', "%{$search}%")
-                        ->orWhere('account_manager', 'like', "%{$search}%");
-                });
-            });
-
-            // Dedicated SPRF # Column Filter
-            $query->when(filled($request->input('sprf_no')), function ($q) use ($request) {
-                $q->where('sprf_no', 'like', '%' . trim($request->input('sprf_no')) . '%');
-            });
-
-            // Dedicated Account Filter
-            $query->when(filled($request->input('account')), function ($q) use ($request) {
-                $q->where('account', 'like', '%' . trim($request->input('account')) . '%');
-            });
-
-            // Dedicated Account Manager (AM) Filter
-            $query->when(filled($request->input('account_manager')), function ($q) use ($request) {
-                $q->where('account_manager', 'like', '%' . trim($request->input('account_manager')) . '%');
-            });
-
-            // Dedicated Sub Category Filter
-            $query->when(filled($request->input('sub_category')), function ($q) use ($request) {
-                $q->where('sub_category', 'like', '%' . trim($request->input('sub_category')) . '%');
-            });
-
-            // Dedicated Prepared By Filter (Queries the user profiles through the relation)
-            $query->when(filled($request->input('prepared_by')), function ($q) use ($request) {
-                $preparedBy = trim($request->input('prepared_by'));
-                $q->whereHas('preparer', function ($sub) use ($preparedBy) {
-                    $sub->whereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$preparedBy}%"]);
-                });
-            });
-
-            // Dropdown Approval Level Filter
-            $query->when(filled($request->input('approval_level')), function ($q) use ($request) {
-                $q->where('approval_level', $request->input('approval_level'));
-            });
-
-            // Dropdown Status Filter
-            $query->when(filled($request->input('status')), function ($q) use ($request) {
-                $q->where('status', $request->input('status'));
-            });
-
-            // Date Range Filters (last_saved_at or submitted_at context lookup)
-            $query->when(filled($request->input('date_from')), function ($q) use ($request) {
-                $q->whereDate('last_saved_at', '>=', $request->input('date_from'));
-            });
-            $query->when(filled($request->input('date_to')), function ($q) use ($request) {
-                $q->whereDate('last_saved_at', '<=', $request->input('date_to'));
-            });
-
-            // Ordering structures definitions
-            $query->orderByDesc('last_saved_at')
-                ->orderByDesc('updated_at');
-
-            // Apply pagination mapping
-            $currentProjects = (clone $query)
-                ->paginate($perPage)
-                ->withQueryString()
-                ->through(function (SprfCurrentProject $project) {
-                    return [
-                        'id' => $project->id,
-                        'sprf_no' => $project->sprf_no,
-                        'status' => $project->status,
-                        'current_level' => $project->current_level,
-                        'approval_level' => $project->approval_level,
-                        'company_name' => $project->account,
-                        'sub_category' => $project->sub_category,
-                        'account_manager' => $project->account_manager,
-                        'revenue' => $project->revenue,
-                        'gp_percent' => $project->gp_percent,
-                        'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
-                        'prepared_by' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : null,
-                        'current_approver' => $project->currentApprover ? $project->currentApprover->first_name . ' ' . $project->currentApprover->last_name : null,
-                        'last_saved_display' => $project->last_saved_at
-                            ? $project->last_saved_at->diffForHumans()
-                            : '—',
-                    ];
-                });
-
-            // Active stats calculation
-            $totalCurrentProjects = (clone $query)->count();
-
-            $recentlyAddedToday = SprfCurrentProject::query()
-                ->where(function ($q) use ($userId) {
-                    $q->where('prepared_by_user_id', $userId)
-                        ->orWhere('current_approver_user_id', $userId);
-                })
-                ->whereIn('status', ['for_review', 'under_review'])
-                ->whereDate('last_saved_at', now()->toDateString())
-                ->count();
-
-            return Inertia::render('CustomerManagement/ProjectSPRF/CurrentRoutes/CurrentList', [
-                'currentProjects' => $currentProjects,
-                'stats' => [
-                    'totalCurrentProjects' => $totalCurrentProjects,
-                    'recentlyAddedToday' => $recentlyAddedToday . ' Today',
-                ],
-                'viewerId' => $userId,
-                'filters' => $request->only([
-                    'search', 
-                    'status', 
-                    'per_page', 
-                    'date_from', 
-                    'date_to', 
-                    'sprf_no', 
-                    'account', 
-                    'account_manager', 
-                    'sub_category',
-                    'prepared_by',
-                    'approval_level'
-                ]),
+        $query = SprfCurrentProject::query()
+            ->with([
+                'items.subitems',
+                'fees',
+                'preparer:id,first_name,last_name,position',
+                'currentApprover:id,first_name,last_name,position',
             ]);
+            
+        // Apply visibility restriction only if the user is not ID 1
+        if ($userId !== 1) {
+            $query->where(function ($q) use ($userId) {
+                $q->where('prepared_by_user_id', $userId)
+                    ->orWhere('current_approver_user_id', $userId)
+                    ->orWhere('director_customer_engagement_user_id', $userId)
+                    ->orWhere('esd_director_user_id', $userId)
+                    ->orWhere('vp_ccto_user_id', $userId)
+                    ->orWhere('president_ceo_user_id', $userId);
+            });
         }
+        $query->whereIn('status', ['for_review', 'under_review']);
+
+        // ─── ALIGNED SPRF DYNAMIC FILTERS ────────────────────────────────────
+        
+        $query->when(filled($request->input('search')), function ($q) use ($request) {
+            $search = trim($request->input('search'));
+            $q->where(function ($sub) use ($search) {
+                $sub->where('sprf_no', 'like', "%{$search}%")
+                    ->orWhere('account', 'like', "%{$search}%")
+                    ->orWhere('account_manager', 'like', "%{$search}%");
+            });
+        });
+
+        $query->when(filled($request->input('sprf_no')), function ($q) use ($request) {
+            $q->where('sprf_no', 'like', '%' . trim($request->input('sprf_no')) . '%');
+        });
+
+        $query->when(filled($request->input('account')), function ($q) use ($request) {
+            $q->where('account', 'like', '%' . trim($request->input('account')) . '%');
+        });
+
+        $query->when(filled($request->input('account_manager')), function ($q) use ($request) {
+            $q->where('account_manager', 'like', '%' . trim($request->input('account_manager')) . '%');
+        });
+
+        $query->when(filled($request->input('sub_category')), function ($q) use ($request) {
+            $q->where('sub_category', 'like', '%' . trim($request->input('sub_category')) . '%');
+        });
+
+        $query->when(filled($request->input('prepared_by')), function ($q) use ($request) {
+            $preparedBy = trim($request->input('prepared_by'));
+            $q->whereHas('preparer', function ($sub) use ($preparedBy) {
+                $sub->whereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$preparedBy}%"]);
+            });
+        });
+
+        $query->when(filled($request->input('approval_level')), function ($q) use ($request) {
+            $q->where('approval_level', $request->input('approval_level'));
+        });
+
+        $query->when(filled($request->input('status')), function ($q) use ($request) {
+            $q->where('status', $request->input('status'));
+        });
+
+        $query->when(filled($request->input('date_from')), function ($q) use ($request) {
+            $q->whereDate('last_saved_at', '>=', $request->input('date_from'));
+        });
+        $query->when(filled($request->input('date_to')), function ($q) use ($request) {
+            $q->whereDate('last_saved_at', '<=', $request->input('date_to'));
+        });
+
+        $query->orderByDesc('last_saved_at')
+            ->orderByDesc('updated_at');
+
+        $currentProjects = (clone $query)
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(function (SprfCurrentProject $project) {
+                return [
+                    'id' => $project->id,
+                    'sprf_no' => $project->sprf_no,
+                    'status' => $project->status,
+                    'current_level' => $project->current_level,
+                    'approval_level' => $project->approval_level,
+                    'company_name' => $project->account,
+                    'sub_category' => $project->sub_category,
+                    'account_manager' => $project->account_manager,
+                    'revenue' => $project->revenue,
+                    'gp_percent' => $project->gp_percent,
+                    'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
+                    'prepared_by' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : null,
+                    'current_approver' => $project->currentApprover ? $project->currentApprover->first_name . ' ' . $project->currentApprover->last_name : null,
+                    'last_saved_display' => $project->last_saved_at
+                        ? $project->last_saved_at->diffForHumans()
+                        : '—',
+                ];
+            });
+
+        $totalCurrentProjects = (clone $query)->count();
+
+        $recentlyAddedToday = SprfCurrentProject::query()
+            ->where(function ($q) use ($userId) {
+                $q->where('prepared_by_user_id', $userId)
+                    ->orWhere('current_approver_user_id', $userId);
+            })
+            ->whereIn('status', ['for_review', 'under_review'])
+            ->whereDate('last_saved_at', now()->toDateString())
+            ->count();
+
+        return Inertia::render('CustomerManagement/ProjectSPRF/CurrentRoutes/CurrentList', [
+            'currentProjects' => $currentProjects,
+            'stats' => [
+                'totalCurrentProjects' => $totalCurrentProjects,
+                'recentlyAddedToday' => $recentlyAddedToday . ' Today',
+            ],
+            'viewerId' => $userId,
+            'filters' => $request->only([
+                'search', 
+                'status', 
+                'per_page', 
+                'date_from', 
+                'date_to', 
+                'sprf_no', 
+                'account', 
+                'account_manager', 
+                'sub_category',
+                'prepared_by',
+                'approval_level'
+            ]),
+        ]);
+    }
         
     public function show(SprfCurrentProject $project)
     {
@@ -183,7 +176,17 @@ class SprfCurrentProjectController extends Controller
             'readOnly' => true,
             'route' => 'current',
             'createdBy' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : '—',
-            'canActOnCurrentProject' => $this->currentProjectAssignedToUser($project, (int) Auth::id()),
+            'canActOnCurrentProject' => $this->canActOnCurrentProject($project),
+            'timestamps' => [
+                'submitted_at' => $project->submitted_at?->toIso8601String(),
+                'dce_acted_at' => $project->dce_acted_at?->toIso8601String(),
+                'esd_acted_at' => $project->esd_acted_at?->toIso8601String(),
+                'vp_ccto_acted_at' => $project->vp_ccto_acted_at?->toIso8601String(),
+                'president_ceo_acted_at' => $project->president_ceo_acted_at?->toIso8601String(),
+            ],
+            'rejectedAt' => $project->rejected_at?->toIso8601String(),
+            // Determine which level rejected it (optional, for styling)
+            'rejectedByLevel' => $project->status === 'rejected' ? $project->current_level : null,
         ]);
     }
 
@@ -230,6 +233,9 @@ class SprfCurrentProjectController extends Controller
                     'rebate_justification' => 'Rebate justification is required when the Rebate row has a value.',
                 ]);
             }
+            
+            // Explicitly update it on the model before advancing
+            $project->update(['rebate_justification' => $rebateJustification]);
         }
 
         $finalLevel = $this->finalApprovalLevel($project);
@@ -248,13 +254,7 @@ class SprfCurrentProjectController extends Controller
             ]);
         }
 
-        $project->update([
-            'status' => 'under_review',
-            'current_level' => $nextLevel,
-            'current_approver_user_id' => $nextApproverId,
-            'rebate_justification' => $rebateJustification,
-            'last_saved_at' => now(),
-        ]);
+        $this->workflowService->handleAdvance($project, $nextLevel, $nextApproverId);
 
         try {
             SprfActivityLogger::log(
@@ -277,119 +277,21 @@ class SprfCurrentProjectController extends Controller
     public function reject(Request $request, SprfCurrentProject $project)
     {
         $validated = $request->validate([
-            'body' => ['nullable', 'string'],
+            'body' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $this->assertAssignedApprover($project);
 
         $project->load(['items.subitems', 'fees']);
 
+        // Snapshot before archiving/deleting
         $oldValues = [
             'project' => $project->toArray(),
             'items' => $project->items->map->toArray()->toArray(),
             'fees' => $project->fees->map->toArray()->toArray(),
         ];
 
-        $archiveProject = DB::transaction(function () use ($project, $validated) {
-            $archiveProject = SprfArchiveProject::create([
-                'entry_project_id' => $project->entry_project_id,
-                'current_project_id' => $project->id,
-                'sprf_no' => $project->sprf_no,
-                'document_datetime' => $project->document_datetime,
-
-                'status' => 'rejected',
-                'current_level' => $project->current_level,
-                'approval_level' => $project->approval_level,
-
-                'prepared_by_user_id' => $project->prepared_by_user_id,
-                'director_customer_engagement_user_id' => $project->director_customer_engagement_user_id,
-                'esd_director_user_id' => $project->esd_director_user_id,
-                'vp_ccto_user_id' => $project->vp_ccto_user_id,
-                'president_ceo_user_id' => $project->president_ceo_user_id,
-                'current_approver_user_id' => null,
-                'approved_by_user_id' => null,
-                'rejected_by_user_id' => Auth::id(),
-
-                'sub_category' => $project->sub_category,
-                'account' => $project->account,
-                'account_manager' => $project->account_manager,
-
-                'remarks' => $project->remarks,
-                'rebate_justification' => $project->rebate_justification,
-                'last_reject_note' => isset($validated['body']) ? $validated['body'] : null,
-
-                'revenue' => $project->revenue,
-                'cogs' => $project->cogs,
-                'other_expense_total' => $project->other_expense_total,
-                'total_expense' => $project->total_expense,
-                'gp_value' => $project->gp_value,
-                'gp_percent' => $project->gp_percent,
-
-                'requires_vp_ccto' => $project->requires_vp_ccto,
-                'requires_president_ceo' => $project->requires_president_ceo,
-                'requires_rebate_justification' => $project->requires_rebate_justification,
-
-                'last_saved_at' => now(),
-                'submitted_at' => $project->submitted_at,
-                'approved_at' => null,
-                'rejected_at' => now(),
-            ]);
-
-            $createdItems = $archiveProject->items()->createMany(
-                $project->items->map(function ($item) {
-                    return [
-                        'row_key'                        => $item->row_key,
-                        'sort_order'                     => $item->sort_order,
-                        'total_cost'                     => $item->total_cost,
-                        'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
-                        'total_selling_price_vat_inc'    => $item->total_selling_price_vat_inc,
-                        'markup_value'                   => $item->markup_value,
-                    ];
-                })->all()
-            );
-
-            foreach ($createdItems as $i => $createdItem) {
-                $sourceItem = $project->items[$i];
-
-                if ($sourceItem->subitems->isNotEmpty()) {
-                    $createdItem->subitems()->createMany(
-                        $sourceItem->subitems->map(function ($sub) {
-                            return [
-                                'row_key'          => $sub->row_key,
-                                'sort_order'       => $sub->sort_order,
-                                'product_code'     => $sub->product_code,
-                                'item_description' => $sub->item_description,
-                                'qty'              => $sub->qty,
-                                'disty'            => $sub->disty,
-                                'cost_per_unit'    => $sub->cost_per_unit,
-                                'total_cost'       => $sub->total_cost,
-                                'markup_percent'   => $sub->markup_percent,
-                            ];
-                        })->all()
-                    );
-                }
-            }
-
-            $archiveProject->fees()->createMany(
-                $project->fees->map(function ($fee) {
-                    return [
-                        'expense_key' => $fee->expense_key,
-                        'is_fixed' => $fee->is_fixed,
-                        'product_code' => $fee->product_code,
-                        'item_description' => $fee->item_description,
-                        'qty' => $fee->qty,
-                        'unit_price' => $fee->unit_price,
-                        'total' => $fee->total,
-                    ];
-                })->all()
-            );
-
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->forceDelete();
-
-            return $archiveProject;
-        });
+        $archiveProject = $this->workflowService->handleReject($project, Auth::id(), $validated['body'] ?? null);
 
         try {
             SprfActivityLogger::log(
@@ -423,112 +325,14 @@ class SprfCurrentProjectController extends Controller
 
         $project->load(['items.subitems', 'fees']);
 
+        // Snapshot before archiving/deleting
         $oldValues = [
             'project' => $project->toArray(),
             'items' => $project->items->map->toArray()->toArray(),
             'fees' => $project->fees->map->toArray()->toArray(),
         ];
 
-        $archiveProject = DB::transaction(function () use ($project) {
-            $archiveProject = SprfArchiveProject::create([
-                'entry_project_id' => $project->entry_project_id,
-                'current_project_id' => $project->id,
-                'sprf_no' => $project->sprf_no,
-                'document_datetime' => $project->document_datetime,
-
-                'status' => 'approved',
-                'current_level' => $project->current_level,
-                'approval_level' => $project->approval_level,
-
-                'prepared_by_user_id' => $project->prepared_by_user_id,
-                'director_customer_engagement_user_id' => $project->director_customer_engagement_user_id,
-                'esd_director_user_id' => $project->esd_director_user_id,
-                'vp_ccto_user_id' => $project->vp_ccto_user_id,
-                'president_ceo_user_id' => $project->president_ceo_user_id,
-                'current_approver_user_id' => null,
-                'approved_by_user_id' => Auth::id(),
-                'rejected_by_user_id' => null,
-
-                'sub_category' => $project->sub_category,
-                'account' => $project->account,
-                'account_manager' => $project->account_manager,
-
-                'remarks' => $project->remarks,
-                'rebate_justification' => $project->rebate_justification,
-                'last_reject_note' => null,
-
-                'revenue' => $project->revenue,
-                'cogs' => $project->cogs,
-                'other_expense_total' => $project->other_expense_total,
-                'total_expense' => $project->total_expense,
-                'gp_value' => $project->gp_value,
-                'gp_percent' => $project->gp_percent,
-
-                'requires_vp_ccto' => $project->requires_vp_ccto,
-                'requires_president_ceo' => $project->requires_president_ceo,
-                'requires_rebate_justification' => $project->requires_rebate_justification,
-
-                'last_saved_at' => now(),
-                'submitted_at' => $project->submitted_at,
-                'approved_at' => now(),
-                'rejected_at' => null,
-            ]);
-
-            $createdItems = $archiveProject->items()->createMany(
-                $project->items->map(function ($item) {
-                    return [
-                        'row_key'                        => $item->row_key,
-                        'sort_order'                     => $item->sort_order,
-                        'total_cost'                     => $item->total_cost,
-                        'selling_price_per_unit_vat_inc' => $item->selling_price_per_unit_vat_inc,
-                        'total_selling_price_vat_inc'    => $item->total_selling_price_vat_inc,
-                        'markup_value'                   => $item->markup_value,
-                    ];
-                })->all()
-            );
-
-            foreach ($createdItems as $i => $createdItem) {
-                $sourceItem = $project->items[$i];
-
-                if ($sourceItem->subitems->isNotEmpty()) {
-                    $createdItem->subitems()->createMany(
-                        $sourceItem->subitems->map(function ($sub) {
-                            return [
-                                'row_key'          => $sub->row_key,
-                                'sort_order'       => $sub->sort_order,
-                                'product_code'     => $sub->product_code,
-                                'item_description' => $sub->item_description,
-                                'qty'              => $sub->qty,
-                                'disty'            => $sub->disty,
-                                'cost_per_unit'    => $sub->cost_per_unit,
-                                'total_cost'       => $sub->total_cost,
-                                'markup_percent'   => $sub->markup_percent,
-                            ];
-                        })->all()
-                    );
-                }
-            }
-
-            $archiveProject->fees()->createMany(
-                $project->fees->map(function ($fee) {
-                    return [
-                        'expense_key' => $fee->expense_key,
-                        'is_fixed' => $fee->is_fixed,
-                        'product_code' => $fee->product_code,
-                        'item_description' => $fee->item_description,
-                        'qty' => $fee->qty,
-                        'unit_price' => $fee->unit_price,
-                        'total' => $fee->total,
-                    ];
-                })->all()
-            );
-
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->forceDelete();
-
-            return $archiveProject;
-        });
+        $archiveProject = $this->workflowService->handleApprove($project, Auth::id());
 
         try {
             SprfActivityLogger::log(
@@ -548,9 +352,95 @@ class SprfCurrentProjectController extends Controller
         return to_route('sprf.current')->with('success', 'SPRF project approved and archived.');
     }
 
-    private function currentProjectAssignedToUser(SprfCurrentProject $project, int $userId): bool
+    public function sendBack(Request $request, SprfCurrentProject $project)
     {
-        return (int) ($project->current_approver_user_id ?? 0) === $userId;
+        $this->assertAssignedApprover($project);
+
+        $validated = $request->validate([
+            'message' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $oldValues = $project->toArray();
+
+        $result = $this->workflowService->handleSendBack($project, $validated['message'], Auth::id());
+
+        try {
+            SprfActivityLogger::log(
+                activityType: 'sent_back',
+                sprf: clone $result, // Could be EntryProject or CurrentProject
+                details: 'SPRF project sent back to previous level',
+                oldValues: $oldValues,
+                newValues: $result->fresh()->toArray()
+            );
+        } catch (\Throwable $e) {
+            Log::error('SPRF send back activity log failed', [
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        if ($result instanceof \App\Models\SPRF\SprfEntryProject) {
+            return to_route('sprf.entry.list')->with('success', 'SPRF project sent back to Preparer.');
+        }
+
+        return to_route('sprf.current')->with('success', 'SPRF project sent back to previous approver.');
+    }
+    
+    public function storeNote(Request $request, SprfCurrentProject $project)
+    {
+        $this->ensureCanView($project);
+
+        // Notes are only for Preparer (level 1) and DCE (level 2)
+        if (! in_array((int) $project->current_level, [1, 2])) {
+            throw ValidationException::withMessages([
+                'body' => 'Only the Preparer and Director – Customer Engagement can add notes.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $this->workflowService->appendMessage($project, $validated['body'], Auth::id(), (int) $project->current_level);
+
+        return back()->with('success', 'Note added successfully.');
+    }
+
+    public function storeComment(Request $request, SprfCurrentProject $project)
+    {
+        $this->ensureCanView($project);
+
+        // Comments are only for ESD Director and above (levels 3, 4, 5)
+        if (! in_array((int) $project->current_level, [3, 4, 5])) {
+            throw ValidationException::withMessages([
+                'body' => 'Only ESD Director and above can add comments.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $this->workflowService->appendMessage($project, $validated['body'], Auth::id(), (int) $project->current_level);
+
+        return back()->with('success', 'Comment added successfully.');
+    }
+
+    /**
+     * Whether the currently authenticated user is the assigned approver
+     * for this project AND the project is actually still actionable
+     * (i.e. sitting in the live approval queue). Mirrors the same
+     * conditions enforced server-side in assertAssignedApprover(), so
+     * button visibility on the frontend never drifts from what the
+     * approve/reject/advance/send-back endpoints will actually allow.
+     */
+    private function canActOnCurrentProject(SprfCurrentProject $project): bool
+    {
+        $userId = (int) Auth::id();
+
+        $isActionableStatus = in_array($project->status, ['for_review', 'under_review'], true);
+        $isAssignedApprover = (int) ($project->current_approver_user_id ?? 0) === $userId;
+
+        return $isActionableStatus && $isAssignedApprover;
     }
 
     private function ensureCanView(SprfCurrentProject $project): void
@@ -558,9 +448,9 @@ class SprfCurrentProjectController extends Controller
         $userId = (int) Auth::id();
 
         // Allow user 1 to bypass checks
-            if ($userId === 1) {
-                return;
-            }
+        if ($userId === 1) {
+            return;
+        }
             
         $approverIds = array_filter([
             $project->director_customer_engagement_user_id,
@@ -677,10 +567,20 @@ class SprfCurrentProjectController extends Controller
             'status' => $project->status,
             'current_level' => $project->current_level,
             'approval_level' => $project->approval_level,
+            'requires_vp_ccto'               => $project->requires_vp_ccto,
+            'requires_president_ceo'         => $project->requires_president_ceo,
+            'requires_rebate_justification'  => $project->requires_rebate_justification,
             'last_saved_at' => $project->last_saved_at ? $project->last_saved_at->toISOString() : null,
             'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
             'approved_at' => $project->approved_at ? $project->approved_at->toISOString() : null,
             'rejected_at' => $project->rejected_at ? $project->rejected_at->toISOString() : null,
+            
+            // New Role Timestamps
+            'dce_acted_at' => $project->dce_acted_at ? $project->dce_acted_at->toISOString() : null,
+            'esd_acted_at' => $project->esd_acted_at ? $project->esd_acted_at->toISOString() : null,
+            'vp_ccto_acted_at' => $project->vp_ccto_acted_at ? $project->vp_ccto_acted_at->toISOString() : null,
+            'president_ceo_acted_at' => $project->president_ceo_acted_at ? $project->president_ceo_acted_at->toISOString() : null,
+
             'prepared_by_name' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : null,
             'current_approver_name' => $project->currentApprover ? $project->currentApprover->first_name . ' ' . $project->currentApprover->last_name : null,
 
@@ -692,6 +592,10 @@ class SprfCurrentProjectController extends Controller
 
             'remarks' => $project->remarks,
             'rebate_justification' => $project->rebate_justification,
+            
+            // Notes and Comments Arrays
+            'notes' => $project->notes ?? [],
+            'comments' => $project->comments ?? [],
 
             'items' => $project->items
                 ->map(function ($item) {
@@ -791,6 +695,12 @@ class SprfCurrentProjectController extends Controller
                 ->all(),
 
             'approver_users' => $this->mapApproverUsersFromProject($project),
+            
+            // Include Role Timestamps for print mapping
+            'dce_acted_at' => $project->dce_acted_at ? $project->dce_acted_at->toISOString() : null,
+            'esd_acted_at' => $project->esd_acted_at ? $project->esd_acted_at->toISOString() : null,
+            'vp_ccto_acted_at' => $project->vp_ccto_acted_at ? $project->vp_ccto_acted_at->toISOString() : null,
+            'president_ceo_acted_at' => $project->president_ceo_acted_at ? $project->president_ceo_acted_at->toISOString() : null,
 
             'preparer' => [
                 'id' => $project->preparer?->id,

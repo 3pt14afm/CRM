@@ -38,6 +38,7 @@ class SprfEntryProjectController extends Controller
         return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
             'approverUsers' => $this->mapApproverUsersFromProject($project),
             'initialProject' => $this->transformProjectForFrontend($project),
+            'route'          => 'entry',
         ]);
     }
 
@@ -541,6 +542,14 @@ public function destroy(SprfEntryProject $project)
             ->all();
     }
 
+    /**
+     * Rebate condition only applies once the rebate line's value
+     * reaches the documented threshold (see Conditions panel:
+     * "For Rebate requests, Value must be 100K above").
+     * Threshold is inclusive: exactly 100,000 counts as a rebate request.
+     */
+    private const REBATE_VALUE_THRESHOLD = 100000.0;
+
     private function hasRebateValueFromMappedFees(array $fees): bool
     {
         foreach ($fees as $row) {
@@ -549,7 +558,7 @@ public function destroy(SprfEntryProject $project)
             $total = (float) data_get($row, 'total', 0);
 
             if ($expenseKey === 'rebate' || strcasecmp($productCode, 'Rebate') === 0) {
-                return $total > 0;
+                return $total >= self::REBATE_VALUE_THRESHOLD;
             }
         }
 
@@ -572,12 +581,17 @@ public function destroy(SprfEntryProject $project)
             'REBATE_REQUEST',
         ];
 
-        if (in_array($conditionCode, $allowed, true)) {
-            return $conditionCode;
-        }
-
+        // Rebate status is always derived from the actual fee data, never
+        // trusted from client input. This stops a caller from passing an
+        // explicit non-rebate condition code to dodge the rebate approval
+        // chain on a qualifying rebate line, and likewise stops a stale
+        // REBATE_REQUEST code from sticking once the rebate is removed.
         if ($hasRebate) {
             return 'REBATE_REQUEST';
+        }
+
+        if (in_array($conditionCode, $allowed, true) && $conditionCode !== 'REBATE_REQUEST') {
+            return $conditionCode;
         }
 
         if ($gpPercent <= 15) {
@@ -881,6 +895,50 @@ public function destroy(SprfEntryProject $project)
         ];
     }
 
+    public function storeNote(Request $request, SprfEntryProject $project): \Illuminate\Http\RedirectResponse
+    {
+        // Gate 1: caller must be the preparer
+        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+    
+        // Gate 2: notes are only valid while the project is at entry level
+        if ((int) $project->current_level !== 1) {
+            abort(403, 'Notes can only be added while the project is at level 1.');
+        }
+    
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+    
+        $user = Auth::user();
+    
+        $newEntry = [
+            'id'         => (string) \Illuminate\Support\Str::ulid(),
+            'body'       => trim($validated['body']),
+            'created_at' => now()->toIso8601String(),
+            'author'     => [
+                'id'   => $user->id,
+                'name' => $user->name,          // User model must have a `name` accessor
+                'role' => $user->role ?? null,
+            ],
+        ];
+    
+        // Append and re-sort descending (newest first), matching
+        // SprfCurrentWorkflowService::sortTimelineEntries()
+        $notes   = is_array($project->notes) ? $project->notes : [];
+        $notes[] = $newEntry;
+    
+        usort($notes, fn ($a, $b) =>
+            (strtotime($b['created_at'] ?? '') ?: 0) <=> (strtotime($a['created_at'] ?? '') ?: 0)
+        );
+    
+        $project->notes = array_values($notes);
+        $project->save();
+    
+        return back()->with('success', 'Note added successfully.');
+    }
+
     private function transformProjectForFrontend(SprfEntryProject $project): array
     {
         return [
@@ -889,6 +947,9 @@ public function destroy(SprfEntryProject $project)
             'status' => $project->status,
             'current_level' => $project->current_level,
             'approval_level' => $project->approval_level,
+            'requires_vp_ccto' => $project->requires_vp_ccto,
+            'requires_president_ceo' => $project->requires_president_ceo,
+            'requires_rebate_justification' => $project->requires_rebate_justification,
             'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
             'approval_condition_code' => $project->approval_condition_code,
             'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
@@ -896,6 +957,9 @@ public function destroy(SprfEntryProject $project)
             'approved_at' => optional($project->approved_at)?->toISOString(),
             'rejected_at' => optional($project->rejected_at)?->toISOString(),
             'prepared_by_name' => $project->preparer?->name,
+            'prepared_by_user_id' => $project->prepared_by_user_id,
+            'notes'               => $project->notes    ?? [],
+            'comments'            => $project->comments ?? [],
 
             'company_info' => [
                 'subCategory' => $project->sub_category,

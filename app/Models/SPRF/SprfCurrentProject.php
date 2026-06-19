@@ -25,9 +25,13 @@ class SprfCurrentProject extends Model
 
         'prepared_by_user_id',
         'director_customer_engagement_user_id',
+        'dce_acted_at',
         'esd_director_user_id',
+        'esd_acted_at',
         'vp_ccto_user_id',
+        'vp_ccto_acted_at',
         'president_ceo_user_id',
+        'president_ceo_acted_at',
         'current_approver_user_id',
         'approved_by_user_id',
         'rejected_by_user_id',
@@ -38,6 +42,8 @@ class SprfCurrentProject extends Model
 
         'remarks',
         'rebate_justification',
+        'notes',
+        'comments',
         'last_reject_note',
 
         'revenue',
@@ -72,6 +78,12 @@ class SprfCurrentProject extends Model
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'dce_acted_at' => 'datetime',
+        'esd_acted_at' => 'datetime',
+        'vp_ccto_acted_at' => 'datetime',
+        'president_ceo_acted_at' => 'datetime',
+        'notes' => 'array',
+        'comments' => 'array',
     ];
 
     public function items()
