@@ -21,27 +21,29 @@ use Illuminate\Support\Facades\Log;
 class ProfileController extends Controller
 {
     // Display the user's profile page.
-    public function edit(Request $request): Response
-    {
-        $user = $request->user()->load(['department', 'location']);
+public function edit(Request $request): Response
+{
+    $user = $request->user()->load(['department', 'location']);
 
-        return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
-            'status' => session('status'),
-            // Explicit allow-list of display-only fields for the
-            // read-only "Personal Information" card. Nothing here is
-            // ever written back — this page only ever submits a
-            // password via updatePassword() below.
-            'profile' => [
-                'name'       => $user->name,
-                'employeeId' => $user->employee_id,
-                'email'      => $user->email,
-                'position'   => $user->position,
-                'department' => optional($user->department)->name,
-                'location'   => optional($user->location)->name,
-            ],
-        ]);
-    }
+    $signaturePath = storage_path('app/public/signatures/' . $user->employee_id . '.png');
+    $signatureUrl  = file_exists($signaturePath)
+        ? asset('storage/signatures/' . $user->employee_id . '.png') . '?v=' . filemtime($signaturePath)
+        : null;
+
+    return Inertia::render('Profile/Edit', [
+        'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+        'status'          => session('status'),
+        'profile'         => [
+            'name'       => $user->name,
+            'employeeId' => $user->employee_id,
+            'email'      => $user->email,
+            'position'   => $user->position,
+            'department' => optional($user->department)->name,
+            'location'   => optional($user->location)->name,
+            'signature'  => $signatureUrl,
+        ],
+    ]);
+}
 
     // Update the user's profile information.
     public function update(ProfileUpdateRequest $request): RedirectResponse
@@ -215,4 +217,18 @@ class ProfileController extends Controller
 
         return Redirect::to('/');
     }
+
+public function updateSignature(Request $request)
+{
+    $request->validate([
+        'signature' => ['required', 'image', 'mimes:png', 'max:3072'], // 3MB
+    ]);
+
+    $user = $request->user();
+    $filename = $user->employee_id . '.png';
+
+    $request->file('signature')->storeAs('signatures', $filename, 'public');
+
+    return back()->with('success', 'Signature updated.');
+}
 }

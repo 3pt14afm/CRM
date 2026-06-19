@@ -272,6 +272,25 @@ private function getViewerLevel(RoiCurrentProject $project, $user): int
         $project->notes = $this->workflowService->sortTimelineEntries($project->notes);
         $project->comments = $this->workflowService->sortTimelineEntries($project->comments);
 
+        // Build signature URLs for all approver levels
+        $signatureFor = function ($userId) {
+            if (!$userId) return null;
+            $employeeId = User::find($userId)?->employee_id;
+            if (!$employeeId) return null;
+            $path = storage_path('app/public/signatures/' . $employeeId . '.png');
+            return file_exists($path)
+                ? asset('storage/signatures/' . $employeeId . '.png') . '?v=' . filemtime($path)
+                : null;
+        };
+            $signatures = [
+            'reviewed_by'  => $signatureFor($project->reviewed_by),
+            'checked_by'   => $signatureFor($project->checked_by),
+            'endorsed_by'  => $signatureFor($project->endorsed_by),
+            'confirmed_by' => $signatureFor($project->confirmed_by),
+            'approved_by'  => $signatureFor($project->approved_by),
+        ];
+
+
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'project' => $project, 'entryProject' => $project, 'readOnly' => true, 'route' => 'current',
             'createdBy' => $project->user?->name ?? '—', 'viewerLevel' => $this->getViewerLevel($project, $user),
@@ -279,6 +298,7 @@ private function getViewerLevel(RoiCurrentProject $project, $user): int
             'projectNotes' => $project->notes ?? [], 'projectComments' => $project->comments ?? [],
             'requiredSendBackType' => $this->requiredSendBackTypeForLevel((int) $project->current_level),
             'machineCatalog' => $this->buildMachineCatalog(), 'consumableCatalog' => $this->buildConsumableCatalog(),
+            'signatures'        => $signatures, // 👈 new
         ]);
     }
 

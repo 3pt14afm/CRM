@@ -26,6 +26,7 @@ export default function Entry({
   route: routeName = '',
   role = '',
   viewerLevel = null,
+   signatures = {},
 }) {
   const { auth, requiredSendBackType } = usePage().props;
   const createdBy = auth?.user?.name ?? null;
@@ -229,6 +230,7 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
           <SucceedingYears
             key={`succeeding-${entryProject?.id ?? 'new'}-${resetKey}`}
             ref={succeedingRef}
+            signatures={signatures}
           />
         ) : null}
       </div>

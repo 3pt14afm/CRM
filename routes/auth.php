@@ -68,5 +68,6 @@ Route::middleware('auth')->group(function () {
     
     // User Profile Password Update Route
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::post('/profile/signature', [ProfileController::class, 'updateSignature'])->name('profile.signature');
 });
 

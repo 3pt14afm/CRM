@@ -3,7 +3,7 @@ import { usePage } from '@inertiajs/react';
 import { useProjectData } from '@/Context/ProjectContext';
 
 function Names() {
-  const { project: rawProject, entryProject, usersById = {}, route: routeName } = usePage().props;
+  const { project: rawProject, entryProject, usersById = {}, route: routeName, signatures = {} } = usePage().props;
   const project = rawProject ?? entryProject;
 
   const { projectData } = useProjectData();
@@ -56,9 +56,7 @@ function Names() {
 
   const rejectedLevel = Number(project?.rejected_by_level ?? 0);
 
-  // Positions — all consistently use positionOf via usersById
   const preparedByPosition = hasPageProject ? positionOf(project?.user_id) : fromSnap('preparedByPosition');
-
   const reviewedByPosition = hasPageProject ? positionOf(project?.reviewed_by) : fromSnap('reviewedByPosition');
   const checkedByPosition = hasPageProject ? positionOf(project?.checked_by) : fromSnap('checkedByPosition');
   const endorsedByPosition = hasPageProject ? positionOf(project?.endorsed_by) : fromSnap('endorsedByPosition');
@@ -66,7 +64,6 @@ function Names() {
   const approvedByPosition = hasPageProject ? positionOf(project?.approved_by) : fromSnap('approvedByPosition');
   const rejectedByPosition = hasPageProject ? positionOf(project?.rejected_by) : fromSnap('rejectedByPosition');
 
-  // Timestamps — straight from the model's _at columns; blank until that level has actually acted
   const preparedAt = timestampOf(project?.submitted_at);
   const reviewedAt = timestampOf(project?.reviewed_at);
   const checkedAt = timestampOf(project?.checked_at);
@@ -75,10 +72,26 @@ function Names() {
   const approvedAt = timestampOf(project?.approved_at);
   const rejectedAt = isRejected ? timestampOf(project?.rejected_at) : '';
 
+  // Resolve preparer signature from user_id
+  const preparerSignature = hasPageProject
+    ? (() => {
+        const uid = project?.user_id;
+        if (!uid) return null;
+        const path = `/storage/signatures/${uid}.png`;
+        return signatures?.preparer ?? path ?? null;
+      })()
+    : null;
+
   return (
     <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-0">
       <div className="grid grid-cols-4 gap-y-12 gap-x-9 px-2 print:gap-x-6 print:px-1">
-        <Signatory label="PREPARED BY:" name={preparedBy} title={preparedByPosition} timestamp={preparedAt} />
+        <Signatory
+          label="PREPARED BY:"
+          name={preparedBy}
+          title={preparedByPosition}
+          timestamp={preparedAt}
+          signatureUrl={preparerSignature}
+        />
 
         <Signatory
           label="REVIEWED BY:"
@@ -86,6 +99,7 @@ function Names() {
           title={isRejected && rejectedLevel === 2 ? rejectedByPosition : reviewedByPosition}
           timestamp={isRejected && rejectedLevel === 2 ? rejectedAt : reviewedAt}
           isRejectedAction={isRejected && rejectedLevel === 2}
+          signatureUrl={signatures?.reviewed_by ?? null}
         />
 
         <Signatory
@@ -94,6 +108,7 @@ function Names() {
           title={isRejected && rejectedLevel === 3 ? rejectedByPosition : checkedByPosition}
           timestamp={isRejected && rejectedLevel === 3 ? rejectedAt : checkedAt}
           isRejectedAction={isRejected && rejectedLevel === 3}
+          signatureUrl={signatures?.checked_by ?? null}
         />
 
         <Signatory
@@ -102,6 +117,7 @@ function Names() {
           title={isRejected && rejectedLevel === 4 ? rejectedByPosition : endorsedByPosition}
           timestamp={isRejected && rejectedLevel === 4 ? rejectedAt : endorsedAt}
           isRejectedAction={isRejected && rejectedLevel === 4}
+          signatureUrl={signatures?.endorsed_by ?? null}
         />
 
         <div className="col-start-3">
@@ -111,6 +127,7 @@ function Names() {
             title={isRejected && rejectedLevel === 5 ? rejectedByPosition : confirmedByPosition}
             timestamp={isRejected && rejectedLevel === 5 ? rejectedAt : confirmedAt}
             isRejectedAction={isRejected && rejectedLevel === 5}
+            signatureUrl={signatures?.confirmed_by ?? null}
           />
         </div>
 
@@ -121,6 +138,7 @@ function Names() {
             title={isRejected && rejectedLevel === 6 ? rejectedByPosition : approvedByPosition}
             timestamp={isRejected && rejectedLevel === 6 ? rejectedAt : approvedAt}
             isRejectedAction={isRejected && rejectedLevel === 6}
+            signatureUrl={signatures?.approved_by ?? null}
           />
         </div>
       </div>
@@ -128,7 +146,7 @@ function Names() {
   );
 }
 
-const Signatory = ({ label, name, title, timestamp, isRejectedAction }) => (
+const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureUrl }) => (
   <div className="flex flex-col space-y-4 justify-center">
     <span className="text-[10px] font-extrabold text-gray-800 tracking-tight print:font-semibold">{label}</span>
     <div className="pt-2">
@@ -136,9 +154,23 @@ const Signatory = ({ label, name, title, timestamp, isRejectedAction }) => (
         <p className="text-gray-50/0">.</p>
         <p className={isRejectedAction ? "text-red-500" : "text-[#175500]"}>{timestamp}</p>
       </div>
-      <p className="text-sm text-center font-semibold text-gray-900 border-b border-gray-400 inline-block w-full pb-0.5 print:font-medium print:text-[13px] print:min-w-[150px]">
+
+      {/* Name line with signature overlayed behind it */}
+      <div className="relative w-full h-16">
+    {signatureUrl && (
+        <img
+            src={signatureUrl}
+            alt="Signature"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            style={{ mixBlendMode: 'multiply' }}
+            onError={(e) => { e.target.style.display = 'none'; }}
+        />
+    )}
+    <p className="absolute bottom-0 left-0 right-0 text-sm text-center font-semibold text-gray-900 border-b border-gray-400 w-full pb-0.5 print:font-medium print:text-[13px] print:min-w-[150px]">
         {name || '—'}
-      </p>
+    </p>
+</div>
+
       <p className="text-[11px] text-center text-gray-500 mt-1">{title}</p>
     </div>
   </div>
