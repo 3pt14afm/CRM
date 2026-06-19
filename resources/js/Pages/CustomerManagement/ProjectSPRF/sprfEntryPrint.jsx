@@ -201,6 +201,28 @@ function mapProjectToPrintData(project) {
   const otherExpenses = Array.isArray(project?.other_expenses) ? project.other_expenses : [];
   const approverUsers = project?.approver_users ?? {};
 
+  // Extract timestamps and rejection details
+  const status = String(project?.status ?? '').toLowerCase();
+  const isRejected = status === 'rejected';
+  const currentLevel = Number(project?.current_level ?? project?.currentLevel ?? 0);
+  const rejectedAt = project?.rejected_at ?? null;
+
+  const isRejectorAtLevel = (level) => isRejected && currentLevel === level;
+
+  const timestampForLevel = (level) => {
+    if (isRejectorAtLevel(level)) return rejectedAt;
+    return (
+      {
+        // Added fallbacks for level 1 just like in Names.jsx
+        1: project?.preparer_acted_at ?? project?.submitted_at ?? project?.created_at,
+        2: project?.dce_acted_at,
+        3: project?.esd_acted_at,
+        4: project?.vp_ccto_acted_at,
+        5: project?.president_ceo_acted_at,
+      }[level] ?? null
+    );
+  };
+
   return {
     sprfNo: project?.sprf_no ?? 'SPRFIT-0000',
     status: project?.status ?? 'draft',
@@ -210,26 +232,38 @@ function mapProjectToPrintData(project) {
     rebateJustification: project?.rebate_justification ?? '',
     items,
     otherExpenses,
+    notes: Array.isArray(project?.notes) ? project.notes : [],
+    comments: Array.isArray(project?.comments) ? project.comments : [],
     signatories: {
       preparer: {
         name: project?.preparer?.name ?? '',
         title: 'PM INCHARGE',
+        timestamp: timestampForLevel(1),
+        isRejector: isRejectorAtLevel(1),
       },
       directorCustomerEngagement: {
         name: approverUsers?.directorCustomerEngagement?.name ?? '',
         title: 'DIRECTOR - CUSTOMER ENGAGEMENT',
+        timestamp: timestampForLevel(2),
+        isRejector: isRejectorAtLevel(2),
       },
       esdDirector: {
         name: approverUsers?.esdDirector?.name ?? '',
         title: 'DIRECTOR - ENTERPRISE SOLUTIONS',
+        timestamp: timestampForLevel(3),
+        isRejector: isRejectorAtLevel(3),
       },
       vpCcto: {
         name: approverUsers?.vpCcto?.name ?? '',
         title: 'VP & CCTO',
+        timestamp: timestampForLevel(4),
+        isRejector: isRejectorAtLevel(4),
       },
       presidentCeo: {
         name: approverUsers?.presidentCeo?.name ?? '',
         title: 'President & CEO',
+        timestamp: timestampForLevel(5),
+        isRejector: isRejectorAtLevel(5),
       },
     },
   };
@@ -411,12 +445,18 @@ export default function SprfEntryPrint({
                   totalOtherExpense={resolved.summary.otherExpense}
                 />
 
-                <div className="grid grid-cols-12 items-start space-y-5">
-                  <div className="col-span-5">
+                
+
+                <div className=" w-full flex flex-col items-start space-y-5">
+                  <div className="flex gap-3">
                     <Conditions />
+                    <PrintNotesComments
+                      notes={resolved.notes}
+                      comments={resolved.comments}
+                    />
                   </div>
 
-                  <div className="col-span-7">
+                  <div className="w-[95%]">
                     <PrintNamesBlock
                       signatories={resolved.signatories}
                       showVpCcto={resolved.showVpCcto}
@@ -806,6 +846,64 @@ function PrintNamesBlock({
   );
 }
 
+function PrintNotesComments({ notes = [], comments = [] }) {
+  const hasNotes = notes.length > 0;
+  const hasComments = comments.length > 0;
+
+  if (!hasNotes && !hasComments) return null;
+
+  const fmt = (date) => {
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return '';
+    const datePart = new Intl.DateTimeFormat('en-US', {
+      month: 'short', day: '2-digit', year: 'numeric',
+    }).format(d);
+    const timePart = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(d);
+    return `${datePart} - ${timePart}`;
+  };
+
+  const renderItems = (items) =>
+    items.map((entry, idx) => (
+      <div
+        key={entry.id ?? `entry-${idx}`}
+        className="bg-white border border-gray-200 rounded-xl px-4 py-3 my-[3px] shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+      >
+        <div className="flex h-4 items-start justify-between">
+          <span className="text-[11px] font-medium text-gray-900">
+            {entry.author?.name ?? 'Unknown'}
+          </span>
+          <span className="text-[10px] text-gray-500 italic whitespace-nowrap">
+            {fmt(entry.created_at)}
+          </span>
+        </div>
+        <p className="mt-2 text-gray-900 text-xs leading-relaxed">{entry.body}</p>
+      </div>
+    ));
+
+  return (
+    <div className="w-full flex gap-2">
+      {hasNotes && (
+        <div>
+          <span className="text-[11px] font-medium text-gray-400 pl-2 uppercase tracking-wide">
+            Notes
+          </span>
+          <div className="mt-1">{renderItems(notes)}</div>
+        </div>
+      )}
+      {hasComments && (
+        <div>
+          <span className="text-[11px] font-medium text-gray-400 pl-2 uppercase tracking-wide">
+            Comments
+          </span>
+          <div className="mt-1">{renderItems(comments)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionLabel({ label }) {
   return (
     <span className="text-[10px] font-extrabold text-gray-800 tracking-tight uppercase">
@@ -814,17 +912,43 @@ function SectionLabel({ label }) {
   );
 }
 
-function PrintSignatory({ name, title }) {
+function PrintSignatory({ name, title, timestamp = null, isRejector = false }) {
+  const formatTimestamp = (ts) => {
+    if (!ts) return null;
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(ts));
+    } catch {
+      return null;
+    }
+  };
+
+  const formatted = formatTimestamp(timestamp);
+
   return (
     <div className="w-full">
+      <div className="text-[10px] mb-1 flex items-center justify-end gap-1 font-medium min-h-[15px]">
+        <p className="text-gray-50/0 select-none">.</p>
+        {formatted && (
+          <p className={isRejector ? "text-red-500 print:text-red-500" : "text-[#175500] print:text-[#175500]"}>
+            {formatted}
+          </p>
+        )}
+      </div>
+
       <div className="border-b border-gray-400 min-h-[24px] flex items-end justify-center pb-0.5">
         <span className="text-[12px] font-semibold text-gray-900 text-center">
-          {displayText(name)}
+          {displayText(name) || '—'}
         </span>
       </div>
 
       <div className="text-[10px] text-slate-500 mt-1 w-full text-center">
-        {displayText(title)}
+        {displayText(title) || ''}
       </div>
     </div>
   );

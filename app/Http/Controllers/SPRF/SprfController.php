@@ -178,6 +178,17 @@ public function archive(Request $request)
             'readOnly' => true,
             'route' => 'archive',
             'createdBy' => $project->preparer?->name ?? '—',
+
+            'timestamps' => [
+            'submitted_at' => $project->submitted_at?->toIso8601String(),
+            'dce_acted_at' => $project->dce_acted_at?->toIso8601String(),
+            'esd_acted_at' => $project->esd_acted_at?->toIso8601String(),
+            'vp_ccto_acted_at' => $project->vp_ccto_acted_at?->toIso8601String(),
+            'president_ceo_acted_at' => $project->president_ceo_acted_at?->toIso8601String(),
+            'rejectedAt' => $project->rejected_at?->toIso8601String(),
+            'rejectedByLevel' => $project->status === 'rejected' ? $project->current_level : null,
+            ],
+
         ]);
     }
 
@@ -268,16 +279,32 @@ public function archive(Request $request)
             'status' => $project->status,
             'current_level' => $project->current_level,
             'approval_level' => $project->approval_level,
+            'requires_vp_ccto' => $project->requires_vp_ccto,
+            'requires_president_ceo' => $project->requires_president_ceo,
+            'requires_rebate_justification' => $project->requires_rebate_justification,
             'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
             'approval_condition_code' => $project->approval_condition_code,
+            
+            // Dates and Timestamps
             'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
             'submitted_at' => optional($project->submitted_at)?->toISOString(),
             'approved_at' => optional($project->approved_at)?->toISOString(),
             'rejected_at' => optional($project->rejected_at)?->toISOString(),
+            
+            // New Role Timestamps
+            'dce_acted_at' => optional($project->dce_acted_at)?->toISOString(),
+            'esd_acted_at' => optional($project->esd_acted_at)?->toISOString(),
+            'vp_ccto_acted_at' => optional($project->vp_ccto_acted_at)?->toISOString(),
+            'president_ceo_acted_at' => optional($project->president_ceo_acted_at)?->toISOString(),
+
             'prepared_by_name' => $project->preparer?->name,
             'approved_by_name' => $project->approvedBy?->name,
             'rejected_by_name' => $project->rejectedBy?->name,
             'last_reject_note' => $project->last_reject_note,
+
+            // Notes and Comments
+            'notes' => $project->notes ?? [],
+            'comments' => $project->comments ?? [],
 
             'company_info' => [
                 'subCategory' => $project->sub_category,
@@ -291,15 +318,24 @@ public function archive(Request $request)
             'items' => $project->items
                 ->map(function ($item) {
                     return [
-                        'productCode' => $item->product_code,
-                        'rowKey' => $item->row_key,
-                        'rowType' => $item->row_type ?: 'item',
-                        'parentRowKey' => $item->parent_row_key,
-                        'itemDescription' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'costPerUnit' => $item->cost_per_unit,
-                        'markupPercent' => $item->markup_percent,
+                        'rowKey'                    => $item->row_key,
+                        'totalCost'                 => $item->total_cost,
+                        'sellingPricePerUnitVatInc' => $item->selling_price_per_unit_vat_inc,
+                        'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
+                        'markupValue'               => $item->markup_value,
+                        'subitems' => $item->subitems
+                            ->map(fn($sub) => [
+                                'rowKey'          => $sub->row_key,
+                                'productCode'     => $sub->product_code,
+                                'itemDescription' => $sub->item_description,
+                                'qty'             => $sub->qty,
+                                'disty'           => $sub->disty,
+                                'costPerUnit'     => $sub->cost_per_unit,
+                                'markupPercent'   => $sub->markup_percent,
+                                'totalCost'       => $sub->total_cost,
+                            ])
+                            ->values()
+                            ->all(),
                     ];
                 })
                 ->values()
@@ -327,12 +363,26 @@ public function archive(Request $request)
             'id' => $project->id,
             'sprf_no' => $project->sprf_no,
             'status' => $project->status,
+            'current_level' => $project->current_level,
             'approval_level' => $project->approval_level,
             'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
             'approval_condition_code' => $project->approval_condition_code,
             'remarks' => $project->remarks,
             'last_reject_note' => $project->last_reject_note,
             'rebate_justification' => $project->rebate_justification,
+
+            'notes' => $project->notes ?? [],
+            'comments' => $project->comments ?? [],
+
+            'created_at' => optional($project->created_at)?->toISOString(),
+            'submitted_at' => optional($project->submitted_at)?->toISOString(),
+            'rejected_at' => optional($project->rejected_at)?->toISOString(),
+
+            // Timestamps for print
+            'dce_acted_at' => optional($project->dce_acted_at)?->toISOString(),
+            'esd_acted_at' => optional($project->esd_acted_at)?->toISOString(),
+            'vp_ccto_acted_at' => optional($project->vp_ccto_acted_at)?->toISOString(),
+            'president_ceo_acted_at' => optional($project->president_ceo_acted_at)?->toISOString(),
 
             'company_info' => [
                 'subCategory' => $project->sub_category,
@@ -343,15 +393,24 @@ public function archive(Request $request)
             'items' => $project->items
                 ->map(function ($item) {
                     return [
-                        'productCode' => $item->product_code,
-                        'rowKey' => $item->row_key,
-                        'rowType' => $item->row_type ?: 'item',
-                        'parentRowKey' => $item->parent_row_key,
-                        'itemDescription' => $item->item_description,
-                        'qty' => $item->qty,
-                        'disty' => $item->disty,
-                        'costPerUnit' => $item->cost_per_unit,
-                        'markupPercent' => $item->markup_percent,
+                        'rowKey'                    => $item->row_key,
+                        'totalCost'                 => $item->total_cost,
+                        'sellingPricePerUnitVatInc' => $item->selling_price_per_unit_vat_inc,
+                        'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
+                        'markupValue'               => $item->markup_value,
+                        'subitems' => $item->subitems
+                            ->map(fn($sub) => [
+                                'rowKey'          => $sub->row_key,
+                                'productCode'     => $sub->product_code,
+                                'itemDescription' => $sub->item_description,
+                                'qty'             => $sub->qty,
+                                'disty'           => $sub->disty,
+                                'costPerUnit'     => $sub->cost_per_unit,
+                                'markupPercent'   => $sub->markup_percent,
+                                'totalCost'       => $sub->total_cost,
+                            ])
+                            ->values()
+                            ->all(),
                     ];
                 })
                 ->values()

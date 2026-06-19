@@ -13,6 +13,8 @@ import SprfItemsTable from '@/Components/sprf/SprfItemsTable';
 import SprfOtherExpenseTable from '@/Components/sprf/SprfOtherExpenseTable';
 import Conditions from '@/Components/sprf/Conditions';
 import NamesBlock from '@/Components/sprf/NamesBlock';
+import SprfAddNotes from '@/Components/sprf/SprfAddNotes';
+import SprfAddComments from '@/Components/sprf/SprfAddComments';
 
 const FIXED_OTHER_EXPENSE_ROWS = [
   { key: 'deliveryCharge', productCode: 'Delivery Charge' },
@@ -22,10 +24,19 @@ const FIXED_OTHER_EXPENSE_ROWS = [
   { key: 'others', productCode: 'Others' },
 ];
 
+// Unifies both old hardcoded logic and the new SprfApproverMatrixController condition codes
 const APPROVAL_LEVEL = {
+  // Legacy / Fallback
   ESD_ONLY: 'ESD_ONLY',
   VP_AND_CCTO: 'VP_AND_CCTO',
   PRESIDENT_AND_CEO: 'PRESIDENT_AND_CEO',
+  
+  // Matrix Conditions
+  STANDARD_PRICING: 'STANDARD_PRICING',
+  VALUE_GT_1M: 'VALUE_GT_1M',
+  GP_GT_15: 'GP_GT_15',
+  GP_LTE_15: 'GP_LTE_15',
+  REBATE_REQUEST: 'REBATE_REQUEST',
 };
 
 const isBlank = (value) =>
@@ -242,32 +253,6 @@ const computeExpense = (row) => {
   };
 };
 
-const resolveApprovalLevel = ({ revenue, totalGpPercent, hasRebate }) => {
-  if (hasRebate) {
-    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  }
-
-  if (revenue <= 0) {
-    return APPROVAL_LEVEL.ESD_ONLY;
-  }
-
-  if (totalGpPercent <= 15) {
-    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  }
-
-  if (totalGpPercent > 15 || revenue > 1000000) {
-    return APPROVAL_LEVEL.VP_AND_CCTO;
-  }
-
-  return APPROVAL_LEVEL.ESD_ONLY;
-};
-
-const finalApprovalLevelNumber = (approvalLevel) => {
-  if (approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO) return 5;
-  if (approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO) return 4;
-  return 3;
-};
-
 const buildSigner = ({ name = '', title = '', lookupPosition = '' } = {}) => ({
   name,
   title,
@@ -373,42 +358,44 @@ function Entry({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
+  const [showSendBackModal, setShowSendBackModal] = useState(false);
+  const [sendBackMessage, setSendBackMessage] = useState('');
   const hydratedProjectIdRef = useRef(null);
 
-      useEffect(() => {
-              const currentProjectId = sourceProject?.id ?? null;
-              if (hydratedProjectIdRef.current === currentProjectId) {
-                return;
-              }
-              hydratedProjectIdRef.current = currentProjectId;
+  useEffect(() => {
+    const currentProjectId = sourceProject?.id ?? null;
+    if (hydratedProjectIdRef.current === currentProjectId) {
+      return;
+    }
+    hydratedProjectIdRef.current = currentProjectId;
 
-              if (!sourceProject) {
-                setSprfNo('SPRFIT-0000');
-                setCompanyInfo({
-                  subCategory: '',
-                  account: '',
-                  accountManager: '',
-                });
-                setRemarks(['']);
-                setRebateJustification('');
-                setItems([makeGroupRow()]);
-                setOtherExpenses(makeInitialExpenseRows());
-                return;
-              }
+    if (!sourceProject) {
+      setSprfNo('SPRFIT-0000');
+      setCompanyInfo({
+        subCategory: '',
+        account: '',
+        accountManager: '',
+      });
+      setRemarks(['']);
+      setRebateJustification('');
+      setItems([makeGroupRow()]);
+      setOtherExpenses(makeInitialExpenseRows());
+      return;
+    }
 
-              setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
-              setCompanyInfo({
-                subCategory: sourceProject?.company_info?.subCategory ?? '',
-                account: sourceProject?.company_info?.account ?? '',
-                accountManager: sourceProject?.company_info?.accountManager ?? '',
-              });
-              setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
-              setRebateJustification(sourceProject?.rebate_justification ?? '');
+    setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
+    setCompanyInfo({
+      subCategory: sourceProject?.company_info?.subCategory ?? '',
+      account: sourceProject?.company_info?.account ?? '',
+      accountManager: sourceProject?.company_info?.accountManager ?? '',
+    });
+    setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
+    setRebateJustification(sourceProject?.rebate_justification ?? '');
 
-              setItems(flattenItemsFromApi(sourceProject?.items ?? []));
+    setItems(flattenItemsFromApi(sourceProject?.items ?? []));
 
-              setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
-      }, [sourceProject?.id]);
+    setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
+  }, [sourceProject?.id]);
 
   const computedItems = useMemo(() => items.map(computeGroup), [items]);
   const computedExpenses = useMemo(() => otherExpenses.map(computeExpense), [otherExpenses]);
@@ -433,29 +420,62 @@ function Entry({
   const rebateTotal = useMemo(() => {
     return computedExpenses
       .filter((row) => row.expenseKey === 'rebate')
-      .reduce((sum, row) => sum + row.total, 0);
+      .reduce((sum, row) => sum + toNumber(row.total), 0);
   }, [computedExpenses]);
 
-  const hasRebate = rebateTotal > 0;
+  const hasRebate = rebateTotal >= 100_000; 
 
+  // Compute the expected level if not provided by backend (entry route only —
+  // sourceProject is null on a fresh draft so backend flags don't exist yet)
   const computedApprovalLevel = useMemo(() => {
-    return resolveApprovalLevel({
-      revenue: summary.revenue,
-      totalGpPercent: summary.totalGpPercent,
-      hasRebate,
-    });
+    if (hasRebate) return APPROVAL_LEVEL.REBATE_REQUEST;
+    if (summary.revenue <= 0) return APPROVAL_LEVEL.STANDARD_PRICING;
+    if (summary.totalGpPercent <= 15) return APPROVAL_LEVEL.GP_LTE_15;
+    if (summary.revenue > 1000000) return APPROVAL_LEVEL.VALUE_GT_1M;
+    return APPROVAL_LEVEL.GP_GT_15;
   }, [summary.revenue, summary.totalGpPercent, hasRebate]);
 
   const approvalLevel = sourceProject?.approval_level ?? computedApprovalLevel;
 
-  const showVpCcto = approvalLevel !== APPROVAL_LEVEL.ESD_ONLY;
-  const showPresidentCeo = approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO;
+  // ============================================================================ //
+  // SIGNATORY VISIBILITY — #3: Trust backend flags when present (current/archive
+  // routes), fall back to local derivation only for entry route (fresh draft).
+  // ============================================================================ //
+
+  // Backend flags are booleans (true/false) when the project has been saved at
+  // least once. On a brand-new entry draft sourceProject is null so both sides
+  // of ?? are evaluated — the local derivation is the correct fallback there.
+  const showPresidentCeo =
+    sourceProject?.requires_president_ceo != null     
+      ? Boolean(sourceProject.requires_president_ceo) 
+      : (                                               
+          approvalLevel === APPROVAL_LEVEL.REBATE_REQUEST ||
+          approvalLevel === APPROVAL_LEVEL.GP_LTE_15 ||
+          approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO
+        );
+
+  const showVpCcto =
+    sourceProject?.requires_vp_ccto != null
+      ? Boolean(sourceProject.requires_vp_ccto)
+      : (
+          showPresidentCeo ||
+          approvalLevel === APPROVAL_LEVEL.VALUE_GT_1M ||
+          approvalLevel === APPROVAL_LEVEL.GP_GT_15 ||
+          approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO
+        );
+
+  const currentLevel = Number(sourceProject?.current_level || 0);
+  
+  // Calculate the terminal step mathematically
+  const finalLevel = showPresidentCeo ? 5 : (showVpCcto ? 4 : 3);
+
+  const isFinalApprover = 
+    sourceProject?.is_final_approver ?? 
+    (currentLevel >= finalLevel);
 
   const isEntryRoute = pageRoute === 'entry';
   const isCurrentRoute = pageRoute === 'current';
   const isArchiveRoute = pageRoute === 'archive';
-
-  const isFinalApprover = Number(sourceProject?.current_level || 0) === finalApprovalLevelNumber(approvalLevel);
 
   const isDirectorCustomerEngagementStep = Number(sourceProject?.current_level || 0) === 2;
 
@@ -551,7 +571,6 @@ function Entry({
       if (!group) return prev;
 
       if (group.subitems.length === 1) {
-        // last subitem in group — remove the whole group (unless it's the only group)
         if (prev.length === 1) {
           return [makeGroupRow()];
         }
@@ -638,6 +657,8 @@ function Entry({
         items,
         otherExpenses,
         signatories,
+        notes: Array.isArray(sourceProject?.notes) ? sourceProject.notes : [],
+        comments: Array.isArray(sourceProject?.comments) ? sourceProject.comments : [],
       };
 
       sessionStorage.setItem(storageKey, JSON.stringify(snapshot));
@@ -669,51 +690,42 @@ function Entry({
     a.remove();
   };
 
-
-// =======================ERROR HANDLING LOGIC====================================================//
-const hasValidCompanyInfo = (companyInfo) => {
-  return (
-    companyInfo?.subCategory?.trim() &&
-    companyInfo?.account?.trim() &&
-    companyInfo?.accountManager?.trim()
-  );
-};
-
-const hasValidItems = (items) => {
-  return items.some((group) =>
-    (group.subitems || []).some((row) =>
-      row.productCode?.trim() ||
-      row.itemDescription?.trim() ||
-      Number(row.qty) > 0 ||
-      Number(row.costPerUnit) > 0
-    )
-  );
-};
-
-const hasValidExpenses = (expenses) => {
-  return expenses.some((row) => {
+  const hasValidCompanyInfo = (companyInfo) => {
     return (
-      row.itemDescription?.trim() ||
-      Number(row.qty) > 0 ||
-      Number(row.unitPrice) > 0
+      companyInfo?.subCategory?.trim() &&
+      companyInfo?.account?.trim() &&
+      companyInfo?.accountManager?.trim()
     );
-  });
-};
+  };
 
-const hasValidRemarks = (remarks) => {
-  return Array.isArray(remarks)
-    && remarks.some((row) => String(row ?? '').trim() !== '');
-};
-// ===============================================================================================//
+  const hasValidItems = (items) => {
+    return items.some((group) =>
+      (group.subitems || []).some((row) =>
+        row.productCode?.trim() ||
+        row.itemDescription?.trim() ||
+        Number(row.qty) > 0 ||
+        Number(row.costPerUnit) > 0
+      )
+    );
+  };
 
- const handleSaveDraft = () => {
+  const hasValidExpenses = (expenses) => {
+    return expenses.some((row) => {
+      return (
+        row.itemDescription?.trim() ||
+        Number(row.qty) > 0 ||
+        Number(row.unitPrice) > 0
+      );
+    });
+  };
+
+  const handleSaveDraft = () => {
     if (isSubmitting || readOnly) return;
 
     switch(true){
        case !hasValidCompanyInfo(companyInfo):
           toast.error("Company Information is required before saving draft.");
             return;
-
        default:
         break;
     }
@@ -727,31 +739,27 @@ const hasValidRemarks = (remarks) => {
         setIsSubmitting(false);
       },
     });
- };
+  };
 
- const handleSubmit = () => {
+  const handleSubmit = () => {
     if (isSubmitting || readOnly) return;
 
-        switch (true) {
-          case !sourceProject?.id:
-            toast.error('Please save draft first before submitting.');
-            return;
+    switch (true) {
+      case !sourceProject?.id:
+        toast.error('Please save draft first before submitting.');
+        return;
 
-          case !hasValidCompanyInfo(companyInfo):
-             toast.error("Company Information is required before submitting.");
-             return;
+      case !hasValidCompanyInfo(companyInfo):
+         toast.error("Company Information is required before submitting.");
+         return;
 
-          case !hasValidItems(items):
-            toast.error("Please add at least one item before submitting.");
-            return;
+      case !hasValidItems(items):
+        toast.error("Please add at least one item before submitting.");
+        return;
 
-          // case !hasValidExpenses(otherExpenses):
-          //   toast.error("Please add at least one expense before submitting.");
-          //   return;
-
-          default:
-            break;
-        }
+      default:
+        break;
+    }
 
     setIsSubmitting(true);
 
@@ -772,53 +780,53 @@ const hasValidRemarks = (remarks) => {
         },
       }
     );
- };
+  };
 
-const handleClearAll = () => {
-  if (readOnly) return;
+  const handleClearAll = () => {
+    if (readOnly) return;
 
-  toast.custom((t) => (
-    <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-4 rounded-2xl bg-white  p-4 shadow-lg">
-      <div className="flex-1">
-        <p className="text-sm font-medium text-zinc-900">Clear all data?</p>
-        <p className="mt-1 text-xs text-zinc-500">
-          This action cannot be undone.
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <div
-          onClick={() => toast.dismiss(t)}
-          className="cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium text-zinc-900 transition hover:bg-zinc-100"
-        >
-          Cancel
+    toast.custom((t) => (
+      <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-4 rounded-2xl bg-white  p-4 shadow-lg">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-zinc-900">Clear all data?</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            This action cannot be undone.
+          </p>
         </div>
 
-        <div
-          onClick={() => {
-            toast.dismiss(t);
+        <div className="flex items-center gap-2">
+          <div
+            onClick={() => toast.dismiss(t)}
+            className="cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium text-zinc-900 transition hover:bg-zinc-100"
+          >
+            Cancel
+          </div>
 
-            setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
-            setCompanyInfo({
-              subCategory: '',
-              account: '',
-              accountManager: '',
-            });
-            setRemarks(['']);
-            setRebateJustification('');
-            setItems([makeGroupRow()]);
-            setOtherExpenses(makeInitialExpenseRows());
+          <div
+            onClick={() => {
+              toast.dismiss(t);
 
-            toast.success('All data cleared.');
-          }}
-          className="cursor-pointer rounded-md bg-red-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-600"
-        >
-          Confirm
+              setSprfNo(sourceProject?.sprf_no ?? 'SPRFIT-0000');
+              setCompanyInfo({
+                subCategory: '',
+                account: '',
+                accountManager: '',
+              });
+              setRemarks(['']);
+              setRebateJustification('');
+              setItems([makeGroupRow()]);
+              setOtherExpenses(makeInitialExpenseRows());
+
+              toast.success('All data cleared.');
+            }}
+            className="cursor-pointer rounded-md bg-red-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-600"
+          >
+            Confirm
+          </div>
         </div>
       </div>
-    </div>
-  ));
-};
+    ));
+  };
 
   const handleAdvanceCurrent = () => {
     if (isSubmitting || !sourceProject?.id) return;
@@ -881,6 +889,35 @@ const handleClearAll = () => {
           setIsSubmitting(false);
           setShowRejectModal(false);
           setRejectNote('');
+        },
+      }
+    );
+  };
+
+  const handleSendBack = () => {
+    if (isSubmitting || !sourceProject?.id) return;
+
+    if (!sendBackMessage.trim()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    router.post(
+      ziggyRoute('sprf.current.send-back', sourceProject.id),
+      { message: sendBackMessage },
+      {
+        preserveScroll: true,
+        onError: (errors) => {
+          const firstError = Object.values(errors || {})[0];
+          if (firstError) {
+            // let Inertia handle error
+          }
+        },
+        onFinish: () => {
+          setIsSubmitting(false);
+          setShowSendBackModal(false);
+          setSendBackMessage('');
         },
       }
     );
@@ -968,14 +1005,31 @@ const handleClearAll = () => {
                 />
               </div>
 
-              <div className="mt-10 grid grid-cols-12 gap-10 items-start print:mt-4 print:gap-2 print:items-start">
-                <div className="cols-span-12 lg:col-span-5 print:col-span-5">
-                  <Conditions />
-                </div>
+              <div className="mt-10 w-full flex flex-col items-center justify-center print:mt-4 print:gap-2 print:items-start">
+                <div className="flex gap-3">
+                  <div className="w-[40%]">
+                    <Conditions />
+                  </div>
 
-                <div className="cols-span-12 lg:col-span-7 print:col-span-7">
+                  <div className="flex w-[60%] gap-2">
+                    <SprfAddNotes scopeKey="sprf-main" />
+                    <SprfAddComments scopeKey="sprf-main" />
+                  </div>
+                </div>
+                
+                <div className="mt-6 w-[95%] lg:w-[85%] xl:w-[75%]">
                   <NamesBlock
                     signatories={signatories}
+                    timestamps={{
+                      submitted_at: sourceProject?.submitted_at,
+                      dce_acted_at: sourceProject?.dce_acted_at,
+                      esd_acted_at: sourceProject?.esd_acted_at,
+                      vp_ccto_acted_at: sourceProject?.vp_ccto_acted_at,
+                      president_ceo_acted_at: sourceProject?.president_ceo_acted_at,
+                    }}
+                    status={sourceProject?.status}
+                    currentLevel={sourceProject?.current_level}
+                    rejectedAt={sourceProject?.rejected_at}
                     showVpCcto={showVpCcto}
                     showPresidentCeo={showPresidentCeo}
                     showRebateJustification={true}
@@ -985,8 +1039,14 @@ const handleClearAll = () => {
                     isRebateJustificationRequired={isRebateJustificationRequired}
                     readOnly={readOnly}
                   />
-                </div>
               </div>
+
+                
+              </div>
+              
+              
+              
+              
             </div>
           </div>
         </div>
@@ -1046,16 +1106,27 @@ const handleClearAll = () => {
             </div>
           ) : isCurrentRoute && readOnly ? (
             <div className="px-10 py-3 grid grid-cols-3 items-center">
-              <div className="flex items-center justify-start">
+              <div className="flex items-center justify-start gap-2">
                 {canActOnCurrentProject && (
-                  <button
-                    type="button"
-                    onClick={() => setShowRejectModal(true)}
-                    disabled={isSubmitting}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectModal(true)}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowSendBackModal(true)}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 px-5 py-1 rounded-xl border border-amber-400 hover:bg-amber-50 text-amber-600 font-semibold disabled:opacity-50"
+                    >
+                      Send Back
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -1166,6 +1237,54 @@ const handleClearAll = () => {
                 className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
               >
                 Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSendBackModal && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
+            <h2 className="text-lg font-bold text-[#111111]">Send Back SPRF</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              This will return the project to the previous approver.{' '}
+              {Number(sourceProject?.current_level) === 2
+                ? 'Since this is at the first approval step, it will be returned to the Preparer as a draft.'
+                : 'A message is required explaining why it is being sent back.'}
+            </p>
+
+            <textarea
+              value={sendBackMessage}
+              onChange={(e) => setSendBackMessage(e.target.value)}
+              rows={5}
+              className="mt-4 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none hover:border-amber-400 focus:border-amber-500 focus:outline-none focus:ring-0 resize-none"
+              placeholder="Required — explain why this is being sent back"
+            />
+
+            {sendBackMessage.trim() === '' && (
+              <p className="mt-1 text-xs text-red-500 pl-1">A message is required.</p>
+            )}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSendBackModal(false);
+                  setSendBackMessage('');
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendBack}
+                disabled={isSubmitting || sendBackMessage.trim() === ''}
+                className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                Confirm Send Back
               </button>
             </div>
           </div>
