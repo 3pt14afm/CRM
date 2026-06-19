@@ -647,6 +647,13 @@ class SprfCurrentProjectController extends Controller
             'status' => $project->status,
             'remarks' => $project->remarks,
             'rebate_justification' => $project->rebate_justification,
+            
+            'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
+            'dce_acted_at' => $project->dce_acted_at ? $project->dce_acted_at->toISOString() : null,
+            'esd_acted_at' => $project->esd_acted_at ? $project->esd_acted_at->toISOString() : null,
+            'vp_ccto_acted_at' => $project->vp_ccto_acted_at ? $project->vp_ccto_acted_at->toISOString() : null,
+            'president_ceo_acted_at' => $project->president_ceo_acted_at ? $project->president_ceo_acted_at->toISOString() : null,
+
 
             'company_info' => [
                 'subCategory' => $project->sub_category,

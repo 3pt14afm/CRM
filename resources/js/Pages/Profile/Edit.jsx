@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import ChangePasswordModal from './Partials/ChangePasswordModal';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -10,7 +10,14 @@ export default function Edit({ profile }) {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [showSignatureViewer, setShowSignatureViewer] = useState(false);
-    const [signatureUrl, setSignatureUrl] = useState(profile.signature ?? null);
+    const signatureUrl = useMemo(() => {
+        if (!profile.signature) return null;
+        // Strip any existing query params, then append a reliable cache buster 
+        // (You can use a timestamp or profile.updated_at if passed from the backend)
+        const cleanBaseUrl = profile.signature.split('?')[0];
+        return `${cleanBaseUrl}?v=${new Date(profile.updated_at || Date.now()).getTime()}`;
+    }, [profile]);
+
     const [pendingFile, setPendingFile] = useState(null);
     const [pendingPreview, setPendingPreview] = useState(null);
     const [uploading, setUploading] = useState(false);

@@ -220,26 +220,27 @@ public function edit(Request $request): Response
         return Redirect::to('/');
     }
 
-    public function updateSignature(Request $request)
-    {
-        $request->validate([
-            'signature' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:3072'],
-        ]);
+public function updateSignature(Request $request)
+{
+    $request->validate([
+        'signature' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:3072'],
+    ]);
 
-        $user = $request->user();
-        $ext = $request->file('signature')->getClientOriginalExtension();
-        $filename = $user->employee_id . '.' . $ext;
+    $user = $request->user();
+    
+    // Forcefully save all uploaded signatures as .png regardless of original extension
+    $filename = $user->employee_id . '.png';
 
-        // Delete old signature files with any extension to avoid duplicates
-        foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
-            $oldPath = storage_path('app/public/signatures/' . $user->employee_id . '.' . $oldExt);
-            if (file_exists($oldPath)) {
-                unlink($oldPath);
-            }
+    // Delete old signature files with any extension to avoid duplicates
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
+        $oldPath = storage_path('app/public/signatures/' . $user->employee_id . '.' . $oldExt);
+        if (file_exists($oldPath)) {
+            unlink($oldPath);
         }
-
-        $request->file('signature')->storeAs('signatures', $filename, 'public');
-
-        return back()->with('success', 'Signature updated.');
     }
+
+    $request->file('signature')->storeAs('signatures', $filename, 'public');
+
+    return back()->with('success', 'Signature updated.');
+}
 }

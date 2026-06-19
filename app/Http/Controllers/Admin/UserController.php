@@ -687,8 +687,8 @@ public function updateSignatureForUser(Request $request, $id)
 
     $user = \App\Models\User::findOrFail($id);
 
-    $ext      = $request->file('signature')->getClientOriginalExtension();
-    $filename = $user->employee_id . '.' . $ext;
+    // Force the extension to be .png so it matches your frontend
+    $filename = $user->employee_id . '.png';
 
     // Delete old signature files with any extension to avoid duplicates
     foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {

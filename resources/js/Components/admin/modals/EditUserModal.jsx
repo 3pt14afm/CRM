@@ -41,11 +41,10 @@ export default function EditUserModal({
   const [uploadVersion, setUploadVersion] = useState(0);
   const fileInputRef = useRef(null);
 
-  // Replicate ProfileController's logic to fetch existing .png signature dynamically
   const signatureUrl = useMemo(() => {
-    if (!editingUser?.employee_id) return null;
-    // Adding `?v=${uploadVersion}` busts the cache and forces re-render upon successful upload
-    return `/storage/signatures/${editingUser.employee_id}.png?v=${uploadVersion}`;
+      if (!editingUser?.employee_id) return null;
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      return `${baseUrl}/storage/signatures/${editingUser.employee_id}.png?v=${uploadVersion || new Date().getTime()}`;
   }, [editingUser, uploadVersion]);
 
   const handleOpenSignatureModal = () => {
