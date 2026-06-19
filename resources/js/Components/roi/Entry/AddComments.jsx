@@ -66,7 +66,17 @@ const isArchived = ["approved", "rejected"].includes(project?.status?.toLowerCas
     projectData?.metadata?.isPrintPreview === true ||
     projectData?.metadata?.readOnly === true;  
 
-    const canComment = isAssignedConfirmer || isAssignedApprover;
+    const canComment =
+    !!userId &&
+    !!project &&
+    !isArchived &&
+    (() => {
+        const level = Number(project.current_level ?? 0);
+        if (level === 5) return Number(project.confirmed_by) === Number(userId);
+        if (level === 6) return Number(project.approved_by) === Number(userId);
+        return false;
+    })();
+    
     const isLocked = !projectId || !canComment || isPrintPreview || isArchived;
 
 
