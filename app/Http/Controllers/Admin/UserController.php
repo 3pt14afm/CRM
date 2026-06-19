@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -74,6 +75,8 @@ class UserController extends Controller
             ]),
         ]);
     }
+
+
 
     private function getUserManagementUsers(Request $request, $locationLookup, $departmentLookup)
     {
@@ -675,4 +678,29 @@ class UserController extends Controller
                 break;
         }
     }
+
+public function updateSignatureForUser(Request $request, $id)
+{
+    $request->validate([
+        'signature' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:3072'],
+    ]);
+
+    $user = \App\Models\User::findOrFail($id);
+
+    $ext      = $request->file('signature')->getClientOriginalExtension();
+    $filename = $user->employee_id . '.' . $ext;
+
+    // Delete old signature files with any extension to avoid duplicates
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
+        $oldPath = storage_path('app/public/signatures/' . $user->employee_id . '.' . $oldExt);
+        if (file_exists($oldPath)) {
+            unlink($oldPath);
+        }
+    }
+
+    $request->file('signature')->storeAs('signatures', $filename, 'public');
+
+    return back()->with('success', 'Signature updated for ' . trim($user->first_name . ' ' . $user->last_name) . '.');
+}
+           
 }

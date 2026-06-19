@@ -124,13 +124,13 @@ public function index(Request $request)
         $project = RoiArchiveProject::with([
             'items',
             'fees',
-            'user:id,first_name,last_name,position',
-            'reviewedByUser:id,first_name,last_name,position',
-            'checkedByUser:id,first_name,last_name,position',
-            'endorsedByUser:id,first_name,last_name,position',
-            'confirmedByUser:id,first_name,last_name,position',
-            'approvedByUser:id,first_name,last_name,position',
-            'rejectedByUser:id,first_name,last_name,position',
+            'user:id,first_name,last_name,position,employee_id',
+            'reviewedByUser:id,first_name,last_name,position,employee_id',
+            'checkedByUser:id,first_name,last_name,position,employee_id',
+            'endorsedByUser:id,first_name,last_name,position,employee_id',
+            'confirmedByUser:id,first_name,last_name,position,employee_id',
+            'approvedByUser:id,first_name,last_name,position,employee_id',
+            'rejectedByUser:id,first_name,last_name,position,employee_id',
         ])->findOrFail($id);
 
         $this->ensureCanViewArchive($project);
@@ -156,6 +156,30 @@ public function index(Request $request)
                 ],
             ]);
 
+        // Same logic as RoiCurrentProjectController — uses employee_id, storage disk
+      $signatureFor = function ($userRelation) {
+        if (!$userRelation || !$userRelation->employee_id) return null;
+        $employeeId = $userRelation->employee_id;
+
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = storage_path('app/public/signatures/' . $employeeId . '.' . $ext);
+            if (file_exists($path)) {
+                return asset('storage/signatures/' . $employeeId . '.' . $ext) . '?v=' . filemtime($path);
+            }
+        }
+
+        return null;
+    };
+
+        $signatures = [
+            'preparer'     => $signatureFor($project->user),
+            'reviewed_by'  => $signatureFor($project->reviewedByUser),
+            'checked_by'   => $signatureFor($project->checkedByUser),
+            'endorsed_by'  => $signatureFor($project->endorsedByUser),
+            'confirmed_by' => $signatureFor($project->confirmedByUser),
+            'approved_by'  => $signatureFor($project->approvedByUser),
+        ];
+
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
             'project'           => $project,
             'entryProject'      => $project,
@@ -164,11 +188,11 @@ public function index(Request $request)
             'createdBy'         => $project->user?->name ?? '—',
             'role'              => Auth::user()->workflow_role,
             'usersById'         => $usersById,
+            'signatures'        => $signatures,
             'machineCatalog'    => $this->buildMachineCatalog(),
             'consumableCatalog' => $this->buildConsumableCatalog(),
         ]);
     }
-
     /**
      * Stream the requested archive file attachment.
      */

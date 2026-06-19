@@ -24,12 +24,14 @@ class ProfileController extends Controller
 public function edit(Request $request): Response
 {
     $user = $request->user()->load(['department', 'location']);
-
-    $signaturePath = storage_path('app/public/signatures/' . $user->employee_id . '.png');
-    $signatureUrl  = file_exists($signaturePath)
-        ? asset('storage/signatures/' . $user->employee_id . '.png') . '?v=' . filemtime($signaturePath)
-        : null;
-
+    $signatureUrl = null;
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+        $signaturePath = storage_path('app/public/signatures/' . $user->employee_id . '.' . $ext);
+        if (file_exists($signaturePath)) {
+            $signatureUrl = asset('storage/signatures/' . $user->employee_id . '.' . $ext) . '?v=' . filemtime($signaturePath);
+            break;
+        }
+    }
     return Inertia::render('Profile/Edit', [
         'mustVerifyEmail' => $user instanceof MustVerifyEmail,
         'status'          => session('status'),
@@ -218,17 +220,26 @@ public function edit(Request $request): Response
         return Redirect::to('/');
     }
 
-public function updateSignature(Request $request)
-{
-    $request->validate([
-        'signature' => ['required', 'image', 'mimes:png', 'max:3072'], // 3MB
-    ]);
+    public function updateSignature(Request $request)
+    {
+        $request->validate([
+            'signature' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:3072'],
+        ]);
 
-    $user = $request->user();
-    $filename = $user->employee_id . '.png';
+        $user = $request->user();
+        $ext = $request->file('signature')->getClientOriginalExtension();
+        $filename = $user->employee_id . '.' . $ext;
 
-    $request->file('signature')->storeAs('signatures', $filename, 'public');
+        // Delete old signature files with any extension to avoid duplicates
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
+            $oldPath = storage_path('app/public/signatures/' . $user->employee_id . '.' . $oldExt);
+            if (file_exists($oldPath)) {
+                unlink($oldPath);
+            }
+        }
 
-    return back()->with('success', 'Signature updated.');
-}
+        $request->file('signature')->storeAs('signatures', $filename, 'public');
+
+        return back()->with('success', 'Signature updated.');
+    }
 }

@@ -40,6 +40,15 @@ export default function Edit({ profile }) {
         const file = e.target.files[0];
         if (!file) return;
 
+        const allowedExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+
+        if (!allowedExtensions.includes(fileExtension)) {
+            toast.error('Invalid file type. Only PNG, JPG, JPEG, and WEBP are allowed.');
+            e.target.value = '';
+            return;
+        }
+
         if (file.size > 3 * 1024 * 1024) {
             toast.error('File size must not exceed 3MB.');
             e.target.value = '';
@@ -280,7 +289,7 @@ export default function Edit({ profile }) {
                                     {pendingFile ? (
                                         <span className="text-gray-700 font-medium">{pendingFile.name}</span>
                                     ) : (
-                                        <span>Click to browse — PNG, JPG up to 3MB</span>
+                                       <span>Click to browse — PNG, JPG, JPEG, WEBP up to 3MB</span>
                                     )}
                                 </button>
                             </div>

@@ -72,15 +72,10 @@ function Names() {
   const approvedAt = timestampOf(project?.approved_at);
   const rejectedAt = isRejected ? timestampOf(project?.rejected_at) : '';
 
-  // Resolve preparer signature from user_id
-  const preparerSignature = hasPageProject
-    ? (() => {
-        const uid = project?.user_id;
-        if (!uid) return null;
-        const path = `/storage/signatures/${uid}.png`;
-        return signatures?.preparer ?? path ?? null;
-      })()
-    : null;
+  // Helper to only show signature if timestamp exists
+  const getSignature = (signatureUrl, timestamp) => {
+    return timestamp ? signatureUrl : null;
+  };
 
   return (
     <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-0">
@@ -90,7 +85,8 @@ function Names() {
           name={preparedBy}
           title={preparedByPosition}
           timestamp={preparedAt}
-          signatureUrl={preparerSignature}
+          isRejectedAction={false}
+          signatureUrl={getSignature(signatures?.preparer ?? null, preparedAt)}
         />
 
         <Signatory
@@ -99,7 +95,7 @@ function Names() {
           title={isRejected && rejectedLevel === 2 ? rejectedByPosition : reviewedByPosition}
           timestamp={isRejected && rejectedLevel === 2 ? rejectedAt : reviewedAt}
           isRejectedAction={isRejected && rejectedLevel === 2}
-          signatureUrl={signatures?.reviewed_by ?? null}
+          signatureUrl={getSignature(signatures?.reviewed_by ?? null, isRejected && rejectedLevel === 2 ? rejectedAt : reviewedAt)}
         />
 
         <Signatory
@@ -108,7 +104,7 @@ function Names() {
           title={isRejected && rejectedLevel === 3 ? rejectedByPosition : checkedByPosition}
           timestamp={isRejected && rejectedLevel === 3 ? rejectedAt : checkedAt}
           isRejectedAction={isRejected && rejectedLevel === 3}
-          signatureUrl={signatures?.checked_by ?? null}
+          signatureUrl={getSignature(signatures?.checked_by ?? null, isRejected && rejectedLevel === 3 ? rejectedAt : checkedAt)}
         />
 
         <Signatory
@@ -117,7 +113,7 @@ function Names() {
           title={isRejected && rejectedLevel === 4 ? rejectedByPosition : endorsedByPosition}
           timestamp={isRejected && rejectedLevel === 4 ? rejectedAt : endorsedAt}
           isRejectedAction={isRejected && rejectedLevel === 4}
-          signatureUrl={signatures?.endorsed_by ?? null}
+          signatureUrl={getSignature(signatures?.endorsed_by ?? null, isRejected && rejectedLevel === 4 ? rejectedAt : endorsedAt)}
         />
 
         <div className="col-start-3">
@@ -127,7 +123,7 @@ function Names() {
             title={isRejected && rejectedLevel === 5 ? rejectedByPosition : confirmedByPosition}
             timestamp={isRejected && rejectedLevel === 5 ? rejectedAt : confirmedAt}
             isRejectedAction={isRejected && rejectedLevel === 5}
-            signatureUrl={signatures?.confirmed_by ?? null}
+            signatureUrl={getSignature(signatures?.confirmed_by ?? null, isRejected && rejectedLevel === 5 ? rejectedAt : confirmedAt)}
           />
         </div>
 
@@ -138,7 +134,7 @@ function Names() {
             title={isRejected && rejectedLevel === 6 ? rejectedByPosition : approvedByPosition}
             timestamp={isRejected && rejectedLevel === 6 ? rejectedAt : approvedAt}
             isRejectedAction={isRejected && rejectedLevel === 6}
-            signatureUrl={signatures?.approved_by ?? null}
+            signatureUrl={getSignature(signatures?.approved_by ?? null, isRejected && rejectedLevel === 6 ? rejectedAt : approvedAt)}
           />
         </div>
       </div>
@@ -150,26 +146,30 @@ const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureU
   <div className="flex flex-col space-y-4 justify-center">
     <span className="text-[10px] font-extrabold text-gray-800 tracking-tight print:font-semibold">{label}</span>
     <div className="pt-2">
-      <div className="flex text-[11px] justify-end gap-1 print:gap-0.5 min-w-[175px] print:min-w-[150px]">
-        <p className="text-gray-50/0">.</p>
-        <p className={isRejectedAction ? "text-red-500" : "text-[#175500]"}>{timestamp}</p>
-      </div>
-
-      {/* Name line with signature overlayed behind it */}
-      <div className="relative w-full h-16">
-    {signatureUrl && (
-        <img
+      {/* Container for signature and name line */}
+      <div className="relative w-full h-16 ">
+        {signatureUrl && (
+          <img
             src={signatureUrl}
             alt="Signature"
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            className="absolute inset-0 -ml-6 w-full h-full object-contain pointer-events-none"
             style={{ mixBlendMode: 'multiply' }}
             onError={(e) => { e.target.style.display = 'none'; }}
-        />
-    )}
-    <p className="absolute bottom-0 left-0 right-0 text-sm text-center font-semibold text-gray-900 border-b border-gray-400 w-full pb-0.5 print:font-medium print:text-[13px] print:min-w-[150px]">
-        {name || '—'}
-    </p>
-</div>
+          />
+        )}
+        
+        {/* Name centered at the bottom border */}
+        <p className="absolute bottom-0 left-0 right-0 text-sm text-center font-semibold text-gray-900 border-b border-gray-400 pb-0.5 print:font-medium print:text-[13px] print:min-w-[120px]">
+          {name || '—'}
+        </p>
+
+        {/* Date and time positioned beside the signature/name area aligned horizontally on the right */}
+        <span 
+          className={`absolute right-2    bottom-7 text-[10.5px] font-normal tracking-tight whitespace-nowrap leading-none select-none print:text-[7px] ${isRejectedAction ? "text-red-500" : "text-[#175500]"}`}
+        >
+          {timestamp}
+        </span>
+      </div>
 
       <p className="text-[11px] text-center text-gray-500 mt-1">{title}</p>
     </div>

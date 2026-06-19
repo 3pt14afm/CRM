@@ -75,7 +75,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::patch('/users/{user}/unban', [UserController::class, 'userUnban'])->name('users.unban');
         Route::delete('/users/{user}', [UserController::class, 'userDestroy'])->name('users.destroy');
         Route::post('/users/{user}/reset-password', [UserController::class, 'userResetPassword'])->name('users.reset-password');
-
+        Route::post('/users/{id}/signature', [UserController::class, 'updateSignatureForUser'])->name('admin.users.signature');
         // Approver Matrix CRUD
         Route::post('/approver-matrix', [ApproverMatrixController::class, 'store'])->name('approver-matrix.store');
         Route::put('/approver-matrix/{locationDepartment}', [ApproverMatrixController::class, 'update'])->name('approver-matrix.update');
