@@ -2,6 +2,7 @@ import React from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import ArchiveList from './ArchiveList';
+import { FaAngleLeft } from 'react-icons/fa';
 
 export default function Archive({ archiveProjects = null, stats = null, filters = null, locations={locations} }) {
   const today = new Date();
@@ -21,6 +22,13 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
           {/* HEADER */}
           <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
             <div className="flex items-baseline gap-1">
+              {/* <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="mr-2 mt-2   self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all"
+              >
+                <FaAngleLeft size={20} className="text-[#195C00]" />
+              </button> */}
               <h1 className="font-semibold text-sm text-slate-500 hidden sm:block">
                 Project ROI Approval
               </h1>

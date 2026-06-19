@@ -8,7 +8,7 @@ import { FaRegFloppyDisk } from "react-icons/fa6";
 import { IoPrintSharp, IoSend, IoTrashSharp } from "react-icons/io5";
 import { LuScanEye } from "react-icons/lu";
 import { MdDisabledByDefault } from "react-icons/md";
-import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaArrowLeft, FaArrowRight, FaAngleLeft  } from 'react-icons/fa';
 import { useProjectData } from '@/Context/ProjectContext';
 import { Toaster } from 'sonner';
 
@@ -160,216 +160,122 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
             : 'ROI Entry'
         }
       />
-      <div className="min-h-screen flex flex-col">
-        <div className="flex-1 pb-24">
-          <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
-            <div className="flex gap-1">
-              <h1 className="font-semibold mt-3">Project ROI Approval</h1>
-              <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">
-                {routeName === 'current' || routeName === 'archive'
-                  ? `${entryProject?.company_name}`
-                  : 'Entry'}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1 items-end">
-              <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
-              <p className="text-base font-semibold text-right">Reference: {projectRef}</p>
-            </div>
+    <div className="min-h-screen flex flex-col">
+      <div className="flex-1 pb-24">
+        <div className=" pt-8 pb-3 flex justify-between px-5">
+          <div className="flex gap-1  items-center">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="mr-2 mt-3 self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all"
+            >
+              <FaAngleLeft size={20} className="text-[#195C00]" />
+            </button>
+            <h1 className="font-semibold mt-3">Project ROI Approval</h1>
+            <p className="mt-3">/</p>
+            <p className="text-2xl mt-3 font-semibold">
+              {routeName === 'current' || routeName === 'archive'
+                ? `${entryProject?.company_name}`
+                : 'Entry'}
+            </p>
           </div>
 
-          <div className="mx-5">
-            <div className="flex gap-[2px]">
-              <button
-                onClick={() => setTab('Machine')}
-                className={`px-7 text-sm py-1 ${
-                  tab === 'Machine'
-                    ? 'bg-[#f8f8f8] border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
-                    : 'bg-[#B5EBA2]/50 mt-2 pt-2 rounded-t-xl'
-                }`}
-              >
-                Machine Configuration
-              </button>
-
-              <button
-                onClick={() => setTab('Summary')}
-                className={`px-7 text-sm py-1 ${
-                  tab === 'Summary'
-                    ? 'bg-[#f8f8f8] border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
-                    : 'bg-[#B5EBA2]/50 mt-2 pt-2 rounded-t-xl'
-                }`}
-              >
-                Summary
-              </button>
-            </div>
+          <div className="flex flex-col gap-1 items-end">
+            <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
+            <p className="text-base font-semibold text-right">Reference: {projectRef}</p>
           </div>
-
-          {tab === 'Machine' ? (
-            <MachineConfigTab
-              key={`machine-${entryProject?.id ?? 'new'}-${resetKey}`}
-              readOnly={readOnly}
-              buttonClicked={buttonClicked}
-              showCompanyInfoErrors={showCompanyInfoErrors}
-              showOutrightErrors={showOutrightErrors}
-            />
-          ) : tab === 'Summary' ? (
-            <Summary1stYear
-              key={`summary-${entryProject?.id ?? 'new'}-${resetKey}`}
-              ref={summaryRef}
-            />
-          ) : tab === 'Succeeding' ? (
-            <SucceedingYears
-              key={`succeeding-${entryProject?.id ?? 'new'}-${resetKey}`}
-              ref={succeedingRef}
-            />
-          ) : null}
         </div>
 
-        <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
-          <div className="px-10 py-2 flex items-center justify-between relative">
-            {showMachineDraftActions && (
-              <>
+        <div className="mx-5">
+          <div className="flex gap-[2px]">
+            <button
+              onClick={() => setTab('Machine')}
+              className={`px-7 text-sm py-1 ${
+                tab === 'Machine'
+                  ? 'bg-[#f8f8f8] border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
+                  : 'bg-[#B5EBA2]/50 mt-2 pt-2 rounded-t-xl'
+              }`}
+            >
+              Machine Configuration
+            </button>
+
+            <button
+              onClick={() => setTab('Summary')}
+              className={`px-7 text-sm py-1 ${
+                tab === 'Summary'
+                  ? 'bg-[#f8f8f8] border border-t-[#2c2c2e]/20 font-semibold border-b-0 border-x-[#2c2c2e]/20 rounded-t-xl'
+                  : 'bg-[#B5EBA2]/50 mt-2 pt-2 rounded-t-xl'
+              }`}
+            >
+              Summary
+            </button>
+          </div>
+        </div>
+
+        {tab === 'Machine' ? (
+          <MachineConfigTab
+            key={`machine-${entryProject?.id ?? 'new'}-${resetKey}`}
+            readOnly={readOnly}
+            buttonClicked={buttonClicked}
+            showCompanyInfoErrors={showCompanyInfoErrors}
+            showOutrightErrors={showOutrightErrors}
+          />
+        ) : tab === 'Summary' ? (
+          <Summary1stYear
+            key={`summary-${entryProject?.id ?? 'new'}-${resetKey}`}
+            ref={summaryRef}
+          />
+        ) : tab === 'Succeeding' ? (
+          <SucceedingYears
+            key={`succeeding-${entryProject?.id ?? 'new'}-${resetKey}`}
+            ref={succeedingRef}
+          />
+        ) : null}
+      </div>
+
+      <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
+        <div className="px-10 py-2 flex items-center justify-between relative">
+          {showMachineDraftActions && (
+            <>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+              >
+                <IoTrashSharp /> Clear All
+              </button>
+
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={handleClearAll}
-                  className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+                  onClick={handleSaveDraft}
+                  className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
                 >
-                  <IoTrashSharp /> Clear All
+                  <FaRegFloppyDisk /> Save Draft
                 </button>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSaveDraft}
-                    className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
-                  >
-                    <FaRegFloppyDisk /> Save Draft
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
-                  >
-                    Submit <IoSend />
-                  </button>
-                </div>
-              </>
-            )}
-
-            {showEntrySummaryDraftActions && (
-              <>
                 <button
                   type="button"
-                  onClick={handleClearAll}
-                  className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+                  onClick={handleSubmit}
+                  className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
                 >
-                  <IoTrashSharp /> Clear All
+                  Submit <IoSend />
                 </button>
+              </div>
+            </>
+          )}
 
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openPrintPage(false)}
-                    className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
-                  >
-                    <LuScanEye /> Print Preview
-                  </button>
+          {showEntrySummaryDraftActions && (
+            <>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold"
+              >
+                <IoTrashSharp /> Clear All
+              </button>
 
-                  <button
-                    type="button"
-                    onClick={() => openPrintPage(true)}
-                    className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
-                  >
-                    <IoPrintSharp /> Print
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSaveDraft}
-                    className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
-                  >
-                    <FaRegFloppyDisk /> Save Draft
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
-                  >
-                    Submit <IoSend />
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Approval actions — only visible to assigned approvers */}
-            {showApprovalButtons && (
-              <>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleReject}
-                    className="px-5 py-1 gap-2 items-center flex rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-medium"
-                  >
-                    <MdDisabledByDefault /> Disapprove/Reject
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleBackToSender}
-                    className="px-5 py-1 gap-2 items-center flex rounded-xl border bg-[#CD4E00] text-white hover:shadow-innerOrange font-medium"
-                  >
-                    <FaArrowLeft /> Back to Sender
-                  </button>
-                </div>
-
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openPrintPage(false)}
-                    className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
-                  >
-                    <LuScanEye /> Print Preview
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => openPrintPage(true)}
-                    className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
-                  >
-                    <IoPrintSharp /> Print
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {!canApprove ? (
-                    <button
-                      type="button"
-                      onClick={() => handleAdvance(entryProject?.id)}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
-                    >
-                      Submit to Next Level <FaArrowRight />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(entryProject?.id)}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow"
-                    >
-                      Approve
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Print-only footer — visible to all non-draft, non-approver viewers */}
-            {showPrintOnly && (
-              <div className="ml-auto flex items-center gap-2">
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => openPrintPage(false)}
@@ -386,10 +292,115 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
                   <IoPrintSharp /> Print
                 </button>
               </div>
-            )}
-          </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="flex items-center gap-2 px-5 pl-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold"
+                >
+                  <FaRegFloppyDisk /> Save Draft
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
+                >
+                  Submit <IoSend />
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Approval actions — only visible to assigned approvers */}
+          {showApprovalButtons && (
+            <>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleReject}
+                  className="px-5 py-1 gap-2 items-center flex rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-medium"
+                >
+                  <MdDisabledByDefault /> Disapprove/Reject
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBackToSender}
+                  className="px-5 py-1 gap-2 items-center flex rounded-xl border bg-[#CD4E00] text-white hover:shadow-innerOrange font-medium"
+                >
+                  <FaArrowLeft /> Back to Sender
+                </button>
+              </div>
+
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(false)}
+                  className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                >
+                  <LuScanEye /> Print Preview
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(true)}
+                  className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                >
+                  <IoPrintSharp /> Print
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {!canApprove ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAdvance(entryProject?.id)}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium"
+                  >
+                    Submit to Next Level <FaArrowRight />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleApprove(entryProject?.id)}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow"
+                  >
+                    Approve
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Print-only footer — visible to all non-draft, non-approver viewers */}
+          {showPrintOnly && (
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openPrintPage(false)}
+                className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+              >
+                <LuScanEye /> Print Preview
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openPrintPage(true)}
+                className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+              >
+                <IoPrintSharp /> Print
+              </button>
+            </div>
+          )}
         </div>
       </div>
+    </div>
+
+
+
+
 
       {showSendBackModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
@@ -438,9 +449,6 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
         </div>
       )}
 
-<div className="text-xs text-red-500 px-10">
-  levelNum: {levelNum} | projectLevel: {projectLevel} | isAssignedApproverLevel: {String(isAssignedApproverLevel)}
-</div>
     </>
   );
 }
