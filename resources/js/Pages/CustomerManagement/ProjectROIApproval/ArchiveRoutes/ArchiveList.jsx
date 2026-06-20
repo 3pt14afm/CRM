@@ -1,189 +1,48 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { router } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
+import FilterChip from '@/Components/roi/filters/FilterChip';
+import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
+import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
+import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
 import {
-  MdSearch, MdCheck, MdCancel, MdExpandMore,
-  MdOutlineFilterAlt, MdDateRange, MdClose, MdPerson,
-  MdLocationOn, MdVerifiedUser,
+  MdSearch, MdCheck, MdExpandMore,
+  MdOutlineFilterAlt, MdDateRange, MdClose,
+  MdCheckCircle, MdCancel, MdPerson, MdLocationOn, MdVerifiedUser,
   MdOutlineClose,
-} from "react-icons/md";
-import { TbLayoutRows } from "react-icons/tb";
-import { route as ziggyRoute } from "ziggy-js";
-import { router } from '@inertiajs/react';
+} from 'react-icons/md';
+import { TbLayoutRows } from 'react-icons/tb';
+import { route as ziggyRoute } from 'ziggy-js';
 
 function formatDateLabel(dateStr) {
   try {
     if (!dateStr) return "—";
-    
-    // Extract YYYY-MM-DD from '2026-06-18 14:00:00'
     const datePart = dateStr.split(' ')[0];
     const [year, month, day] = datePart.split('-');
-    
-    // Create date using Date.UTC to prevent timezone offsets
     const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
-    
     if (isNaN(date.getTime())) return "—";
-    
     return date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'UTC'
+      month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
     });
-  } catch (e) {
+  } catch {
     return "—";
   }
 }
 
-/* ─── Text filter popup (Decided By / Prepared By) ───────────────────────── */
-function TextFilterPopup({ icon, label, placeholder, value, onChange, onApply, open, onClose }) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => { setDraft(value); }, [value, open]);
-  const apply = () => { onChange(draft); onApply(draft); onClose(); };
-  const clear  = () => { setDraft(""); onChange(""); onApply(""); onClose(); };
-  if (!open) return null;
-  return (
-    <div className="absolute left-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#E9F7E7] border border-[#4FA34E]/20">{icon}</div>
-          <span className="text-[12px] font-semibold text-slate-700 tracking-wide">{label}</span>
-        </div>
-        <button type="button" onClick={onClose}
-          className="h-6 w-6 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-          <MdClose size={13} />
-        </button>
-      </div>
-      <div className="px-3 py-3">
-        <input autoFocus type="text" value={draft} placeholder={placeholder}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && apply()}
-          className="w-full h-9 px-3 text-[13px] bg-white text-slate-700 border border-gray-200 rounded-lg
-            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150" />
-      </div>
-      <div className="px-3 pb-3 flex items-center gap-2 border-t border-gray-100 pt-3">
-        <button type="button" onClick={clear}
-          className="flex-1 h-8 text-[12px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors duration-150">
-          Clear
-        </button>
-        <button type="button" onClick={apply}
-          className="flex-1 h-8 text-[12px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors duration-150">
-          Apply
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Location searchable dropdown popup ─────────────────────────────────── */
-function LocationFilterPopup({ locations = [], selectedId, onApply, open, onClose }) {
-  const [search, setSearch] = useState("");
-  const [picked, setPicked] = useState(selectedId);
-  const inputRef            = useRef(null);
-
-  // 👇 Remove this once confirmed working
-  useEffect(() => { if (open) console.log("[LocationFilterPopup] locations:", locations); }, [open]);
-
-  useEffect(() => {
-    if (open) { setPicked(selectedId); setSearch(""); setTimeout(() => inputRef.current?.focus(), 50); }
-  }, [open, selectedId]);
-
-  const filtered = locations.filter((l) => {
-    const q = search.toLowerCase();
-    return (
-      (l.name ?? "").toLowerCase().includes(q) ||
-      (l.code ?? "").toLowerCase().includes(q)
-    );
-  });
-
-  const apply = (id) => { onApply(id ?? picked); onClose(); };
-  const clear  = ()  => { setPicked(""); onApply(""); onClose(); };
-
-  if (!open) return null;
-  return (
-    <div className="absolute left-0 top-11 z-50 w-72 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden flex flex-col"
-      style={{ maxHeight: 340 }}>
-
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#E9F7E7] border border-[#4FA34E]/20">
-            <MdLocationOn size={14} className="text-[#4FA34E]" />
-          </div>
-          <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Location</span>
-        </div>
-        <button type="button" onClick={onClose}
-          className="h-6 w-6 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-          <MdClose size={13} />
-        </button>
-      </div>
-
-      {/* Search input */}
-      <div className="px-3 pt-3 pb-2 flex-shrink-0">
-        <div className="relative">
-          <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none" />
-          <input ref={inputRef} type="text" value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search"
-            className="w-full h-8 pl-8 pr-3 text-[13px] bg-slate-50 text-slate-700 border border-gray-200 rounded-lg
-              focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-              transition-[border-color,box-shadow] duration-150" />
-        </div>
-      </div>
-
-      {/* Location list */}
-      <div className="overflow-y-auto flex-1 px-2 pb-2">
-        {filtered.length === 0 ? (
-          <p className="text-center text-[12px] text-slate-400 py-4">No locations found</p>
-        ) : (
-          filtered.map((l) => {
-            const isActive = String(picked) === String(l.id);
-            return (
-              <button key={l.id} type="button"
-                onClick={() => apply(l.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors duration-100 group
-                  ${isActive ? "bg-[#E9F7E7]" : "hover:bg-slate-50"}`}>
-                <div className={`h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold
-                  ${isActive ? "bg-[#4FA34E] text-white" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"}`}>
-                  {l.code?.slice(0, 2)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-[13px] font-medium truncate ${isActive ? "text-[#2DA300]" : "text-slate-700"}`}>{l.name}</p>
-                  <p className="text-[10px] text-slate-400">{l.code}</p>
-                </div>
-                {isActive && <MdCheckCircle size={15} className="text-[#4FA34E] flex-shrink-0" />}
-              </button>
-            );
-          })
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="px-3 pb-3 pt-2 border-t border-gray-100 flex-shrink-0">
-        <button type="button" onClick={clear}
-          className="w-full h-8 text-[12px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors duration-150">
-          Clear filter
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Main component ─────────────────────────────────────────────────────── */
 function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, locations = [] }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
 
   const [search,       setSearch]       = useState(filters?.search      ?? "");
   const [statusFilter, setStatusFilter] = useState(filters?.status      ?? "");
-  const [perPage,      setPerPage]      = useState(filters?.per_page     ?? 10);
-  const [dateFrom,     setDateFrom]     = useState(filters?.date_from    ?? "");
-  const [dateTo,       setDateTo]       = useState(filters?.date_to      ?? "");
-  const [decidedBy,    setDecidedBy]    = useState(filters?.decided_by   ?? "");
-  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by  ?? "");
-  const [locationId,   setLocationId]   = useState(filters?.location_id  ?? "");
+  const [perPage,      setPerPage]      = useState(filters?.per_page    ?? 10);
+  const [dateFrom,     setDateFrom]     = useState(filters?.date_from   ?? "");
+  const [dateTo,       setDateTo]       = useState(filters?.date_to     ?? "");
+  const [decidedBy,    setDecidedBy]    = useState(filters?.decided_by  ?? "");
+  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by ?? "");
+  const [locationId,   setLocationId]   = useState(filters?.location_id ?? "");
 
   const [showDatePicker,    setShowDatePicker]    = useState(false);
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
@@ -192,7 +51,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
   const [showLocation,      setShowLocation]      = useState(false);
 
   const [perPageInput, setPerPageInput] = useState(String(filters?.per_page ?? 10));
-  const [loading, setLoading]           = useState(false);
+  const [loading,      setLoading]      = useState(false);
 
   const datePickerRef    = useRef(null);
   const perPagePickerRef = useRef(null);
@@ -214,10 +73,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Resolved name for the active location chip label
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
   , [locationId, locations]);
+
+  const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || decidedBy || preparedBy || locationId);
 
   const tiles = useMemo(() => {
     const totalArchiveProjects  = stats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
@@ -229,11 +89,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
   }, [stats, localArchiveProjects]);
 
   const columns = useMemo(() => [
-{
-    key: "PreparedBy",
-    header: <div>PREPARED BY</div>,
-    cell: (r) => <span className="text-[#195c00] font-medium">{r.user?.name ?? r.prepared_by_name ?? "—"}</span>,
-  },
+    {
+      key: "PreparedBy",
+      header: <div>PREPARED BY</div>,
+      cell: (r) => <span className="text-[#195c00] font-medium">{r.user?.name ?? r.prepared_by_name ?? "—"}</span>,
+    },
     {
       key: "reference",
       header: <div className="text-center w-full">REFERENCE</div>,
@@ -268,8 +128,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
       cell: (r) => <span className="font-medium flex justify-center items-center">{r.contract_type ?? "—"}</span>,
     },
     {
-      header: <div className="text-center w-full">STATUS</div>,
       key: "status",
+      header: <div className="text-center w-full">STATUS</div>,
       cell: (row) => {
         const s = String(row.status ?? "").toLowerCase();
         const isRejected = s === "rejected";
@@ -288,9 +148,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
               ) : isApproved ? (
                 <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
               ) : (
-                <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" /> 
+                <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />
               )}
-              <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">{row.decided_by_name ?? "—"}</span>
+              <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">
+                {row.decided_by_name ?? "—"}
+              </span>
             </div>
           </div>
         );
@@ -305,8 +167,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
       ),
       cell: (r) => (
         <span className="text-slate-600 text-xs flex justify-center items-center whitespace-nowrap">
-          {/* Check if property exists and has content before calling the function */}
-      {r.decided_at_display ? formatDateLabel(r.decided_at_display) : "—"}
+          {r.decided_at_display ? formatDateLabel(r.decided_at_display) : "—"}
         </span>
       ),
     },
@@ -316,8 +177,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
       cell: (r) => (
         <div className="flex items-center justify-center gap-2">
           <button
-            className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
             type="button"
+            className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
             onClick={() => router.visit(ziggyRoute("roi.archive.show", r.id))}
           >
             <IoEyeOutline className="text-[17px]" />
@@ -328,70 +189,88 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
   ], []);
 
   /* ── Fetch ── */
-/* ── Refactored Fetch Function ── */
-const fetchArchivedData = async ({
-  targetPage = 1,
-  currentSearch = search,
-  currentStatus = statusFilter,
-  currentPerPage = perPage,
-  currentDateFrom = dateFrom,
-  currentDateTo = dateTo,
-  currentDecidedBy = decidedBy,
-  currentPreparedBy = preparedBy,
-  currentLocationId = locationId,
-} = {}) => {
-  setLoading(true);
-  try {
-    const response = await axios.get(ziggyRoute("roi.archive"), {
-      params: {
-        page:        targetPage,
-        search:      currentSearch      || undefined,
-        status:      currentStatus      || undefined,
-        per_page:    currentPerPage,
-        date_from:   currentDateFrom    || undefined,
-        date_to:     currentDateTo      || undefined,
-        decided_by:  currentDecidedBy   || undefined,
-        prepared_by: currentPreparedBy  || undefined,
-        location_id: currentLocationId  || undefined,
-      },
-      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+  const fetchArchivedData = async ({
+    targetPage        = 1,
+    currentSearch     = search,
+    currentStatus     = statusFilter,
+    currentPerPage    = perPage,
+    currentDateFrom   = dateFrom,
+    currentDateTo     = dateTo,
+    currentDecidedBy  = decidedBy,
+    currentPreparedBy = preparedBy,
+    currentLocationId = locationId,
+  } = {}) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(ziggyRoute("roi.archive"), {
+        params: {
+          page:        targetPage,
+          search:      currentSearch      || undefined,
+          status:      currentStatus      || undefined,
+          per_page:    currentPerPage,
+          date_from:   currentDateFrom    || undefined,
+          date_to:     currentDateTo      || undefined,
+          decided_by:  currentDecidedBy   || undefined,
+          prepared_by: currentPreparedBy  || undefined,
+          location_id: currentLocationId  || undefined,
+        },
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      });
+      const payload = response.data?.props?.archiveProjects ?? response.data?.archiveProjects ?? response.data;
+      setLocalArchiveProjects(payload);
+    } catch (error) {
+      console.error("Failed to query archived records:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchArchivedData({ targetPage: 1 }), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const handleStatusChange    = (val) => { setStatusFilter(val); fetchArchivedData({ currentStatus: val }); };
+  const handleDecidedByApply  = (val) => { setDecidedBy(val);   fetchArchivedData({ currentDecidedBy: val }); };
+  const handlePreparedByApply = (val) => { setPreparedBy(val);  fetchArchivedData({ currentPreparedBy: val }); };
+  const handleLocationApply   = (val) => { setLocationId(val);  fetchArchivedData({ currentLocationId: val }); };
+  const handleDateApply       = ()    => { setShowDatePicker(false); fetchArchivedData(); };
+  const handleDateClear       = ()    => {
+    setDateFrom("");
+    setDateTo("");
+    setShowDatePicker(false);
+    fetchArchivedData({ currentDateFrom: undefined, currentDateTo: undefined });
+  };
+  const handlePerPageInputApply = () => {
+    const raw = parseInt(perPageInput, 10);
+    const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 500) : perPage;
+    setPerPage(num); setPerPageInput(String(num)); setShowPerPagePicker(false);
+    fetchArchivedData({ currentPerPage: num });
+  };
+  const handleClearAllFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setDecidedBy("");
+    setPreparedBy("");
+    setLocationId("");
+    setShowDatePicker(false);
+    setShowDecidedBy(false);
+    setShowPreparedBy(false);
+    setShowLocation(false);
+    fetchArchivedData({
+      currentSearch:     "",
+      currentStatus:     "",
+      currentDateFrom:   undefined,
+      currentDateTo:     undefined,
+      currentDecidedBy:  "",
+      currentPreparedBy: "",
+      currentLocationId: "",
     });
-    const payload = response.data?.props?.archiveProjects ?? response.data?.archiveProjects ?? response.data;
-    setLocalArchiveProjects(payload);
-  } catch (error) {
-    console.error("Failed to query archived records:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-useEffect(() => {
-  const t = setTimeout(() => {
-    fetchArchivedData({ targetPage: 1 });
-  }, 400);
-  return () => clearTimeout(t);
-}, [search]);
-
-const handleStatusChange    = (val) => { setStatusFilter(val);  fetchArchivedData({ currentStatus: val }); };
-const handleDecidedByApply  = (val) => { setDecidedBy(val);     fetchArchivedData({ currentDecidedBy: val }); };
-const handlePreparedByApply = (val) => { setPreparedBy(val);    fetchArchivedData({ currentPreparedBy: val }); };
-const handleLocationApply   = (val) => { setLocationId(val);    fetchArchivedData({ currentLocationId: val }); };
-const handleDateApply       = ()    => { setShowDatePicker(false); fetchArchivedData(); };
-const handleDateClear       = ()    => { 
-  setDateFrom(""); 
-  setDateTo(""); 
-  setShowDatePicker(false); 
-  fetchArchivedData({ currentDateFrom: undefined, currentDateTo: undefined }); 
-};
-
-const handlePerPageInputApply = () => {
-  const raw = parseInt(perPageInput, 10);
-  const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 500) : perPage;
-  setPerPage(num); setPerPageInput(String(num)); setShowPerPagePicker(false);
-  fetchArchivedData({ currentPerPage: num });
-};
-
-const goToPage = (p) => fetchArchivedData({ targetPage: p });
+  const goToPage = (p) => fetchArchivedData({ targetPage: p });
 
   const hasDateFilter = dateFrom || dateTo;
   const dateLabel = (() => {
@@ -403,47 +282,33 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
 
   const rows = localArchiveProjects?.data ?? [];
   const pagination = localArchiveProjects && typeof localArchiveProjects.current_page === "number"
-    ? { page: localArchiveProjects.current_page, perPage: localArchiveProjects.per_page ?? perPage, total: localArchiveProjects.total ?? rows.length, onPageChange: goToPage }
+    ? {
+        page:         localArchiveProjects.current_page,
+        perPage:      localArchiveProjects.per_page ?? perPage,
+        total:        localArchiveProjects.total ?? rows.length,
+        onPageChange: goToPage,
+      }
     : null;
 
-  /* ── FilterChip ── */
-  const FilterChip = ({ active, icon, label, value, onClick, onClear }) => (
-    <button type="button" onClick={onClick}
-      className={`h-9 flex items-center gap-1.5 px-2.5 text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap
-        ${active
-          ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
-          : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"
-        }`}
-    >
-      <span className={active ? "text-[#4FA34E]" : "text-slate-400"}>{icon}</span>
-      {active
-        ? <span className="text-[12px] max-w-[120px] truncate">{value}</span>
-        : <span className="text-[12px]">{label}</span>
-      }
-      {active && (
-        <span className="ml-0.5 flex items-center text-[#2DA300] hover:text-red-400 transition-colors"
-          onMouseDown={(e) => { e.stopPropagation(); onClear(); }}>
-          <MdClose size={13} />
-        </span>
-      )}
-    </button>
-  );
-
-  /* ── Search control (top bar) ── */
+  /* ── Search control ── */
   const searchControl = (
     <div className="relative h-7 flex items-center">
       <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
-      <input type="text" placeholder="Search" value={search}
+      <input
+        type="text"
+        placeholder="Search"
+        value={search}
         onChange={(e) => setSearch(e.target.value)}
         className={`h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
           placeholder:text-slate-400 focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-          ${loading ? "opacity-60 pointer-events-none" : ""}`} />
+          ${loading ? "opacity-60 pointer-events-none" : ""}`}
+      />
     </div>
   );
 
   /* ── Filter toolbar ── */
   const filterToolbar = (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+    <FilterToolbar hasActiveFilters={hasActiveFilters} onClearAll={handleClearAllFilters}>
 
       {/* Status */}
       <div className="relative h-9 flex items-center flex-shrink-0">
@@ -453,10 +318,13 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
           ? <MdCancel className="absolute left-2.5 text-red-500 text-sm pointer-events-none z-10" />
           : <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
         }
-        <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}
+        <select
+          value={statusFilter}
+          onChange={(e) => handleStatusChange(e.target.value)}
           className="h-9 w-28 sm:w-32 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none flex items-center focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700">
+            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            transition-[border-color,box-shadow] duration-150 text-slate-700"
+        >
           <option value="">All Status</option>
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
@@ -465,8 +333,11 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
 
       {/* Per Page */}
       <div className="relative h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
-        <button type="button" onClick={() => setShowPerPagePicker(!showPerPagePicker)}
-          className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors">
+        <button
+          type="button"
+          onClick={() => setShowPerPagePicker(!showPerPagePicker)}
+          className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors"
+        >
           <TbLayoutRows size={15} className="text-slate-400" />
           <span>Rows: {perPage}</span>
           <MdExpandMore size={14} className="text-slate-400" />
@@ -475,12 +346,19 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
           <div className="absolute left-0 top-11 z-50 w-40 bg-white border border-gray-200 rounded-2xl shadow-lg p-3">
             <span className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Rows per page</span>
             <div className="flex items-center gap-1.5">
-              <input autoFocus type="number" value={perPageInput}
+              <input
+                autoFocus
+                type="number"
+                value={perPageInput}
                 onChange={(e) => setPerPageInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handlePerPageInputApply()}
-                className="w-16 h-8 px-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]" />
-              <button type="button" onClick={handlePerPageInputApply}
-                className="h-8 flex-1 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">
+                className="w-16 h-8 px-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
+              />
+              <button
+                type="button"
+                onClick={handlePerPageInputApply}
+                className="h-8 flex-1 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
+              >
                 Apply
               </button>
             </div>
@@ -532,7 +410,7 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
         />
       </div>
 
-      {/* Location — chip + searchable popup */}
+      {/* Location */}
       <div className="relative flex-shrink-0" ref={locationRef}>
         <FilterChip
           active={!!locationId}
@@ -568,18 +446,32 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
               <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
             </div>
             <div className="space-y-2">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]" />
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
+              />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
+              />
             </div>
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-              <button type="button" onClick={handleDateClear}
-                className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50">
+              <button
+                type="button"
+                onClick={handleDateClear}
+                className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50"
+              >
                 Clear
               </button>
-              <button type="button" onClick={handleDateApply}
-                className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">
+              <button
+                type="button"
+                onClick={handleDateApply}
+                className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
+              >
                 Apply
               </button>
             </div>
@@ -587,7 +479,7 @@ const goToPage = (p) => fetchArchivedData({ targetPage: p });
         )}
       </div>
 
-    </div>
+    </FilterToolbar>
   );
 
   return (
