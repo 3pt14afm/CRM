@@ -21,7 +21,6 @@ class SprfActivityLog extends Model
     'position',
     'email',
 
-    'sprf_entry_project_id',
     'sprf_no',
 
     'prepared_by_user_id',

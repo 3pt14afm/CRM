@@ -4,12 +4,9 @@ namespace App\Models\SPRF;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SprfEntryProject extends Model
 {
-    use SoftDeletes;
-
     protected $table = 'sprf_entry_projects';
 
     protected $fillable = [

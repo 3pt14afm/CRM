@@ -4,17 +4,14 @@ namespace App\Models\SPRF;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SprfArchiveProject extends Model
 {
-    use SoftDeletes;
+    const UPDATED_AT = null;
 
     protected $table = 'sprf_archive_projects';
 
     protected $fillable = [
-        'entry_project_id',
-        'current_project_id',
         'sprf_no',
         'document_datetime',
         'status',
@@ -54,8 +51,6 @@ class SprfArchiveProject extends Model
         'gp_value',
         'gp_percent',
 
-        'requires_vp_ccto',
-        'requires_president_ceo',
         'requires_rebate_justification',
 
         'last_saved_at',
