@@ -423,7 +423,7 @@ function Entry({
       .reduce((sum, row) => sum + toNumber(row.total), 0);
   }, [computedExpenses]);
 
-  const hasRebate = rebateTotal >= 100_000; 
+  const hasRebate = rebateTotal > 0; 
 
   // Compute the expected level if not provided by backend (entry route only —
   // sourceProject is null on a fresh draft so backend flags don't exist yet)

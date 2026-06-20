@@ -15,13 +15,18 @@ class SprfCurrentWorkflowService
      */
     public function handleAdvance(SprfCurrentProject $project, int $nextLevel, int $nextApproverId): SprfCurrentProject
     {
+        if ((int) $project->current_level === 2 && $project->requires_rebate_justification && blank($project->rebate_justification)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'rebate_justification' => 'Rebate justification must be provided.',
+            ]);
+        }
+
         $timestampColumn = $this->timestampColumnForLevel($project->current_level);
 
         $updateData = [
-            'current_level' => $nextLevel,
+            'current_level'            => $nextLevel,
             'current_approver_user_id' => $nextApproverId,
-            'status' => 'under_review',
-            'last_saved_at' => now(),
+            'status'                   => 'under_review',
         ];
 
         // Stamp the current time for the level we are leaving
@@ -52,12 +57,12 @@ class SprfCurrentWorkflowService
 
             // 3. Handle strict 1-step back for Levels 3, 4, 5
             $prevLevel = $currentLevel - 1;
-            
+
             // Determine who the assigned approver was for the previous level
-            $prevApproverId = match($prevLevel) {
-                4 => $project->vp_ccto_user_id,
-                3 => $project->esd_director_user_id,
-                2 => $project->director_customer_engagement_user_id,
+            $prevApproverId = match ($prevLevel) {
+                4       => $project->vp_ccto_user_id,
+                3       => $project->esd_director_user_id,
+                2       => $project->director_customer_engagement_user_id,
                 default => null,
             };
 
@@ -65,15 +70,14 @@ class SprfCurrentWorkflowService
             $clearColumn = $this->timestampColumnForLevel($prevLevel);
 
             $updateData = [
-                'current_level' => $prevLevel,
+                'current_level'            => $prevLevel,
                 'current_approver_user_id' => $prevApproverId,
-                'status' => 'under_review',
-                'last_saved_at' => now(),
+                'status'                   => 'under_review',
             ];
 
             // Reset their stamp to null so they get a fresh timestamp when they advance it again
             if ($clearColumn) {
-                $updateData[$clearColumn] = null; 
+                $updateData[$clearColumn] = null;
             }
 
             $project->update($updateData);
@@ -91,32 +95,30 @@ class SprfCurrentWorkflowService
             $timestampColumn = $this->timestampColumnForLevel($project->current_level);
 
             $archiveProject = $this->archiveFromCurrent($project, [
-                'status' => 'approved',
-                'current_approver_user_id' => null,
-                'approved_by_user_id' => $userId,
-                'rejected_by_user_id' => null,
-                'approved_at' => now(),
-                'rejected_at' => null,
-                $timestampColumn => now(),
+                'status'                   => 'approved',
+                'approved_by_user_id'      => $userId,
+                'rejected_by_user_id'      => null,
+                'approved_at'              => now(),
+                'rejected_at'              => null,
+                $timestampColumn           => now(),
             ]);
 
             return $archiveProject;
         });
     }
 
-    // Handles rejection and archives the project.
+    /**
+     * Handles rejection and archives the project.
+     */
     public function handleReject(SprfCurrentProject $project, int $userId, ?string $note): SprfArchiveProject
     {
         return DB::transaction(function () use ($project, $userId, $note) {
             $archiveProject = $this->archiveFromCurrent($project, [
-                'status' => 'rejected',
-                'current_approver_user_id' => null,
-                // approved_by_user_id intentionally omitted — falls through from $data
-                // so the archive preserves who was assigned, even if they never acted
+                'status'              => 'rejected',
                 'rejected_by_user_id' => $userId,
-                'last_reject_note' => $note,
-                'approved_at' => null,
-                'rejected_at' => now(),
+                'last_reject_note'    => $note,
+                'approved_at'         => null,
+                'rejected_at'         => now(),
             ]);
 
             return $archiveProject;
@@ -131,11 +133,11 @@ class SprfCurrentWorkflowService
         $user = \App\Models\User::find($userId);
 
         $newEntry = [
-            'id' => (string) Str::ulid(),
-            'body' => trim($message),
+            'id'         => (string) Str::ulid(),
+            'body'       => trim($message),
             'created_at' => now()->toIso8601String(),
-            'author' => [
-                'id' => $userId,
+            'author'     => [
+                'id'   => $userId,
                 'name' => $user?->name ?? 'Unknown',
                 'role' => $user?->role,
             ],
@@ -143,11 +145,11 @@ class SprfCurrentWorkflowService
 
         // Levels 3, 4, 5 use Comments. Levels 1, 2 use Notes.
         if (in_array($level, [3, 4, 5])) {
-            $comments = is_array($project->comments) ? $project->comments : [];
+            $comments   = is_array($project->comments) ? $project->comments : [];
             $comments[] = $newEntry;
             $project->comments = $this->sortTimelineEntries($comments);
         } else {
-            $notes = is_array($project->notes) ? $project->notes : [];
+            $notes   = is_array($project->notes) ? $project->notes : [];
             $notes[] = $newEntry;
             $project->notes = $this->sortTimelineEntries($notes);
         }
@@ -161,15 +163,15 @@ class SprfCurrentWorkflowService
     private function revertToEntryProject(SprfCurrentProject $project): SprfEntryProject
     {
         $entryData = $project->toArray();
-        
-        // Strip out the ID so it creates a new entry record
+
+        // Strip out the ID and current approver so it creates a new entry record
         unset($entryData['id']);
-        
-        $entryData['status'] = 'draft';
-        $entryData['current_level'] = 1;
-        $entryData['current_approver_user_id'] = null;
-        $entryData['submitted_at'] = null;
-        
+        unset($entryData['current_approver_user_id']);
+
+        $entryData['status']                   = 'draft';
+        $entryData['current_level']            = 1;
+        $entryData['submitted_at']             = null;
+
         // Clear all forward stamps
         $entryData['dce_acted_at'] = null;
         $entryData['esd_acted_at'] = null;
@@ -177,14 +179,14 @@ class SprfCurrentWorkflowService
         $entryData['president_ceo_acted_at'] = null;
 
         $entryProject = SprfEntryProject::create($entryData);
-        
+
         // Duplicate Items and Subitems
         foreach ($project->items as $currentItem) {
             $itemData = $currentItem->toArray();
             unset($itemData['id'], $itemData['project_id']);
-            
+
             $entryItem = $entryProject->items()->create($itemData);
-            
+
             foreach ($currentItem->subitems as $subitem) {
                 $subData = $subitem->toArray();
                 unset($subData['id'], $subData['item_id']);
@@ -198,12 +200,12 @@ class SprfCurrentWorkflowService
             unset($feeData['id'], $feeData['project_id']);
             $entryProject->fees()->create($feeData);
         }
-        
-        // Delete the current project tables
+
+        // Delete the current project and its children
         $project->items()->delete();
         $project->fees()->delete();
         $project->forceDelete();
-        
+
         return $entryProject;
     }
 
@@ -213,12 +215,10 @@ class SprfCurrentWorkflowService
     private function archiveFromCurrent(SprfCurrentProject $project, array $overrides): SprfArchiveProject
     {
         $data = $project->toArray();
-        unset($data['id']); 
-        
-        $data = array_merge($data, $overrides, [
-            'current_project_id' => $project->id,
-            'last_saved_at' => now(),
-        ]);
+        unset($data['id']);
+        unset($data['current_approver_user_id']);
+
+        $data = array_merge($data, $overrides);
 
         $archiveProject = SprfArchiveProject::create($data);
 
@@ -226,9 +226,9 @@ class SprfCurrentWorkflowService
         foreach ($project->items as $currentItem) {
             $itemData = $currentItem->toArray();
             unset($itemData['id'], $itemData['project_id']);
-            
+
             $archiveItem = $archiveProject->items()->create($itemData);
-            
+
             foreach ($currentItem->subitems as $subitem) {
                 $subData = $subitem->toArray();
                 unset($subData['id'], $subData['item_id']);
@@ -243,7 +243,7 @@ class SprfCurrentWorkflowService
             $archiveProject->fees()->create($feeData);
         }
 
-        // Delete the current project tables
+        // Delete the current project and its children
         $project->items()->delete();
         $project->fees()->delete();
         $project->forceDelete();
@@ -251,19 +251,15 @@ class SprfCurrentWorkflowService
         return $archiveProject;
     }
 
-    /**
-     * Helper to sort notes and comments by created_at.
-     */
+    // Helper to sort notes and comments by created_at descending (newest first).
     private function sortTimelineEntries(?array $entries): array
     {
         $rows = is_array($entries) ? $entries : [];
-        usort($rows, fn($a, $b) => (strtotime($b['created_at'] ?? '') ?: 0) <=> (strtotime($a['created_at'] ?? '') ?: 0));
+        usort($rows, fn ($a, $b) => (strtotime($b['created_at'] ?? '') ?: 0) <=> (strtotime($a['created_at'] ?? '') ?: 0));
         return array_values($rows);
     }
 
-    /**
-     * Helper to map a given level to its corresponding timestamp column.
-     */
+    // Helper to map a given level to its corresponding timestamp column.
     public function timestampColumnForLevel(int $level): ?string
     {
         return match ($level) {

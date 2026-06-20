@@ -20,7 +20,6 @@ class SprfController extends Controller
         $draftsQuery = SprfEntryProject::query()
             ->where('prepared_by_user_id', $userId)
             ->where('status', 'draft')
-            ->orderByDesc('last_saved_at')
             ->orderByDesc('updated_at');
 
         $drafts = (clone $draftsQuery)
@@ -39,7 +38,7 @@ class SprfController extends Controller
                     'approval_level' => $project->approval_level,
                     'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
                     'approval_condition_code' => $project->approval_condition_code,
-                    'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
+                    'last_saved_at' => optional($project->updated_at)?->toISOString(),
                     'updated_at' => optional($project->updated_at)?->format('m/d/y H:i'),
                 ];
             });
@@ -49,7 +48,7 @@ class SprfController extends Controller
         $recentlyModifiedToday = SprfEntryProject::query()
             ->where('prepared_by_user_id', $userId)
             ->where('status', 'draft')
-            ->whereDate('last_saved_at', now()->toDateString())
+            ->whereDate('updated_at', now()->toDateString())
             ->count();
 
         return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntryList', [
@@ -128,7 +127,7 @@ public function archive(Request $request)
         });
     }
 
-    $archiveQuery->orderByDesc('updated_at');
+    $archiveQuery->orderByDesc('created_at');
 
     $archiveProjects = (clone $archiveQuery)
         ->paginate($perPage)
@@ -286,7 +285,6 @@ public function archive(Request $request)
             'approval_condition_code' => $project->approval_condition_code,
             
             // Dates and Timestamps
-            'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
             'submitted_at' => optional($project->submitted_at)?->toISOString(),
             'approved_at' => optional($project->approved_at)?->toISOString(),
             'rejected_at' => optional($project->rejected_at)?->toISOString(),

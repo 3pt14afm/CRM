@@ -172,12 +172,12 @@ function JustificationField({ value, onChange, canEdit = false, required = false
         />
       )}
       {canEdit ? (
-        <p className="text-[10px] italic pl-1 text-gray-500 w-[85%] xl:w-[80%]">
-          {required ? 'Required because the Rebate row has a value.' : 'Optional. You may add a rebate justification if needed.'}
+        <p className={`text-[10px] italic pl-1 ${required ? 'text-red-500' : 'text-[#9AA08F]'}`}>
+          {required ? 'Required because the Rebate row has a value.'  : 'Optional. You may add a rebate justification if needed.'}
         </p>
       ) : (
-        <p className="text-[10px] italic pl-1 text-gray-500 w-[85%] xl:w-[80%]">
-          Only Director - Customer Engagement can input this field.
+        <p className="text-[10px] italic pl-1 text-[#9AA08F]">
+          {value?.trim?.() ? 'Rebate justification provided.' : 'No rebate justification provided.'}
         </p>
       )}
     </div>

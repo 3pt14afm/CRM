@@ -89,13 +89,13 @@ class SprfCurrentProjectController extends Controller
         });
 
         $query->when(filled($request->input('date_from')), function ($q) use ($request) {
-            $q->whereDate('last_saved_at', '>=', $request->input('date_from'));
+            $q->whereDate('updated_at', '>=', $request->input('date_from'));
         });
         $query->when(filled($request->input('date_to')), function ($q) use ($request) {
-            $q->whereDate('last_saved_at', '<=', $request->input('date_to'));
+            $q->whereDate('updated_at', '<=', $request->input('date_to'));
         });
 
-        $query->orderByDesc('last_saved_at')
+        $query->orderByDesc('updated_at')
             ->orderByDesc('updated_at');
 
         $currentProjects = (clone $query)
@@ -116,8 +116,8 @@ class SprfCurrentProjectController extends Controller
                     'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
                     'prepared_by' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : null,
                     'current_approver' => $project->currentApprover ? $project->currentApprover->first_name . ' ' . $project->currentApprover->last_name : null,
-                    'last_saved_display' => $project->last_saved_at
-                        ? $project->last_saved_at->diffForHumans()
+                    'last_saved_display' => $project->updated_at
+                        ? $project->updated_at->diffForHumans()
                         : '—',
                 ];
             });
@@ -130,7 +130,7 @@ class SprfCurrentProjectController extends Controller
                     ->orWhere('current_approver_user_id', $userId);
             })
             ->whereIn('status', ['for_review', 'under_review'])
-            ->whereDate('last_saved_at', now()->toDateString())
+            ->whereDate('updated_at', now()->toDateString())
             ->count();
 
         return Inertia::render('CustomerManagement/ProjectSPRF/CurrentRoutes/CurrentList', [
@@ -570,7 +570,7 @@ class SprfCurrentProjectController extends Controller
             'requires_vp_ccto'               => $project->requires_vp_ccto,
             'requires_president_ceo'         => $project->requires_president_ceo,
             'requires_rebate_justification'  => $project->requires_rebate_justification,
-            'last_saved_at' => $project->last_saved_at ? $project->last_saved_at->toISOString() : null,
+            'last_saved_at' => $project->updated_at ? $project->updated_at->toISOString() : null,
             'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
             'approved_at' => $project->approved_at ? $project->approved_at->toISOString() : null,
             'rejected_at' => $project->rejected_at ? $project->rejected_at->toISOString() : null,
