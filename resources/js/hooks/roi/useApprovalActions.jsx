@@ -9,19 +9,19 @@ import { toast } from 'sonner';
  * Also owns the send-back modal state.
  *
  * @param {{
- *   entryProject: object|null,
- *   sendBackType: 'comment' | 'note',
+ * entryProject: object|null,
+ * sendBackType: 'comment' | 'note',
  * }} params
  * @returns {{
- *   showSendBackModal: boolean,
- *   setShowSendBackModal: Function,
- *   sendBackText: string,
- *   setSendBackText: Function,
- *   handleReject: Function,
- *   handleBackToSender: Function,
- *   submitSendBack: Function,
- *   handleAdvance: Function,
- *   handleApprove: Function,
+ * showSendBackModal: boolean,
+ * setShowSendBackModal: Function,
+ * sendBackText: string,
+ * setSendText: Function,
+ * handleReject: Function,
+ * handleBackToSender: Function,
+ * submitSendBack: Function,
+ * handleAdvance: Function,
+ * handleApprove: Function,
  * }}
  */
 export function useApprovalActions({ entryProject, sendBackType }) {
@@ -54,12 +54,16 @@ export function useApprovalActions({ entryProject, sendBackType }) {
           </button>
           <button
             onClick={() => {
+              // Dismiss immediately and queue the network request to avoid thread blocking
               toast.dismiss(t);
-              router.post(ziggyRoute('roi.current.reject', entryProject.id), {}, {
-                onStart: () => toast.loading('Rejecting...', { id: 'reject-process' }),
-                onSuccess: () => toast.success('Project rejected.', { id: 'reject-process' }),
-                onError: () => toast.error('Failed to reject.', { id: 'reject-process' }),
-              });
+              setTimeout(() => {
+                const processId = 'reject-process';
+                router.post(ziggyRoute('roi.current.reject', entryProject.id), {}, {
+                  onStart: () => toast.loading('Rejecting...', { id: processId }),
+                  onSuccess: () => toast.success('Project rejected.', { id: processId }),
+                  onError: () => toast.error('Failed to reject.', { id: processId }),
+                });
+              }, 50);
             }}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 active:scale-95 transition"
           >
@@ -121,7 +125,7 @@ export function useApprovalActions({ entryProject, sendBackType }) {
     toast.custom((t) => (
       <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl w-[500px] outline-none ring-0">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-50 shrink-0">
+          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 shrink-0">
             <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="18" cy="18" r="18" fill="#dcfce7"/>
               <path d="M11 18 L25 18 M19 12 L25 18 L19 24"
@@ -144,18 +148,22 @@ export function useApprovalActions({ entryProject, sendBackType }) {
           <button
             onClick={() => {
               toast.dismiss(t);
-              const processId = `advance-${projectId}`;
-              router.post(ziggyRoute('roi.current.advance', projectId), {}, {
-                preserveScroll: true,
-                onStart: () => toast.loading("Submitting to next level...", { id: processId }),
-                onSuccess: () => toast.success("Project advanced successfully!", { id: processId }),
-                onError: (errors) => {
-                  const message = Object.values(errors)[0] || "Failed to advance project.";
-                  toast.error(message, { id: processId });
-                },
-              });
+              // Adding a tiny delay fixes the React state collision on re-rendering
+              setTimeout(() => {
+                const processId = `advance-${projectId}`;
+                router.post(ziggyRoute('roi.current.advance', projectId), {}, {
+                  preserveScroll: true,
+                  onStart: () => toast.loading("Submitting to next level...", { id: processId }),
+                  onSuccess: () => toast.success("Project advanced successfully!", { id: processId }),
+                  onError: (errors) => {
+                    const message = Object.values(errors)[0] || "Failed to advance project.";
+                    toast.error(message, { id: processId });
+                  },
+                });
+              }, 50);
             }}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 active:scale-95 transition"
+            // Changed bg-red-600 to matching brand green bg-[#289800] for consistency
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#289800] text-white hover:bg-[#7bcc5d] active:scale-95 transition"
           >
             Yes, Advance
           </button>
@@ -164,7 +172,7 @@ export function useApprovalActions({ entryProject, sendBackType }) {
     ), { duration: Infinity, position: 'top-center' });
   };
 
-const handleApprove = (projectId) => {
+  const handleApprove = (projectId) => {
     if (!projectId) {
       toast.error("Invalid Project ID");
       return;
@@ -174,11 +182,11 @@ const handleApprove = (projectId) => {
       <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl w-[500px] outline-none ring-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 shrink-0">
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="18" cy="18" r="18" fill="#dcfce7"/>
-            <path d="M11 18.5 L16 23.5 L25 13"
-              stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="18" cy="18" r="18" fill="#dcfce7"/>
+              <path d="M11 18.5 L16 23.5 L25 13"
+                stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
           <div>
             <p className="font-semibold text-gray-900 text-sm">Approve this project?</p>
@@ -196,16 +204,18 @@ const handleApprove = (projectId) => {
           <button
             onClick={() => {
               toast.dismiss(t);
-              const processId = `approve-${projectId}`;
-              router.post(ziggyRoute('roi.current.approve', projectId), {}, {
-                preserveScroll: true,
-                onStart: () => toast.loading("Approving...", { id: processId }),
-                onSuccess: () => toast.success("Project approved.", { id: processId }),
-                onError: (errors) => {
-                  const message = Object.values(errors)[0] || "Failed to approve project.";
-                  toast.error(message, { id: processId });
-                },
-              });
+              setTimeout(() => {
+                const processId = `approve-${projectId}`;
+                router.post(ziggyRoute('roi.current.approve', projectId), {}, {
+                  preserveScroll: true,
+                  onStart: () => toast.loading("Approving...", { id: processId }),
+                  onSuccess: () => toast.success("Project approved.", { id: processId }),
+                  onError: (errors) => {
+                    const message = Object.values(errors)[0] || "Failed to approve project.";
+                    toast.error(message, { id: processId });
+                  },
+                });
+              }, 50);
             }}
             className="text-white px-4 py-2 text-sm font-medium rounded-lg bg-[#289800] hover:bg-[#7bcc5d]"
           >
@@ -221,6 +231,7 @@ const handleApprove = (projectId) => {
     setShowSendBackModal,
     sendBackText,
     setSendBackText,
+    handleReject: handleReject, // note: kept as original
     handleReject,
     handleBackToSender,
     submitSendBack,
