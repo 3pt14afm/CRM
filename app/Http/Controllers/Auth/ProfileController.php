@@ -17,9 +17,27 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse; // Add this line
 
 class ProfileController extends Controller
 {
+
+public function getAvatar(Request $request): StreamedResponse|RedirectResponse
+{
+    $user = $request->user();
+    
+    // Find the file matching the employee ID and any supported extension
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+        $path = 'profileimg/' . $user->employee_id . '.' . $ext;
+        if (Storage::exists($path)) {
+            return Storage::response($path);
+        }
+    }
+
+    abort(404);
+}
+
     // Display the user's profile page.
 public function edit(Request $request): Response
 {
@@ -32,6 +50,16 @@ public function edit(Request $request): Response
             break;
         }
     }
+
+// Check if a profile image exists for this employee
+    $hasAvatar = false;
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+        if (Storage::exists('profileimg/' . $user->employee_id . '.' . $ext)) {
+            $hasAvatar = true;
+            break;
+        }
+    }
+
     return Inertia::render('Profile/Edit', [
         'mustVerifyEmail' => $user instanceof MustVerifyEmail,
         'status'          => session('status'),
@@ -43,6 +71,7 @@ public function edit(Request $request): Response
             'department' => optional($user->department)->name,
             'location'   => optional($user->location)->name,
             'signature'  => $signatureUrl,
+            'hasAvatar'  => $hasAvatar,
         ],
     ]);
 }
@@ -243,4 +272,34 @@ public function updateSignature(Request $request)
 
     return back()->with('success', 'Signature updated.');
 }
+
+/**
+ * Update and store the private profile picture using employee ID.
+ */
+public function updateProfilePicture(Request $request): RedirectResponse
+{
+    $request->validate([
+        'avatar' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+    ]);
+
+    $user = $request->user();
+    $extension = $request->file('avatar')->getClientOriginalExtension();
+    $filename = $user->employee_id . '.' . $extension;
+
+    // Clean up older variations of the avatar (in case they uploaded a .jpg previously but are now uploading a .png)
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
+        $oldPath = 'profileimg/' . $user->employee_id . '.' . $oldExt;
+        if (Storage::exists($oldPath)) {
+            Storage::delete($oldPath);
+        }
+    }
+
+        $request->file('avatar')->storeAs('profileimg', $filename);
+
+        $user->touch(); // ← add this so updated_at changes for cache-busting
+
+        return back()->with('success', 'Profile picture updated.');
+}
+
+
 }

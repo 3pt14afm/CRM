@@ -80,12 +80,12 @@ const isArchived = ["approved", "rejected"].includes(project?.status?.toLowerCas
     const isLocked = !projectId || !canComment || isPrintPreview || isArchived;
 
 
-     console.log({
-    status: project?.status,
-    isArchived,
-    canComment,
-    isLocked,
-});
+//      console.log({
+//     status: project?.status,
+//     isArchived,
+//     canComment,
+//     isLocked,
+// });
 
     const DRAFT_KEY = useMemo(() => {
       return projectId ? `roi-comment-draft:${userId}:${projectId}:${scopeKey}` : null;

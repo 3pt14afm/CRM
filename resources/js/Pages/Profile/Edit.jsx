@@ -1,22 +1,31 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useState, useRef, useMemo } from 'react';
 import ChangePasswordModal from './Partials/ChangePasswordModal';
-import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
-
 
 export default function Edit({ profile }) {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [showSignatureViewer, setShowSignatureViewer] = useState(false);
+
+    // Profile Picture state variables
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [showAvatarViewer, setShowAvatarViewer] = useState(false);
+    const [pendingAvatar, setPendingAvatar] = useState(null);
+    const [pendingAvatarPreview, setPendingAvatarPreview] = useState(null);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const avatarInputRef = useRef(null);
+
     const signatureUrl = useMemo(() => {
         if (!profile.signature) return null;
-        // Strip any existing query params, then append a reliable cache buster 
-        // (You can use a timestamp or profile.updated_at if passed from the backend)
         const cleanBaseUrl = profile.signature.split('?')[0];
         return `${cleanBaseUrl}?v=${new Date(profile.updated_at || Date.now()).getTime()}`;
     }, [profile]);
+
+    const avatarUrl = profile.hasAvatar
+        ? route('profile.avatar') + '?v=' + new Date(profile.updated_at || Date.now()).getTime()
+        : null;
 
     const [pendingFile, setPendingFile] = useState(null);
     const [pendingPreview, setPendingPreview] = useState(null);
@@ -74,17 +83,65 @@ export default function Edit({ profile }) {
         router.post(route('profile.signature'), { signature: pendingFile }, {
             forceFormData: true,
             preserveScroll: true,
-       onSuccess: () => {
-            router.reload({ only: ['profile'] });
-            setPendingFile(null);
-            setPendingPreview(null);
-            setShowSignatureModal(false);
-            setUploading(false);
-            toast.success('Signature uploaded successfully.');
-        },
+            onSuccess: () => {
+                router.reload({ only: ['profile'] });
+                setPendingFile(null);
+                setPendingPreview(null);
+                setShowSignatureModal(false);
+                setUploading(false);
+                toast.success('Signature uploaded successfully.');
+            },
             onError: () => {
                 setUploading(false);
                 toast.error('Failed to upload signature. Please try again.');
+            },
+        });
+    };
+
+    // Profile picture selection logic
+    const handleAvatarSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const allowedExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+
+        if (!allowedExtensions.includes(fileExtension)) {
+            toast.error('Invalid file type. Only PNG, JPG, JPEG, and WEBP are allowed.');
+            e.target.value = '';
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('File size must not exceed 2MB.');
+            e.target.value = '';
+            return;
+        }
+
+        setPendingAvatar(file);
+        setPendingAvatarPreview(URL.createObjectURL(file));
+        setShowAvatarModal(true);
+        e.target.value = '';
+    };
+
+    const handleConfirmAvatarUpload = () => {
+        if (!pendingAvatar) return;
+        setUploadingAvatar(true);
+
+        router.post(route('profile.update-avatar'), { avatar: pendingAvatar }, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                router.reload({ only: ['profile'] });
+                setPendingAvatar(null);
+                setPendingAvatarPreview(null);
+                setShowAvatarModal(false);
+                setUploadingAvatar(false);
+                toast.success('Profile picture updated successfully.');
+            },
+            onError: () => {
+                setUploadingAvatar(false);
+                toast.error('Failed to update profile picture. Please try again.');
             },
         });
     };
@@ -106,9 +163,47 @@ export default function Edit({ profile }) {
                     <div className="mb-8">
                         <div className="h-32 w-full rounded-2xl bg-gradient-to-br from-darkgreen/50 to-green/50 shadow-sm"></div>
                         <div className="px-8 -mt-9 flex flex-row items-end gap-4">
-                            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-darkgreen to-green text-xl font-semibold text-white shadow-sm">
-                                {getInitials(profile.name)}
+
+                            {/* Profile Picture Avatar Section */}
+                            <div className="relative group">
+                                {/* Clickable avatar — opens viewer if has avatar, else file picker */}
+                                <button
+                                    type="button"
+                                    onClick={() => avatarUrl ? setShowAvatarViewer(true) : avatarInputRef.current?.click()}
+                                    className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-darkgreen to-green text-xl font-semibold text-white shadow-sm"
+                                    title={avatarUrl ? 'View profile picture' : 'Upload profile picture'}
+                                >
+                                    {avatarUrl ? (
+                                        <img
+                                            src={avatarUrl}
+                                            alt={profile.name}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        getInitials(profile.name)
+                                    )}
+                                </button>
+
+                                {/* Hidden file input */}
+                                <input
+                                    ref={avatarInputRef}
+                                    type="file"
+                                    accept="image/png, image/jpeg, image/webp"
+                                    className="hidden"
+                                    onChange={handleAvatarSelect}
+                                />
+
+                                {/* Edit pencil button */}
+                                <button
+                                    type="button"
+                                    onClick={() => avatarInputRef.current?.click()}
+                                    className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
+                                    title="Change Profile Picture"
+                                >
+                                    <EditPenIcon />
+                                </button>
                             </div>
+
                             <div className="mb-1">
                                 <h3 className="text-lg font-semibold text-slate-900">{profile.name}</h3>
                                 {subtitle && <p className="text-[13px] text-slate-500">{subtitle}</p>}
@@ -148,7 +243,7 @@ export default function Edit({ profile }) {
                                     <div className="flex items-center gap-2 pb-4">
                                         <LockIcon className="h-4 w-4 text-gray-500" />
                                         <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                                            Security &amp; Access
+                                            Security & Access
                                         </h4>
                                     </div>
                                     <div className="mt-2 space-y-1">
@@ -225,7 +320,150 @@ export default function Edit({ profile }) {
                 onClose={() => setShowPasswordModal(false)}
             />
 
-            {/* Signature Upload Modal */}
+            {/* ── Avatar Viewer Modal ── */}
+            {showAvatarViewer && avatarUrl && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-[2px] bg-gray-900/40 px-4"
+                    onClick={() => setShowAvatarViewer(false)}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="avatar-viewer-title"
+                    >
+                        <div className="flex items-center justify-between">
+                            <h2 id="avatar-viewer-title" className="text-lg font-semibold">
+                                Profile Picture
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setShowAvatarViewer(false)}
+                                className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                                aria-label="Close"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+
+                        <div className="mt-6">
+                            <div className="w-full rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden p-6">
+                                <img
+                                    src={avatarUrl}
+                                    alt={profile.name}
+                                    className="h-48 w-48 rounded-full object-cover border-4 border-white shadow-md"
+                                />
+                            </div>
+                            <p className="mt-3 text-center text-sm font-semibold text-gray-800">{profile.name}</p>
+                            {profile.position && (
+                                <p className="text-center text-xs text-gray-400 mt-0.5">{profile.position}</p>
+                            )}
+                        </div>
+
+                        <div className="mt-6 flex items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowAvatarViewer(false);
+                                    avatarInputRef.current?.click();
+                                }}
+                                className="text-xs font-medium text-darkgreen transition hover:text-[#2a9e00]"
+                            >
+                                Change Picture <span aria-hidden="true">›</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowAvatarViewer(false)}
+                                className="text-sm font-medium text-gray-500 transition hover:text-gray-700"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Avatar Upload Confirmation Modal ── */}
+            {showAvatarModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-[2px] bg-gray-900/40 px-4"
+                    onClick={() => {
+                        setPendingAvatar(null);
+                        setPendingAvatarPreview(null);
+                        setShowAvatarModal(false);
+                    }}
+                >
+                    <div
+                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="avatar-modal-title"
+                    >
+                        <div className="flex items-center justify-between">
+                            <h2 id="avatar-modal-title" className="text-lg font-semibold">
+                                Update Profile Picture
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPendingAvatar(null);
+                                    setPendingAvatarPreview(null);
+                                    setShowAvatarModal(false);
+                                }}
+                                className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                                aria-label="Close"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+
+                        <div className="mt-6 space-y-4">
+                            <div>
+                                <p className="block text-[13px] font-bold text-slate-600 mb-1.5">
+                                    Preview
+                                </p>
+                                <div className="w-full h-48 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden p-3">
+                                    {pendingAvatarPreview ? (
+                                        <img
+                                            src={pendingAvatarPreview}
+                                            alt="Avatar preview"
+                                            className="max-h-full max-w-full object-contain rounded-full aspect-square border"
+                                        />
+                                    ) : (
+                                        <p className="text-sm text-gray-300">No image selected</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-4 pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPendingAvatar(null);
+                                        setPendingAvatarPreview(null);
+                                        setShowAvatarModal(false);
+                                    }}
+                                    className="text-sm font-medium text-gray-500 transition hover:text-gray-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmAvatarUpload}
+                                    disabled={!pendingAvatar || uploadingAvatar}
+                                    className="rounded-xl bg-[#289800] px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {uploadingAvatar ? 'Uploading…' : 'Save Picture'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Signature Upload Modal ── */}
             {showSignatureModal && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-[2px] bg-gray-900/40 px-4"
@@ -289,7 +527,7 @@ export default function Edit({ profile }) {
                                     {pendingFile ? (
                                         <span className="text-gray-700 font-medium">{pendingFile.name}</span>
                                     ) : (
-                                       <span>Click to browse — PNG, JPG, JPEG, WEBP up to 3MB</span>
+                                        <span>Click to browse — PNG, JPG, JPEG, WEBP up to 3MB</span>
                                     )}
                                 </button>
                             </div>
@@ -316,7 +554,7 @@ export default function Edit({ profile }) {
                 </div>
             )}
 
-            {/* Signature Viewer Modal */}
+            {/* ── Signature Viewer Modal ── */}
             {showSignatureViewer && signatureUrl && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-[2px] bg-gray-900/40 px-4"
@@ -364,8 +602,6 @@ export default function Edit({ profile }) {
                     </div>
                 </div>
             )}
-
-
         </AuthenticatedLayout>
     );
 }
@@ -481,6 +717,14 @@ function SignatureIcon({ className = "h-5 w-5" }) {
     return (
         <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 15c2-4 3-7 4-7s1.5 3 2.5 3S11 8 12 8s1.5 4 2.5 4S16 10 17 9" />
+        </svg>
+    );
+}
+
+function EditPenIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
         </svg>
     );
 }

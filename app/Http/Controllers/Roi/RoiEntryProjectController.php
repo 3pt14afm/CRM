@@ -363,9 +363,9 @@ class RoiEntryProjectController extends Controller
         return back()->with('success', 'Note added.');
     }
 
-    public function storeComment(Request $request, RoiCurrentProject $project, $id)
+    public function storeComment(Request $request, RoiCurrentProject $project)
     {
-        $project = RoiCurrentProject::find($id);
+
 
         if (!$project) {
             return response()->json(['message' => 'This project has been archived and no longer accepts comments.'], 403);

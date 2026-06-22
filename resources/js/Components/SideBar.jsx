@@ -1171,44 +1171,48 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* FOOTER */}
-      <div className="relative p-2.5 lg:p-4 lg:pl-3.5 ml-1 flex flex-col gap-4 w-full">
-        <div className="relative w-full">
-          <button
-            ref={profileBtnRef}
-            onClick={() => setActiveItem(activeItem === "profile" ? null : "profile")}
-            className="flex w-full items-center justify-between text-darkgreen transition hover:opacity-80 pr-2"
-            title="Profile"
-            aria-label="Profile"
-            type="button"
-          >
-            {/* Left side: Avatar + Info grouped together */}
-            <div className="flex items-center gap-5">
-              {/* Avatar */}
-              {user?.profile_photo_url ? (
+  {/* FOOTER */}
+    <div className="relative p-2.5 lg:p-4 lg:pl-3.5 ml-1 flex flex-col gap-4 w-full">
+      <div className="relative w-full">
+        <button
+          ref={profileBtnRef}
+          onClick={() => setActiveItem(activeItem === "profile" ? null : "profile")}
+          className="flex w-full items-center justify-between text-darkgreen transition hover:opacity-80 pr-2"
+          title="Profile"
+          aria-label="Profile"
+          type="button"
+        >
+          {/* Left side: Avatar + Info grouped together */}
+          <div className="flex items-center gap-5">
+            {/* Avatar */}
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-darkgreen/20 text-[10px] font-semibold text-white relative ${
+              user?.hasAvatar ? 'bg-white' : 'bg-darkgreen/10'
+            }`}>
+              {user?.hasAvatar ? (
                 <img
-                  src={user.profile_photo_url}
-                  alt={user.name}
-                  className="w-7 h-7 rounded-full object-cover ring-2 ring-darkgreen/20"
+                  src={route('profile.avatar') + '?v=' + new Date(user.updated_at || Date.now()).getTime()}
+                  alt={user?.name || 'Avatar'}
+                  className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-full bg-darkgreen/10 ring-2 ring-darkgreen/20 flex items-center justify-center text-darkgreen font-semibold text-xs">
-                  {user?.name ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('') : '?'}
+                <div className="w-full h-full flex items-center justify-center text-darkgreen">
+                  {user?.name ? user.name.split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?'}
                 </div>
               )}
-
-              {/* Name & Position */}
-              <div className={`flex flex-col items-start leading-tight gap-0.5 ${labelClass}`}>
-                <span className="text-xs lg:text-[13px] font-semibold text-darkgreen truncate max-w-[176px]">
-                  {user?.name ?? 'User'}
-                </span>
-                <span className="text-[10px] lg:text-[11px] text-darkgreen/60 truncate max-w-[190px]">
-                  {user?.position ?? user?.role ?? ''}
-                </span>
-              </div>
             </div>
 
-            {/* Right side: Chevron */}
+            {/* Name & Position */}
+            <div className={`flex flex-col items-start leading-tight gap-0.5 ${labelClass}`}>
+              <span className="text-xs lg:text-[13px] font-semibold text-darkgreen truncate max-w-[176px]">
+                {user?.name ?? 'User'}
+              </span>
+              <span className="text-[10px] lg:text-[11px] text-darkgreen/60 truncate max-w-[190px]">
+                {user?.position ?? user?.role ?? ''}
+              </span>
+            </div>
+          </div>
+
+          {/* Right side: Chevron */}
           <div className="text-darkgreen">
             <ChevronDownIcon 
               className={`w-4 h-4 transition-transform duration-200 ease-in-out ${
@@ -1216,51 +1220,52 @@ export default function Sidebar() {
               }`} 
             />
           </div>
-          </button>
+        </button>
 
-          {showProfileMenu &&
-            createPortal(
-              <div
-                ref={dropdownRef}
-                className={`fixed z-[9999] w-36 origin-bottom-left overflow-hidden rounded-xl border border-white/20 bg-green-500/20 backdrop-blur-2xl shadow-[0_4px_12px_rgba(0,0,0,0.18)] transition-all duration-200 ease-out ${
-                  profileMenuEntered
-                    ? "opacity-100 scale-100 translate-x-0"
-                    : "opacity-0 scale-95 -translate-x-3"
-                }`}
-                style={{
-                  top: dropdownPos.top + 12,
-                  left: dropdownPos.left + 2,
-                  transform: `translateY(-100%) ${
-                    profileMenuEntered ? "translateX(0)" : "translateX(-0.75rem)"
-                  }`,
-                }}
+        {showProfileMenu &&
+          createPortal(
+            <div
+              ref={dropdownRef}
+              className={`fixed z-[9999] w-36 origin-bottom-left overflow-hidden rounded-xl border border-white/20 bg-green-500/20 backdrop-blur-2xl shadow-[0_4px_12px_rgba(0,0,0,0.18)] transition-all duration-200 ease-out ${
+                profileMenuEntered
+                  ? "opacity-100 scale-100 translate-x-0"
+                  : "opacity-0 scale-95 -translate-x-3"
+              }`}
+              style={{
+                top: dropdownPos.top + 12,
+                left: dropdownPos.left + 2,
+                transform: `translateY(-100%) ${
+                  profileMenuEntered ? "translateX(0)" : "translateX(-0.75rem)"
+                }`,
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-green-300/10 to-green-600/10 pointer-events-none" />
+
+              <Link
+                href={route("profile.edit")}
+                className="relative flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-green-950 border-b border-black/5 hover:bg-[#e1e1e3] hover:backdrop-blur-md transition-all duration-100"
+                onClick={() => setActiveItem(null)}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-green-300/10 to-green-600/10 pointer-events-none" />
+                <UserPen className="w-4 h-4" />
+                <span>Edit Profile</span>
+              </Link>
 
-                <Link
-                  href={route("profile.edit")}
-                  className="relative flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-green-950 border-b border-black/5 hover:bg-[#e1e1e3] hover:backdrop-blur-md transition-all duration-100"
-                  onClick={() => setActiveItem(null)}
-                >
-                  <UserPen className="w-4 h-4" />
-                  <span>Edit Profile</span>
-                </Link>
-
-                <Link
-                  href={route("logout")}
-                  method="post"
-                  as="button"
-                  className="relative flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-[#ff3b30] hover:bg-white/20 hover:bg-[#e1e1e3] hover:backdrop-blur-md transition-all duration-100"
-                  onClick={() => setActiveItem(null)}
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
-                </Link>
-              </div>,
-              document.body
-            )}
-        </div>
+              <Link
+                href={route("logout")}
+                method="post"
+                as="button"
+                className="relative flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-[#ff3b30] hover:bg-white/20 hover:bg-[#e1e1e3] hover:backdrop-blur-md transition-all duration-100"
+                onClick={() => setActiveItem(null)}
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </Link>
+            </div>,
+            document.body
+          )}
       </div>
+    </div>
+
     </aside>
   );
 }
