@@ -306,6 +306,9 @@ class SprfEntryProjectController extends Controller
                 'remarks' => data_get($payload, 'remarks', $project->remarks),
                 'rebate_justification' => $rebateJustification,
 
+                'notes' => $project->notes ?? [],
+                'comments' => $project->comments ?? [],
+
                 'revenue' => $revenue,
                 'cogs' => $cogs,
                 'other_expense_total' => $otherExpenseTotal,
@@ -538,7 +541,7 @@ class SprfEntryProjectController extends Controller
             $total = (float) data_get($row, 'total', 0);
 
             if ($expenseKey === 'rebate' || strcasecmp($productCode, 'Rebate') === 0) {
-                return $total >= self::REBATE_VALUE_THRESHOLD;
+                return $total > self::REBATE_VALUE_THRESHOLD;
             }
         }
 
@@ -1031,6 +1034,8 @@ class SprfEntryProjectController extends Controller
             'approval_condition_code' => $project->approval_condition_code,
             'remarks' => $project->remarks,
             'rebate_justification' => $project->rebate_justification,
+            'notes'               => $project->notes    ?? [],
+            'comments'            => $project->comments ?? [],
 
             'company_info' => [
                 'subCategory' => $project->sub_category,

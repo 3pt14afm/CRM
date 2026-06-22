@@ -252,7 +252,7 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
                 key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
                 className="bg-white border border-gray-200 rounded-xl px-4 py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
               >
-                <div className="flex h-4 items-center justify-between">
+                <div className="flex h-4 items-center justify-between w-full">
                   <div className="items-start flex gap-1 xl:gap-2">
                     <div className="flex items-center">
                       <FaRegUserCircle className="text-gray-400 text-sm shrink-0" />

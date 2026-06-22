@@ -24,13 +24,13 @@ export default function SprfOtherExpenseTable({
   const showActionColumn = !readOnly;
 
   const inputClass =
-    'w-full min-w-0 h-7 xl:h-8 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+    'w-full min-w-0 h-5 xl:h-6 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyCellClass =
-    'w-full h-8 text-[11px] xl:text-xs px-2 flex items-center rounded-sm';
+    'w-full h-6 text-[11px] xl:text-xs px-2 flex items-center rounded-sm';
 
   const readonlyAmountClass =
-    'w-full h-8 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
+    'w-full h-6 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
 
   const footerCellClass =
     'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
@@ -45,11 +45,11 @@ export default function SprfOtherExpenseTable({
         <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
             <col className="w-[5.5%]" />
-            <col className="w-[16%]" />
+            <col className="w-[15%]" />
             <col className="w-[35%] xl:w-[39%]" />
-            <col className="w-[5%] xl:w-[8%]" />
-            <col className="w-[11%] xl:w-[12%]" />
-            <col className="w-[10%] xl:w-[13%]" />
+            <col className="w-[5%] xl:w-[6%]" />
+            <col className="w-[11%] xl:w-[14%]" />
+            <col className="w-[10%] xl:w-[16%]" />
 
             {showActionColumn && <col className="w-[6%] xl:w-[6.5%]" />}
           </colgroup>
@@ -97,7 +97,7 @@ export default function SprfOtherExpenseTable({
                   className="border-b relative transition-all duration-100 hover:bg-lightgreen/5 hover:shadow-[inset_0px_0px_4px_1px_rgba(0,_0,_0,_0.1)]"
                 >
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    <div className="w-full h-8 flex items-center justify-center text-[11px] xl:text-[13px]">
+                    <div className="w-full h-6 flex items-center justify-center text-[11px] xl:text-[13px]">
                       {index + 1}
                     </div>
                   </td>
