@@ -4,7 +4,7 @@ import { useState, useRef, useMemo } from 'react';
 import ChangePasswordModal from './Partials/ChangePasswordModal';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
-import { Toaster } from 'sonner';
+
 
 export default function Edit({ profile }) {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -74,19 +74,12 @@ export default function Edit({ profile }) {
         router.post(route('profile.signature'), { signature: pendingFile }, {
             forceFormData: true,
             preserveScroll: true,
-         onSuccess: () => {
-            router.reload({
-                only: ['profile'],
-                onSuccess: (page) => {
-                    setSignatureUrl(page.props.profile.signature);
-                },
-            });
-
+       onSuccess: () => {
+            router.reload({ only: ['profile'] });
             setPendingFile(null);
             setPendingPreview(null);
             setShowSignatureModal(false);
             setUploading(false);
-
             toast.success('Signature uploaded successfully.');
         },
             onError: () => {

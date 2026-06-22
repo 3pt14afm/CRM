@@ -41,11 +41,11 @@ export default function EditUserModal({
   const [uploadVersion, setUploadVersion] = useState(0);
   const fileInputRef = useRef(null);
 
-  const signatureUrl = useMemo(() => {
-      if (!editingUser?.employee_id) return null;
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-      return `${baseUrl}/storage/signatures/${editingUser.employee_id}.png?v=${uploadVersion || new Date().getTime()}`;
-  }, [editingUser, uploadVersion]);
+const signatureUrl = useMemo(() => {
+    if (!editingUser?.employee_id) return null;
+    // Simply use a leading slash relative path
+    return `/storage/signatures/${editingUser.employee_id}.png?v=${uploadVersion || new Date().getTime()}`;
+}, [editingUser, uploadVersion]);
 
   const handleOpenSignatureModal = () => {
     setPendingFile(null);
