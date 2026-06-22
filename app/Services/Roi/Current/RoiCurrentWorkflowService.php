@@ -36,10 +36,18 @@ class RoiCurrentWorkflowService
         ];
 
         $this->appendSendBackEntry($project, $user, $validatedData['type'], $validatedData['body']);
-        $toLevel   = $fromLevel - 1;
+        $toLevel    = $fromLevel - 1;
         $backStatus = $this->getBackStatusLabel($toLevel);
 
-        if ($toLevel === 1) {
+        // Resolve the effective first level for the receiver (consecutive approver block)
+        $firstLevel = ($toLevel >= 2) ? $this->findFirstConsecutiveLevelForApprover($project, $toLevel) : $toLevel;
+
+        // Revert to entry if:
+        // 1. Natural send-back from level 2 → level 1, OR
+        // 2. The receiver at firstLevel is also the preparer
+        $receiverIsAlsoPreparer = $firstLevel >= 2 && $this->approverForLevel($project, $firstLevel) === (int) $project->user_id;
+
+        if ($toLevel === 1 || $receiverIsAlsoPreparer) {
             $project->save();
             $project->refresh()->load(['items', 'fees', 'user']);
 
@@ -65,7 +73,7 @@ class RoiCurrentWorkflowService
                 RoiEntryFee::create($feeData);
             }
 
-            $this->logActivity('send_back', 'Sent back ROI #' . $project->reference . ' to ' . $backStatus, $entryProject, $oldValues, [
+            $this->logActivity('send_back', 'Sent back ROI #' . $project->reference . ' to Draft (Preparer)', $entryProject, $oldValues, [
                 'status'           => 'returned',
                 'current_level'    => 1,
                 'entry_project_id' => $entryProject->id,
@@ -75,12 +83,11 @@ class RoiCurrentWorkflowService
             $project->fees()->delete();
             $project->delete();
 
-            $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
+            $this->notifyMoveNextOrBack($project, $user, $fromLevel, 1, 'back');
             return 'entry_list';
         }
 
-        // If the receiving approver owns consecutive levels, revert to their FIRST level
-        // and clear ALL their timestamps — they approved as one action and must re-approve as one.
+        // If the receiving approver owns consecutive levels, revert to their FIRST level and clear ALL their timestamps — they approved as one action and must re-approve as one.
         $firstLevel = $this->findFirstConsecutiveLevelForApprover($project, $toLevel);
 
         $updates = [
@@ -195,6 +202,48 @@ class RoiCurrentWorkflowService
         $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
 
         return $nextStatus;
+    }
+
+    public function handleAutoAdvanceOnSubmit(RoiCurrentProject $project): void
+    {
+        $preparerId = (int) $project->user_id;
+
+        // If preparer isn't also the level 2 approver, nothing to do
+        if ($this->approverForLevel($project, 2) !== $preparerId) return;
+
+        $autoLevels = $this->collectAutoAdvanceLevels($project, $preparerId, 2);
+
+        if (empty($autoLevels)) return;
+
+        $lastLevel = end($autoLevels);
+
+        // If their run reaches the final level, stamp intermediates then approve
+        if ($lastLevel >= 6) {
+            $updates = ['current_level' => 6];
+            foreach ($autoLevels as $l) {
+                if ($l < 6) {
+                    $col = $this->approvalTimestampColumnForLevel($l);
+                    if ($col) $updates[$col] = now();
+                }
+            }
+            $project->update($updates);
+
+            $actor = User::find($preparerId);
+            if ($actor) $this->handleApprove($project->fresh(), $actor);
+            return;
+        }
+
+        $updates = [
+            'current_level' => $lastLevel + 1,
+            'status'        => $this->getQueueLabelForLevel($lastLevel + 1),
+        ];
+
+        foreach ($autoLevels as $l) {
+            $col = $this->approvalTimestampColumnForLevel($l);
+            if ($col) $updates[$col] = now();
+        }
+
+        $project->update($updates);
     }
 
     public function handleReject(RoiCurrentProject $current, User $actor): void
