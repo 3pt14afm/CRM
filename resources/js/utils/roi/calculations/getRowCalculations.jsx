@@ -6,84 +6,96 @@ export const getRowCalculations = (row, projectData) => {
     const rawPrice = Number(row?.price) || 0;
 
     // 2. PROJECT CONSTANTS
-    const annualInterestRate = (Number(projectData?.interest?.annualInterest) || 0) / 100;
-    const annualInterest = Number(projectData?.interest?.annualInterest);
-    const contractYears = Number(projectData?.companyInfo?.contractYears) || 1;
-    const percentMargin = (annualInterest * contractYears) / 100;
+    const annualInterestRate =
+        (Number(projectData?.interest?.annualInterest) || 0) / 100;
+
+    const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
+
+    const contractYears =
+        Number(projectData?.companyInfo?.contractYears) || 1;
+
+    const percentMargin =
+        (annualInterest * contractYears) / 100;
 
     // 3. IDENTIFIERS
-    const type = row?.type?.toLowerCase() || ""; // machine, mono, color, rental, etc.
-    const isMachine = type === 'machine';
-    const mode = row?.mode?.toLowerCase() || "";
-    const isConsumable = mode === 'mono' || mode === 'color';
-    const isModeOthers = row?.mode?.toLowerCase() === 'others' || row?.mode?.toLowerCase() === 'other';
+    const type = row?.type?.toLowerCase() || "";
+    const isMachine = type === "machine";
 
-    const contractType = (projectData?.companyInfo?.contractType || projectData?.contractType || "").toLowerCase();
-    
-    // Model Categories
+    const mode = row?.mode?.toLowerCase() || "";
+    const isConsumable = mode === "mono" || mode === "color";
+    const isModeOthers =
+        mode === "others" || mode === "other";
+
+    const contractType =
+        (
+            projectData?.companyInfo?.contractType ||
+            projectData?.contractType ||
+            ""
+        ).toLowerCase();
+
     const isOutright = contractType.includes("outright");
     const isRentalClick = contractType.includes("rental + click");
     const isFreeUseClick = contractType.includes("free use + click");
     const isNonOutright = contractType === "non-outright";
     const isMonthlyRental = contractType === "fixed monthly only";
-    // --- LOGIC CONTROLLER: FORCE ZEROS BY PROHIBITION RULES ---
 
-    /** * RULE: Machine/Printer Rule 
-     * Yields are NEVER allowed for hardware.
-     */
-  let yields = rawYields;
+    // --- LOGIC CONTROLLER ---
 
-if (isMachine) {
-    yields = isModeOthers ? rawYields : 0;
-}
+    let yields = rawYields;
 
-if (isMonthlyRental && isConsumable) {
-    yields = 0;
-}
-    /** * RULE: Rental/Free Use + Click PROHIBITION
-     * Mono/Color items are PROHIBITED from having a Selling Price in Click models.
-     */
+    if (isMachine) {
+        yields = isModeOthers ? rawYields : 0;
+    }
+
+    if (isMonthlyRental && isConsumable) {
+        yields = 0;
+    }
+
     let price = rawPrice;
+
     if ((isRentalClick || isFreeUseClick) && isConsumable) {
         price = 0;
     }
 
-    /** * RULE: Non-Outright PROHIBITION
-     * Machines are PROHIBITED from having a Selling Price.
-     */
     if (isNonOutright && isMachine) {
         price = 0;
     }
 
-    /** * RULE: General Service Focus Logic
-     * If it's NOT an Outright model, Machines generally don't have a Selling Price 
-     * (unless specifically defined otherwise in your business rules).
-     */
     if (!isOutright && isMachine) {
         price = 0;
     }
-  
-       // ✅ RULE: Fixed Monthly — consumables have no selling price and no yields
+
     if (isMonthlyRental && isConsumable) {
         price = 0;
         yields = 0;
     }
 
+    // =========================
+    // COST CALCULATION FIX
+    // =========================
 
-
-    // --- COST CALCULATIONS ---
     let finalComputedCost = rawCost;
     let basePerYear = 0;
+
     let machineMargin = 0;
     let machineMarginTotal = 0;
 
-    if (isMachine && !isModeOthers) {
+    const isInterestModel =
+        isMachine &&
+        !isOutright; // 🚨 ONLY non-outright gets interest/margin
+
+    if (isInterestModel && !isModeOthers) {
         basePerYear = rawCost / contractYears;
+
         const interestAmount = basePerYear * annualInterestRate;
-        finalComputedCost = (basePerYear + interestAmount) * contractYears;
+
+        finalComputedCost =
+            (basePerYear + interestAmount) * contractYears;
+
         machineMargin = basePerYear * percentMargin;
         machineMarginTotal = rawCost * percentMargin;
-    } else if (isMachine && isModeOthers) {
+    } else {
+        // OUTRIGHT OR MODE OTHERS
         finalComputedCost = rawCost;
         basePerYear = rawCost;
         machineMargin = 0;
@@ -94,19 +106,21 @@ if (isMonthlyRental && isConsumable) {
         inputtedCost: rawCost,
         computedCost: finalComputedCost,
         basePerYear,
-        totalCost: Number(finalComputedCost) + Number(machineMarginTotal),
 
-        // CPP Logic based on validated yields
-        yields: yields,
+        // IMPORTANT: OUTRIGHT SAFE TOTAL COST
+        totalCost: isOutright
+            ? finalComputedCost
+            : finalComputedCost + machineMarginTotal,
+
+        yields,
+
         costCpp: yields > 0 ? rawCost / yields : 0,
 
-        // SELLING SIDE (Validated via Logic Controller)
-        price: price, 
+        price,
         totalSell: price * qty,
         sellCpp: yields > 0 ? price / yields : 0,
 
-        // MARGIN SIDE
         machineMargin,
-        machineMarginTotal
+        machineMarginTotal,
     };
 };

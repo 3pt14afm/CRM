@@ -110,21 +110,27 @@ class RoiCalculator
         $machineMargin      = 0.0;
         $machineMarginTotal = 0.0;
 
-        if ($isMachine && !$isModeOthers) {
+        // Only non-outright machines get interest/margin applied
+        $isInterestModel = $isMachine && !$flags['isOutright'];
+
+        if ($isInterestModel && !$isModeOthers) {
             $basePerYear        = $rawCost / $contractYears;
             $finalComputedCost  = ($basePerYear + ($basePerYear * $annualInterestRate)) * $contractYears;
             $machineMargin      = $basePerYear * $percentMargin;
             $machineMarginTotal = $rawCost * $percentMargin;
-        } elseif ($isMachine && $isModeOthers) {
-            $finalComputedCost = $rawCost;
-            $basePerYear       = $rawCost;
+        } elseif ($isMachine) {
+            // Outright or mode=others: no interest, no margin
+            $finalComputedCost  = $rawCost;
+            $basePerYear        = $rawCost;
+            $machineMargin      = 0.0;
+            $machineMarginTotal = 0.0;
         }
 
         return [
             'inputtedCost'       => $rawCost,
             'computedCost'       => $finalComputedCost,
             'basePerYear'        => $basePerYear,
-            'totalCost'          => $finalComputedCost + $machineMarginTotal,
+            'totalCost'          => $flags['isOutright'] ? $finalComputedCost : $finalComputedCost + $machineMarginTotal,
             'yields'             => $yields,
             'costCpp'            => $yields > 0 ? $rawCost / $yields : 0,
             'price'              => $price,
