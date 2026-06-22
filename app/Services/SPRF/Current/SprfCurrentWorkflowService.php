@@ -80,6 +80,46 @@ class SprfCurrentWorkflowService
         return $project;
     }
 
+    public function handleAutoAdvanceOnSubmit(SprfCurrentProject $project): void
+    {
+        $preparerId = (int) $project->prepared_by_user_id;
+
+        // If preparer isn't also the level 2 approver, nothing to do
+        if ($this->approverUserIdForLevel($project, 2) !== $preparerId) return;
+
+        $autoLevels    = $this->collectAutoAdvanceLevels($project, $preparerId, 2);
+        $lastLevel     = end($autoLevels);
+        $terminalLevel = $this->getTerminalLevel($project);
+
+        if ($lastLevel >= $terminalLevel) {
+            $updates = ['current_level' => $terminalLevel];
+            foreach ($autoLevels as $l) {
+                if ($l < $terminalLevel) {
+                    $col = $this->timestampColumnForLevel($l);
+                    if ($col) $updates[$col] = now();
+                }
+            }
+            $project->update($updates);
+            $this->handleApprove($project->fresh(), $preparerId);
+            return;
+        }
+
+        $nextLevel = $lastLevel + 1;
+
+        $updates = [
+            'current_level'            => $nextLevel,
+            'current_approver_user_id' => $this->approverUserIdForLevel($project, $nextLevel),
+            'status'                   => 'under_review',
+        ];
+
+        foreach ($autoLevels as $l) {
+            $col = $this->timestampColumnForLevel($l);
+            if ($col) $updates[$col] = now();
+        }
+
+        $project->update($updates);
+    }
+
     /**
      * Handles sending the project back exactly one step.
      */
@@ -88,37 +128,31 @@ class SprfCurrentWorkflowService
         return DB::transaction(function () use ($project, $message, $userId) {
             $currentLevel = (int) $project->current_level;
 
-            // 1. Append the send-back message to the JSON arrays
             $this->appendMessage($project, $message, $userId, $currentLevel);
 
-            // 2. Handle Return to Preparer (Level 2 -> 1)
+            // Level 2 always reverts to entry
             if ($currentLevel === 2) {
                 return $this->revertToEntryProject($project);
             }
 
-            // 3. Handle strict 1-step back for Levels 3, 4, 5
-            $prevLevel = $currentLevel - 1;
+            $prevLevel  = $currentLevel - 1;
+            $firstLevel = $this->findFirstConsecutiveLevelForApprover($project, $prevLevel);
 
-            // Determine who the assigned approver was for the previous level
-            $prevApproverId = match ($prevLevel) {
-                4       => $project->vp_ccto_user_id,
-                3       => $project->esd_director_user_id,
-                2       => $project->director_customer_engagement_user_id,
-                default => null,
-            };
-
-            // Identify the timestamp column of the level we are returning to
-            $clearColumn = $this->timestampColumnForLevel($prevLevel);
+            // If the receiver's first consecutive level belongs to the preparer, revert to entry
+            if ($this->approverUserIdForLevel($project, $firstLevel) === (int) $project->prepared_by_user_id) {
+                return $this->revertToEntryProject($project);
+            }
 
             $updateData = [
-                'current_level'            => $prevLevel,
-                'current_approver_user_id' => $prevApproverId,
+                'current_level'            => $firstLevel,
+                'current_approver_user_id' => $this->approverUserIdForLevel($project, $firstLevel),
                 'status'                   => 'under_review',
             ];
 
-            // Reset their stamp to null so they get a fresh timestamp when they advance it again
-            if ($clearColumn) {
-                $updateData[$clearColumn] = null;
+            // Clear all timestamps from firstLevel through prevLevel
+            for ($level = $firstLevel; $level <= $prevLevel; $level++) {
+                $col = $this->timestampColumnForLevel($level);
+                if ($col) $updateData[$col] = null;
             }
 
             $project->update($updateData);
@@ -346,5 +380,22 @@ class SprfCurrentWorkflowService
         }
 
         return $levels;
+    }
+
+    private function findFirstConsecutiveLevelForApprover(SprfCurrentProject $project, int $toLevel): int
+    {
+        $approverId = $this->approverUserIdForLevel($project, $toLevel);
+        if (!$approverId) return $toLevel;
+
+        $firstLevel = $toLevel;
+        for ($level = $toLevel - 1; $level >= 2; $level--) {
+            if ($this->approverUserIdForLevel($project, $level) === $approverId) {
+                $firstLevel = $level;
+            } else {
+                break;
+            }
+        }
+
+        return $firstLevel;
     }
 }

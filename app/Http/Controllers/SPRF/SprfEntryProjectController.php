@@ -10,6 +10,9 @@ use App\Models\SPRF\SprfEntryItem;
 use App\Models\SPRF\SprfEntryItemSubitem;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
+use App\Services\SPRF\Current\SprfCurrentWorkflowService;
+use App\Services\SprfActivityLogger;
+use App\Services\SPRF\SprfItemCalculationService;
 use App\Services\SPRF\SprfNumberGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,14 +20,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use App\Services\SprfActivityLogger;
-use App\Services\SPRF\SprfItemCalculationService;
 use Illuminate\Support\Facades\Log;
 
 class SprfEntryProjectController extends Controller
 {
     public function __construct(
-        private readonly SprfItemCalculationService $itemCalc
+        private readonly SprfItemCalculationService $itemCalc,
+        private readonly SprfCurrentWorkflowService $workflowService,
     ) {}
 
     public function show(SprfEntryProject $project)
@@ -344,6 +346,8 @@ class SprfEntryProjectController extends Controller
 
             return $currentProject;
         });
+
+        $this->workflowService->handleAutoAdvanceOnSubmit($currentProject->fresh());
 
         try {
             SprfActivityLogger::log(
