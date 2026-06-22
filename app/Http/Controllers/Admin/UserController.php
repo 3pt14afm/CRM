@@ -692,7 +692,7 @@ public function updateSignatureForUser(Request $request, $id)
 
     // Delete old signature files with any extension to avoid duplicates
     foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
-        $oldPath = storage_path('app/public/signatures/' . $user->employee_id . '.' . $oldExt);
+        $oldPath = storage_path('storage/app/public/signatures/' . $user->employee_id . '.' . $oldExt);
         if (file_exists($oldPath)) {
             unlink($oldPath);
         }

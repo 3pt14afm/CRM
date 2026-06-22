@@ -162,9 +162,9 @@ public function index(Request $request)
         $employeeId = $userRelation->employee_id;
 
         foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-            $path = storage_path('app/public/signatures/' . $employeeId . '.' . $ext);
+            $path = storage_path('storage/app/public/signatures/' . $employeeId . '.' . $ext);
             if (file_exists($path)) {
-                return asset('storage/signatures/' . $employeeId . '.' . $ext) . '?v=' . filemtime($path);
+                return asset('storage/app/public/signatures/' . $employeeId . '.' . $ext) . '?v=' . filemtime($path);
             }
         }
 
