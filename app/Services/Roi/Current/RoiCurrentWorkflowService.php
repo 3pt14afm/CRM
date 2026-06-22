@@ -29,14 +29,14 @@ class RoiCurrentWorkflowService
         $fromLevel = (int) $project->current_level;
         $workflow = $this->getRoiWorkflow($project);
         $oldValues = [
-            'status' => $project->status,
-            'current_level' => $fromLevel,
+            'status'               => $project->status,
+            'current_level'        => $fromLevel,
             'note_or_comment_type' => $validatedData['type'],
             'note_or_comment_body' => trim($validatedData['body']),
         ];
 
         $this->appendSendBackEntry($project, $user, $validatedData['type'], $validatedData['body']);
-        $toLevel = $fromLevel - 1;
+        $toLevel   = $fromLevel - 1;
         $backStatus = $this->getBackStatusLabel($toLevel);
 
         if ($toLevel === 1) {
@@ -47,7 +47,7 @@ class RoiCurrentWorkflowService
             $this->cleanArrayKeys($projectData);
 
             $entryProject = RoiEntryProject::create(array_merge($projectData, [
-                'status' => 'returned',
+                'status'       => 'returned',
                 'last_saved_at' => now(),
             ]));
 
@@ -66,8 +66,8 @@ class RoiCurrentWorkflowService
             }
 
             $this->logActivity('send_back', 'Sent back ROI #' . $project->reference . ' to ' . $backStatus, $entryProject, $oldValues, [
-                'status' => 'returned',
-                'current_level' => 1,
+                'status'           => 'returned',
+                'current_level'    => 1,
                 'entry_project_id' => $entryProject->id,
             ], $workflow);
 
@@ -79,20 +79,33 @@ class RoiCurrentWorkflowService
             return 'entry_list';
         }
 
-        $project->update([
-            'status' => 'Sent Back',
-            'status_reason' => null,
+        // If the receiving approver owns consecutive levels, revert to their FIRST level
+        // and clear ALL their timestamps — they approved as one action and must re-approve as one.
+        $firstLevel = $this->findFirstConsecutiveLevelForApprover($project, $toLevel);
+
+        $updates = [
+            'status'            => 'Sent Back',
+            'status_reason'     => null,
             'status_updated_at' => now(),
             'status_updated_by' => $user->id,
-            'last_saved_at' => now(),
-            'current_level' => $toLevel,
-        ]);
+            'last_saved_at'     => now(),
+            'current_level'     => $firstLevel,
+        ];
+
+        for ($level = $firstLevel; $level <= $toLevel; $level++) {
+            $col = $this->approvalTimestampColumnForLevel($level);
+            if ($col) {
+                $updates[$col] = null;
+            }
+        }
+
+        $project->update($updates);
 
         $this->logActivity('send_back', 'Sent back ROI #' . $project->reference . ' to ' . $backStatus, $project, $oldValues, [
-            'status' => $project->status,
-            'current_level' => $project->current_level,
-            'status_updated_by' => $project->status_updated_by,
-            'status_updated_at' => $project->status_updated_at,
+            'status'             => $project->status,
+            'current_level'      => $project->current_level,
+            'status_updated_by'  => $project->status_updated_by,
+            'status_updated_at'  => $project->status_updated_at,
         ], $workflow);
 
         $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
@@ -102,42 +115,85 @@ class RoiCurrentWorkflowService
     public function handleAdvance(RoiCurrentProject $project, User $user): string
     {
         $fromLevel = (int) $project->current_level;
-        $toLevel = $fromLevel + 1;
-        $nextStatus = $this->getQueueLabelForLevel($toLevel);
-        $timestampColumn = $this->approvalTimestampColumnForLevel($fromLevel);
-
+        $workflow  = $this->getRoiWorkflow($project);
         $oldValues = ['current_level' => $fromLevel, 'status' => $project->status];
-        $workflow = $this->getRoiWorkflow($project);
+
+        // Collect all consecutive levels this user controls starting from fromLevel
+        $autoLevels = $this->collectAutoAdvanceLevels($project, $user->id, $fromLevel);
+        $lastLevel  = end($autoLevels);
+
+        // If the user's consecutive run reaches the final level, delegate to handleApprove.
+        // Only stamp intermediate levels here (< 6); handleApprove owns approved_at.
+        if ($lastLevel >= 6) {
+            $intermediateUpdates = [
+                'status_updated_at' => now(),
+                'status_updated_by' => $user->id,
+                'last_saved_at'     => now(),
+            ];
+
+            foreach ($autoLevels as $l) {
+                if ($l < 6) {
+                    $col = $this->approvalTimestampColumnForLevel($l);
+                    if ($col) {
+                        $intermediateUpdates[$col] = now();
+                    }
+                }
+            }
+
+            $project->update($intermediateUpdates);
+            $this->handleApprove($project->fresh(), $user);
+
+            return 'approved';
+        }
+
+        // Normal / multi-level advance (user does NOT reach the final level)
+        $toLevel    = $lastLevel + 1;
+        $nextStatus = $this->getQueueLabelForLevel($toLevel);
 
         $updates = [
-            'current_level' => $toLevel,
-            'status' => $nextStatus,
-            'status_reason' => null,
+            'current_level'     => $toLevel,
+            'status'            => $nextStatus,
+            'status_reason'     => null,
             'status_updated_at' => now(),
             'status_updated_by' => $user->id,
-            'last_saved_at' => now(),
+            'last_saved_at'     => now(),
         ];
 
-        if ($timestampColumn) {
-            $updates[$timestampColumn] = now();
+        foreach ($autoLevels as $l) {
+            $col = $this->approvalTimestampColumnForLevel($l);
+            if ($col) {
+                $updates[$col] = now();
+            }
         }
 
         $project->update($updates);
 
         $newValues = [
-            'current_level' => $project->current_level,
-            'status' => $project->status,
-            'status_updated_by' => $project->status_updated_by,
-            'status_updated_at' => $project->status_updated_at,
+            'current_level'      => $project->current_level,
+            'status'             => $project->status,
+            'status_updated_by'  => $project->status_updated_by,
+            'status_updated_at'  => $project->status_updated_at,
         ];
 
-        if ($timestampColumn) {
-            $newValues[$timestampColumn] = $project->{$timestampColumn};
+        foreach ($autoLevels as $l) {
+            $col = $this->approvalTimestampColumnForLevel($l);
+            if ($col) {
+                $newValues[$col] = $project->{$col};
+            }
         }
 
-        $this->logActivity('advance', 'Advanced ROI #' . $project->reference . ' to ' . $nextStatus, $project, $oldValues, $newValues, $workflow);
+        $levelNote = count($autoLevels) > 1
+            ? ' (auto-advanced ' . count($autoLevels) . ' levels: ' . implode('→', $autoLevels) . ')'
+            : '';
+
+        $this->logActivity(
+            'advance',
+            'Advanced ROI #' . $project->reference . ' to ' . $nextStatus . $levelNote,
+            $project, $oldValues, $newValues, $workflow
+        );
 
         $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
+
         return $nextStatus;
     }
 
@@ -222,7 +278,7 @@ class RoiCurrentWorkflowService
         };
     }
 
- public function getRoiWorkflow(RoiCurrentProject $project): array
+    public function getRoiWorkflow(RoiCurrentProject $project): array
     {
         return [
             'preparer_id'  => $project->user_id, 
@@ -232,6 +288,50 @@ class RoiCurrentWorkflowService
             'confirmer_id' => $project->confirmed_by, 
             'approver_id'  => $project->approved_by,
         ];
+    }
+
+    private function approverForLevel(RoiCurrentProject $project, int $level): ?int
+    {
+        $id = match ($level) {
+            2 => $project->reviewed_by,
+            3 => $project->checked_by,
+            4 => $project->endorsed_by,
+            5 => $project->confirmed_by,
+            6 => $project->approved_by,
+            default => null,
+        };
+
+        return $id ? (int) $id : null;
+    }
+
+    private function collectAutoAdvanceLevels(RoiCurrentProject $project, int $userId, int $fromLevel): array
+    {
+        $levels = [];
+        for ($level = $fromLevel; $level <= 6; $level++) {
+            if ($this->approverForLevel($project, $level) === $userId) {
+                $levels[] = $level;
+            } else {
+                break;
+            }
+        }
+        return $levels;
+    }
+
+    private function findFirstConsecutiveLevelForApprover(RoiCurrentProject $project, int $toLevel): int
+    {
+        $approverId = $this->approverForLevel($project, $toLevel);
+        if (!$approverId) return $toLevel;
+
+        $firstLevel = $toLevel;
+        for ($level = $toLevel - 1; $level >= 2; $level--) {
+            if ($this->approverForLevel($project, $level) === $approverId) {
+                $firstLevel = $level;
+            } else {
+                break;
+            }
+        }
+
+        return $firstLevel;
     }
 
     public function emailUserById(?int $userId): ?User { return $userId ? User::query()->find($userId) : null; }

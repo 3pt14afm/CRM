@@ -241,18 +241,33 @@ class RoiCurrentProjectController extends Controller
     }
  
     private function getViewerLevel(RoiCurrentProject $project, $user): int
-    {
-        $userId = (int) $user->id;
+        {
+            $userId = (int) $user->id;
 
-        return match (true) {
-            (int) ($project->reviewed_by  ?? 0) === $userId => 2,
-            (int) ($project->checked_by   ?? 0) === $userId => 3,
-            (int) ($project->endorsed_by  ?? 0) === $userId => 4,
-            (int) ($project->confirmed_by ?? 0) === $userId => 5,
-            (int) ($project->approved_by  ?? 0) === $userId => 6,
-            default => 0,
-        };
-    }
+            $levelMap = [
+                2 => 'reviewed_by',
+                3 => 'checked_by',
+                4 => 'endorsed_by',
+                5 => 'confirmed_by',
+                6 => 'approved_by',
+            ];
+
+            $currentLevel = (int) $project->current_level;
+
+            // First, check if the user matches the CURRENT level — highest priority
+            if (isset($levelMap[$currentLevel]) && (int) ($project->{$levelMap[$currentLevel]} ?? 0) === $userId) {
+                return $currentLevel;
+            }
+
+            // Fallback: return any level they're assigned to (for view access)
+            foreach ($levelMap as $level => $column) {
+                if ((int) ($project->{$column} ?? 0) === $userId) {
+                    return $level;
+                }
+            }
+
+            return 0;
+        }
 
     public function show($id)
     {
@@ -289,13 +304,16 @@ class RoiCurrentProjectController extends Controller
                     return null;
         };
 
-            $signatures = [
-            'preparer'     => $signatureFor($project->user), // 👈 Added preparer signature support
-            'reviewed_by'  => $signatureFor($project->reviewedByUser),
-            'checked_by'   => $signatureFor($project->checkedByUser),
-            'endorsed_by'  => $signatureFor($project->endorsedByUser),
-            'confirmed_by' => $signatureFor($project->confirmedByUser),
-            'approved_by'  => $signatureFor($project->approvedByUser),
+        $isSentBack = strtolower((string) $project->status) === 'sent back';
+        $currentLevel = (int) $project->current_level;
+
+        $signatures = [
+            'preparer'     => $signatureFor($project->user),
+            'reviewed_by'  => (!$isSentBack || $currentLevel > 2) ? $signatureFor($project->reviewedByUser)  : null,
+            'checked_by'   => (!$isSentBack || $currentLevel > 3) ? $signatureFor($project->checkedByUser)   : null,
+            'endorsed_by'  => (!$isSentBack || $currentLevel > 4) ? $signatureFor($project->endorsedByUser)  : null,
+            'confirmed_by' => (!$isSentBack || $currentLevel > 5) ? $signatureFor($project->confirmedByUser) : null,
+            'approved_by'  => (!$isSentBack || $currentLevel > 6) ? $signatureFor($project->approvedByUser)  : null,
         ];
 
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/Entry', [
@@ -403,6 +421,10 @@ class RoiCurrentProjectController extends Controller
         abort_if((int) $project->current_level >= 6, 400, 'Already at final level. Use Approve.');
 
         $nextStatus = $this->workflowService->handleAdvance($project, $user);
+
+        if ($nextStatus === 'approved') {
+            return to_route('roi.current')->with('success', 'Project approved and archived.');
+        }
 
         return to_route('roi.current')->with('success', 'Project moved to ' . $nextStatus . '.');
     }
