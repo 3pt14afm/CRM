@@ -156,20 +156,23 @@ public function index(Request $request)
                 ],
             ]);
 
-        // Same logic as RoiCurrentProjectController — uses employee_id, storage disk
-      $signatureFor = function ($userRelation) {
-        if (!$userRelation || !$userRelation->employee_id) return null;
-        $employeeId = $userRelation->employee_id;
+    // Same logic as RoiCurrentProjectController — uses employee_id, storage disk
+            $signatureFor = function ($userRelation) {
+                if (!$userRelation || !$userRelation->employee_id) return null;
+                $employeeId = $userRelation->employee_id;
 
-        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-            $path = storage_path('storage/app/public/signatures/' . $employeeId . '.' . $ext);
-            if (file_exists($path)) {
-                return asset('storage/app/public/signatures/' . $employeeId . '.' . $ext) . '?v=' . filemtime($path);
-            }
-        }
+                foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+                    $path = 'signatures/' . $employeeId . '.' . $ext;
+                    
+                    // Check if the file physically exists on the storage disk
+                    if (Storage::disk('public')->exists($path)) {
+                        // Generate the direct public URL using the asset helper
+                        return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+                    }
+                }
 
-        return null;
-    };
+                return null;
+            };
 
         $signatures = [
             'preparer'     => $signatureFor($project->user),

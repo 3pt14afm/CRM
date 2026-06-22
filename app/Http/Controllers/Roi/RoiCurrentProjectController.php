@@ -272,22 +272,24 @@ class RoiCurrentProjectController extends Controller
         $project->notes = $this->workflowService->sortTimelineEntries($project->notes);
         $project->comments = $this->workflowService->sortTimelineEntries($project->comments);
 
-        // Build signature URLs for all approver levels using relationship objects directly
         $signatureFor = function ($userRelation) {
-            if (!$userRelation || !$userRelation->employee_id) return null;
-            $employeeId = $userRelation->employee_id;
+                    if (!$userRelation || !$userRelation->employee_id) return null;
+                    $employeeId = $userRelation->employee_id;
 
-            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-                $path = storage_path('storage/app/public/signatures/' . $employeeId . '.' . $ext);
-                if (file_exists($path)) {
-                    return asset('storage/app/public/signatures/' . $employeeId . '.' . $ext) . '?v=' . filemtime($path);
-                }
-            }
+                    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+                        $path = 'signatures/' . $employeeId . '.' . $ext;
+                        
+                        // Check if the file physically exists on the storage disk
+                        if (Storage::disk('public')->exists($path)) {
+                            // Generate the direct public URL using the asset helper
+                            return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+                        }
+                    }
 
-            return null;
+                    return null;
         };
 
-        $signatures = [
+            $signatures = [
             'preparer'     => $signatureFor($project->user), // 👈 Added preparer signature support
             'reviewed_by'  => $signatureFor($project->reviewedByUser),
             'checked_by'   => $signatureFor($project->checkedByUser),
