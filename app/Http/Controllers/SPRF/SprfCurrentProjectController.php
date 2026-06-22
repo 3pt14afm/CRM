@@ -219,8 +219,7 @@ class SprfCurrentProjectController extends Controller
             'rebate_justification' => ['nullable', 'string'],
         ]);
 
-        $rebateJustification = $project->rebate_justification;
-
+        // Rebate justification is only resolved and saved at level 2
         if ((int) $project->current_level === 2) {
             $rebateJustification = data_get(
                 $validated,
@@ -233,42 +232,34 @@ class SprfCurrentProjectController extends Controller
                     'rebate_justification' => 'Rebate justification is required when the Rebate row has a value.',
                 ]);
             }
-            
-            // Explicitly update it on the model before advancing
+
             $project->update(['rebate_justification' => $rebateJustification]);
         }
 
-        $finalLevel = $this->finalApprovalLevel($project);
+        // Service handles auto-advance through consecutive levels and auto-approve if terminal is reached
+        $result = $this->workflowService->handleAdvance($project->fresh(), Auth::id());
 
-        if ((int) $project->current_level >= $finalLevel) {
-            throw ValidationException::withMessages([
-                'project' => 'This project is already at its final approval level. Use Approve instead.',
-            ]);
-        }
-
-        list($nextLevel, $nextApproverId) = $this->resolveNextStep($project);
-
-        if (! $nextApproverId) {
-            throw ValidationException::withMessages([
-                'project' => 'Next approver is not configured in User Management.',
-            ]);
-        }
-
-        $this->workflowService->handleAdvance($project, $nextLevel, $nextApproverId);
+        $wasApproved = $result instanceof SprfArchiveProject;
 
         try {
             SprfActivityLogger::log(
-                activityType: 'advanced',
-                sprf: $project->fresh(),
-                details: 'SPRF project advanced to the next level',
+                activityType: $wasApproved ? 'approved' : 'advanced',
+                sprf: $result,
+                details: $wasApproved
+                    ? 'SPRF project auto-advanced and approved'
+                    : 'SPRF project advanced to the next level',
                 oldValues: $oldValues,
-                newValues: $project->fresh()->toArray()
+                newValues: $result->fresh()->toArray()
             );
         } catch (\Throwable $e) {
             Log::error('SPRF advance activity log failed', [
                 'message' => $e->getMessage(),
                 'sprf_current_project_id' => $project->id,
             ]);
+        }
+
+        if ($wasApproved) {
+            return to_route('sprf.current')->with('success', 'SPRF project approved and archived.');
         }
 
         return to_route('sprf.current')->with('success', 'SPRF project advanced to the next level.');

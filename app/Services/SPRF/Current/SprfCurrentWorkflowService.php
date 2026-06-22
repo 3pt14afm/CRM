@@ -13,15 +13,54 @@ class SprfCurrentWorkflowService
     /**
      * Handles moving the project forward one step.
      */
-    public function handleAdvance(SprfCurrentProject $project, int $nextLevel, int $nextApproverId): SprfCurrentProject
+    /**
+     * Handles moving the project forward one or more steps.
+     * If the acting user is assigned to consecutive levels, all are stamped
+     * in a single action. If their run reaches the terminal level, the project
+     * is archived as approved automatically.
+     */
+    public function handleAdvance(SprfCurrentProject $project, int $actingUserId): SprfCurrentProject|SprfArchiveProject
     {
-        if ((int) $project->current_level === 2 && $project->requires_rebate_justification && blank($project->rebate_justification)) {
+        if ((int) $project->current_level === 2
+            && $project->requires_rebate_justification
+            && blank($project->rebate_justification)
+        ) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'rebate_justification' => 'Rebate justification must be provided.',
             ]);
         }
 
-        $timestampColumn = $this->timestampColumnForLevel($project->current_level);
+        $terminalLevel = $this->getTerminalLevel($project);
+        $autoLevels    = $this->collectAutoAdvanceLevels($project, $actingUserId, (int) $project->current_level);
+        $lastLevel     = end($autoLevels);
+
+        // User's consecutive run reaches terminal level → archive as approved.
+        // Only stamp intermediate levels here; handleApprove owns the terminal timestamp.
+        if ($lastLevel >= $terminalLevel) {
+            $intermediateData = [];
+
+            foreach ($autoLevels as $level) {
+                if ($level < $terminalLevel) {
+                    $col = $this->timestampColumnForLevel($level);
+                    if ($col) {
+                        $intermediateData[$col] = now();
+                    }
+                }
+            }
+
+            // Bring current_level to terminal so handleApprove reads the right timestamp column
+            $intermediateData['current_level'] = $terminalLevel;
+
+            if (!empty($intermediateData)) {
+                $project->update($intermediateData);
+            }
+
+            return $this->handleApprove($project->fresh(), $actingUserId);
+        }
+
+        // Normal / multi-level advance (user does NOT reach the terminal level)
+        $nextLevel      = $lastLevel + 1;
+        $nextApproverId = $this->approverUserIdForLevel($project, $nextLevel);
 
         $updateData = [
             'current_level'            => $nextLevel,
@@ -29,9 +68,11 @@ class SprfCurrentWorkflowService
             'status'                   => 'under_review',
         ];
 
-        // Stamp the current time for the level we are leaving
-        if ($timestampColumn) {
-            $updateData[$timestampColumn] = now();
+        foreach ($autoLevels as $level) {
+            $col = $this->timestampColumnForLevel($level);
+            if ($col) {
+                $updateData[$col] = now();
+            }
         }
 
         $project->update($updateData);
@@ -269,5 +310,41 @@ class SprfCurrentWorkflowService
             5 => 'president_ceo_acted_at',
             default => null,
         };
+    }
+    
+    private function getTerminalLevel(SprfCurrentProject $project): int
+    {
+        if ($project->requires_president_ceo) return 5;
+        if ($project->requires_vp_ccto)       return 4;
+        return 3;
+    }
+
+    private function approverUserIdForLevel(SprfCurrentProject $project, int $level): ?int
+    {
+        $id = match ($level) {
+            2 => $project->director_customer_engagement_user_id,
+            3 => $project->esd_director_user_id,
+            4 => $project->vp_ccto_user_id,
+            5 => $project->president_ceo_user_id,
+            default => null,
+        };
+
+        return $id ? (int) $id : null;
+    }
+
+    private function collectAutoAdvanceLevels(SprfCurrentProject $project, int $actingUserId, int $fromLevel): array
+    {
+        $terminalLevel = $this->getTerminalLevel($project);
+        $levels        = [];
+
+        for ($level = $fromLevel; $level <= $terminalLevel; $level++) {
+            if ($this->approverUserIdForLevel($project, $level) === $actingUserId) {
+                $levels[] = $level;
+            } else {
+                break;
+            }
+        }
+
+        return $levels;
     }
 }
