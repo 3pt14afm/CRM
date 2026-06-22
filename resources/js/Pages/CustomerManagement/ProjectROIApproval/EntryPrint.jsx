@@ -28,6 +28,8 @@ function mapProjectToContext(p) {
     machineMarginTotal: Number(r.machine_margin_total ?? 0),
   });
 
+  
+
   const machine = items.filter((r) => r.kind === "machine").map(mapItem);
   const consumable = items.filter((r) => r.kind === "consumable").map(mapItem);
 
@@ -130,7 +132,27 @@ function mapProjectToContext(p) {
       total: Number(p?.fees_total ?? feesTotal),
     },
 
-    yearlyBreakdown: p?.yearly_breakdown ?? {},
+      
+
+      // AFTER — remap "year_1" → 1, "year_2" → 2, etc.
+      yearlyBreakdown: Object.fromEntries(
+        Object.entries(p?.yearly_breakdown ?? {}).map(([k, v]) => {
+          // convert "year_1" → 1, "year_2" → 2, etc.
+          const num = parseInt(k.replace('year_', ''), 10);
+          return [
+            num,
+            {
+              ...v,
+              // year_1 stores it as "firstYearTotalCost", component reads "fistYearTotalCost"
+              // fix both spellings so it works regardless
+              fistYearTotalCost: v.fistYearTotalCost ?? v.firstYearTotalCost ?? 0,
+              fistYearTotalSell: v.fistYearTotalSell ?? v.firstYearTotalSell ?? 0,
+              firstYearTotalCost: v.firstYearTotalCost ?? v.fistYearTotalCost ?? 0,
+              firstYearTotalSell: v.firstYearTotalSell ?? v.fistYearTotalSell ?? 0,
+            }
+          ];
+        })
+      ),
 
     totalProjectCost: {
       grandTotalCost: Number(p?.grand_total_cost ?? 0),
@@ -151,6 +173,8 @@ function mapProjectToContext(p) {
         ? p.entry_remarks_attachments
         : [],
     },
+
+    
   };
 }
 

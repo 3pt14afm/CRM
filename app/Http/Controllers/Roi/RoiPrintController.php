@@ -23,6 +23,46 @@ class RoiPrintController extends Controller
         return $this->renderPrint(RoiArchiveProject::class, $id, 'archive', false);
     }
 
+    private function normalizeItems($items): array
+    {
+        return $items->map(fn($r) => [
+            'id'                  => $r->id,
+            'client_row_id'       => $r->client_row_id ?? null,
+            'kind'                => $r->kind ?? null,
+            'sku'                 => $r->sku ?? null,
+            'qty'                 => $r->qty ?? 0,
+            'yields'              => $r->yields ?? 0,
+            'mode'                => $r->mode ?? null,
+            'remarks'             => $r->remarks ?? null,
+            'inputted_cost'       => $r->inputted_cost ?? 0,
+            'cost'                => $r->cost ?? 0,
+            'price'               => $r->price ?? 0,
+            'base_per_year'       => $r->base_per_year ?? 0,
+            'total_cost'          => $r->total_cost ?? 0,
+            'cost_cpp'            => $r->cost_cpp ?? 0,
+            'total_sell'          => $r->total_sell ?? 0,
+            'sell_cpp'            => $r->sell_cpp ?? 0,
+            'machine_margin'      => $r->machine_margin ?? 0,
+            'machine_margin_total'=> $r->machine_margin_total ?? 0,
+        ])->toArray();
+    }
+
+    private function normalizeFees($fees): array
+    {
+        return $fees->map(fn($f) => [
+            'id'         => $f->id,
+            'client_row_id' => $f->client_row_id ?? null,
+            'label'      => $f->label ?? null,
+            'category'   => $f->category ?? null,
+            'remarks'    => $f->remarks ?? null,
+            'cost'       => $f->cost ?? 0,
+            'qty'        => $f->qty ?? 0,
+            'total'      => $f->total ?? 0,
+            'is_machine' => $f->is_machine ?? false,
+            'payer'      => $f->payer ?? null,
+        ])->toArray();
+    }
+
     private function renderPrint($modelClass, $id, $route, $showDraftWatermark)
     {
         $p = $modelClass::with(['items', 'fees', 'user'])->findOrFail($id);
@@ -36,14 +76,14 @@ class RoiPrintController extends Controller
         $usersById = User::query()
             ->whereIn('id', $userIds)
             ->get(['id', 'first_name', 'last_name', 'position', 'employee_id'])
-            ->keyBy(fn ($u) => (string) $u->id)
-            ->map(fn ($u) => [
+            ->keyBy(fn($u) => (string) $u->id)
+            ->map(fn($u) => [
                 'id'       => $u->id,
                 'name'     => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
                 'position' => $u->position ?? '—',
             ]);
 
-        $signatureFor = function ($userId) use ($usersById) {
+        $signatureFor = function ($userId) {
             if (!$userId) return null;
             $employeeId = User::find($userId)?->employee_id;
             if (!$employeeId) return null;
@@ -65,15 +105,30 @@ class RoiPrintController extends Controller
             'approved_by'  => $signatureFor($p->approved_by),
         ];
 
+        // Normalize project data so the frontend always gets
+        // consistent field names regardless of which model was loaded
+        $normalizedProject = array_merge($p->toArray(), [
+            'items' => $this->normalizeItems($p->items),
+            'fees'  => $this->normalizeFees($p->fees),
+        ]);
+
+//     dd([
+//     'model'       => $modelClass,
+//     'items_count' => $p->items->count(),
+//     'fees_count'  => $p->fees->count(),
+//     'items_raw'   => $p->items->first()?->toArray(),
+//     'fees_raw'    => $p->fees->first()?->toArray(),
+// ]);
+
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
-            'tab'               => request('tab', 'summary'),
-            'storageKey'        => request('storageKey'),
-            'autoprint'         => (bool) request('autoprint', false),
-            'showDraftWatermark'=> $showDraftWatermark,
-            'entryProject'      => $p,
-            'usersById'         => $usersById,
-            'route'             => $route,
-            'signatures'        => $signatures,
+            'tab'                => request('tab', 'summary'),
+            'storageKey'         => request('storageKey'),
+            'autoprint'          => (bool) request('autoprint', false),
+            'showDraftWatermark' => $showDraftWatermark,
+            'entryProject'       => $normalizedProject,
+            'usersById'          => $usersById,
+            'route'              => $route,
+            'signatures'         => $signatures,
         ]);
     }
 }

@@ -129,9 +129,9 @@ export default function Entry({
   // --- Approver level ---
 
   const levelNum = Number(viewerLevel ?? 0);
-const projectLevel = Number(
-  projectData?.metadata?.current_level ?? entryProject?.current_level ?? 0
-);
+  const projectLevel = Number(
+    projectData?.metadata?.current_level ?? entryProject?.current_level ?? 0
+  );
 
 const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === projectLevel;
 

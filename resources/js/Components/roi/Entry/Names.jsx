@@ -64,12 +64,36 @@ function Names() {
   const approvedByPosition = hasPageProject ? positionOf(project?.approved_by) : fromSnap('approvedByPosition');
   const rejectedByPosition = hasPageProject ? positionOf(project?.rejected_by) : fromSnap('rejectedByPosition');
 
-  const preparedAt = timestampOf(project?.submitted_at);
-  const reviewedAt = timestampOf(project?.reviewed_at);
-  const checkedAt = timestampOf(project?.checked_at);
-  const endorsedAt = timestampOf(project?.endorsed_at);
-  const confirmedAt = timestampOf(project?.confirmed_at);
-  const approvedAt = timestampOf(project?.approved_at);
+const isSentBack = status === 'sent back';
+const currentLevel = Number(project?.current_level ?? 0);
+
+const preparedAt = timestampOf(project?.submitted_at);
+
+const reviewedAt =
+  isSentBack && currentLevel <= 2
+    ? ''
+    : timestampOf(project?.reviewed_at);
+
+const checkedAt =
+  isSentBack && currentLevel <= 3
+    ? ''
+    : timestampOf(project?.checked_at);
+
+const endorsedAt =
+  isSentBack && currentLevel <= 4
+    ? ''
+    : timestampOf(project?.endorsed_at);
+
+const confirmedAt =
+  isSentBack && currentLevel <= 5
+    ? ''
+    : timestampOf(project?.confirmed_at);
+
+const approvedAt =
+  isSentBack && currentLevel <= 6
+    ? ''
+    : timestampOf(project?.approved_at);
+
   const rejectedAt = isRejected ? timestampOf(project?.rejected_at) : '';
 
   // Helper to only show signature if timestamp exists

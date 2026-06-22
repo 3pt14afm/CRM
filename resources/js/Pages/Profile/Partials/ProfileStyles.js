@@ -1,0 +1,2 @@
+export const cardStyle =
+    "overflow-hidden rounded-2xl bg-white border border-[#00000010] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,0.8),0px_0px_0_rgba(255,255,255,0.8),2px_2px_4px_rgba(0,0,0,0.2)]";
