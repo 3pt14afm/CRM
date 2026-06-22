@@ -142,13 +142,16 @@ const selectSuggestion = (item) => {
 
               {suggestions.length > 0 ? (
                 suggestions.map((item, index) => (
-                  <li
-                    key={index}
-                    className="px-4 py-2 hover:bg-green-50 cursor-pointer text-sm text-gray-800 border-b  border-gray-50 last:border-none transition-colors"
-                    onClick={() => selectSuggestion(item)}
-                  >
-                    {item.company_name}
-                  </li>
+                <li
+                  key={index}
+                  className="px-4 py-2 hover:bg-green-50 cursor-pointer text-sm text-gray-800 border-b border-gray-50 last:border-none transition-colors"
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // ← prevents input blur from firing first
+                    selectSuggestion(item);
+                  }}
+                >
+                  {item.company_name}
+                </li>
                 ))
               ) : (
                 !isSearching && hasSearched && (
