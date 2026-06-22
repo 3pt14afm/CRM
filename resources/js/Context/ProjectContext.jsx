@@ -26,7 +26,7 @@ const defaultInitialState = {
     bundledStdInk: false,
   },
   interest: {
-    annualInterest: 12,
+    annualInterest: 0,
     percentMargin: 0,
   },
   yield: {

@@ -5,41 +5,51 @@ import { interest } from '@/utils/interest';
 const InterestCalculator = () => {
   const { projectData, setProjectData } = useProjectData();
 
-  // Memoize interest calculation
-  const { monthlyInterest, monthlyMarginForContract, annualMargin, hasValidYears, percentMargin } = useMemo(() => {
+  // 1. Check if contract type contains "outright" (case-insensitive)
+  const isOutright = useMemo(() => {
+    return projectData?.companyInfo?.contractType?.toLowerCase().includes('outright') || false;
+  }, [projectData?.companyInfo?.contractType]);
+
+  // 2. Safely calculate or override calculations
+  const { monthlyInterest, monthlyMarginForContract, annualMargin, percentMargin } = useMemo(() => {
+    if (isOutright) {
+      return {
+        monthlyInterest: 0,
+        monthlyMarginForContract: 0,
+        annualMargin: 0,
+        percentMargin: 0
+      };
+    }
     return interest(projectData);
-  }, [
-    projectData?.interest?.annualInterest,
-    projectData?.interest?.percentMargin,
-    projectData?.companyInfo?.contractYears
-  ]);
+  }, [projectData, isOutright]);
 
+  // 3. Keep percentMargin synced, AND restore 12% if switching away from outright to a 0% state
   useEffect(() => {
-    setProjectData(prev => ({
-      ...prev,
-      interest: {
-        ...prev.interest,
-        percentMargin,
-      }
-    }));
-  }, [projectData?.companyInfo?.contractYears]);
+    if (isOutright) return; // Do nothing if it's currently outright
 
+    const currentAnnual = Number(projectData?.interest?.annualInterest) || 0;
 
-  const handleChange = (field, value) => {
-    setProjectData(prev => ({
-      ...prev,
-      interest: {
-        ...prev.interest,
-        [field]: value
-      }
-    }));
-  };
-
-  const metrics = [
-    { label: "Monthly Interest", value: `${monthlyInterest.toFixed(2)}%` },
-    { label: "Monthly Margin for Contract Duration", value: `${monthlyMarginForContract.toFixed(2)}%` },
-    { label: "Annual Margin", value: `${annualMargin.toFixed(2)}%` },
-  ];
+    // If we are NOT outright, but the state was wiped out to 0, restore it to 12
+    if (currentAnnual === 0) {
+      setProjectData(prev => ({
+        ...prev,
+        interest: {
+          ...prev.interest,
+          annualInterest: 12, // Your fallback default rate
+          percentMargin,
+        }
+      }));
+    } else {
+      // Just update the percent margin normally
+      setProjectData(prev => ({
+        ...prev,
+        interest: {
+          ...prev.interest,
+          percentMargin,
+        }
+      }));
+    }
+  }, [percentMargin, isOutright, projectData?.interest?.annualInterest]);
 
   return (
     <div className='w-full items-start '>
@@ -53,8 +63,9 @@ const InterestCalculator = () => {
               </td>
               <td className="w-1/3 p-1.5 text-center border-l bg-lightgreen/2">
                 <div className="relative w-full">
-                  <span className="  top-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none">
-                    {projectData?.interest?.annualInterest}%
+                  <span className="top-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none">
+                    {/* Visual shield: force 0 UI display if outright */}
+                    {isOutright ? 0 : (projectData?.interest?.annualInterest || 0)}%
                   </span>
                 </div>
               </td>
@@ -66,8 +77,8 @@ const InterestCalculator = () => {
               </td>
               <td className="w-1/3 p-1.5 text-center border-l bg-lightgreen/2">
                 <div className="relative w-full">
-                  <span className=" top-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none">
-                    {percentMargin}%
+                  <span className="top-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none">
+                    {isOutright ? 0 : percentMargin}%
                   </span>
                 </div>
               </td>
@@ -75,9 +86,6 @@ const InterestCalculator = () => {
           </tbody>
         </table>
       </div>
-
-
-      
     </div>
   );
 };
