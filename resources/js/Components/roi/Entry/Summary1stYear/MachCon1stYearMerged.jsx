@@ -31,8 +31,24 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
     ...filteredConsumable.map(c => (Number(c.price) || 0))
   ].reduce((sum, val) => sum + val, 0);
 
-  const manualTotalSellCpp =
-    totals.yields > 0 ? manualTotalSellingPrice / totals.yields : 0;
+  // Sum of the individual Sell CPPs for Machines
+  const machineSellCppTotal = [...normalMachines, ...othersMachines].reduce((sum, m) => {
+    const effectivePrice = isOutright ? (Number(m.price) || 0) : 0;
+    const yields = Number(m.yields) || 0;
+    const itemCpp = yields > 0 ? effectivePrice / yields : 0;
+    return sum + itemCpp;
+  }, 0);
+
+  // Sum of the individual Sell CPPs for Consumables
+  const consumableSellCppTotal = filteredConsumable.reduce((sum, c) => {
+    const price = Number(c.price) || 0;
+    const yields = Number(c.yields) || 0;
+    const itemCpp = yields > 0 ? price / yields : 0;
+    return sum + itemCpp;
+  }, 0);
+
+  // Combine for the final Total Sell CPP
+  const manualTotalSellCpp = machineSellCppTotal + consumableSellCppTotal;
 
   const formatNum = (val, decimals = 2) => {
     const num = Number(val) || 0;
