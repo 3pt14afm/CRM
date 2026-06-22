@@ -6,6 +6,7 @@ use App\Models\LocationDepartment;
 use App\Models\RoiCurrentProject;
 use App\Models\RoiEntryProject;
 use App\Http\Requests\Roi\Entry\StoreRoiDraftRequest;
+use App\Services\Roi\Current\RoiCurrentWorkflowService;
 use App\Services\Roi\Entry\RoiProjectService;
 use App\Services\RoiActivityLogger;
 use Illuminate\Http\Request;
@@ -24,10 +25,12 @@ class RoiEntryProjectController extends Controller
     use StreamsEntryRemarkAttachments;
 
     protected RoiProjectService $roiService;
+    protected RoiCurrentWorkflowService $workflowService;
 
-    public function __construct(RoiProjectService $roiService)
+    public function __construct(RoiProjectService $roiService, RoiCurrentWorkflowService $workflowService)
     {
         $this->roiService = $roiService;
+        $this->workflowService = $workflowService;
     }
 
     public function getCompanySuggestions(Request $request)
@@ -237,6 +240,7 @@ class RoiEntryProjectController extends Controller
         ];
 
         $newProject = $this->roiService->handleSubmitProject($project, $submitter, $matrix, $oldValues);
+        $this->workflowService->handleAutoAdvanceOnSubmit($newProject);
 
         try {
             RoiActivityLogger::log(
