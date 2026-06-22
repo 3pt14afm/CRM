@@ -24,7 +24,7 @@ const CONDITION_ROWS = [
 
 export default function Conditions() {
   return (
-    <div className="overflow-hidden rounded-xl border border-[#2c2c2e]/20 bg-white shadow-sm print:mt-5">
+    <div className="overflow-hidden rounded-xl border border-[#2c2c2e]/20 bg-white shadow-sm print:mt-0">
       <div className="bg-[#B5EBA2]/15 px-4 py-1.5 border-b border-[#2c2c2e]/10">
         <h3 className="text-[10px] xl:text-[11px] font-bold uppercase tracking-wide print:font-semibold">
           Conditions

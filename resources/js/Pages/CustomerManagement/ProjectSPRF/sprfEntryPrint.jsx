@@ -273,6 +273,8 @@ export default function SprfEntryPrint({
   storageKey = null,
   autoprint = false,
   entryProject = null,
+  notes = null,
+  comments = null,
 }) {
   const [loaded, setLoaded] = useState(false);
   const [printData, setPrintData] = useState(null);
@@ -280,7 +282,16 @@ export default function SprfEntryPrint({
   useEffect(() => {
     try {
       if (entryProject) {
-        setPrintData(mapProjectToPrintData(entryProject));
+        const mappedData = mapProjectToPrintData(entryProject);
+
+        if (Array.isArray(notes) && notes.length > 0) {
+          mappedData.notes = notes;
+        }
+        if (Array.isArray(comments) && comments.length > 0) {
+          mappedData.comments = comments;
+        }
+
+        setPrintData(mappedData);
         setLoaded(true);
         return;
       }
@@ -303,7 +314,7 @@ export default function SprfEntryPrint({
       console.error('SPRF print page failed to load data:', error);
       setLoaded(true);
     }
-  }, [entryProject, storageKey]);
+  }, [entryProject, storageKey, notes, comments]);
 
   useEffect(() => {
     if (!autoprint || !loaded) return;
@@ -392,7 +403,7 @@ export default function SprfEntryPrint({
             </div>
           ) : (
             <div className="rounded-2xl overflow-hidden flex flex-col justify-center">
-              <div className="px-6 py-1 mb-2 text-center text-xs font-bold uppercase tracking-wide">
+              <div className="px-6 py-1 mb-2 text-center text-xs font-medium uppercase tracking-wide">
                 IT Solutions Special Price Request Form
               </div>
 
@@ -421,7 +432,7 @@ export default function SprfEntryPrint({
                     <div className="flex justify-end">
                       <div className="text-right">
                         <div className="text-[11px] text-slate-500">SPRF No.</div>
-                        <div className="text-xs font-extrabold">
+                        <div className="text-xs font-medium">
                           {displayText(resolved.sprfNo)}
                         </div>
                       </div>
@@ -447,13 +458,18 @@ export default function SprfEntryPrint({
 
                 
 
-                <div className=" w-full flex flex-col items-start space-y-5">
-                  <div className="flex gap-3">
-                    <Conditions />
-                    <PrintNotesComments
-                      notes={resolved.notes}
-                      comments={resolved.comments}
-                    />
+                <div className="w-full flex flex-col items-start space-y-5">
+                  <div className="flex w-full gap-3 items-start">
+                    <div className="w-[35%] print:text-[9px] print:leading-tight">
+                      <Conditions />
+                    </div>
+                    
+                    <div className="w-[65%]">
+                      <PrintNotesComments
+                        notes={resolved.notes}
+                        comments={resolved.comments}
+                      />
+                    </div>
                   </div>
 
                   <div className="w-[95%]">
@@ -500,9 +516,9 @@ function PrintTextBlock({ label, value }) {
   const rows = normalizePrintRows(value);
 
   return (
-    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-3 py-2">
-      <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-5">
-        <label className="text-[11px] uppercase font-semibold tracking-[0.01em]">
+    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-3 py-1">
+      <div className="grid grid-cols-[90px_minmax(0,1fr)] items-center gap-5">
+        <label className="text-[11px] uppercase font-semibold tracking-[0.01em] leading-snug">
           {label}
         </label>
 
@@ -510,7 +526,7 @@ function PrintTextBlock({ label, value }) {
           {rows.map((row, index) => (
             <div
               key={`${label}-${index}`}
-              className="min-w-0 min-h-[30px] max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]"
+              className="min-w-0 min-h-[20px] max-w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]"
             >
               {displayText(row) || '—'}
             </div>
@@ -529,7 +545,7 @@ function PrintRejectNoteBlock({ value }) {
           Reject Note
         </label>
 
-        <div className="px-3 py-1 text-[11px] text-slate-700 whitespace-pre-wrap [overflow-wrap:anywhere]">
+        <div className="px-2 py-1 text-[11px] text-slate-700 whitespace-pre-wrap [overflow-wrap:anywhere]">
           {displayText(value)}
         </div>
       </div>
@@ -648,33 +664,33 @@ function PrintItemsTable({ groups, totals }) {
               return subitems.length > 0 ? subitems.map((sub, sIndex) => (
                 <tr key={sub.rowKey ?? `${group.rowKey}-${sIndex}`}>
                   {sIndex === 0 && (
-                    <td className="border-b border-r border-darkgreen/15 p-2 text-center" rowSpan={rowSpanCount}>
+                    <td className="border-b border-r border-darkgreen/15 p-1 text-center" rowSpan={rowSpanCount}>
                       {groupHasValue ? gIndex + 1 : ''}
                     </td>
                   )}
 
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">{displayText(sub.productCode)}</td>
-                  <td className="border-b border-r border-darkgreen/15 p-2">{displayText(sub.itemDescription)}</td>
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">{isBlank(sub.qty) ? '' : sub.qty}</td>
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-center">{displayText(sub.disty)}</td>
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">{displayPeso(sub.costPerUnit)}</td>
-                  <td className="border-b border-r border-darkgreen/15 p-2 text-right">{displayPeso(sub.totalCost)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-1 text-center">{displayText(sub.productCode)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-1">{displayText(sub.itemDescription)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-1 text-center">{isBlank(sub.qty) ? '' : sub.qty}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-1 text-center">{displayText(sub.disty)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-1 text-right">{displayPeso(sub.costPerUnit)}</td>
+                  <td className="border-b border-r border-darkgreen/15 p-1 text-right">{displayPeso(sub.totalCost)}</td>
 
                   {sIndex === 0 && (
                     <>
-                      <td className="border-b border-r border-darkgreen/15 p-2 text-right" rowSpan={rowSpanCount}>
+                      <td className="border-b border-r border-darkgreen/15 p-1 text-right" rowSpan={rowSpanCount}>
                         {displayPeso(group.sellingPricePerUnitVatInc)}
                       </td>
-                      <td className="border-b border-r border-darkgreen/15 p-2 text-right" rowSpan={rowSpanCount}>
+                      <td className="border-b border-r border-darkgreen/15 p-1 text-right" rowSpan={rowSpanCount}>
                         {displayPeso(group.totalSellingPriceVatInc)}
                       </td>
-                      <td className="border-b border-r border-darkgreen/15 p-2 text-right" rowSpan={rowSpanCount}>
+                      <td className="border-b border-r border-darkgreen/15 p-1 text-right" rowSpan={rowSpanCount}>
                         {displayPeso(group.markupValue)}
                       </td>
                     </>
                   )}
 
-                  <td className="border-b border-darkgreen/15 p-2 text-center">
+                  <td className="border-b border-darkgreen/15 p-1 text-center">
                     {isBlank(sub.markupPercent) ? '' : parseFloat(Number(sub.markupPercent).toFixed(2))}
                   </td>
                 </tr>
@@ -856,36 +872,36 @@ function PrintNotesComments({ notes = [], comments = [] }) {
     const d = new Date(date);
     if (Number.isNaN(d.getTime())) return '';
     const datePart = new Intl.DateTimeFormat('en-US', {
-      month: 'short', day: '2-digit', year: 'numeric',
+      month: '2-digit', day: '2-digit', year: '2-digit',
     }).format(d);
     const timePart = new Intl.DateTimeFormat('en-US', {
       hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(d);
-    return `${datePart} - ${timePart}`;
+    return `${datePart}\n${timePart}`;
   };
 
   const renderItems = (items) =>
     items.map((entry, idx) => (
       <div
         key={entry.id ?? `entry-${idx}`}
-        className="bg-white border border-gray-200 rounded-xl px-4 py-3 my-[3px] shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+        className="bg-white border border-gray-200 rounded-xl px-3 py-3 my-[3px]"
       >
-        <div className="flex h-4 items-start justify-between">
+        <div className="flex h-4 justify-between">
           <span className="text-[11px] font-medium text-gray-900">
             {entry.author?.name ?? 'Unknown'}
           </span>
-          <span className="text-[10px] text-gray-500 italic whitespace-nowrap">
+          <span className="text-[10px] text-gray-500 italic whitespace-pre-line text-right">
             {fmt(entry.created_at)}
           </span>
         </div>
-        <p className="mt-2 text-gray-900 text-xs leading-relaxed">{entry.body}</p>
+        <p className="mt-1 pr-6 text-gray-900 text-xs leading-normal">{entry.body}</p>
       </div>
     ));
 
   return (
     <div className="w-full flex gap-2">
       {hasNotes && (
-        <div>
+        <div className="w-[50%]">
           <span className="text-[11px] font-medium text-gray-400 pl-2 uppercase tracking-wide">
             Notes
           </span>
@@ -893,7 +909,7 @@ function PrintNotesComments({ notes = [], comments = [] }) {
         </div>
       )}
       {hasComments && (
-        <div>
+        <div className="w-[50%]">
           <span className="text-[11px] font-medium text-gray-400 pl-2 uppercase tracking-wide">
             Comments
           </span>
