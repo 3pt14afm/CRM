@@ -19,7 +19,7 @@ class SprfController extends Controller
 
         $draftsQuery = SprfEntryProject::query()
             ->where('prepared_by_user_id', $userId)
-            ->where('status', 'draft')
+            ->whereIn('status', ['draft', 'returned'])
             ->orderByDesc('updated_at');
 
         $drafts = (clone $draftsQuery)
@@ -47,7 +47,7 @@ class SprfController extends Controller
 
         $recentlyModifiedToday = SprfEntryProject::query()
             ->where('prepared_by_user_id', $userId)
-            ->where('status', 'draft')
+            ->whereIn('status', ['draft', 'returned'])
             ->whereDate('updated_at', now()->toDateString())
             ->count();
 

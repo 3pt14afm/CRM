@@ -40,6 +40,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
   const [showLocation,      setShowLocation]      = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const datePickerRef    = useRef(null);
   const perPagePickerRef = useRef(null);
@@ -65,6 +66,15 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // --- Auto-refresh every 60 seconds ---
+  useEffect(() => {
+      const interval = setInterval(() => {
+          fetchCurrentData({ silent: true }); // uses all current filter state by default
+      }, 60_000);
+
+      return () => clearInterval(interval);
+  }, [search, statusFilter, dateFrom, dateTo, preparedBy, locationId, perPage]);
 
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
@@ -166,6 +176,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
 
   /* ── Fetch ── */
   const fetchCurrentData = async ({
+    silent            = false,
     targetPage        = 1,
     currentSearch     = search,
     currentStatus     = statusFilter,
@@ -175,30 +186,32 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
   } = {}) => {
-    setLoading(true);
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
     try {
-      const response = await axios.get(route("roi.current"), {
-        params: {
-          page:        targetPage,
-          search:      currentSearch      || undefined,
-          status:      currentStatus      || undefined,
-          per_page:    currentPerPage,
-          date_from:   currentDateFrom    || undefined,
-          date_to:     currentDateTo      || undefined,
-          prepared_by: currentPreparedBy  || undefined,
-          location_id: currentLocationId  || undefined,
-        },
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json',
-        },
-      });
-      const payload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
-      setLocalCurrentProjects(payload);
+        const response = await axios.get(route("roi.current"), {
+            params: {
+                page:        targetPage,
+                search:      currentSearch      || undefined,
+                status:      currentStatus      || undefined,
+                per_page:    currentPerPage,
+                date_from:   currentDateFrom    || undefined,
+                date_to:     currentDateTo      || undefined,
+                prepared_by: currentPreparedBy  || undefined,
+                location_id: currentLocationId  || undefined,
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+        });
+        const payload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
+        setLocalCurrentProjects(payload);
     } catch (error) {
-      console.error("Failed to fetch current projects:", error);
+        console.error("Failed to fetch current projects:", error);
     } finally {
-      setLoading(false);
+        setLoading(false);
+        setIsRefreshing(false);
     }
   };
 

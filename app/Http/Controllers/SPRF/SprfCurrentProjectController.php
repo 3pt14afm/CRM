@@ -44,7 +44,7 @@ class SprfCurrentProjectController extends Controller
                     ->orWhere('president_ceo_user_id', $userId);
             });
         }
-        $query->whereIn('status', ['for_review', 'under_review']);
+        $query->whereIn('status', ['for_review', 'under_review', 'Sent Back']);
 
         // ─── ALIGNED SPRF DYNAMIC FILTERS ────────────────────────────────────
         
@@ -101,11 +101,16 @@ class SprfCurrentProjectController extends Controller
         $currentProjects = (clone $query)
             ->paginate($perPage)
             ->withQueryString()
-            ->through(function (SprfCurrentProject $project) {
+            ->through(function (SprfCurrentProject $project) use ($userId) {
+                $isSentBack = strtolower((string) $project->status) === 'sent back';
+                $isCurrentApprover = (int) ($project->current_approver_user_id ?? 0) === $userId;
+
                 return [
                     'id' => $project->id,
                     'sprf_no' => $project->sprf_no,
                     'status' => $project->status,
+                    'status_display_main' => $isCurrentApprover ? 'For Review' : 'Under Review',
+                    'status_display_suffix' => $isSentBack ? ' (SB)' : '',
                     'current_level' => $project->current_level,
                     'approval_level' => $project->approval_level,
                     'company_name' => $project->account,
@@ -129,8 +134,7 @@ class SprfCurrentProjectController extends Controller
                 $q->where('prepared_by_user_id', $userId)
                     ->orWhere('current_approver_user_id', $userId);
             })
-            ->whereIn('status', ['for_review', 'under_review'])
-            ->whereDate('updated_at', now()->toDateString())
+            ->whereIn('status', ['for_review', 'under_review', 'Sent Back'])
             ->count();
 
         return Inertia::render('CustomerManagement/ProjectSPRF/CurrentRoutes/CurrentList', [
@@ -167,7 +171,7 @@ class SprfCurrentProjectController extends Controller
             'currentApprover:id,first_name,last_name,position,email',
         ]);
 
-        $transformedProject = $this->transformProjectForFrontend($project);
+        $transformedProject = $this->transformProjectForFrontend($project, (int) Auth::id());
 
         return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
             'project' => $transformedProject,
@@ -428,7 +432,7 @@ class SprfCurrentProjectController extends Controller
     {
         $userId = (int) Auth::id();
 
-        $isActionableStatus = in_array($project->status, ['for_review', 'under_review'], true);
+        $isActionableStatus = in_array($project->status, ['for_review', 'under_review', 'Sent Back'], true);
         $isAssignedApprover = (int) ($project->current_approver_user_id ?? 0) === $userId;
 
         return $isActionableStatus && $isAssignedApprover;
@@ -459,7 +463,7 @@ class SprfCurrentProjectController extends Controller
 
     private function assertAssignedApprover(SprfCurrentProject $project): void
     {
-        if (! in_array($project->status, ['for_review', 'under_review'], true)) {
+        if (! in_array($project->status, ['for_review', 'under_review', 'Sent Back'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'This SPRF project is not in the current approval queue.',
             ]);
@@ -550,12 +554,17 @@ class SprfCurrentProjectController extends Controller
         ];
     }
 
-    private function transformProjectForFrontend(SprfCurrentProject $project): array
+    private function transformProjectForFrontend(SprfCurrentProject $project, int $viewerId): array
     {
+        $isSentBack = strtolower((string) $project->status) === 'sent back';
+        $isCurrentApprover = (int) ($project->current_approver_user_id ?? 0) === $viewerId;
+
         return [
             'id' => $project->id,
             'sprf_no' => $project->sprf_no,
             'status' => $project->status,
+            'status_display_main' => $isCurrentApprover ? 'For Review' : 'Under Review',
+            'status_display_suffix' => $isSentBack ? ' (Sent Back)' : '',
             'current_level' => $project->current_level,
             'approval_level' => $project->approval_level,
             'requires_vp_ccto'               => $project->requires_vp_ccto,

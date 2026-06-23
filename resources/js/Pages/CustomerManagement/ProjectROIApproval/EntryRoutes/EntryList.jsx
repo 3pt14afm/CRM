@@ -36,6 +36,7 @@
     const [serverDrafts, setServerDrafts] = useState(drafts);
     const [serverStats, setServerStats] = useState(stats);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -62,30 +63,32 @@
     }, []);
 
     // --- Core Async Axios Fetch Pipeline Engine ---
-    const fetchFilteredData = async (pageTarget = 1) => {
-      setIsLoading(true);
+    const fetchFilteredData = async (pageTarget = 1, { silent = false } = {}) => {
+      if (!silent) setIsLoading(true);
+      else setIsRefreshing(true);
       try {
-        const response = await axios.get(route("roi.entry.list"), {
-          params: {
-            page: pageTarget,
-            search: search || undefined,
-            status: statusFilter !== 'all' ? statusFilter : undefined,
-            date_from: dateFrom || undefined,
-            date_to: dateTo || undefined,
-          },
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-          }
-        });
-        
-        setServerDrafts(response.data.drafts);
-        setServerStats(response.data.stats);
+          const response = await axios.get(route("roi.entry.list"), {
+              params: {
+                  page: pageTarget,
+                  search: search || undefined,
+                  status: statusFilter !== 'all' ? statusFilter : undefined,
+                  date_from: dateFrom || undefined,
+                  date_to: dateTo || undefined,
+              },
+              headers: {
+                  'X-Requested-With': 'XMLHttpRequest',
+                  'Accept': 'application/json'
+              }
+          });
+
+          setServerDrafts(response.data.drafts);
+          setServerStats(response.data.stats);
       } catch (error) {
-        console.error("Filtering error payload exception: ", error);
-        toast.error("Failed to load filtered drafts.");
+          console.error("Filtering error payload exception: ", error);
+          if (!silent) toast.error("Failed to load filtered drafts.");
       } finally {
-        setIsLoading(false);
+          setIsLoading(false);
+          setIsRefreshing(false);
       }
     };
 
@@ -97,6 +100,15 @@
 
       return () => clearTimeout(delayDebounceFn);
     }, [search, statusFilter, dateFrom, dateTo]);
+
+    // --- Auto-refresh every 60 seconds ---
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchFilteredData(serverDrafts?.current_page ?? 1, { silent: true } );
+        }, 60_000);
+
+        return () => clearInterval(interval);
+    }, [search, statusFilter, dateFrom, dateTo, serverDrafts?.current_page]);
 
     // --- Tiles Setup ---
     const tiles = useMemo(() => {

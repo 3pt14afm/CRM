@@ -136,7 +136,7 @@ class SprfEntryProjectController extends Controller
                 'sprf_no' => $sprfNo,
                 'document_datetime' => $documentDatetime,
 
-                'status' => 'draft',
+                'status' => $existingProject && $existingProject->status === 'returned' ? 'returned' : 'draft',
                 'current_level' => 1,
                 'approval_level' => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
@@ -213,7 +213,7 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        if ($project->status !== 'draft') {
+        if (!in_array($project->status, ['draft', 'returned'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'Only draft SPRF projects can be submitted.',
             ]);
@@ -373,7 +373,7 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        if ($project->status !== 'draft') {
+        if (!in_array($project->status, ['draft', 'Returned'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'Only draft SPRF projects can be deleted.',
             ]);
@@ -387,6 +387,8 @@ class SprfEntryProjectController extends Controller
             'fees' => $project->fees->map->toArray()->toArray(),
         ];
 
+        $wasReturned = $project->status === 'Returned';
+
         DB::transaction(function () use ($project) {
             $project->items()->delete();
             $project->fees()->delete();
@@ -395,9 +397,9 @@ class SprfEntryProjectController extends Controller
 
         try {
             SprfActivityLogger::log(
-                activityType: 'delete_draft',
+                activityType: $wasReturned ? 'delete_returned_draft' : 'delete_draft',
                 sprf: null,
-                details: 'Deleted SPRF draft #' . ($oldValues['project']['sprf_no'] ?? $project->id),
+                details: ($wasReturned ? 'Deleted returned SPRF draft #' : 'Deleted SPRF draft #') . ($oldValues['project']['sprf_no'] ?? $project->id),
                 oldValues: $oldValues,
                 newValues: null
             );
