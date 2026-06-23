@@ -6,13 +6,7 @@ namespace App\Services\Roi\Entry;
  * RoiCalculator
  *
  * Single source of truth for all ROI financial calculations.
- * Drop-in replacement for the frontend JS calculations:
- *   - get1YrPotential.jsx
- *   - succeedingYears.jsx
- *   - calculatProjectPotentials.jsx
- *   - getRowCalculations.jsx
- *
- * Injected into RoiProjectService via the constructor.
+ * Drop-in replacement for the frontend JS calculations.
  */
 class RoiCalculator
 {
@@ -63,7 +57,6 @@ class RoiCalculator
 
     // =========================================================================
     // getRowCalculations
-    // Port of: getRowCalculations.jsx
     // =========================================================================
 
     public function getRowCalculations(array $row, array $projectData): array
@@ -126,16 +119,18 @@ class RoiCalculator
             $machineMarginTotal = 0.0;
         }
 
+        $safeYields = $this->toFloat($yields);
+
         return [
             'inputtedCost'       => $rawCost,
             'computedCost'       => $finalComputedCost,
             'basePerYear'        => $basePerYear,
-            'totalCost'          => $flags['isOutright'] ? $finalComputedCost : $finalComputedCost + $machineMarginTotal,
+            'totalCost'          => $finalComputedCost + $machineMarginTotal,
             'yields'             => $yields,
-            'costCpp'            => $yields > 0 ? $rawCost / $yields : 0,
+            'costCpp'            => $safeYields > 0 ? $rawCost / $safeYields : 0.0,
             'price'              => $price,
             'totalSell'          => $price * $qty,
-            'sellCpp'            => $yields > 0 ? $price / $yields : 0,
+            'sellCpp'            => $safeYields > 0 ? $price / $safeYields : 0.0,
             'machineMargin'      => $machineMargin,
             'machineMarginTotal' => $machineMarginTotal,
         ];
@@ -143,7 +138,6 @@ class RoiCalculator
 
     // =========================================================================
     // get1YrPotential
-    // Port of: get1YrPotential.jsx
     // =========================================================================
 
     public function get1YrPotential(array $projectData): array
@@ -172,17 +166,16 @@ class RoiCalculator
         ): array {
             $mode       = strtolower($c['mode'] ?? '');
             $itemYields = $this->toFloat($c['yields'] ?? 0);
-            $qty        = $this->toFloat($c['qty']    ?? 0);
+            $qty        = 0.0;
 
             if ($flags['isMonthlyRental']) {
                 return array_merge($c, ['qty' => 0, 'yields' => 0, 'price' => 0, 'totalCost' => 0, 'totalSell' => 0]);
             }
 
             if ($mode === 'others') {
+                $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
                 $qty = $this->hasValidYield($itemYields)
-                    ? ($this->resolveBaseYields($annualMonoYields, $annualColorYields) > 0
-                        ? $this->getQtyFromYields($this->resolveBaseYields($annualMonoYields, $annualColorYields), $itemYields)
-                        : $this->toFloat($c['qty'] ?? 1, 1))
+                    ? ($base > 0 ? $this->getQtyFromYields($base, $itemYields) : $this->toFloat($c['qty'] ?? 1, 1))
                     : $this->toFloat($c['qty'] ?? 1, 1);
             } elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
                 $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
@@ -223,7 +216,8 @@ class RoiCalculator
                     : 1;
             }
 
-            $loadedCost = $this->toFloat($m['cost'] ?? 0) + $this->toFloat($m['margin'] ?? 0);
+            // Fallback securely to computedCost from your row calculations
+            $loadedCost = $this->toFloat($m['computedCost'] ?? ($this->toFloat($m['cost'] ?? 0) + $this->toFloat($m['machineMarginTotal'] ?? 0)));
             $unitSell   = $flags['isOutright'] ? $this->toFloat($m['price'] ?? 0) : 0.0;
 
             return array_merge($m, [
@@ -276,7 +270,6 @@ class RoiCalculator
 
     // =========================================================================
     // succeedingYears
-    // Port of: succeedingYears.jsx
     // =========================================================================
 
     public function succeedingYears(array $projectData): array
@@ -295,7 +288,6 @@ class RoiCalculator
 
         $addFeesObj = $projectData['additionalFees'] ?? [];
 
-        // One-time fees are zeroed out for succeeding years
         $zeroOneTime = fn($f) => array_merge($f, [
             'total' => ($f['category'] ?? '') === 'one-time-fee' ? 0 : $this->toFloat($f['total'] ?? 0),
             'qty'   => ($f['category'] ?? '') === 'one-time-fee' ? 0 : $this->toFloat($f['qty']   ?? 0),
@@ -303,7 +295,6 @@ class RoiCalculator
         $companyFees  = array_map($zeroOneTime, $addFeesObj['company']  ?? []);
         $customerFees = array_map($zeroOneTime, $addFeesObj['customer'] ?? []);
 
-        // EARLY RETURN — 1-year contract has no succeeding years
         $emptyReturn = [
             'totalMachineQty' => 0, 'totalMachineCost' => 0, 'totalMachineSales' => 0,
             'totalConsumableQty' => 0, 'totalConsumableCost' => 0, 'totalConsumableSales' => 0,
@@ -316,7 +307,6 @@ class RoiCalculator
 
         if ($succeedingYearCount === 0) return $emptyReturn;
 
-        // Machines have no cost in succeeding years (hardware already paid in year 1)
         $processedMachines = array_map(fn($m) => array_merge($m, [
             'qty' => 1, 'price' => 0, 'totalCost' => 0, 'totalSell' => 0,
         ]), $rawMachines);
@@ -403,18 +393,17 @@ class RoiCalculator
 
     // =========================================================================
     // calculateProjectPotentials
-    // Port of: calculatProjectPotentials.jsx
     // =========================================================================
 
     public function calculateProjectPotentials(array $yearlyBreakdown): array
     {
         $years = array_values($yearlyBreakdown);
 
-        $totalCost        = array_sum(array_map(fn($y) => $this->toFloat($y['grandtotalCost']         ?? 0), $years));
-        $totalRevenue     = array_sum(array_map(fn($y) => $this->toFloat($y['grandtotalSell']         ?? 0), $years));
-        $totalGrossProfit = array_sum(array_map(fn($y) => $this->toFloat($y['grossProfit']            ?? 0), $years));
-        $totalMachineCost = array_sum(array_map(fn($y) => $this->toFloat($y['totalMachineCost']       ?? 0), $years));
-        $totalConsumable  = array_sum(array_map(fn($y) => $this->toFloat($y['totalConsumableCost']    ?? 0), $years));
+        $totalCost        = array_sum(array_map(fn($y) => $this->toFloat($y['grandtotalCost']          ?? 0), $years));
+        $totalRevenue     = array_sum(array_map(fn($y) => $this->toFloat($y['grandtotalSell']          ?? 0), $years));
+        $totalGrossProfit = array_sum(array_map(fn($y) => $this->toFloat($y['grossProfit']             ?? 0), $years));
+        $totalMachineCost = array_sum(array_map(fn($y) => $this->toFloat($y['totalMachineCost']        ?? 0), $years));
+        $totalConsumable  = array_sum(array_map(fn($y) => $this->toFloat($y['totalConsumableCost']     ?? 0), $years));
         $totalFees        = array_sum(array_map(fn($y) => $this->toFloat($y['totalCompanyFeesAmount'] ?? 0), $years));
 
         $totalRoiPercentage = $totalCost > 0 ? ($totalGrossProfit / $totalCost) * 100 : 0;
@@ -433,16 +422,7 @@ class RoiCalculator
     }
 
     // =========================================================================
-    // calculateAll — main entry point used by RoiProjectService
-    //
-    // Returns keys that match what persistDraftData() reads:
-    //   $calculated['grandTotalCost']      → grand_total_cost
-    //   $calculated['grandTotalRevenue']   → grand_total_revenue
-    //   $calculated['grandRoi']            → grand_roi
-    //   $calculated['grandRoiPercentage']  → grand_roi_percentage
-    //   $calculated['feesTotal']           → fees_total
-    //   $calculated['breakdown']['machine']→ mc_total_cost
-    //   $calculated['yearlyBreakdown']     → yearly_breakdown
+    // calculateAll
     // =========================================================================
 
     public function calculateAll(array $projectData): array
@@ -452,7 +432,6 @@ class RoiCalculator
 
         $contractYears = max((int) ($projectData['companyInfo']['contractYears'] ?? 1), 1);
 
-        // Build yearlyBreakdown keyed by year number
         $yearlyBreakdown = ['year_1' => $firstYear];
         for ($y = 2; $y <= $contractYears; $y++) {
             $yearlyBreakdown["year_{$y}"] = $succeedingYear;
@@ -460,25 +439,19 @@ class RoiCalculator
 
         $potentials = $this->calculateProjectPotentials($yearlyBreakdown);
 
-        // fees_total = sum of all company + customer fee amounts across all years
         $feesTotal = array_sum(array_map(
             fn($y) => $this->toFloat($y['totalCompanyFeesAmount'] ?? 0) + $this->toFloat($y['totalCustomerFeesAmount'] ?? 0),
             array_values($yearlyBreakdown)
         ));
 
         return [
-            // Keys consumed by RoiProjectService::persistDraftData()
             'grandTotalCost'        => $potentials['totalCost'],
             'grandTotalRevenue'     => $potentials['totalRevenue'],
             'grandRoi'              => $potentials['totalGrossProfit'],
             'grandRoiPercentage'    => $potentials['totalRoiPercentage'],
             'feesTotal'             => $feesTotal,
             'yearlyBreakdown'       => $yearlyBreakdown,
-
-            // Breakdown for mc_total_cost etc.
             'breakdown'             => $potentials['breakdown'],
-
-            // Full detail available if needed elsewhere
             'firstYear'             => $firstYear,
             'succeedingYear'        => $succeedingYear,
             'projectPotentials'     => $potentials,

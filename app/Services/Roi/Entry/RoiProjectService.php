@@ -183,6 +183,14 @@ class RoiProjectService
     public function persistDraftData(Request $request, RoiEntryProject $project, array $data): void
     {
         $company = $data['companyInfo'] ?? [];
+        $contractType = strtolower(trim($company['contractType'] ?? ''));
+
+        // --- ENFORCE DATA CLEANING LAYER FOR OUTRIGHT CONTRACTS ---
+        if (str_contains($contractType, 'outright')) {
+            $data['interest']['annualInterest'] = 0;
+            $data['interest']['percentMargin'] = 0;
+        }
+
         $interest = $data['interest'] ?? [];
         $yield = $data['yield'] ?? [];
         $entryRemarks = $data['entryRemarks'] ?? [];
@@ -192,13 +200,13 @@ class RoiProjectService
 
         $attachments = $this->storeEntryRemarkAttachments($request, $project);
 
-        // 1. Calculations performed via the Backend Calculator engine
+        // Calculations performed via the Backend Calculator engine using the safely modified array
         $calculated = $this->calculator->calculateAll($data);
 
-        // 2. Map payload calculations safely
+        // Map payload calculations safely
         $project->update([
             'company_name' => (string) ($company['companyName'] ?? ''),
-           'company_sap_code' => $company['companySapCode'] ?? $project->company_sap_code, // Keep existing if null
+            'company_sap_code' => $company['companySapCode'] ?? $project->company_sap_code,
             'contract_years' => (int) ($company['contractYears'] ?? 0),
             'contract_type' => (string) ($company['contractType'] ?? ''),
             'purpose' => (string) ($company['purpose'] ?? ''),
@@ -226,7 +234,7 @@ class RoiProjectService
             'last_saved_at' => now(),
         ]);
 
-        // 3. PERSIST ITEM ROWS (Bypasses input verification failure drops)
+        // PERSIST ITEM ROWS
         if (array_key_exists('machineConfiguration', $data)) {
             RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
             $itemRows = [];
@@ -235,7 +243,7 @@ class RoiProjectService
             if (!empty($itemRows)) { RoiEntryItem::insert($itemRows); }
         }
 
-        // 4. PERSIST FEE ROWS
+        // PERSIST FEE ROWS
         if (array_key_exists('additionalFees', $data)) {
             RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
             $feeRows = [];
@@ -251,6 +259,15 @@ class RoiProjectService
     private function createNewDraftRecord(array $data, $user): RoiEntryProject
     {
         $company      = $data['companyInfo'] ?? [];
+        $contractType = strtolower(trim($company['contractType'] ?? ''));
+
+        // Apply data cleaning logic here too for the initial creation cycle
+        if (str_contains($contractType, 'outright')) {
+            $data['interest']['annualInterest'] = 0;
+            $data['interest']['percentMargin'] = 0;
+        }
+
+        $interest     = $data['interest'] ?? [];
         $yield        = $data['yield']       ?? [];
         $monoMonthly  = (int) ($yield['monoAmvpYields']['monthly']  ?? 0);
         $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
@@ -264,7 +281,6 @@ class RoiProjectService
         }
         $prefix = strtoupper(trim($location->code));
 
-        // OPTIMIZED: Handled sequence calculations down at database level using regular extraction expression matching
         $tables = [
             (new RoiEntryProject)->getTable(),
             (new RoiCurrentProject)->getTable(),
@@ -273,7 +289,6 @@ class RoiProjectService
 
         $maxNumber = 0;
         foreach ($tables as $table) {
-            // Extracts raw trailing integers natively out of the text schemas
             $highestRef = DB::table($table)
                 ->where('reference', 'LIKE', $prefix . '-%')
                 ->selectRaw("MAX(CAST(SUBSTRING_INDEX(reference, '-', -1) AS UNSIGNED)) as max_val")
@@ -297,6 +312,8 @@ class RoiProjectService
                     'contract_type'      => (string) ($company['contractType']   ?? ''),
                     'purpose'            => (string) ($company['purpose']        ?? ''),
                     'bundled_std_ink'    => (bool)   ($company['bundledStdInk']  ?? false),
+                    'annual_interest'    => (float)  ($interest['annualInterest'] ?? 0),
+                    'percent_margin'     => (float)  ($interest['percentMargin']  ?? 0),
                     'mono_yield_monthly' => $monoMonthly,
                     'mono_yield_annual'  => $monoMonthly  * 12,
                     'color_yield_monthly'=> $colorMonthly,

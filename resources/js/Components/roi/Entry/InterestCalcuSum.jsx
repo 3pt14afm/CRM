@@ -1,14 +1,24 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useProjectData } from "@/Context/ProjectContext";
 import { interest as calculateInterest } from "@/Utils/interest";
 
 const InterestCalcuSum = () => {
   const { projectData } = useProjectData();
 
-  // derived interest values
-  const { percentMargin } = calculateInterest(projectData);
+  // 1. Determine if contract type contains "outright"
+  const isOutright = useMemo(() => {
+    return projectData?.companyInfo?.contractType?.toLowerCase().includes('outright') || false;
+  }, [projectData?.companyInfo?.contractType]);
 
-  // pull totals from context (saved by Totals.jsx useEffect)
+  // Derived interest values (Safe-checked against outright contracts)
+  const { percentMargin } = useMemo(() => {
+    if (isOutright) {
+      return { percentMargin: 0 };
+    }
+    return calculateInterest(projectData);
+  }, [projectData, isOutright]);
+
+  // Pull totals from context (saved by Totals.jsx useEffect)
   const totals = projectData?.totalProjectCost || {};
   const totalCost = Number(totals.grandTotalCost || 0);
   const totalROI = Number(totals.grandROI || 0);
@@ -43,7 +53,8 @@ const InterestCalcuSum = () => {
                 Annual Interest
               </td>
               <td className="w-[35%] py-2 px-2 text-center font-medium border-l bg-white border-slate-300 text-xs text-gray-700">
-                {projectData?.interest?.annualInterest ? `${projectData.interest.annualInterest}%` : ""}
+                {/* 2. Visual Override for Annual Interest */}
+                {isOutright ? "0%" : (projectData?.interest?.annualInterest ? `${projectData.interest.annualInterest}%` : "")}
               </td>
             </tr>
             <tr>
@@ -51,7 +62,8 @@ const InterestCalcuSum = () => {
                 Percent Margin
               </td>
               <td className="w-[35%] py-2 px-2 text-center border-l font-medium bg-white border-slate-300 text-xs text-gray-700">
-                {percentMargin ? `${percentMargin}%` : ""}
+                {/* 3. Visual Override for Percent Margin */}
+                {isOutright ? "0%" : (percentMargin ? `${percentMargin}%` : "")}
               </td>
             </tr>
           </tbody>
