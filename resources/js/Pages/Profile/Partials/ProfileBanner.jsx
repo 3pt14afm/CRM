@@ -19,7 +19,7 @@ export default function ProfileBanner({ profile }) {
     const avatarInputRef = useRef(null);
 
     const avatarUrl = profile.hasAvatar
-        ? route('profile.avatar') + '?v=' + new Date(profile.updated_at || Date.now()).getTime()
+      ? route('profile.avatar', { employee: profile.employeeId }) + '?v=' + new Date(profile.updated_at || Date.now()).getTime()
         : null;
 
     const subtitle = [profile.position, profile.department].filter(Boolean).join(' • ');

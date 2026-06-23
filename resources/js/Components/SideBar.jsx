@@ -1190,7 +1190,7 @@ export default function Sidebar() {
             }`}>
               {user?.hasAvatar ? (
                 <img
-                  src={route('profile.avatar') + '?v=' + new Date(user.updated_at || Date.now()).getTime()}
+                src={route('profile.avatar', { employee: user.employee_id }) + '?v=' + new Date(user.updated_at || Date.now()).getTime()}
                   alt={user?.name || 'Avatar'}
                   className="h-full w-full object-cover"
                 />

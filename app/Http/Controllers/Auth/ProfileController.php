@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use App\Services\AuthActivityLogger;
 use App\Support\PreferenceHelper;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -23,11 +24,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse; // Add this line
 class ProfileController extends Controller
 {
 
-public function getAvatar(Request $request): StreamedResponse|RedirectResponse
+public function getAvatar(Request $request, string $employee): StreamedResponse|RedirectResponse
 {
-    $user = $request->user();
-    
-    // Find the file matching the employee ID and any supported extension
+    // Validate that the employee exists to avoid enumeration
+    $user = User::where('employee_id', $employee)->firstOrFail();
+
     foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
         $path = 'profileimg/' . $user->employee_id . '.' . $ext;
         if (Storage::exists($path)) {

@@ -50,20 +50,26 @@ export default function EditUserModal({
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const avatarInputRef = useRef(null);
+  const [avatarVersion, setAvatarVersion] = useState(0);
+  const [avatarLoading, setAvatarLoading] = useState(false);
 
-  const avatarUrl = useMemo(() => {
-    if (!editingUser?.employee_id) return null;
-    return (
-      route('profile.avatar', { employee: editingUser.employee_id }) +
-      '?v=' +
-      new Date(editingUser.updated_at || Date.now()).getTime()
-    );
-  }, [editingUser]);
+// 2. Update the avatarUrl memo to depend on it
+const avatarUrl = useMemo(() => {
+  if (!editingUser?.employee_id) return null;
+  return (
+    route('profile.avatar', { employee: editingUser.employee_id }) +
+    '?v=' +
+    (avatarVersion > 0
+      ? avatarVersion  // use local bump after upload
+      : new Date(editingUser.updated_at || editingUser.employee_id).getTime())
+  );
+}, [editingUser?.employee_id, editingUser?.updated_at, avatarVersion]);
 
-  // Reset avatar error whenever the edited user changes
-  useEffect(() => {
-    setAvatarError(false);
-  }, [editingUser?.employee_id]);
+useEffect(() => {
+  setAvatarError(false);
+  setAvatarVersion(0); // ← add this
+   setAvatarLoading(true); // ← add this
+}, [editingUser?.employee_id]);
 
   const handleAvatarSelect = (e) => {
     const file = e.target.files[0];
@@ -105,12 +111,15 @@ export default function EditUserModal({
       forceFormData: true,
       preserveScroll: true,
       onSuccess: () => {
+        setAvatarVersion(Date.now()); // ← add this
         router.reload({ only: ['users'] });
         setPendingAvatar(null);
         setPendingAvatarPreview(null);
         setShowAvatarModal(false);
         setUploadingAvatar(false);
         toast.success('Profile picture updated successfully.');
+        setAvatarVersion(Date.now());
+        setAvatarLoading(true); // ← add after setAvatarVersion in onSuccess
       },
       onError: () => {
         setUploadingAvatar(false);
@@ -225,12 +234,28 @@ export default function EditUserModal({
                 title={(avatarUrl && !avatarError) ? 'View profile picture' : 'Upload profile picture'}
               >
                 {(avatarUrl && !avatarError) ? (
-                  <img
-                    src={avatarUrl}
-                    alt={editingUser ? `${editingUser.first_name} ${editingUser.last_name}` : 'User'}
-                    className="h-full w-full object-cover"
-                    onError={() => setAvatarError(true)}
-                  />
+                  <div className="relative h-full w-full">
+                    {avatarLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-full">
+                        <svg
+                          className="h-5 w-5 animate-spin text-darkgreen"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                      </div>
+                    )}
+                    <img
+                      src={avatarUrl}
+                      alt={editingUser ? `${editingUser.first_name} ${editingUser.last_name}` : 'User'}
+                      className="h-full w-full object-cover"
+                      onLoad={() => setAvatarLoading(false)}   // ← hides spinner when done
+                      onError={() => { setAvatarError(true); setAvatarLoading(false); }}
+                    />
+                  </div>
                 ) : (
                   getInitials(
                     editingUser
