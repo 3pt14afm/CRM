@@ -51,7 +51,7 @@ function formatDateTime(date) {
  * Backend: SprfCurrentProjectController::storeComment()
  *          → SprfCurrentWorkflowService::appendMessage() at level 3/4/5
  */
-export default function SprfAddComments({ scopeKey = "default" }) {
+export default function SprfAddComments({ scopeKey = "default", comments: commentsProp = null }) {
   const { projectData } = useProjectData();
   const { auth, project: inertiaProject, approverUsers } = usePage().props;
 
@@ -116,11 +116,10 @@ export default function SprfAddComments({ scopeKey = "default" }) {
   //
   // SprfCurrentProjectController::transformProjectForFrontend() passes
   // `comments` on the project object — already an array ([] if empty).
-  const serverComments = useMemo(() => {
-    const fromProject = project?.comments;
-    const rows = Array.isArray(fromProject) && fromProject.length > 0 ? fromProject : [];
-    return Array.isArray(rows) ? rows : [];
-  }, [project]);
+const serverComments = useMemo(() => {
+  const source = commentsProp ?? project?.comments;
+  return Array.isArray(source) ? source : [];
+}, [commentsProp, project]);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const modalRef    = useRef(null);
