@@ -672,7 +672,7 @@ function Entry({
 
     params.set(
       'draftWatermark',
-      isEntryRoute && sourceProject?.status === 'draft' ? '1' : '0'
+      isEntryRoute && ['draft', 'returned'].includes(sourceProject?.status) ? '1' : '0'
     );
 
     if (storageKey) {

@@ -146,7 +146,7 @@ class SprfCurrentWorkflowService
             $updateData = [
                 'current_level'            => $firstLevel,
                 'current_approver_user_id' => $this->approverUserIdForLevel($project, $firstLevel),
-                'status'                   => 'under_review',
+                'status'                   => 'Sent Back',
             ];
 
             // Clear all timestamps from firstLevel through prevLevel
@@ -243,7 +243,7 @@ class SprfCurrentWorkflowService
         unset($entryData['id']);
         unset($entryData['current_approver_user_id']);
 
-        $entryData['status']                   = 'draft';
+        $entryData['status']                   = 'returned';
         $entryData['current_level']            = 1;
         $entryData['submitted_at']             = null;
 
@@ -343,6 +343,20 @@ class SprfCurrentWorkflowService
             4 => 'vp_ccto_acted_at',
             5 => 'president_ceo_acted_at',
             default => null,
+        };
+    }
+
+    // Helper to map a given level to the label shown when the project is
+    // sitting at that level for review (used as the "real" status label
+    // underneath a Sent Back badge).
+    public function getQueueLabelForLevel(int $level): string
+    {
+        return match ($level) {
+            2 => 'For DCE Review',
+            3 => 'For ESD Director Review',
+            4 => 'For VP CCTO Review',
+            5 => 'For President/CEO Review',
+            default => 'Under Review',
         };
     }
     

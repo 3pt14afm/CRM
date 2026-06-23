@@ -143,6 +143,18 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  // --- Auto-refresh every 60 seconds ---
+  useEffect(() => {
+      const interval = setInterval(() => {
+          router.reload({
+              only: ['currentProjects', 'stats'],
+              preserveScroll: true,
+          });
+      }, 60_000);
+
+      return () => clearInterval(interval);
+  }, []);
+
   const runQuery = (updatedParams) => {
     const merged = {
       search,
@@ -255,16 +267,32 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
       {
         key: 'status',
         header: <div className="text-center w-full">STATUS</div>,
-        cell: (row) => (
-          <div className="w-full flex justify-center items-center">
-            <div className="flex flex-col items-center leading-tight">
-              <span className="inline-block px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider bg-blue-100 text-blue-700 border border-blue-200">
-                <span className="uppercase">{row.status ?? '—'}</span>
-              </span>
-              <span className="mt-1 text-[10px] text-center italic text-blue-700">by: {row.current_approver ?? '—'}</span>
+        cell: (row) => {
+          const isSentBack = Boolean(row.status_display_suffix);
+          const mainLabel = row.status_display_main ?? row.status ?? '—';
+          const isForReview = mainLabel === 'For Review';
+          const isReceivingApprover = isSentBack && isForReview;
+
+          const colorClasses = isReceivingApprover
+            ? { badge: 'bg-orange-100 text-orange-700 border-orange-200', suffix: 'text-orange-500', by: 'text-orange-700' }
+            : isForReview
+              ? { badge: 'bg-purple-100 text-purple-700 border-purple-200', suffix: 'text-purple-500', by: 'text-purple-700' }
+              : { badge: 'bg-blue-100 text-blue-700 border-blue-200', suffix: 'text-blue-500', by: 'text-blue-700' };
+
+          return (
+            <div className="w-full flex justify-center items-center">
+              <div className="flex flex-col items-center leading-tight">
+                <span className={`inline-block px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider border ${colorClasses.badge}`}>
+                  <span className="uppercase">
+                    {mainLabel}
+                    <span className={`font-normal text-[10px] normal-case italic ${colorClasses.suffix}`}>{row.status_display_suffix}</span>
+                  </span>
+                </span>
+                <span className={`mt-1 text-[10px] text-center italic ${colorClasses.by}`}>by: {row.current_approver ?? '—'}</span>
+              </div>
             </div>
-          </div>
-        ),
+          );
+        },
       },
       {
         key: 'submitted_at',
@@ -340,6 +368,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
           <option value="">All Status</option>
           <option value="for_review">For Review</option>
           <option value="under_review">Under Review</option>
+          <option value="Sent Back">Sent Back</option>
         </select>
       </div>
 

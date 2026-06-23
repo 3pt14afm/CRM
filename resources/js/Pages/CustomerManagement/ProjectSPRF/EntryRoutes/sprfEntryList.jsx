@@ -177,13 +177,23 @@ export default function SprfEntryList({
       {
         key: 'status',
         header: <div className="text-center w-full">STATUS</div>,
-        cell: (row) => (
-          <div className="flex justify-center items-center">
-            <span className="px-2 rounded-full text-[9px] font-bold uppercase tracking-wider md:text-[8px] md:px-1 lg:text-[9px] lg:px-[6px] xl:text-[10px] xl:px-2 bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
-              {row.status ?? '—'}
-            </span>
-          </div>
-        ),
+        cell: (row) => {
+          const isReturned = row.status === 'returned';
+
+          return (
+            <div className="flex justify-center items-center">
+              <span
+                className={`px-2 rounded-full text-[9px] font-bold uppercase tracking-wider md:text-[8px] md:px-1 lg:text-[9px] lg:px-[6px] xl:text-[10px] xl:px-2 border ${
+                  isReturned
+                    ? 'bg-red-100 text-red-700 border-red-200'
+                    : 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
+                }`}
+              >
+                {row.status ?? '—'}
+              </span>
+            </div>
+          );
+        },
       },
       {
         key: 'actions',
