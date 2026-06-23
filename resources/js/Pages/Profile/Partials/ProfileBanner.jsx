@@ -17,6 +17,7 @@ export default function ProfileBanner({ profile }) {
     const [pendingAvatarPreview, setPendingAvatarPreview] = useState(null);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const avatarInputRef = useRef(null);
+    const [avatarLoading, setAvatarLoading] = useState(true);
 
     const avatarUrl = profile.hasAvatar
       ? route('profile.avatar', { employee: profile.employeeId }) + '?v=' + new Date(profile.updated_at || Date.now()).getTime()
@@ -57,6 +58,7 @@ export default function ProfileBanner({ profile }) {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
+                setAvatarLoading(true);   // ← reset so spinner shows for new image
                 router.reload({ only: ['profile'] });
                 setPendingAvatar(null);
                 setPendingAvatarPreview(null);
@@ -94,15 +96,32 @@ export default function ProfileBanner({ profile }) {
                             className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-darkgreen to-green text-xl font-semibold text-white shadow-sm"
                             title={avatarUrl ? 'View profile picture' : 'Upload profile picture'}
                         >
-                            {avatarUrl ? (
+                        {avatarUrl ? (
+                            <div className="relative h-full w-full">
+                                {avatarLoading && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-darkgreen to-green">
+                                        <svg
+                                            className="animate-spin h-6 w-6 text-white/70"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                        </svg>
+                                    </div>
+                                )}
                                 <img
                                     src={avatarUrl}
                                     alt={profile.name}
-                                    className="h-full w-full object-cover"
+                                    onLoad={() => setAvatarLoading(false)}
+                                    onError={() => setAvatarLoading(false)}
+                                    className={`h-full w-full object-cover transition-opacity duration-300 ${avatarLoading ? "opacity-0" : "opacity-100"}`}
                                 />
-                            ) : (
-                                getInitials(profile.name)
-                            )}
+                            </div>
+                        ) : (
+                            getInitials(profile.name)
+                        )}
                         </button>
 
                         <input
