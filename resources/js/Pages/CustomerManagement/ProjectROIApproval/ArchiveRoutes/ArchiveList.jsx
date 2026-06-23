@@ -59,6 +59,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
   const preparedByRef    = useRef(null);
   const locationRef      = useRef(null);
 
+  const [sortOrder, setSortOrder] = useState(""); // "" | "desc" | "asc"
+
   useEffect(() => { setLocalArchiveProjects(initialArchiveProjects); }, [initialArchiveProjects]);
 
   useEffect(() => {
@@ -72,6 +74,12 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+    const handleSortToggle = () => {
+    const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
+    setSortOrder(next);
+    fetchArchivedData({ currentSortOrder: next });
+  };
 
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
@@ -199,6 +207,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     currentDecidedBy  = decidedBy,
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
+    currentSortOrder  = sortOrder,   // ← add this
   } = {}) => {
     setLoading(true);
     try {
@@ -213,6 +222,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
           decided_by:  currentDecidedBy   || undefined,
           prepared_by: currentPreparedBy  || undefined,
           location_id: currentLocationId  || undefined,
+          sort_by:     "decided_at",                          // ← add this
+          sort_order:  currentSortOrder   || undefined,       // ← add this
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       });
@@ -292,17 +303,63 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
 
   /* ── Search control ── */
   const searchControl = (
-    <div className="relative h-7 flex items-center">
-      <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
-      <input
-        type="text"
-        placeholder="Search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className={`h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
-          placeholder:text-slate-400 focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-          ${loading ? "opacity-60 pointer-events-none" : ""}`}
-      />
+    <div className="flex items-center gap-2">
+      <div className="relative h-7 flex items-center">
+        <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
+        <input
+          type="text"
+          placeholder="Search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={`h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
+            placeholder:text-slate-400 focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            ${loading ? "opacity-60 pointer-events-none" : ""}`}
+        />
+      </div>
+
+      {/* Sort by decided_at */}
+      <button
+        type="button"
+        onClick={handleSortToggle}
+        title={sortOrder === "desc" ? "Newest first" : sortOrder === "asc" ? "Oldest first" : "Sort by date"}
+        className={`h-8 w-8 flex items-center justify-center rounded-lg border bg-white transition-colors duration-150
+          ${sortOrder
+            ? "border-[#4FA34E]/50 text-[#4FA34E] bg-[#4FA34E]/5"
+            : "border-gray-200 text-slate-400 hover:text-[#4FA34E] hover:border-[#4FA34E]/40 hover:bg-[#4FA34E]/5"
+          }`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {sortOrder === "asc" ? (
+            // Arrow up (oldest first)
+            <>
+              <path d="M3 8h10M3 12h7M3 16h4" />
+              <path d="M17 20V4m0 0-3 3m3-3 3 3" />
+            </>
+          ) : (
+            // Arrow down (newest first) or neutral
+            <>
+              <path d="M3 8h10M3 12h7M3 16h4" />
+              <path d={sortOrder === "desc" ? "M17 4v16m0 0-3-3m3 3 3-3" : "M17 4v16m0 0-3-3m3 3 3-3"} opacity={sortOrder === "" ? "0.35" : "1"} />
+            </>
+          )}
+        </svg>
+      </button>
+
+      {/* Refresh */}
+      <button
+        type="button"
+        onClick={() => fetchArchivedData({ targetPage: localArchiveProjects?.current_page ?? 1 })}
+        disabled={loading}
+        title="Refresh"
+        className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white text-slate-400
+          hover:text-[#4FA34E] hover:border-[#4FA34E]/40 hover:bg-[#4FA34E]/5
+          disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? "animate-spin" : ""}>
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+        </svg>
+      </button>
     </div>
   );
 

@@ -171,17 +171,23 @@ class RoiCurrentProjectController extends Controller
 
         $userId = (int) $user->id;
 
-        $query->orderByRaw("
-            CASE 
-                WHEN current_level = 2 AND reviewed_by = ? THEN 0
-                WHEN current_level = 3 AND checked_by = ? THEN 0
-                WHEN current_level = 4 AND endorsed_by = ? THEN 0
-                WHEN current_level = 5 AND confirmed_by = ? THEN 0
-                WHEN current_level = 6 AND approved_by = ? THEN 0
-                WHEN user_id = ? THEN 1
-                ELSE 2
-            END ASC, last_saved_at DESC
-        ", [$userId, $userId, $userId, $userId, $userId, $userId]);
+        // WITH THIS:
+        $sortOrder = in_array($request->input('sort_order'), ['asc', 'desc']) ? $request->input('sort_order') : null;
+
+        $query->when($sortOrder,
+            fn($q) => $q->orderBy('last_saved_at', $sortOrder),
+            fn($q) => $q->orderByRaw("
+                CASE 
+                    WHEN current_level = 2 AND reviewed_by = ? THEN 0
+                    WHEN current_level = 3 AND checked_by = ? THEN 0
+                    WHEN current_level = 4 AND endorsed_by = ? THEN 0
+                    WHEN current_level = 5 AND confirmed_by = ? THEN 0
+                    WHEN current_level = 6 AND approved_by = ? THEN 0
+                    WHEN user_id = ? THEN 1
+                    ELSE 2
+                END ASC, last_saved_at DESC
+            ", [$userId, $userId, $userId, $userId, $userId, $userId])
+        );
         
         $statsQuery = clone $query;
 
@@ -228,7 +234,7 @@ class RoiCurrentProjectController extends Controller
             'stats'           => $stats,
             'viewerId'        => (int) $user->id,
             'locations'       => $locations,
-            'filters'         => [
+            'filters' => [
                 'search'      => $search,
                 'status'      => $status,
                 'date_from'   => $dateFrom,
@@ -236,6 +242,7 @@ class RoiCurrentProjectController extends Controller
                 'prepared_by' => $preparedBy,
                 'location_id' => $locationId,
                 'per_page'    => $perPage,
+                'sort_order'  => $sortOrder,   // ← add
             ],
         ]);
     }

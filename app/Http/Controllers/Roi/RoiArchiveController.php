@@ -88,8 +88,13 @@ public function index(Request $request)
         }
 
     // Sorting and Pagination
-    $archiveProjects = $query
-        ->orderByRaw("CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, decided_at DESC", [$userId])
+        $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
+
+        $archiveProjects = $query
+        ->when($sortOrder,
+            fn($q) => $q->orderByRaw("COALESCE(rejected_at, approved_at) $sortOrder"),
+            fn($q) => $q->orderByRaw("CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(rejected_at, approved_at) DESC", [$userId])
+        )
         ->paginate($perPage)
         ->withQueryString()
         ->through(function ($p) {
@@ -100,12 +105,14 @@ public function index(Request $request)
             return $p;
         });
 
+        
+
     if ($request->wantsJson()) {
         return response()->json(['archiveProjects' => $archiveProjects]);
     }
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
-        'filters' => $request->only(['search', 'status', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page']),
+        'filters' => $request->only(['search', 'status', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_order']),
         'archiveProjects' => $archiveProjects,
         'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
         'stats' => [
