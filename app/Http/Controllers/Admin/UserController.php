@@ -114,7 +114,8 @@ class UserController extends Controller
                 'users.email',
                 'users.primary_location_id',
                 'users.is_banned',
-                'users.created_at'
+                'users.created_at',
+                'users.updated_at' 
             );
 
         $this->applyUserSorting(
