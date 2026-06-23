@@ -10,6 +10,8 @@ export const get1YrPotential = (projectData) => {
   // Rule: Only Outright contracts allow a Machine selling price
   const isOutright = normalizedContractType.includes("outright");
   const isMonthlyRental = normalizedContractType === "fixed monthly only";
+  const isPerCartridge = normalizedContractType.includes("per cartridge");
+
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
   const bundleDeduction = (isMonthlyRental && isBundleChecked)
@@ -48,6 +50,11 @@ export const get1YrPotential = (projectData) => {
     const num = Number(y);
     return !isNaN(num) && num > 0;
   };
+
+    const applyPerCartridgeRounding = (qty) => {
+    return isPerCartridge ? Math.ceil(qty) : qty;
+  };
+ 
 
   // 2. PROCESS CONSUMABLES
   const processedConsumables = rawConsumables.map(c => {
@@ -88,6 +95,9 @@ export const get1YrPotential = (projectData) => {
       qty = getSafeNumber(c.qty, 1);
     }
 
+    // Apply ceil rounding for "per cartridge" contract types
+    qty = applyPerCartridgeRounding(qty); 
+
     const unitCost = getSafeNumber(c.cost);
     const unitSell = getSafeNumber(c.price);
 
@@ -98,7 +108,7 @@ export const get1YrPotential = (projectData) => {
       totalSell: to2Decimals(qty * unitSell)
     };
   });
-
+  
   // 3. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
     const mode = m.mode?.toLowerCase();

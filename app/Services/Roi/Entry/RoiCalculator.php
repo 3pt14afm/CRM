@@ -37,6 +37,15 @@ class RoiCalculator
         return $this->to2Decimals($annualYields / $safe);
     }
 
+    /**
+     * Round up qty to the next whole number if contract type contains "per cartridge".
+     * Any decimal value (even .1) is ceiled to the next integer.
+     */
+    private function applyPerCartridgeRounding(float $qty, bool $isPerCartridge): float
+    {
+        return $isPerCartridge ? (float) ceil($qty) : $qty;
+    }
+
     // =========================================================================
     // CONTRACT TYPE FLAGS
     // =========================================================================
@@ -52,6 +61,7 @@ class RoiCalculator
             'isFreeUseClick'  => str_contains($n, 'free use + click'),
             'isOutrightClick' => str_contains($n, 'outright + click'),
             'isNonOutright'   => $n === 'non-outright',
+            'isPerCartridge'  => str_contains($n, 'per cartridge'),
         ];
     }
 
@@ -186,6 +196,9 @@ class RoiCalculator
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             }
 
+            // Apply ceil rounding for "per cartridge" contract types
+            $qty = $this->applyPerCartridgeRounding($qty, $flags['isPerCartridge']);
+
             $unitCost = $this->toFloat($c['cost']  ?? 0);
             $unitSell = $this->toFloat($c['price'] ?? 0);
 
@@ -217,7 +230,7 @@ class RoiCalculator
             }
 
             // Fallback securely to computedCost from your row calculations
-            $loadedCost = $this->toFloat($m['computedCost'] ?? ($this->toFloat($m['cost'] ?? 0) + $this->toFloat($m['machineMarginTotal'] ?? 0)));
+            $loadedCost = $this->toFloat($m['cost'] ?? 0);
             $unitSell   = $flags['isOutright'] ? $this->toFloat($m['price'] ?? 0) : 0.0;
 
             return array_merge($m, [
@@ -336,6 +349,9 @@ class RoiCalculator
             } else {
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             }
+
+            // Apply ceil rounding for "per cartridge" contract types
+            $qty = $this->applyPerCartridgeRounding($qty, $flags['isPerCartridge']);
 
             $unitCost = $this->toFloat($c['cost']  ?? 0);
             $unitSell = $this->toFloat($c['price'] ?? 0);

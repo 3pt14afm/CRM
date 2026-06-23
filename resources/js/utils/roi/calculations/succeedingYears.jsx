@@ -17,6 +17,7 @@ export const succeedingYears = (projectData) => {
   const isFixClick = normalizedContractType === "free use + click charge";
   const isOutrightClick = normalizedContractType === "outright + click charge";
   const usesExactClickQty = isRentalClick || isFixClick || isOutrightClick;
+  const isPerCartridge = normalizedContractType.includes("per cartridge");
 
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
@@ -101,6 +102,10 @@ const hasValidYield = (y) => {
   return !isNaN(num) && num > 0;
 };
 
+   const applyPerCartridgeRounding = (qty) => {
+    return isPerCartridge ? Math.ceil(qty) : qty;
+  };
+
 const processedConsumables = rawConsumables.map(c => {
   const mode = c.mode?.toLowerCase();
   const itemYields = Number(c.yields);
@@ -149,6 +154,10 @@ const processedConsumables = rawConsumables.map(c => {
   else {
     qty = getSafeNumber(c.qty, 1);
   }
+
+  // Apply ceil rounding for "per cartridge" contract types
+  qty = applyPerCartridgeRounding(qty);
+
 
   const unitCost = getSafeNumber(c.cost);
   const unitSell = getSafeNumber(c.price);
