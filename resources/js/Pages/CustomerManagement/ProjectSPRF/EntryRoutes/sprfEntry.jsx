@@ -1013,7 +1013,7 @@ function Entry({
 
                   <div className="flex w-[60%] gap-2">
                     <SprfAddNotes scopeKey="sprf-main" />
-                    <SprfAddComments scopeKey="sprf-main" />
+                    <SprfAddComments comments={initialProject?.comments} scopeKey="entry" />
                   </div>
                 </div>
                 

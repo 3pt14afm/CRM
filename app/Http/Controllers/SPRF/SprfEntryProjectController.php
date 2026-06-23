@@ -298,8 +298,6 @@ class SprfEntryProjectController extends Controller
                 'esd_director_user_id' => data_get($approverUsers, 'esdDirector.id'),
                 'vp_ccto_user_id' => data_get($approverUsers, 'vpCcto.id'),
                 'president_ceo_user_id' => data_get($approverUsers, 'presidentCeo.id'),
-                'approved_by_user_id' => null,
-                'rejected_by_user_id' => null,
 
                 'sub_category' => data_get($companyInfo, 'subCategory'),
                 'account' => data_get($companyInfo, 'account'),

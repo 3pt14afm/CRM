@@ -21,16 +21,9 @@ class SprfEntryProject extends Model
 
         'prepared_by_user_id',
         'director_customer_engagement_user_id',
-        'dce_acted_at',
         'esd_director_user_id',
-        'esd_acted_at',
         'vp_ccto_user_id',
-        'vp_ccto_acted_at',
         'president_ceo_user_id',
-        'president_ceo_acted_at',
-        'current_approver_user_id',
-        'approved_by_user_id',
-        'rejected_by_user_id',
 
         'sub_category',
         'account',
@@ -40,7 +33,6 @@ class SprfEntryProject extends Model
         'rebate_justification',
         'notes',
         'comments',
-        'last_reject_note',
 
         'revenue',
         'cogs',
@@ -52,11 +44,6 @@ class SprfEntryProject extends Model
         'requires_vp_ccto',
         'requires_president_ceo',
         'requires_rebate_justification',
-
-        'last_saved_at',
-        'submitted_at',
-        'approved_at',
-        'rejected_at',
     ];
 
     protected $casts = [

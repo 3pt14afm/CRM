@@ -29,8 +29,6 @@ class SprfCurrentProject extends Model
         'president_ceo_user_id',
         'president_ceo_acted_at',
         'current_approver_user_id',
-        'approved_by_user_id',
-        'rejected_by_user_id',
 
         'sub_category',
         'account',
@@ -40,8 +38,7 @@ class SprfCurrentProject extends Model
         'rebate_justification',
         'notes',
         'comments',
-        'last_reject_note',
-
+        
         'revenue',
         'cogs',
         'other_expense_total',
