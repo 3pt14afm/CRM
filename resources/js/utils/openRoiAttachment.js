@@ -11,22 +11,32 @@ export function getRoiAttachmentKey(item, index = 0) {
   );
 }
 
+function triggerDownload(url, filename) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "attachment";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 export function openRoiAttachment({
   item,
   index,
   projectId,
   pageRoute = "entry",
 }) {
+  const filename = item?.original_name || item?.name || `Attachment ${index + 1}`;
+
   if (item?.file instanceof File) {
     const url = URL.createObjectURL(item.file);
-    window.open(url, "_blank", "noopener,noreferrer");
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    triggerDownload(url, filename);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
     return;
   }
 
   if (projectId == null || index == null) return;
-
-  const filename = item?.original_name || item?.name || "attachment";
 
   let href;
 
@@ -50,5 +60,5 @@ export function openRoiAttachment({
     });
   }
 
-  window.open(href, "_blank", "noopener,noreferrer");
+  triggerDownload(href, filename);
 }

@@ -65,6 +65,7 @@ public function edit(Request $request): Response
         'mustVerifyEmail' => $user instanceof MustVerifyEmail,
         'status'          => session('status'),
         'profile'         => [
+            'id'         => $user->id,   // add this
             'name'       => $user->name,
             'employeeId' => $user->employee_id,
             'email'      => $user->email,

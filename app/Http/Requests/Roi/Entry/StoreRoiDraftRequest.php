@@ -38,7 +38,7 @@ class StoreRoiDraftRequest extends FormRequest
             'entry_remarks_attachments.*' => [
                 'file',
                 'max:10240',
-                'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
+               
             ],
 
             'machineConfiguration.machine' => ['nullable', 'array'],

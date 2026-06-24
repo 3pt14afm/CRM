@@ -9,7 +9,10 @@ import SignatureSection from './Partials/SignatureSection';
 import LocationCard from './Partials/LocationCard';
 
 export default function Edit({ profile }) {
+        console.log('profile:', profile); // add this
+
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    
 
     return (
         <AuthenticatedLayout
@@ -47,6 +50,7 @@ export default function Edit({ profile }) {
             <ChangePasswordModal
                 show={showPasswordModal}
                 onClose={() => setShowPasswordModal(false)}
+                 userId={profile.id}
             />
         </AuthenticatedLayout>
     );
