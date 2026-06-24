@@ -242,6 +242,8 @@ class RoiEntryProjectController extends Controller
         $newProject = $this->roiService->handleSubmitProject($project, $submitter, $matrix, $oldValues);
         $this->workflowService->handleAutoAdvanceOnSubmit($newProject);
 
+        $this->workflowService->notifySubmit($newProject);
+
         try {
             RoiActivityLogger::log(
                 activityType: 'submit',
