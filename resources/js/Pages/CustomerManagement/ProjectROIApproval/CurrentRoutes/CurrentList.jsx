@@ -14,6 +14,8 @@ import {
 } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import SearchControl from '@/Components/roi/filters/SearchControl';
+import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
 
 function formatDateLabel(dateStr) {
   if (!dateStr) return null;
@@ -290,217 +292,57 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
 
 
   const searchControl = (
-    <div className="flex items-center gap-2">
-      <div className="relative h-6 flex items-center">
-        <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
-        <input
-          type="text"
-          placeholder="Search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={`h-8 w-full sm:w-52 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
-            placeholder:text-slate-400 focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150
-            ${loading ? "opacity-60 pointer-events-none" : ""}`}
-        />
-      </div>
-
-      {/* Sort by last_saved_at */}
-      <button
-        type="button"
-        onClick={handleSortToggle}
-        title={sortOrder === "desc" ? "Newest first" : sortOrder === "asc" ? "Oldest first" : "Sort by date"}
-        className={`h-8 w-8 flex items-center justify-center rounded-lg border bg-white transition-colors duration-150
-          ${sortOrder
-            ? "border-[#4FA34E]/50 text-[#4FA34E] bg-[#4FA34E]/5"
-            : "border-gray-200 text-slate-400 hover:text-[#4FA34E] hover:border-[#4FA34E]/40 hover:bg-[#4FA34E]/5"
-          }`}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {sortOrder === "asc" ? (
-            <>
-              <path d="M3 8h10M3 12h7M3 16h4" />
-              <path d="M17 20V4m0 0-3 3m3-3 3 3" />
-            </>
-          ) : (
-            <>
-              <path d="M3 8h10M3 12h7M3 16h4" />
-              <path d="M17 4v16m0 0-3-3m3 3 3-3" opacity={sortOrder === "" ? "0.35" : "1"} />
-            </>
-          )}
-        </svg>
-      </button>
-
-      {/* Refresh */}
-      <button
-        type="button"
-        onClick={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
-        disabled={loading || isRefreshing}
-        title="Refresh"
-        className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white text-slate-400
-          hover:text-[#4FA34E] hover:border-[#4FA34E]/40 hover:bg-[#4FA34E]/5
-          disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          className={isRefreshing || loading ? "animate-spin" : ""}>
-          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-        </svg>
-      </button>
-    </div>
+    <SearchControl
+      search={search}
+      onSearchChange={setSearch}
+      sortOrder={sortOrder}
+      onSortToggle={handleSortToggle}
+      loading={loading}
+      isRefreshing={isRefreshing}
+      onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
+    />
   );
 
   /* ── Filter toolbar ── */
   const filterToolbar = (
-    <FilterToolbar hasActiveFilters={hasActiveFilters} onClearAll={handleClearAllFilters}>
-
-      {/* Status */}
-      <div className="relative h-9 flex items-center flex-shrink-0">
-        <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-        <select
-          value={statusFilter}
-          onChange={(e) => handleStatusChange(e.target.value)}
-          className="h-9 w-28 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700"
-        >
-          <option value="">All Status</option>
-          <option value="for_review">For Review</option>
-          <option value="for_checking">For Checking</option>
-          <option value="for_endorsement">For Endorsement</option>
-          <option value="for_confirmation">For Confirmation</option>
-          <option value="for_approval">For Approval</option>
-        </select>
-      </div>
-
-      {/* Per Page */}
-      <div className="relative h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
-        <button
-          type="button"
-          onClick={() => setShowPerPagePicker(!showPerPagePicker)}
-          className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors"
-        >
-          <TbLayoutRows size={15} className="text-slate-400" />
-          <span>Rows: {perPage}</span>
-          <MdExpandMore size={14} className="text-slate-400" />
-        </button>
-        {showPerPagePicker && (
-          <div className="absolute left-0 top-11 z-50 w-40 bg-white border border-gray-200 rounded-2xl shadow-lg p-3">
-            <span className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Rows per page</span>
-            <div className="flex items-center gap-1.5">
-              <input
-                autoFocus
-                type="number"
-                value={perPageInput}
-                onChange={(e) => setPerPageInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handlePerPageInputApply()}
-                className="w-16 h-8 px-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-              />
-              <button
-                type="button"
-                onClick={handlePerPageInputApply}
-                className="h-8 flex-1 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Prepared By */}
-      <div className="relative flex-shrink-0" ref={preparedByRef}>
-        <FilterChip
-          active={!!preparedBy}
-          icon={<MdPerson size={15} />}
-          label="Prepared By"
-          value={preparedBy}
-          onClick={() => { setShowPreparedBy((p) => !p); setShowLocation(false); setShowDatePicker(false); }}
-          onClear={() => handlePreparedByApply("")}
-        />
-        <TextFilterPopup
-          open={showPreparedBy}
-          label="Prepared By"
-          placeholder="e.g. Maria Santos"
-          icon={<MdPerson size={14} className="text-[#4FA34E]" />}
-          value={preparedBy}
-          onChange={setPreparedBy}
-          onApply={handlePreparedByApply}
-          onClose={() => setShowPreparedBy(false)}
-        />
-      </div>
-
-      {/* Location */}
-      <div className="relative flex-shrink-0" ref={locationRef}>
-        <FilterChip
-          active={!!locationId}
-          icon={<MdLocationOn size={15} />}
-          label="Location"
-          value={selectedLocationName}
-          onClick={() => { setShowLocation((p) => !p); setShowPreparedBy(false); setShowDatePicker(false); }}
-          onClear={() => handleLocationApply("")}
-        />
-        <LocationFilterPopup
-          open={showLocation}
-          locations={locations}
-          selectedId={locationId}
-          onApply={handleLocationApply}
-          onClose={() => setShowLocation(false)}
-        />
-      </div>
-
-      {/* Date Range */}
-      <div className="relative flex-shrink-0" ref={datePickerRef}>
-        <FilterChip
-          active={!!hasDateFilter}
-          icon={<MdDateRange size={15} />}
-          label="Date Range"
-          value={dateLabel}
-          onClick={() => { setShowDatePicker((p) => !p); setShowPreparedBy(false); setShowLocation(false); }}
-          onClear={handleDateClear}
-        />
-        {showDatePicker && (
-          <div className="absolute left-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <MdDateRange size={16} className="text-[#4FA34E]" />
-              <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
-            </div>
-            <div className="space-y-2">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-              />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={handleDateClear}
-                className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50"
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                onClick={handleDateApply}
-                className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-    </FilterToolbar>
+    <ListFilterToolbar
+      hasActiveFilters={hasActiveFilters}
+      onClearAll={handleClearAllFilters}
+  
+      statusOptions={[
+        { value: "",                  label: "All Status" },
+        { value: "for_review",        label: "For Review" },
+        { value: "for_checking",      label: "For Checking" },
+        { value: "for_endorsement",   label: "For Endorsement" },
+        { value: "for_confirmation",  label: "For Confirmation" },
+        { value: "for_approval",      label: "For Approval" },
+      ]}
+      statusFilter={statusFilter}
+      onStatusChange={handleStatusChange}
+  
+      perPage={perPage}
+      perPageInput={perPageInput}
+      onPerPageInputChange={setPerPageInput}
+      onPerPageApply={handlePerPageInputApply}
+  
+      preparedBy={preparedBy}
+      onPreparedByChange={setPreparedBy}
+      onPreparedByApply={handlePreparedByApply}
+  
+      locationId={locationId}
+      selectedLocationName={selectedLocationName}
+      locations={locations}
+      onLocationApply={handleLocationApply}
+  
+      dateFrom={dateFrom}
+      dateTo={dateTo}
+      onDateFromChange={setDateFrom}
+      onDateToChange={setDateTo}
+      onDateApply={handleDateApply}
+      onDateClear={handleDateClear}
+    />
   );
+ 
 
   return (
     <div className="min-h-screen flex flex-col">
