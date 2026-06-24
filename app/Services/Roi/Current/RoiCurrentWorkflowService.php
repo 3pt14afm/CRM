@@ -2,6 +2,14 @@
 
 namespace App\Services\Roi\Current;
 
+use App\Mail\Roi\RoiActionConfirmedMail;
+use App\Mail\Roi\RoiAdvancedMail;
+use App\Mail\Roi\RoiPipelineReturnNoticeMail;
+use App\Mail\Roi\RoiRejectedMail;
+use App\Mail\Roi\RoiReturnedToApproverMail;
+use App\Mail\Roi\RoiReturnedToPreparerMail;
+use App\Mail\Roi\RoiSubmittedMail;
+use App\Mail\Roi\RoiNewAssignmentMail;
 use App\Models\RoiArchiveProject;
 use App\Models\RoiCurrentProject;
 use App\Models\RoiEntryFee;
@@ -83,11 +91,13 @@ class RoiCurrentWorkflowService
             $project->fees()->delete();
             $project->delete();
 
-            $this->notifyMoveNextOrBack($project, $user, $fromLevel, 1, 'back');
+            // Template 3 — returned all the way to the preparer
+            $this->notifyReturnedToPreparer($project, $user, $entryProject->id, $validatedData['body']);
+
             return 'entry_list';
         }
 
-        // If the receiving approver owns consecutive levels, revert to their FIRST level and clear ALL their timestamps — they approved as one action and must re-approve as one.
+        // If the receiving approver owns consecutive levels, revert to their FIRST level and clear ALL their timestamps
         $firstLevel = $this->findFirstConsecutiveLevelForApprover($project, $toLevel);
 
         $updates = [
@@ -115,7 +125,9 @@ class RoiCurrentWorkflowService
             'status_updated_at'  => $project->status_updated_at,
         ], $workflow);
 
-        $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'back');
+        // Template 4 (preparer) + Template 6 (receiving approver) + Template 5 (actor)
+        $this->notifyPipelineSendBack($project, $user, $fromLevel, $firstLevel, $validatedData['body']);
+
         return 'current_list';
     }
 
@@ -199,7 +211,8 @@ class RoiCurrentWorkflowService
             $project, $oldValues, $newValues, $workflow
         );
 
-        $this->notifyMoveNextOrBack($project, $user, $fromLevel, $toLevel, 'next');
+        // Template 2 (preparer) + Template 5 (actor)
+        $this->notifyAdvanced($project, $user, $fromLevel, $toLevel);
 
         return $nextStatus;
     }
@@ -271,7 +284,8 @@ class RoiCurrentWorkflowService
             'rejected_at' => $archived->rejected_at,
         ], $workflow);
 
-        $this->notifyDecision('rejected', $reference, $preparer, $actor, $actorLevel);
+        // Template 9 (preparer) + Template 5 (actor)
+        $this->notifyRejected($archived, $actor, $actorLevel, $preparer);
     }
 
     public function handleApprove(RoiCurrentProject $current, User $actor): void
@@ -298,19 +312,394 @@ class RoiCurrentWorkflowService
             'approved_at' => $archived->approved_at,
         ], $workflow);
 
-        $this->notifyDecision('approved', $reference, $preparer, $actor, 6);
+        // Template 2 (preparer, "Approved") + Template 5 (actor)
+        $this->notifyApproved($archived, $actor, $preparer);
     }
 
-    // Helper Architecture Methods
-    public function levelLabel(int $level): string { return self::LEVEL_TO_LABEL[$level] ?? 'Unknown'; }
-    
-    public function getQueueLabelForLevel(int $level): string
+    // -------------------------------------------------------------------------
+    // Public helper called from RoiEntryProjectController::submit
+    // Sends Template 1 — Initial Submission Confirmation to the preparer
+    // -------------------------------------------------------------------------
+
+    public function notifySubmit(RoiCurrentProject $project): void
+    {
+        $preparer = $this->emailUserById((int) $project->user_id);
+        if (!$preparer || !$preparer->email) return;
+
+        $reviewer = $this->emailUserById((int) ($project->reviewed_by ?? 0));
+
+        // 1. Notify Preparer (Initial Confirmation)
+        $this->dispatchMail(
+            $preparer->email,
+            new RoiSubmittedMail(
+                preparerName: $preparer->name,
+                reference:    $project->reference,
+                reviewerName: $reviewer?->name ?? '—',
+                projectUrl:   $this->buildProjectUrl('current', $project->id),
+            )
+        );
+
+        // 2. Notify Level 2 Reviewer (New Assignment)
+        if ($reviewer && $reviewer->email) {
+            $this->dispatchMail(
+                $reviewer->email,
+                new RoiNewAssignmentMail(
+                    project:        $project,
+                    nextActorName:  $reviewer->name,
+                    actorName:      $preparer->name,
+                    requiredAction: 'Review',
+                    projectUrl:     $this->buildProjectUrl('current', $project->id)
+                )
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Private notification helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Fires on a normal advance (not approve).
+     * Template 2 → preparer
+     * Template 5 → actor
+     */
+    private function notifyAdvanced(RoiCurrentProject $project, User $actor, int $fromLevel, int $toLevel): void
+    {
+        $preparer  = $this->emailUserById((int) $project->user_id);
+        $nextUser  = $this->emailUserById((int) ($project->{$this->approverColumnForLevel($toLevel)} ?? 0));
+        $projectUrl = $this->buildProjectUrl('current', $project->id);
+
+        $actionTaken = $this->levelActionPastTense($fromLevel);
+        $nextStatus  = $project->status;
+        $nextName    = $nextUser?->name ?? '—';
+
+        // Template 2 — preparer
+        if ($preparer?->email) {
+            $this->dispatchMail(
+                $preparer->email,
+                new RoiAdvancedMail(
+                    preparerName:  $preparer->name,
+                    reference:     $project->reference,
+                    actionTaken:   $actionTaken,
+                    actorName:     $actor->name,
+                    nextStatus:    $nextStatus,
+                    nextActorName: $nextName,
+                    projectUrl:    $projectUrl,
+                )
+            );
+        }
+
+        // Template 5 — actor
+        if ($actor->email) {
+            $this->dispatchMail(
+                $actor->email,
+                new RoiActionConfirmedMail(
+                    approverName: $actor->name,
+                    reference:    $project->reference,
+                    actionTaken:  $actionTaken,
+                    newStatus:    $nextStatus,
+                    routedTo:     $nextName,
+                    projectUrl:   $projectUrl,
+                )
+            );
+        }
+
+        // Notification to Next Approver (New Assignment)
+        if ($nextUser && $nextUser->email) {
+            $this->dispatchMail(
+                $nextUser->email,
+                new RoiNewAssignmentMail(
+                    project:        $project,
+                    nextActorName:  $nextUser->name,
+                    actorName:      $actor->name,
+                    requiredAction: $this->levelStageLabel($toLevel),
+                    projectUrl:     $projectUrl
+                )
+            );
+        }
+    }
+
+    /**
+     * Fires when a send-back returns the project all the way to the preparer's entry queue.
+     * Template 3 → preparer
+     * Template 5 → actor (send-back actor)
+     *
+     * NOTE: At this point the current project is already deleted; $project still holds
+     * the in-memory data. $entryProjectId is the newly created entry project's id.
+     */
+    private function notifyReturnedToPreparer(RoiCurrentProject $project, User $actor, int $entryProjectId, string $comment): void
+    {
+        $preparer   = $this->emailUserById((int) $project->user_id);
+        $entryUrl   = $this->buildProjectUrl('entry', $entryProjectId);
+        $currentUrl = $this->buildProjectUrl('current', $project->id);
+
+        // Template 3 — preparer
+        if ($preparer?->email) {
+            $this->dispatchMail(
+                $preparer->email,
+                new RoiReturnedToPreparerMail(
+                    preparerName: $preparer->name,
+                    reference:    $project->reference,
+                    reviewerName: $actor->name,
+                    comment:      $comment,
+                    projectUrl:   $entryUrl,
+                )
+            );
+        }
+
+        // Template 5 — actor
+        if ($actor->email) {
+            $this->dispatchMail(
+                $actor->email,
+                new RoiActionConfirmedMail(
+                    approverName: $actor->name,
+                    reference:    $project->reference,
+                    actionTaken:  'Sent Back',
+                    newStatus:    'Returned / Draft',
+                    routedTo:     $preparer?->name ?? '—',
+                    projectUrl:   $currentUrl,
+                )
+            );
+        }
+    }
+
+    /**
+     * Fires when a send-back keeps the project inside the Current pipeline (fromLevel ≥ 3).
+     * Template 4 → preparer (informational)
+     * Template 6 → receiving approver
+     * Template 5 → actor (send-back actor)
+     *
+     * @param int $toLevel  The effective first level the project lands on (after consecutive-level resolution)
+     */
+    private function notifyPipelineSendBack(RoiCurrentProject $project, User $actor, int $fromLevel, int $toLevel, string $comment): void
+    {
+        $preparer    = $this->emailUserById((int) $project->user_id);
+        $receiverCol = $this->approverColumnForLevel($toLevel);
+        $receiver    = $receiverCol ? $this->emailUserById((int) ($project->{$receiverCol} ?? 0)) : null;
+        $projectUrl  = $this->buildProjectUrl('current', $project->id);
+        $currentStatus = $project->status;
+
+        // Template 4 — preparer
+        if ($preparer?->email) {
+            $this->dispatchMail(
+                $preparer->email,
+                new RoiPipelineReturnNoticeMail(
+                    preparerName:    $preparer->name,
+                    reference:       $project->reference,
+                    higherActorName: $actor->name,
+                    lowerActorName:  $receiver?->name ?? '—',
+                    currentStatus:   $currentStatus,
+                    comment:         $comment,
+                    projectUrl:      $projectUrl,
+                )
+            );
+        }
+
+        // Template 6 — receiving approver
+        if ($receiver?->email) {
+            $this->dispatchMail(
+                $receiver->email,
+                new RoiReturnedToApproverMail(
+                    approverName:    $receiver->name,
+                    reference:       $project->reference,
+                    pendingAction:   $this->levelPendingActionLabel($toLevel),
+                    higherActorName: $actor->name,
+                    comment:         $comment,
+                    projectUrl:      $projectUrl,
+                )
+            );
+        }
+
+        // Template 5 — actor
+        if ($actor->email) {
+            $this->dispatchMail(
+                $actor->email,
+                new RoiActionConfirmedMail(
+                    approverName: $actor->name,
+                    reference:    $project->reference,
+                    actionTaken:  'Sent Back',
+                    newStatus:    $currentStatus,
+                    routedTo:     $receiver?->name ?? '—',
+                    projectUrl:   $projectUrl,
+                )
+            );
+        }
+    }
+
+    /**
+     * Fires when any approver rejects the project.
+     * Template 9 → preparer
+     * Template 5 → actor (rejection actor)
+     */
+    private function notifyRejected(RoiArchiveProject $archived, User $actor, int $actorLevel, ?User $preparer): void
+    {
+        $archiveUrl = $this->buildProjectUrl('archive', $archived->id);
+
+        // Template 9 — preparer
+        if ($preparer?->email) {
+            $this->dispatchMail(
+                $preparer->email,
+                new RoiRejectedMail(
+                    preparerName:     $preparer->name,
+                    reference:        $archived->reference,
+                    actorName:        $actor->name,
+                    stageOfRejection: $this->levelStageLabel($actorLevel),
+                    projectUrl:       $archiveUrl,
+                )
+            );
+        }
+
+        // Template 5 — actor
+        if ($actor->email) {
+            $this->dispatchMail(
+                $actor->email,
+                new RoiActionConfirmedMail(
+                    approverName: $actor->name,
+                    reference:    $archived->reference,
+                    actionTaken:  'Rejected',
+                    newStatus:    'Rejected',
+                    routedTo:     'System Archive',
+                    projectUrl:   $archiveUrl,
+                )
+            );
+        }
+    }
+
+    /**
+     * Fires when the project is fully approved (Level 6).
+     * Template 2 → preparer (with "Approved" as next status)
+     * Template 5 → actor
+     */
+    private function notifyApproved(RoiArchiveProject $archived, User $actor, ?User $preparer): void
+    {
+        $archiveUrl = $this->buildProjectUrl('archive', $archived->id);
+
+        // Template 2 — preparer
+        if ($preparer?->email) {
+            $this->dispatchMail(
+                $preparer->email,
+                new RoiAdvancedMail(
+                    preparerName:  $preparer->name,
+                    reference:     $archived->reference,
+                    actionTaken:   'Approved',
+                    actorName:     $actor->name,
+                    nextStatus:    'Approved',
+                    nextActorName: 'N/A',
+                    projectUrl:    $archiveUrl,
+                )
+            );
+        }
+
+        // Template 5 — actor
+        if ($actor->email) {
+            $this->dispatchMail(
+                $actor->email,
+                new RoiActionConfirmedMail(
+                    approverName: $actor->name,
+                    reference:    $archived->reference,
+                    actionTaken:  'Approved',
+                    newStatus:    'Approved',
+                    routedTo:     'System Archive',
+                    projectUrl:   $archiveUrl,
+                )
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Mail dispatch wrapper — catches exceptions so workflow never breaks on mail failure
+    // -------------------------------------------------------------------------
+
+    private function dispatchMail(string $to, \Illuminate\Mail\Mailable $mailable): void
+    {
+        try {
+            Mail::to($to)->send($mailable);
+        } catch (\Throwable $e) {
+            Log::error('[ROI Mail] Failed to send ' . get_class($mailable), [
+                'to'      => $to,
+                'message' => $e->getMessage(),
+            ]);
+            report($e);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Label helpers
+    // -------------------------------------------------------------------------
+
+    /** "Reviewed", "Checked", "Endorsed", "Confirmed", "Approved" */
+    private function levelActionPastTense(int $level): string
     {
         return match ($level) {
-            1 => 'For Revision', 2 => 'For Review', 3 => 'For Checking',
-            4 => 'For Endorsement', 5 => 'For Confirmation', 6 => 'For Approval', default => 'Pending',
+            2 => 'Reviewed',
+            3 => 'Checked',
+            4 => 'Endorsed',
+            5 => 'Confirmed',
+            6 => 'Approved',
+            default => 'Processed',
         };
     }
+
+    /** "Review", "Check", "Endorsement", "Confirmation" — used in Template 6 */
+    private function levelPendingActionLabel(int $level): string
+    {
+        return match ($level) {
+            2 => 'Review',
+            3 => 'Check',
+            4 => 'Endorsement',
+            5 => 'Confirmation',
+            default => 'Review',
+        };
+    }
+
+    /** "Review", "Check", "Endorse", "Confirm", "Approve" — used in Template 9 */
+    private function levelStageLabel(int $level): string
+    {
+        return match ($level) {
+            2 => 'Review',
+            3 => 'Check',
+            4 => 'Endorse',
+            5 => 'Confirm',
+            6 => 'Approve',
+            default => 'Review',
+        };
+    }
+
+    /** Returns the column name for a given approver level */
+    private function approverColumnForLevel(int $level): ?string
+    {
+        return match ($level) {
+            2 => 'reviewed_by',
+            3 => 'checked_by',
+            4 => 'endorsed_by',
+            5 => 'confirmed_by',
+            6 => 'approved_by',
+            default => null,
+        };
+    }
+
+    /**
+     * Builds a project URL based on which table it currently lives in.
+     * Verify these route names against your web.php.
+     */
+    private function buildProjectUrl(string $table, int $id): string
+    {
+        try {
+            return match ($table) {
+                'current' => route('roi.current.show', $id),
+                'archive' => route('roi.archive.show', $id),
+                'entry'   => route('roi.entry.projects.show', $id),
+                default   => url('/'),
+            };
+        } catch (\Throwable) {
+            // Fallback if route name doesn't exist yet
+            return url('/');
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // All existing methods below — unchanged
+    // -------------------------------------------------------------------------
 
     private function getBackStatusLabel(int $toLevel): string
     {
@@ -330,11 +719,11 @@ class RoiCurrentWorkflowService
     public function getRoiWorkflow(RoiCurrentProject $project): array
     {
         return [
-            'preparer_id'  => $project->user_id, 
-            'reviewer_id'  => $project->reviewed_by, 
+            'preparer_id'  => $project->user_id,
+            'reviewer_id'  => $project->reviewed_by,
             'checker_id'   => $project->checked_by,
-            'endorser_id'  => $project->endorsed_by, 
-            'confirmer_id' => $project->confirmed_by, 
+            'endorser_id'  => $project->endorsed_by,
+            'confirmer_id' => $project->confirmed_by,
             'approver_id'  => $project->approved_by,
         ];
     }
@@ -383,7 +772,10 @@ class RoiCurrentWorkflowService
         return $firstLevel;
     }
 
-    public function emailUserById(?int $userId): ?User { return $userId ? User::query()->find($userId) : null; }
+    public function emailUserById(?int $userId): ?User
+    {
+        return $userId ? User::query()->find($userId) : null;
+    }
 
     private function appendSendBackEntry(RoiCurrentProject $project, User $user, string $type, string $body): void
     {
@@ -439,42 +831,21 @@ class RoiCurrentWorkflowService
         return $archived;
     }
 
-    private function notifyMoveNextOrBack(RoiCurrentProject $project, User $actor, int $fromLevel, int $toLevel, string $action): void
+    // Helper Architecture Methods
+
+    public function levelLabel(int $level): string { return self::LEVEL_TO_LABEL[$level] ?? 'Unknown'; }
+
+    public function getQueueLabelForLevel(int $level): string
     {
-        $ref = $project->reference;
-        $receiver = $toLevel >= 2 ? $this->emailUserById((int) ($project->{match($toLevel){2=>'reviewed_by',3=>'checked_by',4=>'endorsed_by',5=>'confirmed_by',6=>'approved_by'}} ?? 0)) : null;
-
-        if ($receiver) {
-            $this->sendEmail($receiver->email, "ROI Project Received: {$ref}", "You received ROI project {$ref}.\nAssigned level: Level {$toLevel} ({$this->levelLabel($toLevel)}).\nAction: " . ($action === 'next' ? 'Sent to next level' : 'Sent back to previous level') . "\nFrom: {$actor->name} (Level {$fromLevel}).");
-        }
-
-        if ($preparer = $this->emailUserById((int) $project->user_id)) {
-            $this->sendEmail($preparer->email, "ROI Project Update: {$ref}", "Your ROI project {$ref} moved.\nFrom: Level {$fromLevel} ({$this->levelLabel($fromLevel)})\nTo: Level {$toLevel} ({$this->levelLabel($toLevel)})\nAction by: {$actor->name}");
-        }
-
-        $this->sendEmail($actor->email, "ROI Action Successful: {$ref}", "Success!\nYou " . ($action === 'next' ? 'sent' : 'sent back') . " ROI project {$ref}.\nFrom level: {$fromLevel}\nTo level: {$toLevel}");
+        return match ($level) {
+            1 => 'For Revision', 2 => 'For Review', 3 => 'For Checking',
+            4 => 'For Endorsement', 5 => 'For Confirmation', 6 => 'For Approval', default => 'Pending',
+        };
     }
 
-    private function notifyDecision(string $decision, string $reference, ?User $preparer, User $actor, int $actorLevel): void
-    {
-        if ($preparer) {
-            $this->sendEmail($preparer->email, "ROI Project {$decision}: {$reference}", "Your ROI project {$reference} was {$decision}.\n" . ucfirst($decision) . " by: {$actor->name} (Level {$actorLevel} — {$this->levelLabel($actorLevel)})");
-        }
-        $this->sendEmail($actor->email, "ROI Action Successful: {$reference}", "Success!\nYou {$decision} ROI project {$reference}.");
-    }
-
-    private function sendEmail(?string $to, string $subject, string $body): void
-    {
-        if (!$to) { Log::warning('[ROI Mail] skipped: missing recipient', ['subject' => $subject]); return; }
-        try {
-            Mail::raw($body, function ($message) use ($to, $subject) { $message->to($to)->subject($subject); });
-        } catch (\Throwable $e) { report($e); }
-    }
-
-  private function logActivity(string $type, string $details, $subject, ?array $old, ?array $new, array $wf): void
+    private function logActivity(string $type, string $details, $subject, ?array $old, ?array $new, array $wf): void
     {
         try {
-            // Using explicit named arguments matches the method definition keys directly
             RoiActivityLogger::log(
                 activityType: $type,
                 moduleType: 'ROI Current',
