@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { cardStyle } from './ProfileStyles';
 import { SignatureIcon, CloseIcon } from './ProfileIcons';
 
-function SignatureRow({ icon, title, subtitle, action, onAction, onView, signatureUrl = null }) {
+ function SignatureRow({ icon, title, subtitle, action, onAction, onView, signatureUrl = null }) {
     return (
         <div className="flex items-center justify-between gap-4 rounded-xl pb-3">
             <div className="flex items-center gap-3">

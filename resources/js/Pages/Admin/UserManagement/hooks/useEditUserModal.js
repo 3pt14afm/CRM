@@ -96,22 +96,16 @@ export default function useEditUserModal() {
     });
   }, [editForm, editingUser, finishEditSuccess]);
 
-  const onResetPassword = useCallback((userId) => {
+  const onResetPassword = useCallback((userId, { onSuccess, onError } = {}) => {
     if (!userId) return;
-    
-    if (!confirm("Are you sure you want to reset this user's password?")) {
-      return;
-    }
 
     router.post(route("admin.users.reset-password", userId), {}, {
       preserveScroll: true,
-      onSuccess: () => {
-        // The modal can stay open. 
-        // The flash message toast we set up will automatically trigger here!
-      },
+      onSuccess: () => onSuccess?.(),
       onError: (errors) => {
         console.error("Password reset failed:", errors);
-      }
+        onError?.();
+      },
     });
   }, []);
 
