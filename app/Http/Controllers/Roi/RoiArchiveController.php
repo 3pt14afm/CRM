@@ -46,12 +46,13 @@ public function index(Request $request)
         $query->where('roi_archive_projects.location_id', (int) $request->location_id);
     }
 
+    // REPLACE WITH:
     if ($request->filled('date_from')) {
-        $query->where('decided_at', '>=', $request->date_from . ' 00:00:00');
+        $query->whereRaw("COALESCE(rejected_at, approved_at, last_saved_at) >= ?", [$request->date_from . ' 00:00:00']);
     }
 
     if ($request->filled('date_to')) {
-        $query->where('decided_at', '<=', $request->date_to . ' 23:59:59');
+        $query->whereRaw("COALESCE(rejected_at, approved_at, last_saved_at) <= ?", [$request->date_to . ' 23:59:59']);
     }
 
     if ($request->filled('decided_by')) {
@@ -91,17 +92,28 @@ public function index(Request $request)
         $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
 
         $archiveProjects = $query
+        // REPLACE WITH:
         ->when($sortOrder,
-            fn($q) => $q->orderByRaw("COALESCE(rejected_at, approved_at) $sortOrder"),
-            fn($q) => $q->orderByRaw("CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(rejected_at, approved_at) DESC", [$userId])
+            fn($q) => $q->orderByRaw("COALESCE(rejected_at, approved_at, last_saved_at) $sortOrder"),
+            fn($q) => $q->orderByRaw("CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(rejected_at, approved_at, last_saved_at) DESC", [$userId])
         )
         ->paginate($perPage)
         ->withQueryString()
         ->through(function ($p) {
-            $isRejected = strtolower((string)($p->status ?? '')) === 'rejected';
-            $p->decided_by_name = $isRejected ? ($p->rejected_by_name ?: '—') : ($p->approved_by_name ?: '—');
-            // Pass the raw date string to the frontend (e.g., '2026-06-13 10:00:00')
-            $p->decided_at_display = $isRejected ? $p->rejected_at : $p->approved_at;
+            $status = strtolower((string)($p->status ?? ''));
+
+            $p->decided_by_name = match($status) {
+                'rejected'  => $p->rejected_by_name ?: '—',
+                'cancelled' => $p->prepared_by_name ?: '—',
+                default     => $p->approved_by_name ?: '—',
+            };
+
+            $p->decided_at_display = match($status) {
+                'rejected'  => $p->rejected_at,
+                'cancelled' => $p->last_saved_at,
+                default     => $p->approved_at,
+            };
+
             return $p;
         });
 
@@ -138,6 +150,7 @@ public function index(Request $request)
             'confirmedByUser:id,first_name,last_name,position,employee_id',
             'approvedByUser:id,first_name,last_name,position,employee_id',
             'rejectedByUser:id,first_name,last_name,position,employee_id',
+            'cancelledByUser:id,first_name,last_name,position,employee_id',
         ])->findOrFail($id);
 
         $this->ensureCanViewArchive($project);
@@ -150,6 +163,7 @@ public function index(Request $request)
             $project->checked_by,
             $project->endorsed_by,
             $project->confirmed_by,
+            $project->cancelled_by,   // 👈
         ])->filter()->unique()->values();
 
         $usersById = User::query()

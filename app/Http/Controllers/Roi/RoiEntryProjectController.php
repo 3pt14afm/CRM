@@ -194,6 +194,7 @@ class RoiEntryProjectController extends Controller
             'consumableCatalog' => $consumableCatalog,
             'companySuggestions' => $companySuggestions,
             'usersById' => $usersById,
+
         ]);
     }
 
@@ -281,7 +282,7 @@ class RoiEntryProjectController extends Controller
     {
         abort_unless($project->user_id === Auth::id(), 403);
 
-        $allowedStatuses = ['draft', 'returned'];
+        $allowedStatuses = ['draft', 'returned', 'withdrawn'];
         if (!in_array($project->status, $allowedStatuses, true)) {
             return back()->with('error', 'Only drafts or returned projects can be deleted.');
         }
@@ -431,7 +432,7 @@ class RoiEntryProjectController extends Controller
     {
         $user = Auth::user();
         if (!$user) return false;
-        if (!in_array($project->status, ['draft', 'returned'], true)) return false;
+        if (!in_array($project->status, ['draft', 'returned', 'withdrawn'], true)) return false;
 
         $userId = (int) $user->id;
         if ((int) $project->user_id === $userId) return true;

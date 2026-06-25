@@ -806,6 +806,7 @@ class RoiCurrentWorkflowService
             'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
             'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price', 'fees_total',
             'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage', 'yearly_breakdown', 'notes', 'comments',
+            'cancelled_by', 'cancelled_at', 'cancelled_by_level',
         ]);
 
         $archived = RoiArchiveProject::create(array_merge($base, $archiveOverrides));
@@ -829,6 +830,114 @@ class RoiCurrentWorkflowService
 
         $current->delete();
         return $archived;
+    }
+
+    public function handleCancel(RoiCurrentProject $current, User $actor): void
+    {
+        $reference = $current->reference;
+        $preparer  = $this->emailUserById((int) $current->user_id);
+        $oldValues = ['status' => $current->status, 'current_level' => $current->current_level];
+        $workflow  = $this->getRoiWorkflow($current);
+
+        $archived = $this->archiveFromCurrent($current, [
+            'status'            => 'cancelled',
+            'cancelled_by'         => $actor->id,       // 👈
+            'cancelled_at'         => now(),             // 👈
+            'cancelled_by_level'   => 1,                 // 👈 always preparer
+
+            // ─── Clear all approval signatures & timestamps ────────────────
+            'reviewed_at'       => null,
+            'checked_at'        => null,
+            'endorsed_at'       => null,
+            'confirmed_at'      => null,
+            'approved_at'       => null,
+
+            // Keep reviewed_by / checked_by etc. so you know who was assigned,
+            // but wipe the actual approval stamps so it reads as "never approved"
+            'approved_by'       => null,
+            'rejected_at'       => null,
+            'rejected_by'       => null,
+            'rejected_by_level' => null,
+        ]);
+
+        $this->logActivity('cancel', 'Cancelled ROI #' . $reference, $archived, $oldValues, [
+            'status'             => 'cancelled',
+            'archive_project_id' => $archived->id,
+            'cancelled_by'       => $actor->id,
+        ], $workflow);
+
+        // $this->sendEmail(
+        //     $actor->email,
+        //     "ROI Project Cancelled: {$reference}",
+        //     "You have cancelled ROI project {$reference}.\nIt has been archived with status: Cancelled."
+        // );
+
+        // foreach ([2 => 'reviewed_by', 3 => 'checked_by', 4 => 'endorsed_by', 5 => 'confirmed_by', 6 => 'approved_by'] as $level => $column) {
+        //     $approverId = (int) ($current->{$column} ?? 0);
+        //     if (!$approverId || $approverId === (int) $actor->id) continue;
+
+        //     $approver = $this->emailUserById($approverId);
+        //     if ($approver) {
+        //         $this->sendEmail(
+        //             $approver->email,
+        //             "ROI Project Cancelled: {$reference}",
+        //             "ROI project {$reference} has been cancelled by the preparer ({$actor->name}).\nNo further action is required from you."
+        //         );
+        //     }
+        // }
+    }
+
+    public function handleWithdraw(RoiCurrentProject $current, User $actor): void
+    {
+        $reference = $current->reference;
+        $oldValues = ['status' => $current->status, 'current_level' => $current->current_level];
+        $workflow  = $this->getRoiWorkflow($current);
+
+        // Mirror exactly what handleSendBack does when reverting to level 1
+        $current->save();
+        $current->refresh()->load(['items', 'fees', 'user']);
+
+        $projectData = $current->toArray();
+        $this->cleanArrayKeys($projectData);
+
+        $entryProject = RoiEntryProject::create(array_merge($projectData, [
+            'status'        => 'withdrawn',
+            'last_saved_at' => now(),
+        ]));
+
+        // Copy items
+        foreach ($current->items as $item) {
+            $itemData = $item->toArray();
+            unset($itemData['id'], $itemData['roi_current_project_id']);
+            $itemData['roi_entry_project_id'] = $entryProject->id;
+            RoiEntryItem::create($itemData);
+        }
+
+        // Copy fees
+        foreach ($current->fees as $fee) {
+            $feeData = $fee->toArray();
+            unset($feeData['id'], $feeData['roi_current_project_id']);
+            $feeData['roi_entry_project_id'] = $entryProject->id;
+            RoiEntryFee::create($feeData);
+        }
+
+        $this->logActivity('withdraw', 'Withdrew ROI #' . $reference, $entryProject, $oldValues, [
+            'status'           => 'withdrawn',
+            'current_level'    => 1,
+            'entry_project_id' => $entryProject->id,
+            'withdrawn_by'     => $actor->id,
+        ], $workflow);
+
+        // Delete from current — same as sendBack level 1 flow
+        $current->items()->delete();
+        $current->fees()->delete();
+        $current->delete();
+
+        // $this->sendEmail(
+        //     $actor->email,
+        //     "ROI Project Withdrawn: {$reference}",
+        //     "You have withdrawn ROI project {$reference}.\nIt has been returned to your entry list."
+        // );
     }
 
     // Helper Architecture Methods

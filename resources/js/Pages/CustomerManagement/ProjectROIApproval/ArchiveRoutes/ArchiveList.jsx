@@ -12,7 +12,7 @@ import {
   MdSearch, MdCheck, MdExpandMore,
   MdOutlineFilterAlt, MdDateRange, MdClose,
   MdCheckCircle, MdCancel, MdPerson, MdLocationOn, MdVerifiedUser,
-  MdOutlineClose,
+  MdOutlineClose, MdOutlineCancel,
 } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { route as ziggyRoute } from 'ziggy-js';
@@ -140,26 +140,31 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     {
       key: "status",
       header: <div className="text-center w-full">STATUS</div>,
-      cell: (row) => {
-        const s = String(row.status ?? "").toLowerCase();
-        const isRejected = s === "rejected";
-        const isApproved = s === "approved";
-        return (
-          <div className="flex justify-center items-center">
-            <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
-              ${isRejected
-                ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
-                : isApproved
-                ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
-                : "bg-blue-100 text-blue-700 border border-blue-200"
-              }`}>
-              {isRejected ? (
-                <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
-              ) : isApproved ? (
-                <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
-              ) : (
-                <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />
-              )}
+        cell: (row) => {
+      const s = String(row.status ?? "").toLowerCase();
+      const isRejected  = s === "rejected";
+      const isApproved  = s === "approved";
+      const isCancelled = s === "cancelled";
+      return (
+        <div className="flex justify-center items-center">
+          <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
+            ${isRejected
+              ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
+              : isApproved
+              ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
+              : isCancelled
+              ? "bg-red-600/10 text-red-600 border border-red-300"
+              : "bg-blue-100 text-blue-700 border border-blue-200"
+            }`}>
+            {isRejected ? (
+              <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
+            ) : isApproved ? (
+              <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
+            ) : isCancelled ? (
+              <MdOutlineCancel className="text-[11px] xl:text-[13px] flex-shrink-0" />
+            ) : (
+              <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />
+            )}
               <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">
                 {row.decided_by_name ?? "—"}
               </span>
@@ -342,9 +347,10 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
  
 // 3. Status icon changes based on value — pass it via `statusIcon`:
 const statusIcon =
-  statusFilter === "approved" ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
-  statusFilter === "rejected" ? <MdCancel className="text-red-500 text-sm" /> :
-  null; // falls back to default MdOutlineFilterAlt
+  statusFilter === "approved"  ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
+  statusFilter === "rejected"  ? <MdCancel className="text-red-500 text-sm" /> :
+  statusFilter === "cancelled" ? <MdOutlineCancel className="text-red-500 text-sm" /> :
+  null;
  
 // 4. Replace the `filterToolbar` variable:
 const filterToolbar = (
@@ -356,6 +362,7 @@ const filterToolbar = (
       { value: "",         label: "All Status" },
       { value: "approved", label: "Approved" },
       { value: "rejected", label: "Rejected" },
+       { value: "cancelled", label: "Cancelled" },
     ]}
     statusFilter={statusFilter}
     onStatusChange={handleStatusChange}

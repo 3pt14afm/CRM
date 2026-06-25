@@ -49,12 +49,20 @@ class RoiCurrentProjectController extends Controller
         $userId = (int) $user->id;
 
         $query->where(function ($q) use ($userId) {
-            $q->where('user_id', $userId) // I created it
-            ->orWhere('reviewed_by', $userId)
-            ->orWhere('checked_by', $userId)
-            ->orWhere('endorsed_by', $userId)
-            ->orWhere('confirmed_by', $userId)
-            ->orWhere('approved_by', $userId); // I am an approver at any stage
+            // Preparer always sees their own, regardless of status
+            $q->where('user_id', $userId)
+
+            // Approvers only see active pipeline projects — not withdrawn/cancelled
+            ->orWhere(function ($approverQ) use ($userId) {
+                $approverQ->whereNotIn('status', ['Withdrawn', 'Cancelled'])
+                            ->where(function ($cols) use ($userId) {
+                                $cols->where('reviewed_by', $userId)
+                                    ->orWhere('checked_by', $userId)
+                                    ->orWhere('endorsed_by', $userId)
+                                    ->orWhere('confirmed_by', $userId)
+                                    ->orWhere('approved_by', $userId);
+                            });
+            });
         });
     }
     private function ensureCanAct(RoiCurrentProject $project, $user): void
@@ -460,6 +468,41 @@ class RoiCurrentProjectController extends Controller
         return to_route('roi.current')->with('success', 'Project approved and archived.');
     }
 
+    public function cancel($id)
+    {
+        $user    = $this->getAuthenticatedUser();
+        $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+        $this->ensureIsPreparer($project, $user);
+        $this->ensureNotTerminal($project);
+
+        $this->workflowService->handleCancel($project, $user);
+
+        return to_route('roi.current')
+            ->with('success', 'Project has been cancelled and archived.');
+    }
+
+    public function withdraw($id)
+    {
+        $user    = $this->getAuthenticatedUser();
+        $project = RoiCurrentProject::with(['items', 'fees', 'user'])->findOrFail($id);
+
+        $this->ensureIsPreparer($project, $user);
+        $this->ensureNotTerminal($project);
+
+        abort_if(
+            (int) $project->current_level < 2,
+            400,
+            'Project has not been submitted yet. Use Cancel instead.'
+        );
+
+        $this->workflowService->handleWithdraw($project, $user);
+
+        // ✅ Entry list — that's where the withdrawn project now lives
+        return to_route('roi.entry.list')
+            ->with('success', 'Project withdrawn and returned to your entry list.');
+    }
+
     private function buildMachineCatalog() {
         return \App\Models\PrinterModel::query()->with(['printerModelSupplies.supply'])->where('status', 'Active')->orderBy('printer_name')->get()->map(fn($p) => [
             'id' => (string) $p->id, 'name' => $p->printer_name, 'unitCost' => number_format((float)($p->unit_cost??0), 2, '.', ''), 'sellingPrice' => number_format((float)($p->selling_price??0), 2, '.', ''),
@@ -495,4 +538,27 @@ class RoiCurrentProjectController extends Controller
 
         return response()->file(Storage::disk('local')->path($attachment['path']));
     }
+
+    // ─── Shared guard ──────────────────────────────────────────────────────────
+
+    private function ensureIsPreparer(RoiCurrentProject $project, $user): void
+    {
+        abort_unless(
+            (int) $project->user_id === (int) $user->id,
+            403,
+            'Only the project preparer can perform this action.'
+        );
+    }
+
+    private function ensureNotTerminal(RoiCurrentProject $project): void
+    {
+        $terminal = ['approved', 'rejected', 'archived', 'withdrawn', 'cancelled'];
+
+        abort_if(
+            in_array(strtolower((string) $project->status), $terminal, true),
+            400,
+            'This project has already reached a terminal state and cannot be modified.'
+        );
+    }
+
 }

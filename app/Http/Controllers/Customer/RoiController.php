@@ -21,7 +21,7 @@ class RoiController extends Controller
             // 1. Build Base Filterable Query
             $draftsQuery = RoiEntryProject::query()
                 ->where('user_id', $userId)
-                ->whereIn('status', ['draft', 'returned', 'sent back']) // Ensure both structural statuses match cleanly
+                ->whereIn('status', ['draft', 'returned', 'sent back', 'withdrawn'])
                 ->when($request->filled('search'), function ($q) use ($request) {
                     $search = $request->input('search');
                     $q->where(function ($inner) use ($search) {
@@ -34,6 +34,8 @@ class RoiController extends Controller
                     $status = $request->input('status');
                     if ($status === 'returned') {
                         $q->whereIn('status', ['returned', 'sent back']);
+                    } elseif ($status === 'withdrawn') {  // ✅ new
+                        $q->where('status', 'withdrawn');
                     } else {
                         $q->where('status', $status);
                     }
@@ -89,7 +91,7 @@ class RoiController extends Controller
             // 3. Dynamic Stats (Calculated on base structural metrics context)
             $totalDrafts = RoiEntryProject::query()
                 ->where('user_id', $userId)
-                ->whereIn('status', ['draft', 'returned', 'sent back'])
+                ->whereIn('status', ['draft', 'returned', 'sent back', 'withdrawn'])
                 ->count();
 
             $recentlyModifiedToday = RoiEntryProject::query()

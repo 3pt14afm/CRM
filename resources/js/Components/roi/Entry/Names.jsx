@@ -8,9 +8,11 @@ function Names() {
 
   const { projectData } = useProjectData();
 
-  const isArchive = routeName === 'archive';
-  const status = String(project?.status ?? '').toLowerCase();
-  const isRejected = isArchive && status === 'rejected';
+  const isArchive   = routeName === 'archive';
+  const status      = String(project?.status ?? '').toLowerCase();
+  const isRejected  = isArchive && status === 'rejected';
+  
+  const isCancelled = isArchive && status === 'cancelled';
 
   const nameOf = (id, fallback = '—') => {
     if (!id) return fallback;
@@ -67,34 +69,18 @@ function Names() {
 const isSentBack = status === 'sent back';
 const currentLevel = Number(project?.current_level ?? 0);
 
+// REPLACE WITH:
 const preparedAt = timestampOf(project?.submitted_at);
 
-const reviewedAt =
-  isSentBack && currentLevel <= 2
-    ? ''
-    : timestampOf(project?.reviewed_at);
+// Cancelled — wipe all approval timestamps, nobody signed off
+const reviewedAt  = isCancelled ? '' : isSentBack && currentLevel <= 2 ? '' : timestampOf(project?.reviewed_at);
+const checkedAt   = isCancelled ? '' : isSentBack && currentLevel <= 3 ? '' : timestampOf(project?.checked_at);
+const endorsedAt  = isCancelled ? '' : isSentBack && currentLevel <= 4 ? '' : timestampOf(project?.endorsed_at);
+const confirmedAt = isCancelled ? '' : isSentBack && currentLevel <= 5 ? '' : timestampOf(project?.confirmed_at);
+const approvedAt  = isCancelled ? '' : isSentBack && currentLevel <= 6 ? '' : timestampOf(project?.approved_at);
 
-const checkedAt =
-  isSentBack && currentLevel <= 3
-    ? ''
-    : timestampOf(project?.checked_at);
-
-const endorsedAt =
-  isSentBack && currentLevel <= 4
-    ? ''
-    : timestampOf(project?.endorsed_at);
-
-const confirmedAt =
-  isSentBack && currentLevel <= 5
-    ? ''
-    : timestampOf(project?.confirmed_at);
-
-const approvedAt =
-  isSentBack && currentLevel <= 6
-    ? ''
-    : timestampOf(project?.approved_at);
-
-  const rejectedAt = isRejected ? timestampOf(project?.rejected_at) : '';
+// Rejected — show rejected_at at the level where rejection happened
+const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
 
   // Helper to only show signature if timestamp exists
   const getSignature = (signatureUrl, timestamp) => {

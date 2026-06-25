@@ -1,14 +1,14 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
-import { useRef } from 'react';
+import { useState, useRef } from 'react';
 import Summary1stYear from './Summary1stYear';
 import MachineConfigTab from './MachineConfigTab';
 import SucceedingYears from './SucceedingYears';
 import { FaRegFloppyDisk } from "react-icons/fa6";
 import { IoPrintSharp, IoSend, IoTrashSharp } from "react-icons/io5";
 import { LuScanEye } from "react-icons/lu";
-import { MdDisabledByDefault } from "react-icons/md";
-import { FaArrowLeft, FaArrowRight, FaAngleLeft  } from 'react-icons/fa';
+import { MdDisabledByDefault, MdOutlineCancel  } from "react-icons/md";
+import { FaArrowLeft, FaArrowRight, FaAngleLeft, FaUndo   } from 'react-icons/fa';
 import { useProjectData } from '@/Context/ProjectContext';
 import { Toaster } from 'sonner';
 
@@ -18,6 +18,8 @@ import { useEntryPayload } from '@/utils/roi/useEntryPayload';
 import { useEntryActions } from '@/hooks/roi/useEntryActions';
 import { useApprovalActions } from '@/hooks/roi/useApprovalActions';
 import { usePrintPage } from '@/hooks/roi/usePrintPage';
+
+console.log('ENTRY FILE PARSED');
 
 export default function Entry({
   activeTab = 'Machine Configuration',
@@ -29,6 +31,7 @@ export default function Entry({
    signatures = {},
 }) {
   const { auth, requiredSendBackType } = usePage().props;
+    
   const createdBy = auth?.user?.name ?? null;
 
   const sendBackType = requiredSendBackType === 'comment' ? 'comment' : 'note';
@@ -100,6 +103,14 @@ export default function Entry({
     submitSendBack,
     handleAdvance,
     handleApprove,
+    showWithdrawModal,       // 👈 new
+    setShowWithdrawModal,    // 👈 new
+    handleWithdraw,          // 👈 new
+    submitWithdraw,          // 👈 new
+    showCancelModal,         // 👈 new
+    setShowCancelModal,      // 👈 new
+    handleCancel,            // 👈 new
+    submitCancel,            // 👈 new
   } = useApprovalActions({ entryProject, sendBackType });
 
   // --- Derived UI flags ---
@@ -108,14 +119,35 @@ export default function Entry({
   const isSummaryLikeTab = tab === 'Summary' || tab === 'Succeeding';
 
   const statusText = String(
-    projectData?.metadata?.status ?? entryProject?.status ?? "draft"
+  projectData?.metadata?.status ?? entryProject?.status ?? "draft"
   ).toLowerCase();
+
+  const terminalStatuses = ['approved', 'rejected', 'archived', 'withdrawn', 'cancelled'];
+  const isTerminal = terminalStatuses.includes(statusText);
+
+const isPreparer = isCurrentRecord && (Number(auth?.user?.id) === Number(entryProject?.user_id ?? -1));
+
+  const canWithdraw = isPreparer && !isTerminal && Number(entryProject?.current_level ?? 0) >= 2;
+  const canCancel   = isPreparer && !isTerminal;
+
+  const showPreparerCurrentActions = isSummaryLikeTab && (canWithdraw || canCancel);
+
+
 
   const showDraftWatermark = !isCurrentRecord && statusText === "draft";
   const showMachineDraftActions = tab === 'Machine' && !readOnly && !isCurrentRecord;
   const showEntrySummaryDraftActions = isSummaryLikeTab && !readOnly && !isCurrentRecord;
   const showCurrentSummaryApprovalActions = isSummaryLikeTab && isCurrentRecord;
   const showPrintFooter = isSummaryLikeTab;
+
+    console.log('DEBUG', {
+    routeName, isCurrentRecord, isSummaryLikeTab, tab,
+    authUserId: auth?.user?.id,
+    projectUserId: entryProject?.user_id,
+    isPreparer, isTerminal, statusText,
+    currentLevel: entryProject?.current_level,
+    canWithdraw, canCancel, showPreparerCurrentActions,
+  });
 
   const { openPrintPage } = usePrintPage({
     tab,
@@ -138,7 +170,7 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
   const canApprove = isAssignedApproverLevel && levelNum === 6;
 
   const showApprovalButtons = showCurrentSummaryApprovalActions && isAssignedApproverLevel;
-  const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showApprovalButtons;
+const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showApprovalButtons && !showPreparerCurrentActions;
 
   // --- Tab refs (used by child components) ---
 
@@ -150,6 +182,22 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
     if (tab === 'Succeeding') return succeedingRef;
     return null;
   };
+
+
+  console.log('DEBUG preparer flags', {
+    isCurrentRecord,
+    isSummaryLikeTab,
+    tab,
+    authUserId: auth?.user?.id,
+    projectUserId: entryProject?.user_id,
+    isPreparer,
+    isTerminal,
+    statusText,
+    currentLevel: entryProject?.current_level,
+    canWithdraw,
+    canCancel,
+    showPreparerCurrentActions,
+});
 
   return (
     <>
@@ -315,6 +363,61 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
             </>
           )}
 
+
+          {/* ── Preparer actions — withdraw / cancel ── */}
+          {showPreparerCurrentActions && (
+              <>
+
+
+<div className="flex items-center gap-3">
+    {canWithdraw && (
+        <button
+            type="button"
+            onClick={handleWithdraw}
+            className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] hover:shadow-innerSkyBlue font-semibold
+                bg-blue-400/10 backdrop-blur-md
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]
+                hover:bg-blue-400/20 hover:border-[#0565D2]/70
+                transition-all duration-200"
+        >
+            <FaUndo size={12}/> Withdraw
+        </button>
+    )}
+</div>
+
+                  <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                      <button
+                          type="button"
+                          onClick={() => openPrintPage(false)}
+                          className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                      >
+                          <LuScanEye /> Print Preview
+                      </button>
+
+                      <button
+                          type="button"
+                          onClick={() => openPrintPage(true)}
+                          className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                      >
+                          <IoPrintSharp /> Print
+                      </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                      {canCancel && (
+                          <button
+                              type="button"
+                              onClick={handleCancel}
+                              className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold"
+                          >
+                              <MdOutlineCancel /> Cancel
+                          </button>
+                      )}
+                  </div>
+
+              </>
+          )}
+
           {/* Approval actions — only visible to assigned approvers */}
           {showApprovalButtons && (
             <>
@@ -451,6 +554,102 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
         </div>
       )}
 
+      {/* ── Withdraw Modal ── */}
+      {showWithdrawModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+              <div
+                  className="absolute inset-0 bg-black/35"
+                  onClick={() => setShowWithdrawModal(false)}
+              />
+
+              <div className="relative w-[92%] max-w-xl bg-white rounded-2xl shadow-xl border border-black/10 overflow-hidden">
+                  <div className="px-8 pt-8 pb-4">
+                      <h2 className="text-2xl font-extrabold tracking-wide text-[#0565D2]">
+                          WITHDRAW PROJECT
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-500">
+                          This will pull the project out of the approval pipeline and return it
+                          to your entry list. You can resubmit it after making changes.
+                      </p>
+                  </div>
+
+                  <div className="px-8 pb-4">
+                      <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+                          <span className="font-semibold">Reference:</span> {projectRef}
+                      </div>
+                  </div>
+
+                  <div className="px-8 pb-8">
+                      <div className="mt-4 flex justify-end gap-3">
+                          <button
+                              type="button"
+                              onClick={() => setShowWithdrawModal(false)}
+                              className="px-5 py-2 rounded-lg bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
+                          >
+                              Go Back
+                          </button>
+
+                          <button
+                              type="button"
+                              onClick={submitWithdraw}
+                              className="px-5 py-2 rounded-lg bg-[#0565D2] hover:bg-blue-700 text-white font-semibold"
+                          >
+                              Yes, Withdraw
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* ── Cancel Modal ── */}
+      {showCancelModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+              <div
+                  className="absolute inset-0 bg-black/35"
+                  onClick={() => setShowCancelModal(false)}
+              />
+
+              <div className="relative w-[92%] max-w-xl bg-white rounded-2xl shadow-xl border border-black/10 overflow-hidden">
+                  <div className="px-8 pt-8 pb-4">
+                      <h2 className="text-2xl font-extrabold tracking-wide text-red-600">
+                          CANCEL PROJECT
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-500">
+                          This will permanently archive the project with a
+                          <span className="font-semibold text-slate-700"> Cancelled </span>
+                          status. This action cannot be undone.
+                      </p>
+                  </div>
+
+                  <div className="px-8 pb-4">
+                      <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+                          <span className="font-semibold">Reference:</span> {projectRef}
+                      </div>
+                  </div>
+
+                  <div className="px-8 pb-8">
+                      <div className="mt-4 flex justify-end gap-3">
+                          <button
+                              type="button"
+                              onClick={() => setShowCancelModal(false)}
+                              className="px-5 py-2 rounded-lg bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
+                          >
+                              Go Back
+                          </button>
+
+                          <button
+                              type="button"
+                              onClick={submitCancel}
+                              className="px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold"
+                          >
+                              Yes, Cancel Project
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
     </>
   );
 }

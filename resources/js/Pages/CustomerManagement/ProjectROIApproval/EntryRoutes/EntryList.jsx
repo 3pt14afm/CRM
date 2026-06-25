@@ -266,6 +266,8 @@
             const statusLower = row.status?.toLowerCase() ?? '';
             const isDraft = statusLower === 'draft';
             const isSentBack = statusLower === 'returned' || statusLower === 'sent back';
+            const isWithdrawn = statusLower === 'widthrawn' || statusLower === 'withdrawn';
+
 
             return (
               <div className="flex justify-center items-center">
@@ -278,6 +280,8 @@
                     ? "bg-red-100 text-red-700 border border-red-200" 
                     : isDraft
                     ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]" 
+                    : isWithdrawn
+                    ? "bg-[#0565D2]/15  border-[#0565D2]/50 text-[#0565D2]" 
                     : "bg-gray-100 text-gray-700 border border-gray-200"
                   }
                 `}>
@@ -381,6 +385,7 @@
             <option value="all">All Status</option>
             <option value="draft">Draft</option>
             <option value="returned">Returned</option>
+            <option value="withdrawn">Withdrawn</option>
           </select>
         </div>
 

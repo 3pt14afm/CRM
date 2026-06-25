@@ -74,11 +74,17 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/{id}/reject', [RoiCurrentProjectController::class, 'reject'])->name('roi.current.reject');
                 Route::post('/{id}/approve', [RoiCurrentProjectController::class, 'approve'])->name('roi.current.approve');
                 Route::get('/current/{id}/print', [RoiPrintController::class, 'printCurrent'])->name('roi.current.print');
-            
+              
                 // Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])->name('roi.current.attachments.show');
 
                 Route::get('/{id}/attachments/{attachmentIndex}/{filename?}', [RoiCurrentProjectController::class, 'showAttachment'])
                     ->name('roi.current.attachments.show');
+
+                 Route::patch('/{id}/withdraw', [RoiCurrentProjectController::class, 'withdraw'])
+                    ->name('roi.current.withdraw');
+
+                Route::patch('/{id}/cancel', [RoiCurrentProjectController::class, 'cancel'])
+                    ->name('roi.current.cancel');
             });
 
             //ROI ARCHIVE ROUTES
