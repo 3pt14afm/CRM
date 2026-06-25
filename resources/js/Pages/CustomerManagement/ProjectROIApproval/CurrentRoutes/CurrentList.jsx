@@ -25,8 +25,10 @@ function formatDateLabel(dateStr) {
   });
 }
 
-function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, locations = [] }) {
+function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters, locations = [] }) {
   const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
+  const [localStats, setLocalStats] = useState(initialStats); // <-- 1. Store stats in local state
+  
   const [search,       setSearch]       = useState(filters?.search      ?? "");
   const [statusFilter, setStatusFilter] = useState(filters?.status      ?? "");
   const [dateFrom,     setDateFrom]     = useState(filters?.date_from   ?? "");
@@ -58,7 +60,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
 
   useEffect(() => {
     setLocalCurrentProjects(initialCurrentProjects);
-  }, [initialCurrentProjects]);
+    setLocalStats(initialStats); // <-- Keep local stats synced with initial prop changes
+  }, [initialCurrentProjects, initialStats]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -87,13 +90,14 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
   const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || preparedBy || locationId);
 
   const tiles = useMemo(() => {
-    const totalCurrentProjects = stats?.totalCurrentProjects ?? localCurrentProjects?.total ?? 0;
-    const recentlyAddedToday   = stats?.recentlyAddedToday ?? "—";
+    // <-- 2. Read from localStats instead of the stale stats prop -->
+    const totalCurrentProjects = localStats?.totalCurrentProjects ?? localCurrentProjects?.total ?? 0;
+    const recentlyAddedToday   = localStats?.recentlyAddedToday ?? "—";
     return [
       { label: "Total Currents", value: totalCurrentProjects, icon: <FaFolderOpen />, variant: "normal" },
       { label: "Recently Added", value: recentlyAddedToday,   icon: <IoTimeOutline />, variant: "normal" },
     ];
-  }, [stats, localCurrentProjects]);
+  }, [localStats, localCurrentProjects]);
 
   const columns = useMemo(() => [
     {
@@ -189,8 +193,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
     currentDateTo     = dateTo,
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
-    currentSortOrder  = sortOrder,   // ← add
-
+    currentSortOrder  = sortOrder,
   } = {}) => {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
@@ -205,16 +208,24 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
                 date_to:     currentDateTo      || undefined,
                 prepared_by: currentPreparedBy  || undefined,
                 location_id: currentLocationId  || undefined,
-                sort_by:     "last_saved_at",                    // ← add
-                sort_order:  currentSortOrder   || undefined,    // ← add
+                sort_by:     "last_saved_at",
+                sort_order:  currentSortOrder   || undefined,
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
             },
         });
-        const payload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
-        setLocalCurrentProjects(payload);
+        
+        // Extract project list payload
+        const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
+        setLocalCurrentProjects(projectsPayload);
+        
+        // <-- 3. Extract and set the stats payload as well -->
+        const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+        if (statsPayload) {
+          setLocalStats(statsPayload);
+        }
     } catch (error) {
         console.error("Failed to fetch current projects:", error);
     } finally {
@@ -290,7 +301,6 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
       }
     : null;
 
-
   const searchControl = (
     <SearchControl
       search={search}
@@ -342,7 +352,6 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats, filters, 
       onDateClear={handleDateClear}
     />
   );
- 
 
   return (
     <div className="min-h-screen flex flex-col">
