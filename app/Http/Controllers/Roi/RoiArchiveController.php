@@ -42,6 +42,10 @@ public function index(Request $request)
         $query->where('roi_archive_projects.status', $request->status);
     }
 
+    if ($request->filled('type')) {
+            $query->where('roi_archive_projects.type', $request->integer('type'));
+        }
+
     if ($request->filled('location_id')) {
         $query->where('roi_archive_projects.location_id', (int) $request->location_id);
     }
@@ -97,6 +101,9 @@ public function index(Request $request)
             fn($q) => $q->orderByRaw("COALESCE(rejected_at, approved_at, last_saved_at) $sortOrder"),
             fn($q) => $q->orderByRaw("CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(rejected_at, approved_at, last_saved_at) DESC", [$userId])
         )
+        ->when($request->type !== null && $request->type !== '', fn($q) =>
+            $q->where('type', $request->type)
+        )
         ->paginate($perPage)
         ->withQueryString()
         ->through(function ($p) {
@@ -124,7 +131,7 @@ public function index(Request $request)
     }
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
-        'filters' => $request->only(['search', 'status', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_order']),
+        'filters' => $request->only(['search', 'status', 'type', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_order']),
         'archiveProjects' => $archiveProjects,
         'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
         'stats' => [

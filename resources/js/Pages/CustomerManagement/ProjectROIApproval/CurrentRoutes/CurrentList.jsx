@@ -31,6 +31,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   
   const [search,       setSearch]       = useState(filters?.search      ?? "");
   const [statusFilter, setStatusFilter] = useState(filters?.status      ?? "");
+  const [typeFilter,   setTypeFilter]   = useState(filters?.type        ?? ""); // <-- ADD THIS LINE
   const [dateFrom,     setDateFrom]     = useState(filters?.date_from   ?? "");
   const [dateTo,       setDateTo]       = useState(filters?.date_to     ?? "");
   const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by ?? "");
@@ -219,6 +220,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
                 location_id: currentLocationId  || undefined,
                 sort_by:     "last_saved_at",
                 sort_order:  currentSortOrder   || undefined,
+                type:        typeFilter         || undefined, // <-- ADD THIS LINE
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -249,6 +251,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   }, [search]);
 
   const handleStatusChange    = (val) => { setStatusFilter(val); fetchCurrentData({ currentStatus: val }); };
+  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchCurrentData({ currentType: val }); }; // <-- ADD THIS LINE
   const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchCurrentData({ currentPreparedBy: val }); };
   const handleLocationApply   = (val) => { setLocationId(val);   fetchCurrentData({ currentLocationId: val }); };
   const handleDateApply       = ()    => { setShowDatePicker(false); fetchCurrentData(); };
@@ -267,6 +270,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const handleClearAllFilters = () => {
     setSearch("");
     setStatusFilter("");
+    setTypeFilter(""); // <-- ADD THIS LINE
     setDateFrom("");
     setDateTo("");
     setPreparedBy("");
@@ -338,7 +342,15 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       ]}
       statusFilter={statusFilter}
       onStatusChange={handleStatusChange}
-  
+      // <-- ADD THESE PROPS BEFORE preparedBy -->
+      typeOptions={[
+        { value: "",  label: "All Types" },
+        { value: "0", label: "Existing" },
+        { value: "1", label: "Potential" },
+      ]}
+      typeFilter={typeFilter}
+      onTypeChange={handleTypeChange}
+      
       perPage={perPage}
       perPageInput={perPageInput}
       onPerPageInputChange={setPerPageInput}

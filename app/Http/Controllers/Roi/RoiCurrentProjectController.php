@@ -99,6 +99,7 @@ class RoiCurrentProjectController extends Controller
 
         $search     = $request->input('search');
         $status     = $request->input('status');
+        $type       = $request->input('type'); // <-- ADD THIS LINE
         $dateFrom   = $request->input('date_from');
         $dateTo     = $request->input('date_to');
         $preparedBy = $request->input('prepared_by');
@@ -159,6 +160,12 @@ class RoiCurrentProjectController extends Controller
             };
         }
 
+        // 3. Type filter <-- ADD THIS BLOCK -->
+    // 4.5 Type filter (Existing vs Potential) 👈 ADD THIS BLOCK
+            if ($type !== null && $type !== '') {
+                $query->where('roi_current_projects.type', '=', (int) $type);
+            }
+            
         // 3. Prepared By filter
         if (!empty($preparedBy)) {
             $query->whereHas('user', function ($q) use ($preparedBy) {
@@ -251,6 +258,7 @@ class RoiCurrentProjectController extends Controller
                 'location_id' => $locationId,
                 'per_page'    => $perPage,
                 'sort_order'  => $sortOrder,   // ← add
+                'type'        => $type,
             ],
         ]);
     }

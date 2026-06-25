@@ -65,6 +65,11 @@ export default function ListFilterToolbar({
   onStatusChange,
   statusIcon,
 
+  // <-- ADD THESE PROPS -->
+  typeOptions = [],
+  typeFilter,
+  onTypeChange,
+
   // per page
   perPage,
   perPageInput,
@@ -232,6 +237,22 @@ export default function ListFilterToolbar({
         />
       </div>
 
+      {/* Type (Placed before Date Range) */}
+      <div className="relative h-9 flex items-center flex-shrink-0">
+        <TbLayoutRows className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+        <select
+          value={typeFilter}
+          onChange={(e) => onTypeChange(e.target.value)}
+          className="h-9 w-28 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            transition-[border-color,box-shadow] duration-150 text-slate-700"
+        >
+          {typeOptions.map(({ value, label }) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Date Range */}
       <div className="relative flex-shrink-0" ref={datePickerRef}>
         <FilterChip
@@ -279,8 +300,10 @@ export default function ListFilterToolbar({
               </button>
             </div>
           </div>
+          
         )}
       </div>
+      
 
     </FilterToolbar>
   );

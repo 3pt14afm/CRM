@@ -39,6 +39,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const [localStats, setLocalStats] = useState(initialStats); // <-- 1. Store stats in local state
 
   const [search,       setSearch]       = useState(filters?.search      ?? "");
+  const [typeFilter,   setTypeFilter]   = useState(filters?.type        ?? ""); // <-- Ensure this line is present
   const [statusFilter, setStatusFilter] = useState(filters?.status      ?? "");
   const [perPage,      setPerPage]      = useState(filters?.per_page    ?? 10);
   const [dateFrom,     setDateFrom]     = useState(filters?.date_from   ?? "");
@@ -263,6 +264,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
           location_id: currentLocationId  || undefined,
           sort_by:     "decided_at",
           sort_order:  currentSortOrder   || undefined,
+          type:        typeFilter         || undefined, // <-- Add this parameter
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       });
@@ -290,6 +292,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   }, [search]);
 
   const handleStatusChange    = (val) => { setStatusFilter(val); fetchArchivedData({ currentStatus: val }); };
+  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchArchivedData({ currentType: val }); }; // <-- ADD THIS LINE
   const handleDecidedByApply  = (val) => { setDecidedBy(val);   fetchArchivedData({ currentDecidedBy: val }); };
   const handlePreparedByApply = (val) => { setPreparedBy(val);  fetchArchivedData({ currentPreparedBy: val }); };
   const handleLocationApply   = (val) => { setLocationId(val);  fetchArchivedData({ currentLocationId: val }); };
@@ -403,6 +406,16 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
         { value: "rejected", label: "Rejected" },
         { value: "cancelled", label: "Cancelled" },
       ]}
+
+// <-- MAKE SURE THESE THREE PROPS ARE PRESENT -->
+      typeOptions={[
+        { value: " ", label: "All Types" },
+        { value: "0",  label: "Existing" },
+        { value: "1",  label: "Potential" },
+      ]}
+      typeFilter={typeFilter}
+      onTypeChange={handleTypeChange}
+
       statusFilter={statusFilter}
       onStatusChange={handleStatusChange}
       statusIcon={statusIcon}
