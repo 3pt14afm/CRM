@@ -139,6 +139,15 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       cell: (r) => <span className="font-medium flex justify-center items-center">{r.contract_type ?? "—"}</span>,
     },
     {
+      key: "type",
+      header: <div className="text-center w-full">TYPE</div>,
+      cell: (r) => (
+        <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+          {r.type === 1 ? "Existing" : "Potential"}
+        </span>
+      ),
+    },
+    {
       key: "status",
       header: <div className="text-center w-full">STATUS</div>,
       cell: (row) => (

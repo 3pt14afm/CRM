@@ -19,7 +19,6 @@ import { useEntryActions } from '@/hooks/roi/useEntryActions';
 import { useApprovalActions } from '@/hooks/roi/useApprovalActions';
 import { usePrintPage } from '@/hooks/roi/usePrintPage';
 
-console.log('ENTRY FILE PARSED');
 
 export default function Entry({
   activeTab = 'Machine Configuration',
@@ -140,14 +139,7 @@ const isPreparer = isCurrentRecord && (Number(auth?.user?.id) === Number(entryPr
   const showCurrentSummaryApprovalActions = isSummaryLikeTab && isCurrentRecord;
   const showPrintFooter = isSummaryLikeTab;
 
-    console.log('DEBUG', {
-    routeName, isCurrentRecord, isSummaryLikeTab, tab,
-    authUserId: auth?.user?.id,
-    projectUserId: entryProject?.user_id,
-    isPreparer, isTerminal, statusText,
-    currentLevel: entryProject?.current_level,
-    canWithdraw, canCancel, showPreparerCurrentActions,
-  });
+
 
   const { openPrintPage } = usePrintPage({
     tab,
@@ -184,20 +176,7 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
   };
 
 
-  console.log('DEBUG preparer flags', {
-    isCurrentRecord,
-    isSummaryLikeTab,
-    tab,
-    authUserId: auth?.user?.id,
-    projectUserId: entryProject?.user_id,
-    isPreparer,
-    isTerminal,
-    statusText,
-    currentLevel: entryProject?.current_level,
-    canWithdraw,
-    canCancel,
-    showPreparerCurrentActions,
-});
+
 
   return (
     <>
@@ -369,21 +348,21 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
               <>
 
 
-<div className="flex items-center gap-3">
-    {canWithdraw && (
-        <button
-            type="button"
-            onClick={handleWithdraw}
-            className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] hover:shadow-innerSkyBlue font-semibold
-                bg-blue-400/10 backdrop-blur-md
-                shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]
-                hover:bg-blue-400/20 hover:border-[#0565D2]/70
-                transition-all duration-200"
-        >
-            <FaUndo size={12}/> Withdraw
-        </button>
-    )}
-</div>
+            <div className="flex items-center gap-3">
+                {canWithdraw && (
+                    <button
+                        type="button"
+                        onClick={handleWithdraw}
+                        className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] hover:shadow-innerSkyBlue font-semibold
+                            bg-blue-400/10 backdrop-blur-md
+                            shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]
+                            hover:bg-blue-400/20 hover:border-[#0565D2]/70
+                            transition-all duration-200"
+                    >
+                        <FaUndo size={12}/> Withdraw
+                    </button>
+                )}
+            </div>
 
                   <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                       <button

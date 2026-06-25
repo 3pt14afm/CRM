@@ -19,6 +19,7 @@ class StoreRoiDraftRequest extends FormRequest
             'companyInfo.projectUid' => ['nullable', 'string', 'max:255'],
             'companyInfo.companyName' => ['required', 'string', 'max:255'],
             'companyInfo.companySapCode' => ['nullable', 'string', 'max:255'],
+            'companyInfo.type' => ['nullable', 'integer', 'in:0,1'],  // ← add this
             'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
             'companyInfo.contractType' => ['required', 'string', 'max:255'],
             'companyInfo.purpose' => ['nullable', 'string', 'max:5000'],

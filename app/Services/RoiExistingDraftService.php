@@ -64,6 +64,8 @@ class RoiExistingDraftService
                             'company_name' => (string) ($company['companyName'] ?? ''),
                             'contract_years' => (int) ($company['contractYears'] ?? 0),
                             'contract_type' => (string) ($company['contractType'] ?? ''),
+                            'company_sap_code' => (string) ($company['companySapCode'] ?? ''),
+                            'type'             => (int) ($company['type'] ?? 0),  // ← add
                             'purpose' => (string) ($company['purpose'] ?? ''),
                             'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
                             'annual_interest' => (float) ($interest['annualInterest'] ?? 0),
@@ -121,6 +123,8 @@ class RoiExistingDraftService
             'company_name' => (string) ($company['companyName'] ?? ''),
             'contract_years' => (int) ($company['contractYears'] ?? 0),
             'contract_type' => (string) ($company['contractType'] ?? ''),
+            'company_sap_code' => $company['companySapCode'] ?? $project->company_sap_code,
+            'type' => (int) ($company['type'] ?? $project->type ?? 0),  // ← add
             'purpose' => (string) ($company['purpose'] ?? ''),
             'bundled_std_ink' => (bool) ($company['bundledStdInk'] ?? false),
             'annual_interest' => (float) ($interest['annualInterest'] ?? 0),

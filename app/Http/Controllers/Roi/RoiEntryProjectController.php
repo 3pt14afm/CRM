@@ -47,6 +47,7 @@ class RoiEntryProjectController extends Controller
             return DB::table('erms.tbl_company')
                 ->where('status', 1)
                 ->where('company_name', 'LIKE', $search . '%')
+                ->whereNotNull('sap_code') // <--- Ensures sap_code is not null
                 ->select('company_name', 'sap_code as company_sap_code')
                 ->limit(20)
                 ->get();

@@ -24,6 +24,7 @@ const defaultInitialState = {
     reference: "",
     purpose: "",
     bundledStdInk: false,
+    type: 0, // 0 = potential, 1 = existing
   },
   interest: {
     annualInterest: 0,

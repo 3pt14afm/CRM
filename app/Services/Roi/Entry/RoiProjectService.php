@@ -99,6 +99,7 @@ class RoiProjectService
                 'approved_by' => $matrix->approved_by,
                 'company_name' => $project->company_name,
                 'company_sap_code' => $project->company_sap_code,
+                'type'             => $project->type ?? 0,  // ← add
                 'contract_years' => $project->contract_years,
                 'contract_type' => $project->contract_type,
                 'purpose' => $project->purpose,
@@ -207,6 +208,7 @@ class RoiProjectService
         $project->update([
             'company_name' => (string) ($company['companyName'] ?? ''),
             'company_sap_code' => $company['companySapCode'] ?? $project->company_sap_code,
+            'type'             => (int) ($company['type'] ?? $project->type ?? 0), // ← add
             'contract_years' => (int) ($company['contractYears'] ?? 0),
             'contract_type' => (string) ($company['contractType'] ?? ''),
             'purpose' => (string) ($company['purpose'] ?? ''),
@@ -308,6 +310,7 @@ class RoiProjectService
                     'status'             => 'draft',
                     'company_name'       => (string) ($company['companyName']    ?? ''),
                     'company_sap_code'   => $company['companySapCode'] ?? null,
+                    'type'             => (int) ($company['type'] ?? 0),  // ← add
                     'contract_years'     => (int)    ($company['contractYears']  ?? 0),
                     'contract_type'      => (string) ($company['contractType']   ?? ''),
                     'purpose'            => (string) ($company['purpose']        ?? ''),

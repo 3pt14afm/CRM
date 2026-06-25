@@ -27,7 +27,7 @@ function formatDateLabel(dateStr) {
     const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
     if (isNaN(date.getTime())) return "—";
     return date.toLocaleDateString('en-US', {
-      month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+      month: '2-digit', day: '2-digit', year: '2-digit', timeZone: 'UTC',
     });
   } catch {
     return "—";
@@ -117,7 +117,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     {
       key: "PreparedBy",
       header: <div>PREPARED BY</div>,
-      cell: (r) => <span className="text-[#195c00] font-medium">{r.user?.name ?? r.prepared_by_name ?? "—"}</span>,
+      cell: (r) => <span className="text-[#195c00] font-medium ">{r.user?.name ?? r.prepared_by_name ?? "—"}</span>,
     },
     {
       key: "reference",
@@ -133,14 +133,20 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
         </span>
       ),
     },
-    {
-      key: "company_name",
-      header: <div className="text-center w-full">COMPANY NAME</div>,
-      cell: (r) => <span className="font-medium flex justify-center items-center text-center">{r.company_name ?? "—"}</span>,
-    },
+{
+    key: "company_name",
+    header: <div className="text-center w-full">COMPANY NAME</div>,
+    cell: (r) => (
+      <div className="flex justify-center items-center w-full h-full">
+        <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+          {r.company_name ?? "—"}
+        </span>
+      </div>
+    ),
+  },
     {
       key: "contract_years",
-      header: <div className="text-center max-w-16">CONTRACT TERM</div>,
+      header: <div className="text-center">CONTRACT TERM</div>,
       cell: (r) => (
         <span className="font-medium flex justify-center items-center">
           {r.contract_years != null ? `${r.contract_years}` : "—"}
@@ -151,6 +157,15 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       key: "contract_type",
       header: <div className="text-center w-full">CONTRACT TYPE</div>,
       cell: (r) => <span className="font-medium flex justify-center items-center">{r.contract_type ?? "—"}</span>,
+    },
+    {
+      key: "type",
+      header: <div className="text-center w-full">TYPE</div>,
+      cell: (r) => (
+        <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+          {r.type === 1 ? "Existing" : "Potential"}
+        </span>
+      ),
     },
     {
       key: "status",
@@ -196,7 +211,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
         </div>
       ),
       cell: (r) => (
-        <span className="text-slate-600 text-xs flex justify-center items-center whitespace-nowrap">
+        <span className="text-slate-600 text-[10px] flex justify-center items-center whitespace-nowrap">
           {r.decided_at_display ? formatDateLabel(r.decided_at_display) : "—"}
         </span>
       ),

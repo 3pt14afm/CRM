@@ -86,10 +86,13 @@ function mapProjectToContext(p) {
     companyInfo: {
       companyName: p?.company_name ?? "",
       contractYears: Number(p?.contract_years ?? 0),
+      companySapCode: p?.company_sap_code ?? "",      // ← add
       contractType: p?.contract_type ?? "",
       reference: p?.reference ?? "",
       purpose: p?.purpose ?? "",
       bundledStdInk: Boolean(p?.bundled_std_ink ?? false),
+      type: Number(p?.type ?? 0), 
+
     },
 
     interest: {
@@ -193,6 +196,7 @@ export default function EntryPrint({
 
   useEffect(() => {
     if (loaded) return;
+    if (entryProject || project) return;
     try {
       if (!storageKey) {
         setLoaded(true);

@@ -18,6 +18,7 @@ class RoiCurrentProject extends Model
         'version',
         'last_saved_at',
         'status',
+        'type',
         'status_reason',
         'status_updated_at',
         'status_updated_by',

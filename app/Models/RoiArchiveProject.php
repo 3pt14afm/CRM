@@ -18,6 +18,7 @@ class RoiArchiveProject extends Model
         'version',
         'last_saved_at',
         'status',
+        'type',
         'submitted_at',
         'reviewed_by',
         'reviewed_at',
