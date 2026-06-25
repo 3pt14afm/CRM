@@ -34,8 +34,9 @@ function formatDateLabel(dateStr) {
   }
 }
 
-function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, locations = [] }) {
+function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [] }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
+  const [localStats, setLocalStats] = useState(initialStats); // <-- 1. Store stats in local state
 
   const [search,       setSearch]       = useState(filters?.search      ?? "");
   const [statusFilter, setStatusFilter] = useState(filters?.status      ?? "");
@@ -54,6 +55,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
 
   const [perPageInput, setPerPageInput] = useState(String(filters?.per_page ?? 10));
   const [loading,      setLoading]      = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false); // <-- Track silent background loads separately
 
   const datePickerRef    = useRef(null);
   const perPagePickerRef = useRef(null);
@@ -63,7 +65,10 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
   
   const [sortOrder, setSortOrder] = useState(""); // "" | "desc" | "asc"
 
-  useEffect(() => { setLocalArchiveProjects(initialArchiveProjects); }, [initialArchiveProjects]);
+  useEffect(() => { 
+    setLocalArchiveProjects(initialArchiveProjects); 
+    setLocalStats(initialStats); // <-- Sync local stats when props refresh
+  }, [initialArchiveProjects, initialStats]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -77,7 +82,16 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-    const handleSortToggle = () => {
+  // --- Auto-refresh every 60 seconds ---
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchArchivedData({ silent: true }); // uses current filter states
+    }, 60_000);
+
+    return () => clearInterval(interval);
+  }, [search, statusFilter, perPage, dateFrom, dateTo, decidedBy, preparedBy, locationId, sortOrder]);
+
+  const handleSortToggle = () => {
     const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
     setSortOrder(next);
     fetchArchivedData({ currentSortOrder: next });
@@ -90,13 +104,14 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
   const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || decidedBy || preparedBy || locationId);
 
   const tiles = useMemo(() => {
-    const totalArchiveProjects  = stats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
-    const recentlyArchivedToday = stats?.recentlyArchivedToday ?? "—";
+    // <-- 2. Read from localStats instead of the stale stats prop -->
+    const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
+    const recentlyArchivedToday = localStats?.recentlyArchivedToday ?? "—";
     return [
       { label: "Total Archives",    value: totalArchiveProjects,  icon: <FaFolderOpen />,  variant: "normal" },
       { label: "Recently Archived", value: recentlyArchivedToday, icon: <IoTimeOutline />, variant: "normal" },
     ];
-  }, [stats, localArchiveProjects]);
+  }, [localStats, localArchiveProjects]);
 
   const columns = useMemo(() => [
     {
@@ -205,6 +220,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
 
   /* ── Fetch ── */
   const fetchArchivedData = async ({
+    silent            = false,
     targetPage        = 1,
     currentSearch     = search,
     currentStatus     = statusFilter,
@@ -214,9 +230,10 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     currentDecidedBy  = decidedBy,
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
-    currentSortOrder  = sortOrder,   // ← add this
+    currentSortOrder  = sortOrder,
   } = {}) => {
-    setLoading(true);
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
     try {
       const response = await axios.get(ziggyRoute("roi.archive"), {
         params: {
@@ -229,17 +246,26 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
           decided_by:  currentDecidedBy   || undefined,
           prepared_by: currentPreparedBy  || undefined,
           location_id: currentLocationId  || undefined,
-          sort_by:     "decided_at",                          // ← add this
-          sort_order:  currentSortOrder   || undefined,       // ← add this
+          sort_by:     "decided_at",
+          sort_order:  currentSortOrder   || undefined,
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       });
-      const payload = response.data?.props?.archiveProjects ?? response.data?.archiveProjects ?? response.data;
-      setLocalArchiveProjects(payload);
+      
+      // Extract project list payload
+      const projectsPayload = response.data?.props?.archiveProjects ?? response.data?.archiveProjects ?? response.data;
+      setLocalArchiveProjects(projectsPayload);
+      
+      // <-- 3. Extract and set the stats payload as well -->
+      const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+      if (statsPayload) {
+        setLocalStats(statsPayload);
+      }
     } catch (error) {
       console.error("Failed to query archived records:", error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -315,13 +341,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
       onSearchChange={setSearch}
       sortOrder={sortOrder}
       onSortToggle={handleSortToggle}
-      loading={loading}
+      loading={loading || isRefreshing} // Show loading state on screen refresh triggers
       onRefresh={() => fetchArchivedData({ targetPage: localArchiveProjects?.current_page ?? 1 })}
     />
   );
 
-
- 
   const decidedBySlot = (
     <div className="relative flex-shrink-0" ref={decidedByRef}>
       <FilterChip
@@ -345,53 +369,53 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats, filters, 
     </div>
   );
  
-// 3. Status icon changes based on value — pass it via `statusIcon`:
-const statusIcon =
-  statusFilter === "approved"  ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
-  statusFilter === "rejected"  ? <MdCancel className="text-red-500 text-sm" /> :
-  statusFilter === "cancelled" ? <MdOutlineCancel className="text-red-500 text-sm" /> :
-  null;
+  // Status icon changes based on value — pass it via `statusIcon`:
+  const statusIcon =
+    statusFilter === "approved"  ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
+    statusFilter === "rejected"  ? <MdCancel className="text-red-500 text-sm" /> :
+    statusFilter === "cancelled" ? <MdOutlineCancel className="text-red-500 text-sm" /> :
+    null;
  
-// 4. Replace the `filterToolbar` variable:
-const filterToolbar = (
-  <ListFilterToolbar
-    hasActiveFilters={hasActiveFilters}
-    onClearAll={handleClearAllFilters}
- 
-    statusOptions={[
-      { value: "",         label: "All Status" },
-      { value: "approved", label: "Approved" },
-      { value: "rejected", label: "Rejected" },
-       { value: "cancelled", label: "Cancelled" },
-    ]}
-    statusFilter={statusFilter}
-    onStatusChange={handleStatusChange}
-    statusIcon={statusIcon}
- 
-    perPage={perPage}
-    perPageInput={perPageInput}
-    onPerPageInputChange={setPerPageInput}
-    onPerPageApply={handlePerPageInputApply}
- 
-    extraFilters={decidedBySlot}
- 
-    preparedBy={preparedBy}
-    onPreparedByChange={setPreparedBy}
-    onPreparedByApply={handlePreparedByApply}
- 
-    locationId={locationId}
-    selectedLocationName={selectedLocationName}
-    locations={locations}
-    onLocationApply={handleLocationApply}
- 
-    dateFrom={dateFrom}
-    dateTo={dateTo}
-    onDateFromChange={setDateFrom}
-    onDateToChange={setDateTo}
-    onDateApply={handleDateApply}
-    onDateClear={handleDateClear}
-  />
-);
+  // Replace the `filterToolbar` variable:
+  const filterToolbar = (
+    <ListFilterToolbar
+      hasActiveFilters={hasActiveFilters}
+      onClearAll={handleClearAllFilters}
+   
+      statusOptions={[
+        { value: "",         label: "All Status" },
+        { value: "approved", label: "Approved" },
+        { value: "rejected", label: "Rejected" },
+        { value: "cancelled", label: "Cancelled" },
+      ]}
+      statusFilter={statusFilter}
+      onStatusChange={handleStatusChange}
+      statusIcon={statusIcon}
+   
+      perPage={perPage}
+      perPageInput={perPageInput}
+      onPerPageInputChange={setPerPageInput}
+      onPerPageApply={handlePerPageInputApply}
+   
+      extraFilters={decidedBySlot}
+   
+      preparedBy={preparedBy}
+      onPreparedByChange={setPreparedBy}
+      onPreparedByApply={handlePreparedByApply}
+   
+      locationId={locationId}
+      selectedLocationName={selectedLocationName}
+      locations={locations}
+      onLocationApply={handleLocationApply}
+   
+      dateFrom={dateFrom}
+      dateTo={dateTo}
+      onDateFromChange={setDateFrom}
+      onDateToChange={setDateTo}
+      onDateApply={handleDateApply}
+      onDateClear={handleDateClear}
+    />
+  );
 
   return (
     <ProjectListSection
@@ -403,7 +427,7 @@ const filterToolbar = (
       pagination={pagination}
       searchControl={searchControl}
       filterControl={filterToolbar}
-      loading={loading}
+      loading={loading || isRefreshing}
       emptyText="No matching records found."
     />
   );
