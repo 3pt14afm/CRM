@@ -132,16 +132,16 @@ function MachConSucceMerged() {
 
           <thead className="bg-[#E2F4D8] border-x border-gray-300">
             <tr className="h-14">
-              <th className="px-3 py-2.5 text-[13px] font-medium text-center border-r border-t border-gray-300">MACHINE & CONSUMABLES</th>
-              <th className="px-3 py-2.5 text-[13px] font-medium text-center border-r border-t border-gray-300">COST</th>
+              <th className="px-3 py-2 text-[13px] font-medium text-center border-r border-t border-gray-300">MACHINE & CONSUMABLES</th>
+              <th className="px-3 py-2 text-[13px] font-medium text-center border-r border-t border-gray-300">COST</th>
               <th className="bg-[#f8f8f8] print:bg-white"></th>
-              <th className="px-1 py-2.5 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase">Qty</th>
-              <th className="px-1 py-2.5 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Total Cost</th>
-              <th className="px-1 py-2.5 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Gross Sales</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase">Qty</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Total Cost</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Gross Sales</th>
               <th className="bg-[#f8f8f8] print:bg-white"></th>
-              <th className="px-1 py-2.5 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase">Qty</th>
-              <th className="px-1 py-2.5 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Total Cost</th>
-              <th className="px-1 py-2.5 text-[13px] text-center font-medium border-t border-gray-300 uppercase">Gross Sales</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase">Qty</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Total Cost</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-t border-gray-300 uppercase">Gross Sales</th>
             </tr>
           </thead>
 

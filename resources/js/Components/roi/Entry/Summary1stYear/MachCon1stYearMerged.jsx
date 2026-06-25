@@ -203,32 +203,32 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
 
           <thead className="bg-[#E2F4D8] border-x border-gray-300">
             <tr className="h-14">
-              <th className="px-3 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-3 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 MACHINE & CONSUMABLES
               </th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 COST
               </th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 YIELDS
               </th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 COST <br /> CPP
               </th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 SELLING <br /> PRICE
               </th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 SELL CPP
               </th>
               <th className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 QTY
               </th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 TOTAL <br /> COST
               </th>
-              <th className="px-2 py-2.5 text-[13px] font-medium text-center border border-gray-300 print:text-xs">
+              <th className="px-2 py-1 text-[13px] font-medium text-center border border-gray-300 print:text-[11px]">
                 GROSS <br /> SALES
               </th>
             </tr>

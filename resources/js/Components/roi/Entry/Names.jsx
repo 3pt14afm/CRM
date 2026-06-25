@@ -175,7 +175,7 @@ const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureU
 
         {/* Date and time positioned beside the signature/name area aligned horizontally on the right */}
         <span 
-          className={`absolute right-2    bottom-7 text-[10.5px] font-normal tracking-tight whitespace-nowrap leading-none select-none print:text-[7px] ${isRejectedAction ? "text-red-500" : "text-[#175500]"}`}
+          className={`absolute right-2 bottom-8 text-[10.5px] font-normal tracking-tight whitespace-nowrap leading-none select-none print:text-[9.5px] ${isRejectedAction ? "text-red-500" : "text-[#175500]"}`}
         >
           {timestamp}
         </span>

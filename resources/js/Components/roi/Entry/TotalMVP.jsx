@@ -27,41 +27,41 @@ function TotalMVP() {
     const periodicTotal = monoAnnual + colorAnnual;
 
     return (
-        <div className="overflow-hidden rounded-xl shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 font-sans text-gray-800">
+        <div className="overflow-hidden rounded-xl shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 font-sans text-gray-800 print:shadow-none print:border-[1px] print:border-gray-300">
             <table className="w-full text-left border-collapse bg-white">
                 <thead>
                     <tr className="bg-[#E2F4D8]/60 border-b border-gray-200">
-                        <th className="px-4 py-2 border-r border-gray-200"></th>
-                        <th className="px-4 py-2 print:px-3 text-xs font-bold uppercase tracking-wider text-center border-r border-gray-200">Monthly</th>
-                        <th className="px-4 py-2 print:px-3 text-xs font-bold uppercase tracking-wider text-center">Annual</th>
+                        <th className="px-4 py-2 print:py-1 border-r border-gray-300"></th>
+                        <th className="px-4 py-2 print:px-3 print:py-1 text-xs font-semibold uppercase tracking-wider text-center border-r border-gray-300 print:font-medium">Monthly</th>
+                        <th className="px-4 py-2 print:px-3 print:py-1 text-xs font-semibold uppercase tracking-wider text-center print:font-medium">Annual</th>
                     </tr>
                 </thead>
                 
                 <tbody className="text-gray-700">
-                    <tr className="border-b border-gray-100">
-                        <td className="px-4 py-2 font-medium border-r border-gray-100 text-xs print:text-xs">Mono AMVP</td>
-                        <td className="px-4 py-2 text-right text-xs border-r border-gray-100">
+                    <tr className="border-b border-gray-200">
+                        <td className="px-4 py-2 print:py-1 font-medium border-r border-gray-300 text-xs print:text-xs">Mono AMVP</td>
+                        <td className="px-4 py-2 print:py-1 text-right text-xs border-r border-gray-300">
                             {formatNum(monoMonthly)}
                         </td>
-                        <td className="px-4 py-2 text-right text-xs">
+                        <td className="px-4 py-2 print:py-1 text-right text-xs">
                             {formatNum(monoAnnual)}
                         </td>
                     </tr>
                     
-                    <tr className="border-b border-gray-100">
-                        <td className="px-4 py-2 font-medium border-r border-gray-100 text-xs print:text-xs">Color AMVP</td>
-                        <td className="px-4 py-2 text-right text-xs border-r border-gray-100">
+                    <tr className="border-b border-gray-200">
+                        <td className="px-4 py-2 print:py-1 font-medium border-r border-gray-300 text-xs print:text-xs">Color AMVP</td>
+                        <td className="px-4 py-2 print:py-1 text-right text-xs border-r border-gray-300">
                             {formatNum(colorMonthly)}
                         </td>
-                        <td className="px-4 py-2 text-right text-xs">
+                        <td className="px-4 py-2 print:py-1 text-right text-xs">
                             {formatNum(colorAnnual)}
                         </td>
                     </tr>
                     
                     <tr>
-                        <td className="px-4 py-2 font-medium border-r border-gray-100 text-xs print:text-xs">Periodic Maintenance Supplies Count</td>
-                        <td className="px-4 py-2"></td>
-                        <td className="px-4 py-2 text-right text-xs">
+                        <td className="px-4 pr-3 py-2 print:py-1 font-medium border-r border-gray-300 text-xs print:text-xs">Periodic Maintenance Supplies Count</td>
+                        <td className="px-4 py-2 print:py-1"></td>
+                        <td className="px-4 py-2 print:py-1 text-right text-xs">
                             {formatNum(periodicTotal)}
                         </td>
                     </tr>
