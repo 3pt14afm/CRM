@@ -7,11 +7,12 @@
 </head>
 <body>
 
-<p><strong>Rejection Details:</strong></p>
+
+<p>Your ROI proposal <strong>{{ $reference }}</strong> has been <strong>Rejected</strong> by <strong>{{ $actorName }}</strong>.</p>
+
 <ul>
-    <li>Rejected By: {{ $actorName }}</li>
-    <li>Stage of Rejection: {{ $stageOfRejection }}</li>
-    <li>Current Status: Rejected and Archived</li>
+    <li>Current Status: Rejected</li>
+    <li>Rejection Stage: {{ $stageOfRejection }}</li>
 </ul>
 
 <p><a href="{{ $projectUrl }}">Click here to view the project</a></p>

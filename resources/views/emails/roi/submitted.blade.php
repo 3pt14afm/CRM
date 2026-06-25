@@ -7,13 +7,13 @@
 </head>
 <body>
 
-<p>Your proposal is successfully submitted <strong>For Review</strong> by <strong>{{ $reviewerName }}</strong>.</p>
+<p>Your proposal <strong>{{ $reference }}</strong> is successfully submitted <strong>For Review</strong> by <strong>{{ $reviewerName }}</strong>.</p>
 
 <p><a href="{{ $projectUrl }}">Click here to view the project</a></p>
 
 <hr>
 
-<p><em>This is a system-generated notification. Please do not reply to this email.</em></p>
+<p><em><small>This is a system-generated notification. Please do not reply to this email.</small></em></p>
 
 </body>
 </html>

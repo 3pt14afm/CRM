@@ -9,14 +9,14 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Template 2 — New Project Assignment
+ * Template — New Project Assignment
  * Recipient: The next approver in the sequence (Levels 2-6)
  * Trigger: When a project is submitted or advances to their level
  *
  * @param mixed  $project         The ROI project model containing the reference
  * @param string $nextActorName   Name of the approver receiving the project
  * @param string $actorName       Name of the user who forwarded/submitted it
- * @param string $requiredAction  The action required, e.g., "Review", "Check"
+ * @param string $requiredAction  The action required, e.g., "Review", "Checking", "Endorsement", "Confirmation", "Approval"
  * @param string $projectUrl      Link to view the project
  */
 class RoiNewAssignmentMail extends Mailable
@@ -34,7 +34,7 @@ class RoiNewAssignmentMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "ROI {$this->project->reference} is ready for you to {$this->requiredAction}",
+            subject: "For {$this->requiredAction}: ROI {$this->project->reference}",
         );
     }
 

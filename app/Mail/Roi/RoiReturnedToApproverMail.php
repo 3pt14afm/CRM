@@ -25,6 +25,7 @@ class RoiReturnedToApproverMail extends Mailable
         public readonly string $approverName,
         public readonly string $reference,
         public readonly string $pendingAction,
+        public readonly string $pending2Action,
         public readonly string $higherActorName,
         public readonly string $comment,
         public readonly string $projectUrl,
@@ -33,7 +34,7 @@ class RoiReturnedToApproverMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "ROI {$this->reference} returned for {$this->pendingAction}",
+            subject: "ROI {$this->reference} returned for you to {$this->pendingAction}",
         );
     }
 

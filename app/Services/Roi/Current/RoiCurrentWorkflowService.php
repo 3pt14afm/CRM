@@ -412,7 +412,7 @@ class RoiCurrentWorkflowService
                     project:        $project,
                     nextActorName:  $nextUser->name,
                     actorName:      $actor->name,
-                    requiredAction: $this->levelStageLabel($toLevel),
+                    requiredAction: $this->actionSubject($toLevel),
                     projectUrl:     $projectUrl
                 )
             );
@@ -454,8 +454,8 @@ class RoiCurrentWorkflowService
                 new RoiActionConfirmedMail(
                     approverName: $actor->name,
                     reference:    $project->reference,
-                    actionTaken:  'Sent Back',
-                    newStatus:    'Returned / Draft',
+                    actionTaken:  'Returned',
+                    newStatus:    'Returned for Revision',
                     routedTo:     $preparer?->name ?? '—',
                     projectUrl:   $currentUrl,
                 )
@@ -477,7 +477,7 @@ class RoiCurrentWorkflowService
         $receiverCol = $this->approverColumnForLevel($toLevel);
         $receiver    = $receiverCol ? $this->emailUserById((int) ($project->{$receiverCol} ?? 0)) : null;
         $projectUrl  = $this->buildProjectUrl('current', $project->id);
-        $currentStatus = $project->status;
+        $currentStatus = $this->getBackStatusLabel($toLevel);
 
         // Template 4 — preparer
         if ($preparer?->email) {
@@ -503,6 +503,7 @@ class RoiCurrentWorkflowService
                     approverName:    $receiver->name,
                     reference:       $project->reference,
                     pendingAction:   $this->levelPendingActionLabel($toLevel),
+                    pending2Action:   $this->levelPendingAction2Label($toLevel),
                     higherActorName: $actor->name,
                     comment:         $comment,
                     projectUrl:      $projectUrl,
@@ -543,7 +544,7 @@ class RoiCurrentWorkflowService
                     preparerName:     $preparer->name,
                     reference:        $archived->reference,
                     actorName:        $actor->name,
-                    stageOfRejection: $this->levelStageLabel($actorLevel),
+                    stageOfRejection: $this->actionSubject($actorLevel),
                     projectUrl:       $archiveUrl,
                 )
             );
@@ -627,7 +628,7 @@ class RoiCurrentWorkflowService
     // Label helpers
     // -------------------------------------------------------------------------
 
-    /** "Reviewed", "Checked", "Endorsed", "Confirmed", "Approved" */
+    /** ACTIONTAKEN "Reviewed", "Checked", "Endorsed", "Confirmed", "Approved" */
     private function levelActionPastTense(int $level): string
     {
         return match ($level) {
@@ -640,27 +641,38 @@ class RoiCurrentWorkflowService
         };
     }
 
-    /** "Review", "Check", "Endorsement", "Confirmation" — used in Template 6 */
+    /** PENDING ACTION "Review", "Check", "Endorsement", "Confirmation" — used in Template 6 */
     private function levelPendingActionLabel(int $level): string
-    {
-        return match ($level) {
-            2 => 'Review',
-            3 => 'Check',
-            4 => 'Endorsement',
-            5 => 'Confirmation',
-            default => 'Review',
-        };
-    }
-
-    /** "Review", "Check", "Endorse", "Confirm", "Approve" — used in Template 9 */
-    private function levelStageLabel(int $level): string
     {
         return match ($level) {
             2 => 'Review',
             3 => 'Check',
             4 => 'Endorse',
             5 => 'Confirm',
-            6 => 'Approve',
+            default => 'Review',
+        };
+    }
+
+    private function levelPendingAction2Label(int $level): string
+    {
+        return match ($level) {
+            2 => 'Review',
+            3 => 'Checking',
+            4 => 'Endorsement',
+            5 => 'Confirmation',
+            default => 'Review',
+        };
+    }
+
+    /** REJECTTION STAGE and REQUIRED ACTION — used in Template 9 */
+    private function actionSubject(int $level): string
+    {
+        return match ($level) {
+            2 => 'Review',
+            3 => 'Checking',
+            4 => 'Endorsement',
+            5 => 'Confirmation',
+            6 => 'Approval',
             default => 'Review',
         };
     }
