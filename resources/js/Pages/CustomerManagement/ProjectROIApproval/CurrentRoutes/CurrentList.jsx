@@ -27,16 +27,16 @@ function formatDateLabel(dateStr) {
 
 function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters, locations = [] }) {
   const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
-  const [localStats, setLocalStats] = useState(initialStats); // <-- 1. Store stats in local state
+  const [localStats, setLocalStats] = useState(initialStats);
   
-  const [search,       setSearch]       = useState(filters?.search      ?? "");
-  const [statusFilter, setStatusFilter] = useState(filters?.status      ?? "");
-  const [typeFilter,   setTypeFilter]   = useState(filters?.type        ?? ""); // <-- ADD THIS LINE
-  const [dateFrom,     setDateFrom]     = useState(filters?.date_from   ?? "");
-  const [dateTo,       setDateTo]       = useState(filters?.date_to     ?? "");
-  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by ?? "");
-  const [locationId,   setLocationId]   = useState(filters?.location_id ?? "");
-  const [perPage,      setPerPage]      = useState(filters?.per_page    ?? 10);
+  const [search,        setSearch]       = useState(filters?.search       ?? "");
+  const [statusFilter, setStatusFilter] = useState(filters?.status       ?? "");
+  const [typeFilter,   setTypeFilter]   = useState(filters?.type         ?? "");
+  const [dateFrom,     setDateFrom]     = useState(filters?.date_from    ?? "");
+  const [dateTo,       setDateTo]       = useState(filters?.date_to      ?? "");
+  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by  ?? "");
+  const [locationId,   setLocationId]   = useState(filters?.location_id  ?? "");
+  const [perPage,      setPerPage]      = useState(filters?.per_page     ?? 10);
   const [perPageInput, setPerPageInput] = useState(String(filters?.per_page ?? 10));
 
   const [showDatePicker,    setShowDatePicker]    = useState(false);
@@ -61,7 +61,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
 
   useEffect(() => {
     setLocalCurrentProjects(initialCurrentProjects);
-    setLocalStats(initialStats); // <-- Keep local stats synced with initial prop changes
+    setLocalStats(initialStats);
   }, [initialCurrentProjects, initialStats]);
 
   useEffect(() => {
@@ -78,20 +78,19 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   // --- Auto-refresh every 60 seconds ---
   useEffect(() => {
       const interval = setInterval(() => {
-          fetchCurrentData({ silent: true }); // uses all current filter state by default
+          fetchCurrentData({ silent: true });
       }, 60_000);
 
       return () => clearInterval(interval);
-  }, [search, statusFilter, dateFrom, dateTo, preparedBy, locationId, perPage]);
+  }, [search, statusFilter, dateFrom, dateTo, preparedBy, locationId, perPage, typeFilter]);
 
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
   , [locationId, locations]);
 
-  const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || preparedBy || locationId);
+  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || preparedBy || locationId);
 
   const tiles = useMemo(() => {
-    // <-- 2. Read from localStats instead of the stale stats prop -->
     const totalCurrentProjects = localStats?.totalCurrentProjects ?? localCurrentProjects?.total ?? 0;
     const recentlyAddedToday   = localStats?.recentlyAddedToday ?? "—";
     return [
@@ -198,6 +197,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     targetPage        = 1,
     currentSearch     = search,
     currentStatus     = statusFilter,
+    currentType       = typeFilter,
     currentPerPage    = perPage,
     currentDateFrom   = dateFrom,
     currentDateTo     = dateTo,
@@ -211,16 +211,16 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         const response = await axios.get(route("roi.current"), {
             params: {
                 page:        targetPage,
-                search:      currentSearch      || undefined,
-                status:      currentStatus      || undefined,
+                search:      currentSearch     || undefined,
+                status:      currentStatus     || undefined,
                 per_page:    currentPerPage,
-                date_from:   currentDateFrom    || undefined,
-                date_to:     currentDateTo      || undefined,
-                prepared_by: currentPreparedBy  || undefined,
-                location_id: currentLocationId  || undefined,
+                date_from:   currentDateFrom   || undefined,
+                date_to:     currentDateTo     || undefined,
+                prepared_by: currentPreparedBy || undefined,
+                location_id: currentLocationId || undefined,
                 sort_by:     "last_saved_at",
-                sort_order:  currentSortOrder   || undefined,
-                type:        typeFilter         || undefined, // <-- ADD THIS LINE
+                sort_order:  currentSortOrder  || undefined,
+                type:        currentType !== "" ? currentType : undefined,
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -228,11 +228,9 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             },
         });
         
-        // Extract project list payload
         const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
         setLocalCurrentProjects(projectsPayload);
         
-        // <-- 3. Extract and set the stats payload as well -->
         const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
         if (statsPayload) {
           setLocalStats(statsPayload);
@@ -251,7 +249,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   }, [search]);
 
   const handleStatusChange    = (val) => { setStatusFilter(val); fetchCurrentData({ currentStatus: val }); };
-  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchCurrentData({ currentType: val }); }; // <-- ADD THIS LINE
+  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchCurrentData({ currentType: val }); };
   const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchCurrentData({ currentPreparedBy: val }); };
   const handleLocationApply   = (val) => { setLocationId(val);   fetchCurrentData({ currentLocationId: val }); };
   const handleDateApply       = ()    => { setShowDatePicker(false); fetchCurrentData(); };
@@ -270,7 +268,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const handleClearAllFilters = () => {
     setSearch("");
     setStatusFilter("");
-    setTypeFilter(""); // <-- ADD THIS LINE
+    setTypeFilter("");
     setDateFrom("");
     setDateTo("");
     setPreparedBy("");
@@ -281,6 +279,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     fetchCurrentData({
       currentSearch:     "",
       currentStatus:     "",
+      currentType:       "",
       currentDateFrom:   undefined,
       currentDateTo:     undefined,
       currentPreparedBy: "",
@@ -292,7 +291,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
     setSortOrder(next);
     fetchCurrentData({ currentSortOrder: next });
-    };
+  };
 
   const goToPage = (p) => fetchCurrentData({ targetPage: p });
 
@@ -307,7 +306,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const rows = localCurrentProjects?.data ?? [];
   const pagination = localCurrentProjects && typeof localCurrentProjects.current_page === "number"
     ? {
-        page:         localCurrentProjects.current_page,
+        page:        localCurrentProjects.current_page,
         perPage:      localCurrentProjects.per_page ?? perPage,
         total:        localCurrentProjects.total ?? rows.length,
         onPageChange: goToPage,
@@ -333,20 +332,20 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       onClearAll={handleClearAllFilters}
   
       statusOptions={[
-        { value: "",                  label: "All Status" },
-        { value: "for_review",        label: "For Review" },
-        { value: "for_checking",      label: "For Checking" },
+        { value: "",              label: "All Status" },
+        { value: "for_review",      label: "For Review" },
+        { value: "for_checking",    label: "For Checking" },
         { value: "for_endorsement",   label: "For Endorsement" },
         { value: "for_confirmation",  label: "For Confirmation" },
         { value: "for_approval",      label: "For Approval" },
       ]}
       statusFilter={statusFilter}
       onStatusChange={handleStatusChange}
-      // <-- ADD THESE PROPS BEFORE preparedBy -->
+      
       typeOptions={[
         { value: "",  label: "All Types" },
-        { value: "0", label: "Existing" },
-        { value: "1", label: "Potential" },
+        { value: 1,   label: "Existing" },
+        { value: 0,   label: "Potential" },
       ]}
       typeFilter={typeFilter}
       onTypeChange={handleTypeChange}

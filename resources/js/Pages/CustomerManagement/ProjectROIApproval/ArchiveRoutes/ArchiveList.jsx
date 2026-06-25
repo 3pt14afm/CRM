@@ -36,17 +36,17 @@ function formatDateLabel(dateStr) {
 
 function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [] }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
-  const [localStats, setLocalStats] = useState(initialStats); // <-- 1. Store stats in local state
+  const [localStats, setLocalStats] = useState(initialStats);
 
-  const [search,       setSearch]       = useState(filters?.search      ?? "");
-  const [typeFilter,   setTypeFilter]   = useState(filters?.type        ?? ""); // <-- Ensure this line is present
-  const [statusFilter, setStatusFilter] = useState(filters?.status      ?? "");
-  const [perPage,      setPerPage]      = useState(filters?.per_page    ?? 10);
-  const [dateFrom,     setDateFrom]     = useState(filters?.date_from   ?? "");
-  const [dateTo,       setDateTo]       = useState(filters?.date_to     ?? "");
-  const [decidedBy,    setDecidedBy]    = useState(filters?.decided_by  ?? "");
-  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by ?? "");
-  const [locationId,   setLocationId]   = useState(filters?.location_id ?? "");
+  const [search,        setSearch]       = useState(filters?.search       ?? "");
+  const [typeFilter,    setTypeFilter]   = useState(filters?.type         ?? "");
+  const [statusFilter, setStatusFilter] = useState(filters?.status       ?? "");
+  const [perPage,      setPerPage]      = useState(filters?.per_page     ?? 10);
+  const [dateFrom,     setDateFrom]     = useState(filters?.date_from    ?? "");
+  const [dateTo,       setDateTo]       = useState(filters?.date_to      ?? "");
+  const [decidedBy,    setDecidedBy]    = useState(filters?.decided_by   ?? "");
+  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by  ?? "");
+  const [locationId,   setLocationId]   = useState(filters?.location_id  ?? "");
 
   const [showDatePicker,    setShowDatePicker]    = useState(false);
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
@@ -56,7 +56,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
 
   const [perPageInput, setPerPageInput] = useState(String(filters?.per_page ?? 10));
   const [loading,      setLoading]      = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false); // <-- Track silent background loads separately
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const datePickerRef    = useRef(null);
   const perPagePickerRef = useRef(null);
@@ -64,11 +64,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const preparedByRef    = useRef(null);
   const locationRef      = useRef(null);
   
-  const [sortOrder, setSortOrder] = useState(""); // "" | "desc" | "asc"
+  const [sortOrder, setSortOrder] = useState("");
 
   useEffect(() => { 
     setLocalArchiveProjects(initialArchiveProjects); 
-    setLocalStats(initialStats); // <-- Sync local stats when props refresh
+    setLocalStats(initialStats);
   }, [initialArchiveProjects, initialStats]);
 
   useEffect(() => {
@@ -86,11 +86,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   // --- Auto-refresh every 60 seconds ---
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchArchivedData({ silent: true }); // uses current filter states
+      fetchArchivedData({ silent: true });
     }, 60_000);
 
     return () => clearInterval(interval);
-  }, [search, statusFilter, perPage, dateFrom, dateTo, decidedBy, preparedBy, locationId, sortOrder]);
+  }, [search, statusFilter, perPage, dateFrom, dateTo, decidedBy, preparedBy, locationId, sortOrder, typeFilter]);
 
   const handleSortToggle = () => {
     const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
@@ -102,10 +102,9 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
   , [locationId, locations]);
 
-  const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || decidedBy || preparedBy || locationId);
+  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId);
 
   const tiles = useMemo(() => {
-    // <-- 2. Read from localStats instead of the stale stats prop -->
     const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
     const recentlyArchivedToday = localStats?.recentlyArchivedToday ?? "—";
     return [
@@ -134,17 +133,17 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
         </span>
       ),
     },
-{
-    key: "company_name",
-    header: <div className="text-center w-full">COMPANY NAME</div>,
-    cell: (r) => (
-      <div className="flex justify-center items-center w-full h-full">
-        <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
-          {r.company_name ?? "—"}
-        </span>
-      </div>
-    ),
-  },
+    {
+      key: "company_name",
+      header: <div className="text-center w-full">COMPANY NAME</div>,
+      cell: (r) => (
+        <div className="flex justify-center items-center w-full h-full">
+          <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+            {r.company_name ?? "—"}
+          </span>
+        </div>
+      ),
+    },
     {
       key: "contract_years",
       header: <div className="text-center">CONTRACT TERM</div>,
@@ -240,6 +239,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     targetPage        = 1,
     currentSearch     = search,
     currentStatus     = statusFilter,
+    currentType       = typeFilter,
     currentPerPage    = perPage,
     currentDateFrom   = dateFrom,
     currentDateTo     = dateTo,
@@ -254,26 +254,24 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       const response = await axios.get(ziggyRoute("roi.archive"), {
         params: {
           page:        targetPage,
-          search:      currentSearch      || undefined,
-          status:      currentStatus      || undefined,
+          search:      currentSearch     || undefined,
+          status:      currentStatus     || undefined,
           per_page:    currentPerPage,
-          date_from:   currentDateFrom    || undefined,
-          date_to:     currentDateTo      || undefined,
-          decided_by:  currentDecidedBy   || undefined,
-          prepared_by: currentPreparedBy  || undefined,
-          location_id: currentLocationId  || undefined,
+          date_from:   currentDateFrom   || undefined,
+          date_to:     currentDateTo     || undefined,
+          decided_by:  currentDecidedBy  || undefined,
+          prepared_by: currentPreparedBy || undefined,
+          location_id: currentLocationId || undefined,
           sort_by:     "decided_at",
-          sort_order:  currentSortOrder   || undefined,
-          type:        typeFilter         || undefined, // <-- Add this parameter
+          sort_order:  currentSortOrder  || undefined,
+          type:        currentType !== "" ? currentType : undefined,
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       });
       
-      // Extract project list payload
       const projectsPayload = response.data?.props?.archiveProjects ?? response.data?.archiveProjects ?? response.data;
       setLocalArchiveProjects(projectsPayload);
       
-      // <-- 3. Extract and set the stats payload as well -->
       const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
       if (statsPayload) {
         setLocalStats(statsPayload);
@@ -292,10 +290,10 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   }, [search]);
 
   const handleStatusChange    = (val) => { setStatusFilter(val); fetchArchivedData({ currentStatus: val }); };
-  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchArchivedData({ currentType: val }); }; // <-- ADD THIS LINE
-  const handleDecidedByApply  = (val) => { setDecidedBy(val);   fetchArchivedData({ currentDecidedBy: val }); };
-  const handlePreparedByApply = (val) => { setPreparedBy(val);  fetchArchivedData({ currentPreparedBy: val }); };
-  const handleLocationApply   = (val) => { setLocationId(val);  fetchArchivedData({ currentLocationId: val }); };
+  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchArchivedData({ currentType: val }); };
+  const handleDecidedByApply  = (val) => { setDecidedBy(val);    fetchArchivedData({ currentDecidedBy: val }); };
+  const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchArchivedData({ currentPreparedBy: val }); };
+  const handleLocationApply   = (val) => { setLocationId(val);   fetchArchivedData({ currentLocationId: val }); };
   const handleDateApply       = ()    => { setShowDatePicker(false); fetchArchivedData(); };
   const handleDateClear       = ()    => {
     setDateFrom("");
@@ -312,6 +310,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const handleClearAllFilters = () => {
     setSearch("");
     setStatusFilter("");
+    setTypeFilter("");
     setDateFrom("");
     setDateTo("");
     setDecidedBy("");
@@ -324,6 +323,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     fetchArchivedData({
       currentSearch:     "",
       currentStatus:     "",
+      currentType:       "",
       currentDateFrom:   undefined,
       currentDateTo:     undefined,
       currentDecidedBy:  "",
@@ -345,9 +345,9 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const rows = localArchiveProjects?.data ?? [];
   const pagination = localArchiveProjects && typeof localArchiveProjects.current_page === "number"
     ? {
-        page:         localArchiveProjects.current_page,
-        perPage:      localArchiveProjects.per_page ?? perPage,
-        total:        localArchiveProjects.total ?? rows.length,
+        page:        localArchiveProjects.current_page,
+        perPage:     localArchiveProjects.per_page ?? perPage,
+        total:       localArchiveProjects.total ?? rows.length,
         onPageChange: goToPage,
       }
     : null;
@@ -359,7 +359,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       onSearchChange={setSearch}
       sortOrder={sortOrder}
       onSortToggle={handleSortToggle}
-      loading={loading || isRefreshing} // Show loading state on screen refresh triggers
+      loading={loading || isRefreshing}
       onRefresh={() => fetchArchivedData({ targetPage: localArchiveProjects?.current_page ?? 1 })}
     />
   );
@@ -386,32 +386,29 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       />
     </div>
   );
- 
-  // Status icon changes based on value — pass it via `statusIcon`:
+  
   const statusIcon =
     statusFilter === "approved"  ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
     statusFilter === "rejected"  ? <MdCancel className="text-red-500 text-sm" /> :
     statusFilter === "cancelled" ? <MdOutlineCancel className="text-red-500 text-sm" /> :
     null;
- 
-  // Replace the `filterToolbar` variable:
+  
   const filterToolbar = (
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}
       onClearAll={handleClearAllFilters}
    
       statusOptions={[
-        { value: "",         label: "All Status" },
+        { value: "",       label: "All Status" },
         { value: "approved", label: "Approved" },
         { value: "rejected", label: "Rejected" },
         { value: "cancelled", label: "Cancelled" },
       ]}
 
-// <-- MAKE SURE THESE THREE PROPS ARE PRESENT -->
       typeOptions={[
-        { value: " ", label: "All Types" },
-        { value: "0",  label: "Existing" },
-        { value: "1",  label: "Potential" },
+        { value: "", label: "All Types" },
+        { value: 1,  label: "Existing" },
+        { value: 0,  label: "Potential" },
       ]}
       typeFilter={typeFilter}
       onTypeChange={handleTypeChange}

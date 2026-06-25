@@ -5,7 +5,7 @@ import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
 import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
 import {
   MdOutlineFilterAlt, MdDateRange, MdExpandMore,
-  MdPerson, MdLocationOn,
+  MdPerson, MdLocationOn,MdBusiness
 } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 
@@ -237,21 +237,28 @@ export default function ListFilterToolbar({
         />
       </div>
 
-      {/* Type (Placed before Date Range) */}
-      <div className="relative h-9 flex items-center flex-shrink-0">
-        <TbLayoutRows className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-        <select
-          value={typeFilter}
-          onChange={(e) => onTypeChange(e.target.value)}
-          className="h-9 w-28 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700"
-        >
-          {typeOptions.map(({ value, label }) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </div>
+{/* Type (Placed before Date Range) */}
+<div className="relative h-9 w-28 flex items-center flex-shrink-0">
+  <MdBusiness className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+  <select
+    value={typeFilter ?? ''}
+    onChange={(e) => onTypeChange(e.target.value)}
+    className="h-9 w-full pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+      focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+      transition-[border-color,box-shadow] duration-150 text-slate-700"
+  >
+    <option value="" disabled>Type</option>
+    {typeOptions.map(({ value, label }) => (
+      <option key={value} value={value}>{label}</option>
+    ))}
+  </select>
+  {/* Optional: Clean SVG Chevron to guarantee arrow visibility across all browsers */}
+  <div className="absolute right-2.5 pointer-events-none flex items-center text-slate-400">
+   <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="fill-rule" fillRule="evenodd"></path>
+    </svg>
+  </div>
+</div>
 
       {/* Date Range */}
       <div className="relative flex-shrink-0" ref={datePickerRef}>
