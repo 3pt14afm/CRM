@@ -36,7 +36,7 @@ class RoiPipelineReturnNoticeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Status Update: ROI {$this->reference} Returned to {$this->currentStatus}",
+            subject: "Status Update: ROI {$this->reference} Returned to {$this->lowerActorName} {$this->currentStatus}",
         );
     }
 

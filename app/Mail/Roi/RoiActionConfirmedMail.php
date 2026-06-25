@@ -13,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
  * Recipient: The approver who just performed an action (advance, send-back, approve, reject)
  * Trigger: After any workflow action by an approver
  *
- * @param string $actionTaken  Past-tense description, e.g. "Reviewed", "Sent Back", "Rejected"
+ * @param string $actionTaken  Past-tense description, e.g. "Reviewed", "Returned", "Rejected"
  * @param string $newStatus    Resulting project status, e.g. "For Checking", "Rejected"
  * @param string $routedTo     Name of the next recipient, or "System Archive" for terminal actions
  */

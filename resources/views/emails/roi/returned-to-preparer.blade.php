@@ -7,11 +7,9 @@
 </head>
 <body>
 
-<p><strong>Return Details:</strong></p>
-<ul>
-    <li>Returned By: {{ $reviewerName }} (Reviewer)</li>
-    <li>Current Status: Returned / Draft</li>
-</ul>
+<p>Your ROI proposal <strong>{{ $reference }}</strong> has been <strong>Returned</strong> by <strong>{{ $reviewerName }}</strong> (Reviewer).</p>
+
+<li>Current Status: Returned / Draft</li>
 
 <p><strong>Required Revisions / Feedback:</strong></p>
 <p>"{{ $comment }}"</p>

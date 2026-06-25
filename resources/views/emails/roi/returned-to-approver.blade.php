@@ -7,7 +7,7 @@
 </head>
 <body>
 
-<p>ROI <strong>{{ $reference }}</strong> has been returned to you by {{ $higherActorName }} for {{ $pendingAction }}.</p>
+<p>ROI <strong>{{ $reference }}</strong> has been returned to you by <strong>{{ $higherActorName }}</strong> for <strong>{{ $pending2Action }}</strong>.</p>
 
 <p><strong>Comment / Feedback:</strong></p>
 <p>"{{ $comment }}"</p>

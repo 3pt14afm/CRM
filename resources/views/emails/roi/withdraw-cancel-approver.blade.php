@@ -7,7 +7,7 @@
 </head>
 <body>
 
-<p>ROI <strong>{{ $reference }}</strong> was {{ $actionType }} by the preparer.</p>
+<p>ROI <strong>{{ $reference }}</strong> was <strong>{{ $actionType }}</strong> by the preparer.</p>
 
 <p>It has been removed from your queue. No further action is required.</p>
 

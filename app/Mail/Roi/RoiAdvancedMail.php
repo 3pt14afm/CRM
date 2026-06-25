@@ -13,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
  * Recipient: Preparer
  * Trigger: Every time a project advances to the next level (including final Approved)
  *
- * @param string $actionTaken     Past-tense verb, e.g. "Reviewed", "Checked", "Approved"
+ * @param string $actionTaken     "Reviewed", "Checked", "Endorsed", "Confirmed", "Approved"
  * @param string $actorName       Full name of the approver who acted
  * @param string $nextStatus      New project status, e.g. "For Checking", "Approved"
  * @param string $nextActorName   Full name of next approver, or "N/A" when Approved
