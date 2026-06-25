@@ -79,104 +79,112 @@ class RoiProjectService
     /**
      * Handle moving data into the "Current Production" tables and cleaning up the staging draft tables.
      */
-    public function handleSubmitProject(RoiEntryProject $project, $submitter, LocationDepartment $matrix, array $oldValues): RoiCurrentProject
-    {
-        return DB::transaction(function () use ($project, $submitter, $matrix) {
-            $newProject = RoiCurrentProject::create([
-                'user_id' => $project->user_id,
-                'location_id' => $submitter->primary_location_id,
-                'project_uid' => $project->project_uid,
-                'reference' => $project->reference,
-                'version' => $project->version,
-                'status' => 'For Review',
-                'current_level' => 2,
-                'submitted_at' => now(),
-                'last_saved_at' => now(),
-                'reviewed_by' => $matrix->reviewed_by,
-                'checked_by' => $matrix->checked_by,
-                'endorsed_by' => $matrix->endorsed_by,
-                'confirmed_by' => $matrix->confirmed_by,
-                'approved_by' => $matrix->approved_by,
-                'company_name' => $project->company_name,
-                'company_sap_code' => $project->company_sap_code,
-                'type'             => $project->type ?? 0,  // ← add
-                'contract_years' => $project->contract_years,
-                'contract_type' => $project->contract_type,
-                'purpose' => $project->purpose,
-                'bundled_std_ink' => $project->bundled_std_ink,
-                'annual_interest' => $project->annual_interest,
-                'percent_margin' => $project->percent_margin,
-                'mono_yield_monthly' => $project->mono_yield_monthly,
-                'mono_yield_annual' => $project->mono_yield_annual,
-                'color_yield_monthly' => $project->color_yield_monthly,
-                'color_yield_annual' => $project->color_yield_annual,
-                'entry_remarks' => $project->entry_remarks,
-                'entry_remarks_attachments' => $project->entry_remarks_attachments ?? [],
-                'mc_unit_cost' => $project->mc_unit_cost,
-                'mc_qty' => $project->mc_qty,
-                'mc_total_cost' => $project->mc_total_cost,
-                'mc_yields' => $project->mc_yields,
-                'mc_cost_cpp' => $project->mc_cost_cpp,
-                'mc_selling_price' => $project->mc_selling_price,
-                'mc_total_sell' => $project->mc_total_sell,
-                'mc_sell_cpp' => $project->mc_sell_cpp,
-                'mc_total_bundled_price' => $project->mc_total_bundled_price,
-                'fees_total' => $project->fees_total,
-                'grand_total_cost' => $project->grand_total_cost,
-                'grand_total_revenue' => $project->grand_total_revenue,
-                'grand_roi' => $project->grand_roi,
-                'grand_roi_percentage' => $project->grand_roi_percentage,
-                'yearly_breakdown' => $project->yearly_breakdown,
-                'notes' => $project->notes ?? [],
-                'comments' => $project->comments ?? [],
-            ]);
+        public function handleSubmitProject(RoiEntryProject $project, $submitter, LocationDepartment $matrix, array $oldValues): RoiCurrentProject
+        {
+            // Check if company has an SAP Code
+            $companyHasSap = DB::table('erms.tbl_company')
+                ->where('company_name', $project->company_name)
+                ->whereNotNull('sap_code')
+                ->exists();
 
-            foreach ($project->items as $item) {
-                RoiCurrentItem::create([
-                    'roi_current_project_id' => $newProject->id,
-                    'client_row_id' => $item->client_row_id,
-                    'kind' => $item->kind,
-                    'sku' => $item->sku,
-                    'qty' => $item->qty,
-                    'yields' => $item->yields,
-                    'mode' => $item->mode,
-                    'remarks' => $item->remarks,
-                    'auto_added' => $item->auto_added,
-                    'inputted_cost' => $item->inputted_cost,
-                    'cost' => $item->cost,
-                    'price' => $item->price,
-                    'base_per_year' => $item->base_per_year,
-                    'total_cost' => $item->total_cost,
-                    'cost_cpp' => $item->cost_cpp,
-                    'total_sell' => $item->total_sell,
-                    'sell_cpp' => $item->sell_cpp,
-                    'machine_margin' => $item->machine_margin,
-                    'machine_margin_total' => $item->machine_margin_total,
+           $companyType = $companyHasSap ? 1 : 0;
+
+            return DB::transaction(function () use ($project, $submitter, $matrix, $companyType) {
+                $newProject = RoiCurrentProject::create([
+                    'user_id' => $project->user_id,
+                    'location_id' => $submitter->primary_location_id,
+                    'project_uid' => $project->project_uid,
+                    'reference' => $project->reference,
+                    'version' => $project->version,
+                    'status' => 'For Review',
+                    'current_level' => 2,
+                    'submitted_at' => now(),
+                    'last_saved_at' => now(),
+                    'reviewed_by' => $matrix->reviewed_by,
+                    'checked_by' => $matrix->checked_by,
+                    'endorsed_by' => $matrix->endorsed_by,
+                    'confirmed_by' => $matrix->confirmed_by,
+                    'approved_by' => $matrix->approved_by,
+                    'company_name' => $project->company_name,
+                    'company_sap_code' => $project->company_sap_code,
+                    'type' => $companyType, // <--- Set dynamically here
+                    'contract_years' => $project->contract_years,
+                    'contract_type' => $project->contract_type,
+                    'purpose' => $project->purpose,
+                    'bundled_std_ink' => $project->bundled_std_ink,
+                    'annual_interest' => $project->annual_interest,
+                    'percent_margin' => $project->percent_margin,
+                    'mono_yield_monthly' => $project->mono_yield_monthly,
+                    'mono_yield_annual' => $project->mono_yield_annual,
+                    'color_yield_monthly' => $project->color_yield_monthly,
+                    'color_yield_annual' => $project->color_yield_annual,
+                    'entry_remarks' => $project->entry_remarks,
+                    'entry_remarks_attachments' => $project->entry_remarks_attachments ?? [],
+                    'mc_unit_cost' => $project->mc_unit_cost,
+                    'mc_qty' => $project->mc_qty,
+                    'mc_total_cost' => $project->mc_total_cost,
+                    'mc_yields' => $project->mc_yields,
+                    'mc_cost_cpp' => $project->mc_cost_cpp,
+                    'mc_selling_price' => $project->mc_selling_price,
+                    'mc_total_sell' => $project->mc_total_sell,
+                    'mc_sell_cpp' => $project->mc_sell_cpp,
+                    'mc_total_bundled_price' => $project->mc_total_bundled_price,
+                    'fees_total' => $project->fees_total,
+                    'grand_total_cost' => $project->grand_total_cost,
+                    'grand_total_revenue' => $project->grand_total_revenue,
+                    'grand_roi' => $project->grand_roi,
+                    'grand_roi_percentage' => $project->grand_roi_percentage,
+                    'yearly_breakdown' => $project->yearly_breakdown,
+                    'notes' => $project->notes ?? [],
+                    'comments' => $project->comments ?? [],
                 ]);
-            }
 
-            foreach ($project->fees as $fee) {
-                RoiCurrentFee::create([
-                    'roi_current_project_id' => $newProject->id,
-                    'client_row_id' => $fee->client_row_id,
-                    'payer' => $fee->payer,
-                    'label' => $fee->label,
-                    'category' => $fee->category,
-                    'remarks' => $fee->remarks,
-                    'cost' => $fee->cost,
-                    'qty' => $fee->qty,
-                    'total' => $fee->total,
-                    'is_machine' => $fee->is_machine,
-                ]);
-            }
+                foreach ($project->items as $item) {
+                    RoiCurrentItem::create([
+                        'roi_current_project_id' => $newProject->id,
+                        'client_row_id' => $item->client_row_id,
+                        'kind' => $item->kind,
+                        'sku' => $item->sku,
+                        'qty' => $item->qty,
+                        'yields' => $item->yields,
+                        'mode' => $item->mode,
+                        'remarks' => $item->remarks,
+                        'auto_added' => $item->auto_added,
+                        'inputted_cost' => $item->inputted_cost,
+                        'cost' => $item->cost,
+                        'price' => $item->price,
+                        'base_per_year' => $item->base_per_year,
+                        'total_cost' => $item->total_cost,
+                        'cost_cpp' => $item->cost_cpp,
+                        'total_sell' => $item->total_sell,
+                        'sell_cpp' => $item->sell_cpp,
+                        'machine_margin' => $item->machine_margin,
+                        'machine_margin_total' => $item->machine_margin_total,
+                    ]);
+                }
 
-            $project->items()->delete();
-            $project->fees()->delete();
-            $project->delete();
+                foreach ($project->fees as $fee) {
+                    RoiCurrentFee::create([
+                        'roi_current_project_id' => $newProject->id,
+                        'client_row_id' => $fee->client_row_id,
+                        'payer' => $fee->payer,
+                        'label' => $fee->label,
+                        'category' => $fee->category,
+                        'remarks' => $fee->remarks,
+                        'cost' => $fee->cost,
+                        'qty' => $fee->qty,
+                        'total' => $fee->total,
+                        'is_machine' => $fee->is_machine,
+                    ]);
+                }
 
-            return $newProject;
-        });
-    }
+                $project->items()->delete();
+                $project->fees()->delete();
+                $project->delete();
+
+                return $newProject;
+            });
+        }
 
     /**
      * Map payload calculations, attach files, and overwrite items/fees records.

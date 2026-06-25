@@ -207,77 +207,78 @@ class RoiEntryProjectController extends Controller
     }
 
     public function submit(StoreRoiDraftRequest $request, RoiEntryProject $project)
-    {
-        abort_unless($project->user_id === Auth::id(), 403);
+        {
+            abort_unless($project->user_id === Auth::id(), 403);
 
-        if ($this->requestHasRoiDraftPayload($request)) {
-            $this->roiService->persistDraftData($request, $project, $request->validated());
+            if ($this->requestHasRoiDraftPayload($request)) {
+                $this->roiService->persistDraftData($request, $project, $request->validated());
+            }
+
+            $project->refresh()->load(['items', 'fees']);
+
+            if (empty($project->company_name) || empty($project->contract_type)) {
+                return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
+            }
+
+            $submitter = Auth::user();
+
+            if (!$submitter?->primary_location_id || !$submitter?->department_id) {
+                return back()->with('error', 'Your account must have both a primary location and department before submitting.');
+            }
+
+            $matrix = LocationDepartment::query()
+                ->where('location_id', $submitter->primary_location_id)
+                ->where('department_id', $submitter->department_id)
+                ->first();
+
+            if (!$matrix) {
+                return back()->with('error', 'No approver matrix found for your location and department.');
+            }
+
+            $oldValues = [
+                'status' => $project->status,
+                'table' => 'roi_entry_projects',
+                'reference' => $project->reference,
+            ];
+
+            // The service will evaluate the SAP code and populate the type automatically
+            $newProject = $this->roiService->handleSubmitProject($project, $submitter, $matrix, $oldValues);
+            
+            $this->workflowService->handleAutoAdvanceOnSubmit($newProject);
+            $this->workflowService->notifySubmit($newProject);
+
+            try {
+                RoiActivityLogger::log(
+                    activityType: 'submit',
+                    moduleType: 'ROI Entry',
+                    details: 'Submitted ROI #' . $newProject->reference,
+                    subject: $newProject,
+                    oldValues: $oldValues,
+                    newValues: [
+                        'status' => $newProject->status,
+                        'table' => 'roi_current_projects',
+                        'reference' => $newProject->reference,
+                        'current_level' => $newProject->current_level,
+                        'submitted_at' => $newProject->submitted_at,
+                    ],
+                    workflow: [
+                        'preparer_id' => $newProject->user_id,
+                        'reviewer_id' => $newProject->reviewed_by,
+                        'checker_id' => $newProject->checked_by,
+                        'endorser_id' => $newProject->endorsed_by,
+                        'confirmer_id' => $newProject->confirmed_by,
+                        'approver_id' => $newProject->approved_by,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::error('ROI submit activity log failed', [
+                    'message' => $e->getMessage(),
+                    'reference' => $newProject->reference ?? null,
+                ]);
+            }
+
+            return redirect()->route('roi.entry.list')->with('success', 'Draft successfully submitted.');
         }
-
-        $project->refresh()->load(['items', 'fees']);
-
-        if (empty($project->company_name) || empty($project->contract_type)) {
-            return back()->with('error', 'Please complete Company Name and Contract Type before submitting.');
-        }
-
-        $submitter = Auth::user();
-
-        if (!$submitter?->primary_location_id || !$submitter?->department_id) {
-            return back()->with('error', 'Your account must have both a primary location and department before submitting.');
-        }
-
-        $matrix = LocationDepartment::query()
-            ->where('location_id', $submitter->primary_location_id)
-            ->where('department_id', $submitter->department_id)
-            ->first();
-
-        if (!$matrix) {
-            return back()->with('error', 'No approver matrix found for your location and department.');
-        }
-
-        $oldValues = [
-            'status' => $project->status,
-            'table' => 'roi_entry_projects',
-            'reference' => $project->reference,
-        ];
-
-        $newProject = $this->roiService->handleSubmitProject($project, $submitter, $matrix, $oldValues);
-        $this->workflowService->handleAutoAdvanceOnSubmit($newProject);
-
-        $this->workflowService->notifySubmit($newProject);
-
-        try {
-            RoiActivityLogger::log(
-                activityType: 'submit',
-                moduleType: 'ROI Entry',
-                details: 'Submitted ROI #' . $newProject->reference,
-                subject: $newProject,
-                oldValues: $oldValues,
-                newValues: [
-                    'status' => $newProject->status,
-                    'table' => 'roi_current_projects',
-                    'reference' => $newProject->reference,
-                    'current_level' => $newProject->current_level,
-                    'submitted_at' => $newProject->submitted_at,
-                ],
-                workflow: [
-                    'preparer_id' => $newProject->user_id,
-                    'reviewer_id' => $newProject->reviewed_by,
-                    'checker_id' => $newProject->checked_by,
-                    'endorser_id' => $newProject->endorsed_by,
-                    'confirmer_id' => $newProject->confirmed_by,
-                    'approver_id' => $newProject->approved_by,
-                ]
-            );
-        } catch (\Throwable $e) {
-            Log::error('ROI submit activity log failed', [
-                'message' => $e->getMessage(),
-                'reference' => $newProject->reference ?? null,
-            ]);
-        }
-
-        return redirect()->route('roi.entry.list')->with('success', 'Draft successfully submitted.');
-    }
 
     public function destroy(RoiEntryProject $project)
     {
