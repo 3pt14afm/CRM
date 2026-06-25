@@ -32,9 +32,7 @@ class RoiArchiveProject extends Model
         'rejected_by',
         'rejected_at',
         'rejected_by_level',
-        'cancelled_by',
         'cancelled_at',
-        'cancelled_by_level',
         'company_name',
         'company_sap_code',
         'contract_years',
@@ -91,9 +89,7 @@ class RoiArchiveProject extends Model
         'approved_by' => 'integer',
         'rejected_by' => 'integer',
         'rejected_by_level' => 'integer',
-        'cancelled_by'       => 'integer',
         'cancelled_at'       => 'datetime',
-        'cancelled_by_level' => 'integer',
 
     ];
 

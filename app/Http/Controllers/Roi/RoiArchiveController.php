@@ -163,7 +163,6 @@ public function index(Request $request)
             $project->checked_by,
             $project->endorsed_by,
             $project->confirmed_by,
-            $project->cancelled_by,   // 👈
         ])->filter()->unique()->values();
 
         $usersById = User::query()

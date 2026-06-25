@@ -10,6 +10,8 @@ use App\Mail\Roi\RoiReturnedToApproverMail;
 use App\Mail\Roi\RoiReturnedToPreparerMail;
 use App\Mail\Roi\RoiSubmittedMail;
 use App\Mail\Roi\RoiNewAssignmentMail;
+use App\Mail\Roi\RoiWithdrawCancelApproverMail;
+use App\Mail\Roi\RoiWithdrawCancelPreparerMail;
 use App\Models\RoiArchiveProject;
 use App\Models\RoiCurrentProject;
 use App\Models\RoiEntryFee;
@@ -607,6 +609,48 @@ class RoiCurrentWorkflowService
         }
     }
 
+    /**
+     * Fires when the preparer withdraws or cancels a project.
+     * Template 7 → preparer (action confirmed)
+     * Template 8 → interrupted approver (courtesy notice), skipped if they're the same person
+     *
+     * @param string $actionType  "Withdrawn" | "Cancelled"
+     * @param string $projectUrl  Entry URL for withdraw; archive URL for cancel
+     */
+    private function notifyWithdrawOrCancel(
+        User    $actor,
+        string  $reference,
+        string  $actionType,
+        ?User   $preparer,
+        ?User   $holder,
+        string  $projectUrl,
+    ): void {
+        // Template 7 — preparer
+        if ($preparer?->email) {
+            $this->dispatchMail(
+                $preparer->email,
+                new RoiWithdrawCancelPreparerMail(
+                    preparerName: $preparer->name,
+                    reference:    $reference,
+                    actionType:   $actionType,
+                    projectUrl:   $projectUrl,
+                )
+            );
+        }
+
+        // Template 8 — interrupted approver (skip if they're the same person as the actor)
+        if ($holder && $holder->email && $holder->id !== $actor->id) {
+            $this->dispatchMail(
+                $holder->email,
+                new RoiWithdrawCancelApproverMail(
+                    approverName: $holder->name,
+                    reference:    $reference,
+                    actionType:   $actionType,
+                )
+            );
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Mail dispatch wrapper — catches exceptions so workflow never breaks on mail failure
     // -------------------------------------------------------------------------
@@ -817,8 +861,7 @@ class RoiCurrentWorkflowService
             'annual_interest', 'percent_margin', 'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly',
             'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
             'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price', 'fees_total',
-            'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage', 'yearly_breakdown', 'notes', 'comments',
-            'cancelled_by', 'cancelled_at', 'cancelled_by_level',
+            'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage', 'yearly_breakdown', 'notes', 'comments', 'cancelled_at',
         ]);
 
         $archived = RoiArchiveProject::create(array_merge($base, $archiveOverrides));
@@ -846,26 +889,24 @@ class RoiCurrentWorkflowService
 
     public function handleCancel(RoiCurrentProject $current, User $actor): void
     {
-        $reference = $current->reference;
-        $preparer  = $this->emailUserById((int) $current->user_id);
-        $oldValues = ['status' => $current->status, 'current_level' => $current->current_level];
-        $workflow  = $this->getRoiWorkflow($current);
+        $reference    = $current->reference;
+        $preparer     = $this->emailUserById((int) $current->user_id);
+        $oldValues    = ['status' => $current->status, 'current_level' => $current->current_level];
+        $workflow     = $this->getRoiWorkflow($current);
+
+        // Capture the currently-active holder BEFORE archiveFromCurrent wipes/deletes $current
+        $holderLevel = (int) $current->current_level;
+        $holderCol   = $this->approverColumnForLevel($holderLevel);
+        $holder      = $holderCol ? $this->emailUserById((int) ($current->{$holderCol} ?? 0)) : null;
 
         $archived = $this->archiveFromCurrent($current, [
             'status'            => 'cancelled',
-            'cancelled_by'         => $actor->id,       // 👈
-            'cancelled_at'         => now(),             // 👈
-            'cancelled_by_level'   => 1,                 // 👈 always preparer
-
-            // ─── Clear all approval signatures & timestamps ────────────────
+            'cancelled_at'         => now(),
             'reviewed_at'       => null,
             'checked_at'        => null,
             'endorsed_at'       => null,
             'confirmed_at'      => null,
             'approved_at'       => null,
-
-            // Keep reviewed_by / checked_by etc. so you know who was assigned,
-            // but wipe the actual approval stamps so it reads as "never approved"
             'approved_by'       => null,
             'rejected_at'       => null,
             'rejected_by'       => null,
@@ -878,25 +919,15 @@ class RoiCurrentWorkflowService
             'cancelled_by'       => $actor->id,
         ], $workflow);
 
-        // $this->sendEmail(
-        //     $actor->email,
-        //     "ROI Project Cancelled: {$reference}",
-        //     "You have cancelled ROI project {$reference}.\nIt has been archived with status: Cancelled."
-        // );
-
-        // foreach ([2 => 'reviewed_by', 3 => 'checked_by', 4 => 'endorsed_by', 5 => 'confirmed_by', 6 => 'approved_by'] as $level => $column) {
-        //     $approverId = (int) ($current->{$column} ?? 0);
-        //     if (!$approverId || $approverId === (int) $actor->id) continue;
-
-        //     $approver = $this->emailUserById($approverId);
-        //     if ($approver) {
-        //         $this->sendEmail(
-        //             $approver->email,
-        //             "ROI Project Cancelled: {$reference}",
-        //             "ROI project {$reference} has been cancelled by the preparer ({$actor->name}).\nNo further action is required from you."
-        //         );
-        //     }
-        // }
+        // Template 7 (preparer) + Template 8 (interrupted approver)
+        $this->notifyWithdrawOrCancel(
+            actor:      $actor,
+            reference:  $reference,
+            actionType: 'Cancelled',
+            preparer:   $preparer,
+            holder:     $holder,
+            projectUrl: $this->buildProjectUrl('archive', $archived->id),
+        );
     }
 
     public function handleWithdraw(RoiCurrentProject $current, User $actor): void
@@ -905,7 +936,11 @@ class RoiCurrentWorkflowService
         $oldValues = ['status' => $current->status, 'current_level' => $current->current_level];
         $workflow  = $this->getRoiWorkflow($current);
 
-        // Mirror exactly what handleSendBack does when reverting to level 1
+        // Capture the currently-active holder BEFORE $current is deleted
+        $holderLevel = (int) $current->current_level;
+        $holderCol   = $this->approverColumnForLevel($holderLevel);
+        $holder      = $holderCol ? $this->emailUserById((int) ($current->{$holderCol} ?? 0)) : null;
+
         $current->save();
         $current->refresh()->load(['items', 'fees', 'user']);
 
@@ -917,7 +952,6 @@ class RoiCurrentWorkflowService
             'last_saved_at' => now(),
         ]));
 
-        // Copy items
         foreach ($current->items as $item) {
             $itemData = $item->toArray();
             unset($itemData['id'], $itemData['roi_current_project_id']);
@@ -925,7 +959,6 @@ class RoiCurrentWorkflowService
             RoiEntryItem::create($itemData);
         }
 
-        // Copy fees
         foreach ($current->fees as $fee) {
             $feeData = $fee->toArray();
             unset($feeData['id'], $feeData['roi_current_project_id']);
@@ -940,16 +973,19 @@ class RoiCurrentWorkflowService
             'withdrawn_by'     => $actor->id,
         ], $workflow);
 
-        // Delete from current — same as sendBack level 1 flow
         $current->items()->delete();
         $current->fees()->delete();
         $current->delete();
 
-        // $this->sendEmail(
-        //     $actor->email,
-        //     "ROI Project Withdrawn: {$reference}",
-        //     "You have withdrawn ROI project {$reference}.\nIt has been returned to your entry list."
-        // );
+        // Template 7 (preparer/actor) + Template 8 (interrupted approver)
+        $this->notifyWithdrawOrCancel(
+            actor:      $actor,
+            reference:  $reference,
+            actionType: 'Withdrawn',
+            preparer:   $actor,   // actor IS the preparer for withdraw
+            holder:     $holder,
+            projectUrl: $this->buildProjectUrl('entry', $entryProject->id),
+        );
     }
 
     // Helper Architecture Methods
