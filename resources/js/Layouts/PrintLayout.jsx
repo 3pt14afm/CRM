@@ -52,7 +52,7 @@ export default function PrintLayout({ children, showDraftWatermark = false }) {
             user-select: none;
             z-index: 9999;
             font-weight: 800;
-            font-size: 100px;
+            font-size: 48px; /* Reduced from 100px */
             letter-spacing: 0.25em;
             color: rgba(100, 100, 100, 0.2);
             transform: rotate(-32deg);
@@ -88,7 +88,7 @@ export default function PrintLayout({ children, showDraftWatermark = false }) {
             user-select: none;
             z-index: 9999;
             font-weight: 800;
-            font-size: 44mm;
+            font-size: 20mm; /* Reduced from 44mm */
             letter-spacing: 4mm;
             color: rgba(45, 120, 19, 0.2);
             transform: rotate(-32deg);

@@ -28,8 +28,6 @@ function mapProjectToContext(p) {
     machineMarginTotal: Number(r.machine_margin_total ?? 0),
   });
 
-  
-
   const machine = items.filter((r) => r.kind === "machine").map(mapItem);
   const consumable = items.filter((r) => r.kind === "consumable").map(mapItem);
 
@@ -59,28 +57,28 @@ function mapProjectToContext(p) {
       status: p?.status ?? "draft",
       comments: p?.comments ?? [],
       notes: p?.notes ?? [],
-     signatories: {
-      preparedBy: p?.user?.name ?? (p?.user ? `${p.user.first_name ?? ''} ${p.user.last_name ?? ''}`.trim() : ''),
-      preparedByPosition: p?.user?.position ?? '',
+      signatories: {
+        preparedBy: p?.user?.name ?? (p?.user ? `${p.user.first_name ?? ''} ${p.user.last_name ?? ''}`.trim() : ''),
+        preparedByPosition: p?.user?.position ?? '',
 
-      reviewedBy: p?.reviewed_by_user?.name ?? `${p?.reviewed_by_user?.first_name ?? ''} ${p?.reviewed_by_user?.last_name ?? ''}`.trim(),
-      reviewedByPosition: p?.reviewed_by_user?.position ?? '',
+        reviewedBy: p?.reviewed_by_user?.name ?? `${p?.reviewed_by_user?.first_name ?? ''} ${p?.reviewed_by_user?.last_name ?? ''}`.trim(),
+        reviewedByPosition: p?.reviewed_by_user?.position ?? '',
 
-      checkedBy: p?.checked_by_user?.name ?? `${p?.checked_by_user?.first_name ?? ''} ${p?.checked_by_user?.last_name ?? ''}`.trim(),
-      checkedByPosition: p?.checked_by_user?.position ?? '',
+        checkedBy: p?.checked_by_user?.name ?? `${p?.checked_by_user?.first_name ?? ''} ${p?.checked_by_user?.last_name ?? ''}`.trim(),
+        checkedByPosition: p?.checked_by_user?.position ?? '',
 
-      endorsedBy: p?.endorsed_by_user?.name ?? `${p?.endorsed_by_user?.first_name ?? ''} ${p?.endorsed_by_user?.last_name ?? ''}`.trim(),
-      endorsedByPosition: p?.endorsed_by_user?.position ?? '',
+        endorsedBy: p?.endorsed_by_user?.name ?? `${p?.endorsed_by_user?.first_name ?? ''} ${p?.endorsed_by_user?.last_name ?? ''}`.trim(),
+        endorsedByPosition: p?.endorsed_by_user?.position ?? '',
 
-      confirmedBy: p?.confirmed_by_user?.name ?? `${p?.confirmed_by_user?.first_name ?? ''} ${p?.confirmed_by_user?.last_name ?? ''}`.trim(),
-      confirmedByPosition: p?.confirmed_by_user?.position ?? '',
+        confirmedBy: p?.confirmed_by_user?.name ?? `${p?.confirmed_by_user?.first_name ?? ''} ${p?.confirmed_by_user?.last_name ?? ''}`.trim(),
+        confirmedByPosition: p?.confirmed_by_user?.position ?? '',
 
-      approvedBy: p?.approved_by_user?.name ?? `${p?.approved_by_user?.first_name ?? ''} ${p?.approved_by_user?.last_name ?? ''}`.trim(),
-      approvedByPosition: p?.approved_by_user?.position ?? '',
+        approvedBy: p?.approved_by_user?.name ?? `${p?.approved_by_user?.first_name ?? ''} ${p?.approved_by_user?.last_name ?? ''}`.trim(),
+        approvedByPosition: p?.approved_by_user?.position ?? '',
 
-      rejectedBy: p?.rejected_by_user?.name ?? `${p?.rejected_by_user?.first_name ?? ''} ${p?.rejected_by_user?.last_name ?? ''}`.trim(),
-      rejectedByPosition: p?.rejected_by_user?.position ?? '',
-    },
+        rejectedBy: p?.rejected_by_user?.name ?? `${p?.rejected_by_user?.first_name ?? ''} ${p?.rejected_by_user?.last_name ?? ''}`.trim(),
+        rejectedByPosition: p?.rejected_by_user?.position ?? '',
+      },
       isPrintPreview: true,
       readOnly: true,
     },
@@ -132,27 +130,21 @@ function mapProjectToContext(p) {
       total: Number(p?.fees_total ?? feesTotal),
     },
 
-      
-
-      // AFTER — remap "year_1" → 1, "year_2" → 2, etc.
-      yearlyBreakdown: Object.fromEntries(
-        Object.entries(p?.yearly_breakdown ?? {}).map(([k, v]) => {
-          // convert "year_1" → 1, "year_2" → 2, etc.
-          const num = parseInt(k.replace('year_', ''), 10);
-          return [
-            num,
-            {
-              ...v,
-              // year_1 stores it as "firstYearTotalCost", component reads "fistYearTotalCost"
-              // fix both spellings so it works regardless
-              fistYearTotalCost: v.fistYearTotalCost ?? v.firstYearTotalCost ?? 0,
-              fistYearTotalSell: v.fistYearTotalSell ?? v.firstYearTotalSell ?? 0,
-              firstYearTotalCost: v.firstYearTotalCost ?? v.fistYearTotalCost ?? 0,
-              firstYearTotalSell: v.firstYearTotalSell ?? v.fistYearTotalSell ?? 0,
-            }
-          ];
-        })
-      ),
+    yearlyBreakdown: Object.fromEntries(
+      Object.entries(p?.yearly_breakdown ?? {}).map(([k, v]) => {
+        const num = parseInt(k.replace('year_', ''), 10);
+        return [
+          num,
+          {
+            ...v,
+            fistYearTotalCost: v.fistYearTotalCost ?? v.firstYearTotalCost ?? 0,
+            fistYearTotalSell: v.fistYearTotalSell ?? v.firstYearTotalSell ?? 0,
+            firstYearTotalCost: v.firstYearTotalCost ?? v.fistYearTotalCost ?? 0,
+            firstYearTotalSell: v.firstYearTotalSell ?? v.fistYearTotalSell ?? 0,
+          }
+        ];
+      })
+    ),
 
     totalProjectCost: {
       grandTotalCost: Number(p?.grand_total_cost ?? 0),
@@ -173,8 +165,6 @@ function mapProjectToContext(p) {
         ? p.entry_remarks_attachments
         : [],
     },
-
-    
   };
 }
 
@@ -251,7 +241,23 @@ export default function EntryPrint({
     }, 50);
   };
 
-  const isDraft = (projectData?.metadata?.status ?? "draft") === "draft";
+  const projectStatus = projectData?.metadata?.status ?? "draft";
+
+  const getWatermarkText = (status) => {
+    switch (status?.toLowerCase()) {
+      case "draft":
+        return "DRAFT";
+      case "rejected":
+        return "DISAPPROVED";
+      case "cancelled":
+      case "cancel":
+        return "CANCELLED";
+      default:
+        return null;
+    }
+  };
+
+  const watermark = getWatermarkText(projectStatus);
 
   const title =
     tab === "succeeding"
@@ -282,9 +288,9 @@ export default function EntryPrint({
         </div>
       </div>
 
-      {loaded && isDraft && (
+      {loaded && watermark && (
         <div className="print-watermark" aria-hidden="true">
-          DRAFT
+          {watermark}
         </div>
       )}
 
