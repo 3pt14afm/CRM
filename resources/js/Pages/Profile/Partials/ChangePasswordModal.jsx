@@ -39,7 +39,7 @@ export default function ChangePasswordModal({ show, onClose, userId }) {
     function handleResetConfirm() {
         setResetLoading(true);
         router.post(
-            route('admin.users.reset-password', { user: userId }),
+            route('profile.reset-password'),
             {},
             {
                 preserveScroll: true,

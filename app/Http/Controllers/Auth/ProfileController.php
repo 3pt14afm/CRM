@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Mail\Admin\PasswordResetMail;
 use App\Models\User;
 use App\Services\AuthActivityLogger;
 use App\Support\PreferenceHelper;
@@ -12,14 +13,15 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse; // Add this line
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProfileController extends Controller
 {
@@ -52,7 +54,7 @@ public function edit(Request $request): Response
         }
     }
 
-// Check if a profile image exists for this employee
+    // Check if a profile image exists for this employee
     $hasAvatar = false;
     foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
         if (Storage::exists('profileimg/' . $user->employee_id . '.' . $ext)) {
@@ -303,5 +305,36 @@ public function updateProfilePicture(Request $request): RedirectResponse
         return back()->with('success', 'Profile picture updated.');
 }
 
+public function resetPassword(Request $request): RedirectResponse
+{
+    $user = $request->user();
+
+    $defaultPassword = 'P@ssw0rd';
+
+    $user->update([
+        'password'                     => Hash::make($defaultPassword),
+        'password_expiry'              => now()->subDay()->toDateString(),
+        'default_password_login_count' => 0,
+        'must_change_password'         => false,
+    ]);
+
+    if ($user->email) {
+        try {
+            Mail::to($user->email)->send(new PasswordResetMail(
+                userName: trim($user->first_name . ' ' . $user->last_name),
+                defaultPassword: $defaultPassword,
+                loginUrl: route('login'),
+                resetByAdmin: false,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Failed to send password reset mail', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    return back()->with('success', 'Your password has been reset to the default password.');
+}
 
 }
