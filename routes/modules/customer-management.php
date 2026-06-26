@@ -54,8 +54,11 @@ Route::middleware(['auth', 'verified'])
                 Route::patch('/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])->name('roi.entry.projects.submit');
                 Route::delete('/projects/{project}', [RoiEntryProjectController::class, 'destroy'])->name('roi.entry.projects.destroy');
                 Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])->name('roi.entry.projects.notes.store');
-                Route::get('/companies/search', [RoiEntryProjectController::class, 'getCompanySuggestions'])->name('companies.search');
-                Route::get('/entry/projects/{project}/print', [RoiPrintController::class, 'printEntry'])->name('roi.entry.projects.print');
+                Route::get('/roi/companies/search', [RoiEntryProjectController::class, 'getCompanySuggestions'])
+                    ->name('companies.search');
+
+                Route::get('/roi/potentials/search', [RoiEntryProjectController::class, 'getPotentialSuggestions'])
+                    ->name('potentials.search');                Route::get('/entry/projects/{project}/print', [RoiPrintController::class, 'printEntry'])->name('roi.entry.projects.print');
                 Route::get('/projects/{project}/attachments/{attachmentIndex}/{filename?}', [RoiEntryProjectController::class, 'showAttachment'])->name('roi.entry.projects.attachments.show');
             });
 

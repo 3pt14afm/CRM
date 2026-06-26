@@ -15,8 +15,8 @@ class PotentialCustomer extends Model
         'status',
     ];
 
-    public function clientManager()
-    {
-        return $this->belongsTo(User::class, 'id_client_mngr');
-    }
+public function clientManager()
+{
+    return $this->belongsTo(User::class, 'id_client_mngr', 'employee_id');
+}
 }

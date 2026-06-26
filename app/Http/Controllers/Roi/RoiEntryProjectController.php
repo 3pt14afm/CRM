@@ -56,6 +56,24 @@ class RoiEntryProjectController extends Controller
         return response()->json($suggestions);
     }
 
+    public function getPotentialSuggestions(Request $request)
+    {
+        $search = strtolower(trim($request->query('search')));
+
+        if (!$search || strlen($search) < 1) {
+            return response()->json([]);
+        }
+
+        $suggestions = \App\Models\CustomerInfo\PotentialCustomer::query()
+            ->where('status', 1)
+            ->whereRaw('LOWER(company_name) LIKE ?', [$search . '%'])
+            ->select('id', 'company_name')
+            ->limit(20)
+            ->get();
+
+        return response()->json($suggestions);
+    }
+
     private function requestHasRoiDraftPayload(Request $request): bool
     {
         return $request->hasAny([
@@ -240,6 +258,23 @@ class RoiEntryProjectController extends Controller
                 'table' => 'roi_entry_projects',
                 'reference' => $project->reference,
             ];
+                  
+                // Auto-save potential company name on submit if not an existing company
+                if (empty($project->company_sap_code)) {
+                    $companyName = trim($project->company_name ?? '');
+
+                    if ($companyName !== '') {
+                    \App\Models\CustomerInfo\PotentialCustomer::firstOrCreate(
+                        ['company_name' => $companyName],
+                        [
+                            'id_client_mngr' => $submitter->employee_id,
+                            'status' => 1,
+                            'address' => '',
+                            'contact_no' => '',
+                        ]
+                    );
+                    }
+                }
 
             // The service will evaluate the SAP code and populate the type automatically
             $newProject = $this->roiService->handleSubmitProject($project, $submitter, $matrix, $oldValues);

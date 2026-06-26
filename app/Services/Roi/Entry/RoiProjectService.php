@@ -2,6 +2,7 @@
 
 namespace App\Services\Roi\Entry;
 
+use App\Models\CustomerInfo\PotentialCustomer;
 use App\Models\RoiEntryProject;
 use App\Models\Location;
 use App\Models\RoiCurrentProject;
@@ -89,7 +90,7 @@ class RoiProjectService
 
            $companyType = $companyHasSap ? 1 : 0;
 
-            return DB::transaction(function () use ($project, $submitter, $matrix, $companyType) {
+          return DB::transaction(function () use ($project, $submitter, $matrix, $companyType, $companyHasSap) {
                 $newProject = RoiCurrentProject::create([
                     'user_id' => $project->user_id,
                     'location_id' => $submitter->primary_location_id,
@@ -106,7 +107,12 @@ class RoiProjectService
                     'confirmed_by' => $matrix->confirmed_by,
                     'approved_by' => $matrix->approved_by,
                     'company_name' => $project->company_name,
-                    'company_sap_code' => $project->company_sap_code,
+                    'company_sap_code' => $companyHasSap ? $project->company_sap_code : null,
+                    'company_id'       => $companyHasSap
+                        ? DB::table('erms.tbl_company')
+                            ->where('sap_code', $project->company_sap_code)
+                            ->value('id')
+                        : null,
                     'type' => $companyType, // <--- Set dynamically here
                     'contract_years' => $project->contract_years,
                     'contract_type' => $project->contract_type,
@@ -178,6 +184,23 @@ class RoiProjectService
                     ]);
                 }
 
+                            // Auto-save to potential_customers if no SAP code (i.e. it's a potential company)
+            if (empty($project->company_sap_code)) {
+                $companyName = trim($project->company_name ?? '');
+
+                if ($companyName !== '') {
+                    PotentialCustomer::firstOrCreate(
+                        ['company_name' => $companyName],
+                        [
+                            'id_client_mngr' => $submitter->employee_id,
+                            'status' => 1,
+                            'address' => '',
+                            'contact_no' => '',
+                        ]
+                    );
+                }
+            }
+
                 $project->items()->delete();
                 $project->fees()->delete();
                 $project->delete();
@@ -214,8 +237,15 @@ class RoiProjectService
 
         // Map payload calculations safely
         $project->update([
-            'company_name' => (string) ($company['companyName'] ?? ''),
-            'company_sap_code' => $company['companySapCode'] ?? $project->company_sap_code,
+          'company_name' => (string) ($company['companyName'] ?? ''),
+           'company_sap_code' => array_key_exists('companySapCode', $company) ? $company['companySapCode'] : $project->company_sap_code,
+           'company_id'       => array_key_exists('companySapCode', $company)
+                ? ($company['companySapCode']
+                    ? DB::table('erms.tbl_company')
+                        ->where('sap_code', $company['companySapCode'])
+                        ->value('id')
+                    : null)
+                : $project->company_id,
             'type'             => (int) ($company['type'] ?? $project->type ?? 0), // ← add
             'contract_years' => (int) ($company['contractYears'] ?? 0),
             'contract_type' => (string) ($company['contractType'] ?? ''),

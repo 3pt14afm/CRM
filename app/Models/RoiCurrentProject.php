@@ -19,6 +19,7 @@ class RoiCurrentProject extends Model
         'last_saved_at',
         'status',
         'type',
+        'company_id',
         'status_reason',
         'status_updated_at',
         'status_updated_by',

@@ -292,11 +292,11 @@ function CompanyInfo({ readOnly, showErrors = false }) {
               disabled={nameInputDisabled}
             />
 
-            {isPotentialType && potentialMatchFound === false && companyNameVal.trim().length > 0 && (
+            {/* {isPotentialType && potentialMatchFound === false && companyNameVal.trim().length > 0 && (
               <span className="mr-3 shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 border border-amber-200 whitespace-nowrap">
                 New
               </span>
-            )}
+            )} */}
           </div>
 
           {shouldShowDropdown && (
@@ -325,7 +325,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                   <li className="px-4 py-3 text-sm text-gray-500 italic">
                     {isExistingType
                       ? "Company not found."
-                      : "Not in list — will be saved as new on submit."}
+                      : "Company not found — will be saved as potential customer on submit."}
                   </li>
                 )
               )}

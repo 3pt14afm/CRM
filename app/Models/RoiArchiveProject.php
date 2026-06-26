@@ -19,6 +19,7 @@ class RoiArchiveProject extends Model
         'last_saved_at',
         'status',
         'type',
+        'company_id',
         'submitted_at',
         'reviewed_by',
         'reviewed_at',
