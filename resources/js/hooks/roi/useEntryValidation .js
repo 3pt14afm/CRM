@@ -231,7 +231,7 @@ export function useEntryValidation({ setTab }) {
   const requiresEntryRemarks = () => {
     const monoMonthly  = Number(projectData?.yield?.monoAmvpYields?.monthly  || 0);
     const colorMonthly = Number(projectData?.yield?.colorAmvpYields?.monthly || 0);
-    return monoMonthly > 5000 || colorMonthly > 2500;
+    return monoMonthly > 4000 || colorMonthly > 2000;
   };
 
   const hasValidEntryRemarks = () =>

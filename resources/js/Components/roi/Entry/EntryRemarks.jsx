@@ -31,7 +31,7 @@ export default function EntryRemarks({ readOnly = false }) {
     ? "current"
     : "entry";
 
-  const requiresRemarks = monoMonthly > 5000 || colorMonthly > 2500;
+  const requiresRemarks = monoMonthly > 4000 || colorMonthly > 2000;
 
   const entryRemarks = projectData?.entryRemarks ?? {
     remarks: "",

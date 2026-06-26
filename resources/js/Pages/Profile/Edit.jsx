@@ -25,7 +25,7 @@ export default function Edit({ profile }) {
             <Head title="Profile" />
 
             <div className="flex min-h-screen justify-center bg-gradient-to-br from-green-50 via-white to-[#31a307]/10 py-4">
-                <div className="w-full max-w-2xl lg:max-w-4xl xl:max-w-5xl space-y-6 border border-gray rounded-2xl bg-white p-7">
+                <div className="w-full max-w-2xl lg:max-w-4xl xl:max-w-5xl  border border-gray rounded-2xl bg-white p-7">
 
                     <ProfileBanner profile={profile} />
 
