@@ -5,14 +5,14 @@ import { useProjectData } from '@/Context/ProjectContext';
 function Names() {
   const { project: rawProject, entryProject, usersById = {}, route: routeName, signatures = {} } = usePage().props;
   const project = rawProject ?? entryProject;
-
+  console.log('Project Status:', project?.status, 'Cancelled At:', project?.cancelled_at);
   const { projectData } = useProjectData();
 
   const isArchive   = routeName === 'archive';
   const status      = String(project?.status ?? '').toLowerCase();
   const isRejected  = isArchive && status === 'rejected';
   
-  const isCancelled = isArchive && status === 'cancelled';
+
 
   const nameOf = (id, fallback = '—') => {
     if (!id) return fallback;
@@ -69,8 +69,12 @@ function Names() {
 const isSentBack = status === 'sent back';
 const currentLevel = Number(project?.current_level ?? 0);
 
+  const isCancelled = isArchive && status === 'cancelled';
+
 // REPLACE WITH:
-const preparedAt = timestampOf(project?.submitted_at);
+const preparedAt = isCancelled 
+  ? timestampOf(project?.cancelled_at ?? project?.last_saved_at) 
+  : timestampOf(project?.submitted_at);
 
 // Cancelled — wipe all approval timestamps, nobody signed off
 const reviewedAt  = isCancelled ? '' : isSentBack && currentLevel <= 2 ? '' : timestampOf(project?.reviewed_at);
@@ -96,6 +100,7 @@ const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
           title={preparedByPosition}
           timestamp={preparedAt}
           isRejectedAction={false}
+          isCancelledAction={isCancelled}
           signatureUrl={getSignature(signatures?.preparer ?? null, preparedAt)}
         />
 
@@ -152,7 +157,7 @@ const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
   );
 }
 
-const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureUrl }) => (
+const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureUrl, isCancelledAction = false }) => (
   <div className="flex flex-col space-y-4 justify-center">
     <span className="text-[10px] font-extrabold text-gray-800 tracking-tight print:font-semibold">{label}</span>
     <div className="pt-2">
@@ -175,8 +180,8 @@ const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureU
 
         {/* Date and time positioned beside the signature/name area aligned horizontally on the right */}
         <span 
-          className={`absolute right-2 bottom-8 text-[10.5px] font-normal tracking-tight whitespace-nowrap leading-none select-none print:text-[9.5px] ${isRejectedAction ? "text-red-500" : "text-[#175500]"}`}
-        >
+            className={`absolute right-2 bottom-8 text-[10.5px] font-normal tracking-tight whitespace-nowrap leading-none select-none print:text-[9.5px] ${isRejectedAction || isCancelledAction ? "text-red-500" : "text-[#175500]"}`}
+          >
           {timestamp}
         </span>
       </div>

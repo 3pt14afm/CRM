@@ -852,40 +852,41 @@ class RoiCurrentWorkflowService
     }
 
     private function archiveFromCurrent(RoiCurrentProject $current, array $archiveOverrides): RoiArchiveProject
-    {
-        $base = $current->only([
-            'user_id', 'location_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status', 'submitted_at',
-            'reviewed_by', 'reviewed_at', 'checked_by', 'checked_at', 'endorsed_by', 'endorsed_at',
-            'confirmed_by', 'confirmed_at', 'approved_by', 'entry_remarks', 'entry_remarks_attachments',
-            'company_name', 'company_sap_code', 'type', 'contract_years', 'contract_type', 'purpose', 'bundled_std_ink',
-            'annual_interest', 'percent_margin', 'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly',
-            'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
-            'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price', 'fees_total',
-            'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage', 'yearly_breakdown', 'notes', 'comments', 'cancelled_at',
-        ]);
+        {
+            $base = $current->only([
+                'user_id', 'location_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status', 'submitted_at',
+                'reviewed_by', 'reviewed_at', 'checked_by', 'checked_at', 'endorsed_by', 'endorsed_at',
+                'confirmed_by', 'confirmed_at', 'approved_by', 'entry_remarks', 'entry_remarks_attachments',
+                'company_name', 'company_sap_code', 'type', 'contract_years', 'contract_type', 'purpose', 'bundled_std_ink',
+                'annual_interest', 'percent_margin', 'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly',
+                'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
+                'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price', 'fees_total',
+                'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage', 'yearly_breakdown', 
+                'notes', 'comments', 'cancelled_at', // <-- ADDED THIS FIELD
+            ]);
 
-        $archived = RoiArchiveProject::create(array_merge($base, $archiveOverrides));
-        $current->loadMissing(['items', 'fees']);
+            $archived = RoiArchiveProject::create(array_merge($base, $archiveOverrides));
+            $current->loadMissing(['items', 'fees']);
 
-        if ($current->items) {
-            foreach ($current->items as $item) {
-                $itemData = $item->toArray();
-                unset($itemData['id'], $itemData['roi_current_project_id'], $itemData['created_at'], $itemData['updated_at']);
-                $archived->items()->create($itemData);
+            if ($current->items) {
+                foreach ($current->items as $item) {
+                    $itemData = $item->toArray();
+                    unset($itemData['id'], $itemData['roi_current_project_id'], $itemData['created_at'], $itemData['updated_at']);
+                    $archived->items()->create($itemData);
+                }
             }
-        }
 
-        if ($current->fees) {
-            foreach ($current->fees as $fee) {
-                $feeData = $fee->toArray();
-                unset($feeData['id'], $feeData['roi_current_project_id'], $feeData['created_at'], $feeData['updated_at']);
-                $archived->fees()->create($feeData);
+            if ($current->fees) {
+                foreach ($current->fees as $fee) {
+                    $feeData = $fee->toArray();
+                    unset($feeData['id'], $feeData['roi_current_project_id'], $feeData['created_at'], $feeData['updated_at']);
+                    $archived->fees()->create($feeData);
+                }
             }
-        }
 
-        $current->delete();
-        return $archived;
-    }
+            $current->delete();
+            return $archived;
+        }
 
     public function handleCancel(RoiCurrentProject $current, User $actor): void
     {
