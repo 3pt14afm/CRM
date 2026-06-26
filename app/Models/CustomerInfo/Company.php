@@ -2,6 +2,7 @@
 
 namespace App\Models\CustomerInfo;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -48,4 +49,9 @@ class Company extends Model
         'longitude' => 'float',
         // 'date_last_visit' => 'date',
     ];
+
+    public function clientManager()
+    {
+        return $this->belongsTo(User::class, 'id_client_mngr');
+    }
 }

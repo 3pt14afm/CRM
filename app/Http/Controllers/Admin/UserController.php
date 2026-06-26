@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\Admin\PasswordResetMail;
 use App\Models\Location;
 use App\Models\User;
 use App\Models\CompanyDepartment;
@@ -12,9 +13,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -328,12 +330,33 @@ class UserController extends Controller
 
     public function userResetPassword(User $user)
     {
+        $defaultPassword = 'P@ssw0rd';
+
         $user->update([
-            'password'                     => Hash::make('P@ssw0rd'),
+            'password'                     => Hash::make($defaultPassword),
             'password_expiry'              => now()->subDay()->toDateString(),
             'default_password_login_count' => 0,
             'must_change_password'         => false,
         ]);
+
+        if ($user->email) {
+            try {
+                Mail::to($user->email)->send(new PasswordResetMail(
+                    userName: trim($user->first_name . ' ' . $user->last_name),
+                    defaultPassword: $defaultPassword,
+                    loginUrl: route('login'),
+                    resetByAdmin: true,
+                ));
+            } catch (\Throwable $e) {
+                Log::error('[Admin Mail] Failed to send PasswordResetMail', [
+                    'to'      => $user->email,
+                    'user_id' => $user->id,
+                    'message' => $e->getMessage(),
+                ]);
+
+                report($e);
+            }
+        }
 
         $fullName = trim($user->first_name . ' ' . $user->last_name);
 
