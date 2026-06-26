@@ -3,20 +3,78 @@ import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { route } from 'ziggy-js';
-import { MdSearch, MdOutlineFilterAlt, MdExpandMore } from 'react-icons/md';
+import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { usePage } from '@inertiajs/react';
 import CompanyDetailsSidebar from './CompanyDetailsSidebar';
 import { FaBuildingUser } from 'react-icons/fa6';
 import { BsBuildingFillAdd } from 'react-icons/bs';
 
-function Index({ companies, filters, stats }) {
-    const [searchState, setSearchState] = useState({
-        search:         filters.search         || '',
-        category:       filters.category       || '',
-        status:         filters.status         ?? '',
-        delsan_company: filters.delsan_company || '',
-        per_page:       filters.per_page       || 12,
+const STORAGE_KEY = 'customerinfo_filters';
+
+const DEFAULT_FILTERS = {
+    search:         '',
+    category:       '',
+    status:         '1',   // ← default: active only
+    delsan_company: '',
+    per_page:       12,
+    sort_by:        'id',
+    sort_order:     'desc',
+};
+
+function loadPersistedFilters() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+/* ── Sort Header ── */
+function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'left' }) {
+    const active = sortBy === sortKey;
+    const indicator = active ? (sortDirection === 'desc' ? '▼' : '▲') : '⇅';
+    const justifyClass = align === 'center'
+        ? 'justify-center text-center'
+        : 'justify-start text-left';
+
+    return (
+        <button
+            type="button"
+            title={`Sort by ${label}`}
+            onClick={() => onSort(sortKey)}
+            className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
+        >
+            <span>{label}</span>
+            <span className={`text-[11px] leading-none ${
+                active
+                    ? 'text-[#289800]'
+                    : 'text-slate-400 transition-colors group-hover:text-slate-500'
+            }`}>
+                {indicator}
+            </span>
+        </button>
+    );
+}
+
+function Index({ companies, filters, categories = [] }) {
+    // Merge priority: URL filters → localStorage → defaults
+    const [searchState, setSearchState] = useState(() => {
+        const persisted = loadPersistedFilters();
+        return {
+            ...DEFAULT_FILTERS,
+            ...(persisted ?? {}),
+            // URL params always win over persisted (user navigated with explicit params)
+            ...(filters.search         !== undefined ? { search:         filters.search }         : {}),
+            ...(filters.category       !== undefined ? { category:       filters.category }       : {}),
+            ...(filters.status         !== undefined ? { status:         filters.status }         : {}),
+            ...(filters.delsan_company !== undefined ? { delsan_company: filters.delsan_company } : {}),
+            ...(filters.per_page       !== undefined ? { per_page:       filters.per_page }       : {}),
+            ...(filters.sort_by        !== undefined ? { sort_by:        filters.sort_by }        : {}),
+            ...(filters.sort_order     !== undefined ? { sort_order:     filters.sort_order }     : {}),
+        };
     });
 
     const [selectedCompany, setSelectedCompany] = useState(null);
@@ -24,14 +82,27 @@ function Index({ companies, filters, stats }) {
 
     // Per-page popup
     const [showPerPagePicker, setShowPerPagePicker] = useState(false);
-    const [perPageInput,      setPerPageInput]      = useState(String(filters.per_page || 12));
+    const [perPageInput,      setPerPageInput]      = useState(String(searchState.per_page));
     const perPagePickerRef = useRef(null);
 
-    // Close per-page popup on outside click
+    // Status dropdown popup (multi-select)
+    const [showStatusPicker, setShowStatusPicker] = useState(false);
+    const statusPickerRef = useRef(null);
+
+    // Persist filters to localStorage whenever they change
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(searchState));
+        } catch { /* quota exceeded — silently ignore */ }
+    }, [searchState]);
+
+    // Close popups on outside click
     useEffect(() => {
         const handler = (e) => {
             if (perPagePickerRef.current && !perPagePickerRef.current.contains(e.target))
                 setShowPerPagePicker(false);
+            if (statusPickerRef.current && !statusPickerRef.current.contains(e.target))
+                setShowStatusPicker(false);
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
@@ -45,6 +116,53 @@ function Index({ companies, filters, stats }) {
             replace: true,
         });
     };
+
+    const handleSort = (key) => {
+        const newOrder = searchState.sort_by === key && searchState.sort_order === 'asc'
+            ? 'desc' : 'asc';
+        updateFilters({ sort_by: key, sort_order: newOrder });
+    };
+
+    // Status is a comma-separated string e.g. "0,1" or "1" or ""
+    const selectedStatuses = useMemo(() =>
+        searchState.status === '' ? [] : searchState.status.split(','),
+        [searchState.status]
+    );
+
+    const toggleStatus = (val) => {
+        const current = new Set(selectedStatuses);
+        current.has(val) ? current.delete(val) : current.add(val);
+        updateFilters({ status: [...current].join(',') });
+    };
+
+    const statusLabel = useMemo(() => {
+        if (selectedStatuses.length === 0) return 'All Statuses';
+        if (selectedStatuses.length === 2) return 'All Statuses';
+        return selectedStatuses.includes('1') ? 'Active' : 'Inactive';
+    }, [selectedStatuses]);
+
+        const isFiltered = useMemo(() => (
+            searchState.search         !== DEFAULT_FILTERS.search         ||
+            searchState.category       !== DEFAULT_FILTERS.category       ||
+            searchState.status         !== DEFAULT_FILTERS.status         ||
+            searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
+            searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
+            searchState.sort_order     !== DEFAULT_FILTERS.sort_order
+        ), [searchState]);
+
+        const clearAllFilters = () => {
+            const reset = {
+                ...DEFAULT_FILTERS,
+                per_page: searchState.per_page, // ← keep per_page as-is
+            };
+            setSearchState(reset);
+            setPerPageInput(String(reset.per_page));
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
+            router.get(route('customerinfo.companies.index'), reset, {
+                preserveState: true,
+                replace: true,
+            });
+        };
 
     const handlePerPageInputApply = () => {
         const raw = parseInt(perPageInput, 10);
@@ -64,9 +182,12 @@ function Index({ companies, filters, stats }) {
     /* ── Columns ── */
     const columns = useMemo(() => [
         {
-            key:    'company_name',
-            header: 'COMPANY NAME',
-            cell:   (r) => {
+            key: 'company_name',
+            header: (
+                <SortHeader label="COMPANY NAME" sortKey="company_name"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => {
                 const isActive = r.status == 1;
                 return (
                     <div className={`font-medium flex items-center ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
@@ -77,36 +198,48 @@ function Index({ companies, filters, stats }) {
             },
         },
         {
-            key:    'sap_code',
-            header: <div className="text-center w-full">SAP CODE</div>,
-            cell:   (r) => (
+            key: 'sap_code',
+            header: (
+                <SortHeader label="SAP CODE" sortKey="sap_code" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
                 <span className="font-mono text-sm flex justify-center items-center text-slate-500">
                     {r.sap_code ?? '—'}
                 </span>
             ),
         },
         {
-            key:    'client_category',
-            header: <div className="text-center w-full">CATEGORY</div>,
-            cell:   (r) => (
+            key: 'client_category',
+            header: (
+                <SortHeader label="CATEGORY" sortKey="client_category" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
                 <span className="font-medium flex min-w-28 justify-center items-center">
                     {r.client_category ?? '—'}
                 </span>
             ),
         },
         {
-            key:    'delsan_company',
-            header: <div className="text-center w-full">DELSAN COMPANY</div>,
-            cell:   (r) => (
+            key: 'delsan_company',
+            header: (
+                <SortHeader label="DELSAN COMPANY" sortKey="delsan_company" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
                 <span className="font-medium flex justify-center items-center uppercase">
                     {r.delsan_company ?? '—'}
                 </span>
             ),
         },
         {
-            key:    'status',
-            header: <div className="text-center w-full">STATUS</div>,
-            cell:   (row) => {
+            key: 'status',
+            header: (
+                <SortHeader label="STATUS" sortKey="status" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (row) => {
                 const isActive = row.status == 1;
                 return (
                     <div className="flex justify-center items-center">
@@ -121,7 +254,8 @@ function Index({ companies, filters, stats }) {
                 );
             },
         },
-    ], []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ], [searchState.sort_by, searchState.sort_order]);
 
     /* ── Pagination ── */
     const goToPage = (p) => {
@@ -132,7 +266,7 @@ function Index({ companies, filters, stats }) {
         );
     };
 
-    const rows = companies?.data ?? [];
+    const rows       = companies?.data ?? [];
     const pagination = companies && typeof companies.current_page === 'number'
         ? {
             page:         companies.current_page,
@@ -179,20 +313,58 @@ function Index({ companies, filters, stats }) {
                 </select>
             </div>
 
-            {/* Status */}
-            <div className="relative h-9 flex items-center flex-shrink-0">
-                <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-                <select
-                    value={searchState.status}
-                    onChange={(e) => updateFilters({ status: e.target.value })}
-                    className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-                        focus:outline-none focus:ring-0 focus:border-[#4FA34E]
-                        transition-[border-color,box-shadow] duration-150 text-slate-700"
+            {/* Category */}
+{/* Category */}
+<div className="relative h-9 flex items-center flex-shrink-0">
+    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+    <select
+        value={searchState.category}
+        onChange={(e) => updateFilters({ category: e.target.value })}
+        className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
+            transition-[border-color,box-shadow] duration-150 text-slate-700"
+    >
+        <option value="">All Categories</option>
+        {categories.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+        ))}
+    </select>
+</div>
+
+            {/* Status — multi-select dropdown */}
+            <div className="relative h-9 flex items-center flex-shrink-0" ref={statusPickerRef}>
+                <button
+                    type="button"
+                    onClick={() => setShowStatusPicker((p) => !p)}
+                    className="h-9 px-3 pl-8 border border-gray-200 rounded-lg text-[13px] text-slate-700 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-32 sm:w-36"
                 >
-                    <option value="">All Statuses</option>
-                    <option value="1">Active</option>
-                    <option value="0">Inactive</option>
-                </select>
+                    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none" />
+                    <span className="flex-1 text-left truncate">{statusLabel}</span>
+                    <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
+                </button>
+
+                {showStatusPicker && (
+                    <div className="absolute left-0 top-11 z-50 w-40 bg-white border border-gray-200 rounded-2xl shadow-lg p-3 flex flex-col gap-1.5">
+                        <span className="block text-[11px] font-semibold text-slate-500 mb-0.5 uppercase tracking-wider">
+                            Status
+                        </span>
+                        {[
+                            { val: '1', label: 'Active',   dot: 'bg-[#2DA300]' },
+                            { val: '0', label: 'Inactive', dot: 'bg-[#C40000]' },
+                        ].map(({ val, label, dot }) => (
+                            <label key={val} className="flex items-center gap-2 cursor-pointer select-none group">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedStatuses.includes(val)}
+                                    onChange={() => toggleStatus(val)}
+                                    className="w-3.5 h-3.5 rounded border-gray-300 accent-[#4FA34E] cursor-pointer"
+                                />
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                                <span className="text-[13px] text-slate-700 group-hover:text-slate-900">{label}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Per Page */}
@@ -235,6 +407,18 @@ function Index({ companies, filters, stats }) {
                 )}
             </div>
 
+            {/* Clear All — only shown when any filter deviates from default */}
+            {isFiltered && (
+                <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="h-9 flex items-center gap-1 px-1 text-[13px] text-[#4FA34E] hover:text-slate-600 transition-colors flex-shrink-0"
+                >
+                    <MdClose size={14} />
+                    <span>Clear all</span>
+                </button>
+            )}
+
         </div>
     );
 
@@ -246,7 +430,7 @@ function Index({ companies, filters, stats }) {
                 <div className="flex-1 pb-24">
 
                     {/* HEADER */}
-                    <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-0 flex justify-between items-end ">
+                    <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-0 flex justify-between items-end">
                         <div className="flex items-baseline gap-1">
                             <p className="text-2xl sm:text-3xl font-semibold text-slate-900">
                                 Customer Information Details
@@ -255,7 +439,6 @@ function Index({ companies, filters, stats }) {
                         <h1 className="text-xs text-slate-500">{formattedDate}</h1>
                     </div>
 
-                    {/* TABLE via ProjectListSection */}
                     <ProjectListSection
                         tableTitle="Companies"
                         columns={columns}
@@ -263,15 +446,15 @@ function Index({ companies, filters, stats }) {
                         rowKey={(r) => String(r.id)}
                         pagination={pagination}
                         rightControls={
-                                        <button
-                                            type="button"
-                                            title="Add New Company"
-                                            aria-label="Add New Company"
-                                            className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"  
-                                        >
-                                          <BsBuildingFillAdd className="w-5 h-5" />
-                                        </button>
-                                      }
+                            <button
+                                type="button"
+                                title="Add New Company"
+                                aria-label="Add New Company"
+                                className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                            >
+                                <BsBuildingFillAdd className="w-5 h-5" />
+                            </button>
+                        }
                         searchControl={searchControl}
                         filterControl={filterToolbar}
                         onRowClick={(r) => {
@@ -280,11 +463,9 @@ function Index({ companies, filters, stats }) {
                         }}
                         emptyText="No company records found."
                     />
-
                 </div>
             </div>
 
-            {/* SIDEBAR COMPONENT */}
             <CompanyDetailsSidebar
                 isOpen={isSidebarOpen}
                 company={selectedCompany}

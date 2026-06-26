@@ -19,7 +19,7 @@ class CustomerInfoController extends Controller
             $perPage = 100;
         }
 
-        $sortBy = $request->input('sort_by', 'id');
+        $sortBy    = $request->input('sort_by', 'id');
         $sortOrder = $request->input('sort_order', 'desc');
 
         $allowedSorts = [
@@ -37,6 +37,9 @@ class CustomerInfoController extends Controller
 
         $sortOrder = $sortOrder === 'asc' ? 'asc' : 'desc';
 
+        // Columns that are numeric — use plain orderBy, not LOWER()
+        $numericColumns = ['id', 'status'];
+
         $companies = Company::query()
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -53,15 +56,44 @@ class CustomerInfoController extends Controller
                 $query->where('delsan_company', $delsan);
             })
             ->when($request->input('status') !== null && $request->input('status') !== '', function ($query) use ($request) {
-                $query->where('status', $request->input('status'));
+                $statuses = array_filter(
+                    explode(',', $request->input('status')),
+                    fn($v) => $v !== ''
+                );
+                if (!empty($statuses)) {
+                    $query->whereIn('status', $statuses);
+                }
             })
-            ->orderBy($sortBy, $sortOrder)
+            ->when($sortBy === 'sap_code', function ($query) use ($sortOrder) {
+                // Natural numeric sort on the suffix after the prefix (e.g. CUS-10 > CUS-2)
+                $query->orderByRaw(
+                    "CAST(REGEXP_REPLACE(sap_code, '^[A-Za-z-]+', '') AS UNSIGNED) {$sortOrder},
+                     sap_code {$sortOrder}"
+                );
+            })
+            ->when($sortBy !== 'sap_code' && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder) {
+                // Numeric columns — plain orderBy
+                $query->orderBy($sortBy, $sortOrder);
+            })
+            ->when($sortBy !== 'sap_code' && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder) {
+                // Text columns — case-insensitive alphabetical
+                $query->orderByRaw("LOWER(`{$sortBy}`) {$sortOrder}");
+            })
             ->paginate($perPage)
             ->withQueryString();
 
+        // Distinct non-null categories for the filter dropdown
+        $categories = Company::query()
+            ->whereNotNull('client_category')
+            ->where('client_category', '!=', '')
+            ->distinct()
+            ->orderBy('client_category')
+            ->pluck('client_category');
+
         return Inertia::render('CustomerManagement/CustomerInfo/Index', [
-            'companies' => $companies,
-            'filters' => $request->only([
+            'companies'  => $companies,
+            'categories' => $categories,
+            'filters'    => $request->only([
                 'search',
                 'category',
                 'status',
