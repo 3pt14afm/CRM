@@ -4,6 +4,7 @@ use App\Http\Controllers\Customer\CustomerInfoController;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
+use App\Http\Controllers\CustomerInfo\PotentialCustomerController;
 use App\Http\Controllers\Roi\RoiPrintController;
 use App\Http\Controllers\Roi\RoiArchiveController;
 use App\Http\Controllers\Roi\RoiCurrentProjectController;
@@ -154,6 +155,7 @@ Route::middleware(['auth', 'verified'])
         ->group(function () {
             Route::get('/companies', [CustomerInfoController::class, 'index'])->name('companies.index');
             Route::get('/companies/{id}', [CustomerInfoController::class, 'show'])->name('companies.show');
+            Route::get('/customer-info/potentials', [PotentialCustomerController::class, 'index'])->name('customerinfo.potentials.index');
         });
 
     

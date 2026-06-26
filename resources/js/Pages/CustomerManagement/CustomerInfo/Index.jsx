@@ -15,7 +15,7 @@ const STORAGE_KEY = 'customerinfo_filters';
 const DEFAULT_FILTERS = {
     search:         '',
     category:       '',
-    status:         '1',   // ← default: active only
+    status:         '1',  
     delsan_company: '',
     per_page:       12,
     sort_by:        'id',
@@ -36,9 +36,7 @@ function loadPersistedFilters() {
 function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'left' }) {
     const active = sortBy === sortKey;
     const indicator = active ? (sortDirection === 'desc' ? '▼' : '▲') : '⇅';
-    const justifyClass = align === 'center'
-        ? 'justify-center text-center'
-        : 'justify-start text-left';
+    const justifyClass = align === 'center' ? 'justify-center text-center' : 'justify-start text-left';
 
     return (
         <button
@@ -48,18 +46,14 @@ function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'le
             className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
         >
             <span>{label}</span>
-            <span className={`text-[11px] leading-none ${
-                active
-                    ? 'text-[#289800]'
-                    : 'text-slate-400 transition-colors group-hover:text-slate-500'
-            }`}>
-                {indicator}
-            </span>
+            <span className={`text-[11px] leading-none ${ active ? 'text-[#289800]' : 'text-slate-400 transition-colors group-hover:text-slate-500' }`}>{indicator}</span>
         </button>
     );
 }
 
-function Index({ companies, filters, categories = [] }) {
+function Index({ companies, potentials, filters, categories = [] }) {
+    const [activeTab, setActiveTab] = useState('Existing');
+
     // Merge priority: URL filters → localStorage → defaults
     const [searchState, setSearchState] = useState(() => {
         const persisted = loadPersistedFilters();
@@ -141,28 +135,28 @@ function Index({ companies, filters, categories = [] }) {
         return selectedStatuses.includes('1') ? 'Active' : 'Inactive';
     }, [selectedStatuses]);
 
-        const isFiltered = useMemo(() => (
-            searchState.search         !== DEFAULT_FILTERS.search         ||
-            searchState.category       !== DEFAULT_FILTERS.category       ||
-            searchState.status         !== DEFAULT_FILTERS.status         ||
-            searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
-            searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
-            searchState.sort_order     !== DEFAULT_FILTERS.sort_order
-        ), [searchState]);
+    const isFiltered = useMemo(() => (
+        searchState.search         !== DEFAULT_FILTERS.search         ||
+        searchState.category       !== DEFAULT_FILTERS.category       ||
+        searchState.status         !== DEFAULT_FILTERS.status         ||
+        searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
+        searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
+        searchState.sort_order     !== DEFAULT_FILTERS.sort_order
+    ), [searchState]);
 
-        const clearAllFilters = () => {
-            const reset = {
-                ...DEFAULT_FILTERS,
-                per_page: searchState.per_page, // ← keep per_page as-is
-            };
-            setSearchState(reset);
-            setPerPageInput(String(reset.per_page));
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
-            router.get(route('customerinfo.companies.index'), reset, {
-                preserveState: true,
-                replace: true,
-            });
+    const clearAllFilters = () => {
+        const reset = {
+            ...DEFAULT_FILTERS,
+            per_page: searchState.per_page, // ← keep per_page as-is
         };
+        setSearchState(reset);
+        setPerPageInput(String(reset.per_page));
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
+        router.get(route('customerinfo.companies.index'), reset, {
+            preserveState: true,
+            replace: true,
+        });
+    };
 
     const handlePerPageInputApply = () => {
         const raw = parseInt(perPageInput, 10);
@@ -179,8 +173,24 @@ function Index({ companies, filters, categories = [] }) {
 
     const { auth } = usePage().props;
 
-    /* ── Columns ── */
-    const columns = useMemo(() => [
+    /* ── Shared status pill cell ── */
+    const statusCell = (row) => {
+        const isActive = row.status == 1;
+        return (
+            <div className="flex justify-center items-center">
+                <span className={`px-2 rounded-full text-[9px] font-bold uppercase tracking-wider border
+                    ${isActive
+                        ? 'bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20'
+                        : 'bg-[#FDECEC] text-[#C40000] border-[#C40000]/20'
+                    }`}>
+                    {isActive ? 'Active' : 'Inactive'}
+                </span>
+            </div>
+        );
+    };
+
+    /* ── Existing Columns (all columns + client_manager after delsan_company) ── */
+    const existingColumns = useMemo(() => [
         {
             key: 'company_name',
             header: (
@@ -234,25 +244,74 @@ function Index({ companies, filters, categories = [] }) {
             ),
         },
         {
+            key: 'client_manager',
+            header: (
+                <SortHeader label="CLIENT MANAGER" sortKey="client_manager" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
+                <span className="font-medium flex justify-center items-center">
+                    {r.client_manager ?? r.id_client_mngr ?? '—'} 
+                </span>
+            ),
+        },
+        {
             key: 'status',
             header: (
                 <SortHeader label="STATUS" sortKey="status" align="center"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
-            cell: (row) => {
-                const isActive = row.status == 1;
-                return (
-                    <div className="flex justify-center items-center">
-                        <span className={`px-2 rounded-full text-[9px] font-bold uppercase tracking-wider border
-                            ${isActive
-                                ? 'bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20'
-                                : 'bg-[#FDECEC] text-[#C40000] border-[#C40000]/20'
-                            }`}>
-                            {isActive ? 'Active' : 'Inactive'}
-                        </span>
-                    </div>
-                );
-            },
+            cell: statusCell,
+        },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ], [searchState.sort_by, searchState.sort_order]);
+
+    /* ── Potentials Columns (company name, client manager, address, status only) ── */
+    const potentialsColumns = useMemo(() => [
+        {
+            key: 'company_name',
+            header: (
+                <SortHeader label="COMPANY NAME" sortKey="company_name"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
+                <div className="font-medium flex items-center text-[#0f3800]">
+                    <FaBuildingUser className="w-4 h-4 mr-2 flex-shrink-0" />
+                    {r.company_name ?? '—'}
+                </div>
+            ),
+        },
+        {
+            key: 'client_manager',
+            header: (
+                <SortHeader label="CLIENT MANAGER" sortKey="client_manager" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
+                <span className="font-medium flex justify-center items-center">
+                    {r.client_manager ?? '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'address',
+            header: (
+                <SortHeader label="ADDRESS" sortKey="address" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
+                <span className="text-sm flex justify-center items-center text-slate-600">
+                    {r.address ?? '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'status',
+            header: (
+                <SortHeader label="STATUS" sortKey="status" align="center"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: statusCell,
         },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     ], [searchState.sort_by, searchState.sort_order]);
@@ -296,40 +355,43 @@ function Index({ companies, filters, categories = [] }) {
     const filterToolbar = (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
 
-            {/* Delsan Company */}
-            <div className="relative h-9 flex items-center flex-shrink-0">
-                <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-                <select
-                    value={searchState.delsan_company}
-                    onChange={(e) => updateFilters({ delsan_company: e.target.value })}
-                    className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-                        focus:outline-none focus:ring-0 focus:border-[#4FA34E]
-                        transition-[border-color,box-shadow] duration-150 text-slate-700"
-                >
-                    <option value="">All Delsan</option>
-                    <option value="DBIC">DBIC</option>
-                    <option value="DOSC">DOSC</option>
-                    <option value="DDTC">DDTC</option>
-                </select>
-            </div>
+            {/* Delsan Company — only relevant for Existing */}
+            {activeTab === 'Existing' && (
+                <div className="relative h-9 flex items-center flex-shrink-0">
+                    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+                    <select
+                        value={searchState.delsan_company}
+                        onChange={(e) => updateFilters({ delsan_company: e.target.value })}
+                        className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+                            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
+                            transition-[border-color,box-shadow] duration-150 text-slate-700"
+                    >
+                        <option value="">All Delsan</option>
+                        <option value="DBIC">DBIC</option>
+                        <option value="DOSC">DOSC</option>
+                        <option value="DDTC">DDTC</option>
+                    </select>
+                </div>
+            )}
 
-            {/* Category */}
-{/* Category */}
-<div className="relative h-9 flex items-center flex-shrink-0">
-    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-    <select
-        value={searchState.category}
-        onChange={(e) => updateFilters({ category: e.target.value })}
-        className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700"
-    >
-        <option value="">All Categories</option>
-        {categories.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-        ))}
-    </select>
-</div>
+            {/* Category — only relevant for Existing */}
+            {activeTab === 'Existing' && (
+                <div className="relative h-9 flex items-center flex-shrink-0">
+                    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+                    <select
+                        value={searchState.category}
+                        onChange={(e) => updateFilters({ category: e.target.value })}
+                        className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+                            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
+                            transition-[border-color,box-shadow] duration-150 text-slate-700"
+                    >
+                        <option value="">All Categories</option>
+                        {categories.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
 
             {/* Status — multi-select dropdown */}
             <div className="relative h-9 flex items-center flex-shrink-0" ref={statusPickerRef}>
@@ -431,38 +493,96 @@ function Index({ companies, filters, categories = [] }) {
 
                     {/* HEADER */}
                     <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-0 flex justify-between items-end">
-                        <div className="flex items-baseline gap-1">
+                        <div className="flex flex-col gap-1">
                             <p className="text-2xl sm:text-3xl font-semibold text-slate-900">
                                 Customer Information Details
+                            </p>
+                            <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
+                                {activeTab === 'Existing'
+                                    ? 'Browse and manage existing customer companies.'
+                                    : 'View and manage potential customer companies.'}
                             </p>
                         </div>
                         <h1 className="text-xs text-slate-500">{formattedDate}</h1>
                     </div>
 
-                    <ProjectListSection
-                        tableTitle="Companies"
-                        columns={columns}
-                        rows={rows}
-                        rowKey={(r) => String(r.id)}
-                        pagination={pagination}
-                        rightControls={
+                    {/* TABS */}
+                    <div className="px-4 sm:px-6 lg:px-10 mt-6">
+                        <div className="flex rounded-full bg-[#f8f8f8] w-fit border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
                             <button
                                 type="button"
-                                title="Add New Company"
-                                aria-label="Add New Company"
-                                className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                                onClick={() => setActiveTab('Existing')}
+                                className={`px-8 text-sm m-0.5 mr-0 py-1 ${
+                                    activeTab === 'Existing'
+                                        ? 'bg-[#B5EBA2]/50 font-extrabold rounded-full text-[#289800]'
+                                        : 'rounded-t-xl text-slate-500'
+                                }`}
                             >
-                                <BsBuildingFillAdd className="w-5 h-5" />
+                                Existing
                             </button>
-                        }
-                        searchControl={searchControl}
-                        filterControl={filterToolbar}
-                        onRowClick={(r) => {
-                            setSelectedCompany(r);
-                            setIsSidebarOpen(true);
-                        }}
-                        emptyText="No company records found."
-                    />
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('Potentials')}
+                                className={`px-8 text-sm m-0.5 ml-0 py-1 ${
+                                    activeTab === 'Potentials'
+                                        ? 'bg-[#B5EBA2]/50 font-extrabold rounded-full text-[#289800]'
+                                        : 'rounded-t-xl text-slate-500'
+                                }`}
+                            >
+                                Potential
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* EXISTING TAB */}
+                    {activeTab === 'Existing' && (
+                        <ProjectListSection
+                            tableTitle="Existing Customers"
+                            columns={existingColumns}
+                            rows={rows}
+                            rowKey={(r) => String(r.id)}
+                            pagination={pagination}
+                            searchControl={searchControl}
+                            filterControl={filterToolbar}
+                            onRowClick={(r) => {
+                                setSelectedCompany(r);
+                                setIsSidebarOpen(true);
+                            }}
+                            emptyText="No company records found."
+                        />
+                    )}
+
+                    {/* POTENTIALS TAB */}
+                    {activeTab === 'Potentials' && (
+                        <ProjectListSection
+                            tableTitle="Potential Customers"
+                            columns={potentialsColumns}
+                            rows={potentials?.data ?? []}
+                            rowKey={(r) => String(r.id)}
+                            pagination={
+                                potentials && typeof potentials.current_page === 'number'
+                                    ? {
+                                        page:         potentials.current_page,
+                                        perPage:      potentials.per_page ?? 12,
+                                        total:        potentials.total ?? 0,
+                                        onPageChange: (p) => router.get(
+                                            route('customerinfo.companies.index'),
+                                            { ...searchState, page: p },
+                                            { preserveState: true, preserveScroll: true }
+                                        ),
+                                    }
+                                    : null
+                            }
+                            searchControl={searchControl}
+                            filterControl={filterToolbar}
+                            onRowClick={(r) => {
+                                setSelectedCompany(r);
+                                setIsSidebarOpen(true);
+                            }}
+                            emptyText="No potential company records found."
+                        />
+                    )}
+
                 </div>
             </div>
 

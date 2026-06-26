@@ -121,7 +121,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                             <div>
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Assigned Manager</div>
                                                 <div className="text-[14px] font-semibold text-slate-800 leading-tight">
-                                                    {company.id_client_mngr}
+                                                    {company.client_manager || company.id_client_mngr}
                                                 </div>
                                             </div>
                                         </div>
