@@ -12,8 +12,13 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const isExistingCompany = !!projectData?.companyInfo?.companySapCode;
+  const [potentialMatchFound, setPotentialMatchFound] = useState(null);
+
   const abortControllerRef = useRef(null);
+
+  const isExistingType = Number(projectData?.companyInfo?.type) === 1;
+  const isPotentialType = Number(projectData?.companyInfo?.type) === 0;
+  const isCompanyLocked = isExistingType && !!projectData?.companyInfo?.companySapCode;
 
   // --- Calculation Sync ---
   useEffect(() => {
@@ -42,7 +47,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   };
 
   const fetchSuggestions = useCallback(
-    debounce(async (query) => {
+    debounce(async (query, type) => {
       if (query.length < 1) {
         setSuggestions([]);
         return;
@@ -53,8 +58,11 @@ function CompanyInfo({ readOnly, showErrors = false }) {
       abortControllerRef.current = new AbortController();
       setIsSearching(true);
       setHasSearched(true);
+
+      const routeName = type === "existing" ? "companies.search" : "potentials.search";
+
       try {
-        const response = await axios.get(route('companies.search'), {
+        const response = await axios.get(route(routeName), {
           params: { search: query },
           signal: abortControllerRef.current.signal,
         });
@@ -70,127 +78,232 @@ function CompanyInfo({ readOnly, showErrors = false }) {
     []
   );
 
+  const currentType = projectData?.companyInfo?.type ?? null;
+  const typeNotSelected = currentType === null || currentType === undefined;
+  const companyNameVal = String(projectData?.companyInfo?.companyName ?? "");
+
   const handleNameChange = (e) => {
     const value = e.target.value;
+    const trimmed = value.trim();
 
-    // Only reset existing status if the trimmed value actually changed
-    // This prevents spaces from flipping an existing company to potential
-    const trimmedNew = value.trim();
-    const trimmedCurrent = String(projectData?.companyInfo?.companyName ?? "").trim();
-
-    if (trimmedNew !== trimmedCurrent) {
-      // Meaningful content changed — no longer a verified selection
-      
-      updateSection("companyInfo", { companyName: value, companySapCode: null, type: 0 });
-    } else {
-      // Only whitespace was added/removed — keep existing status intact
-      updateSection("companyInfo", { companyName: value });
+    if (isExistingType) {
+      if (trimmed === "") {
+        updateSection("companyInfo", { 
+          companyName: "", 
+          companySapCode: null,
+          potentialCompanyId: null 
+        });
+        setShowDropdown(false);
+        setSuggestions([]);
+        setHasSearched(false);
+        return;
+      }
+      updateSection("companyInfo", { 
+        companyName: value, 
+        companySapCode: null,
+        potentialCompanyId: null 
+      });
+      setShowDropdown(true);
+      fetchSuggestions(trimmed, "existing");
+      return;
     }
 
-    if (value.length >= 1) {
-      setShowDropdown(true);
-      fetchSuggestions(trimmedNew);
-    } else {
-      setShowDropdown(false);
-      setSuggestions([]);
+    if (isPotentialType) {
+      updateSection("companyInfo", {
+        companyName: value,
+        companySapCode: null,
+        potentialCompanyId: null,
+      });
+      setPotentialMatchFound(null);
+
+      if (trimmed.length >= 1) {
+        setShowDropdown(true);
+        fetchSuggestions(trimmed, "potential");
+      } else {
+        setShowDropdown(false);
+        setSuggestions([]);
+        setHasSearched(false);
+      }
     }
   };
 
-  const verifyCompanyOnBlur = async () => {
+  const handleBlur = () => {
     setTimeout(async () => {
       setShowDropdown(false);
       const trimmed = companyNameVal.trim();
       if (!trimmed) return;
 
-      try {
-        const response = await axios.get(route('companies.search'), {
-          params: { search: trimmed },
-        });
-        const match = response.data.find(
-          (item) => item.company_name.trim().toLowerCase() === trimmed.toLowerCase()
-        );
-        if (match) {
-         
-          updateSection("companyInfo", {
-            companyName: match.company_name,
-            companySapCode: match.company_sap_code,
-            type: 1,
+      if (isExistingType) {
+        try {
+          const response = await axios.get(route("companies.search"), {
+            params: { search: trimmed },
           });
-        } else {
-          setIsExistingCompany(false);
-          updateSection("companyInfo", { companySapCode: null, type: 0 });
+          const match = response.data.find(
+            (item) => item.company_name.trim().toLowerCase() === trimmed.toLowerCase()
+          );
+          if (match) {
+            updateSection("companyInfo", {
+              companyName: match.company_name,
+              companySapCode: match.company_sap_code,
+              potentialCompanyId: null, // Ensure potential ID is cleaned out
+            });
+          } else {
+            updateSection("companyInfo", { companySapCode: null });
+          }
+        } catch (error) {
+          if (!axios.isCancel(error)) console.error("Company verification error:", error);
         }
-      } catch (error) {
-        if (!axios.isCancel(error)) {
-          console.error("Company verification error:", error);
+      }
+
+      if (isPotentialType) {
+        try {
+          const response = await axios.get(route("potentials.search"), {
+            params: { search: trimmed },
+          });
+          const match = response.data.find(
+            (item) => item.company_name.trim().toLowerCase() === trimmed.toLowerCase()
+          );
+          if (match) {
+            updateSection("companyInfo", { 
+              potentialCompanyId: match.id,
+              companySapCode: null // Ensure SAP code is cleaned out 
+            });
+            setPotentialMatchFound(true);
+          } else {
+            updateSection("companyInfo", { potentialCompanyId: null });
+            setPotentialMatchFound(false);
+          }
+        } catch (error) {
+          if (!axios.isCancel(error)) console.error("Potential verification error:", error);
         }
       }
     }, 200);
   };
 
   const selectSuggestion = (item) => {
-   
-    updateSection("companyInfo", {
-      companyName: item.company_name,
-      companySapCode: item.company_sap_code,
-      type: 1,
-    });
+    if (isExistingType) {
+      updateSection("companyInfo", {
+        companyName: item.company_name,
+        companySapCode: item.company_sap_code,
+        potentialCompanyId: null, // Explicitly clear potential ID
+      });
+    }
+
+    if (isPotentialType) {
+      updateSection("companyInfo", {
+        companyName: item.company_name,
+        potentialCompanyId: item.id ?? null,
+        companySapCode: null, // Explicitly clear SAP code
+      });
+      setPotentialMatchFound(true);
+    }
+
     setShowDropdown(false);
     setSuggestions([]);
   };
 
-  const handleTypeChange = (value) => {
-    if (isExistingCompany) return;
-    updateSection("companyInfo", { type: value });
+  const handleTypeSelectChange = (e) => {
+    const val = e.target.value;
+    if (readOnly) return;
+    
+    // Forcefully reset both conflicting foreign keys upon switching type
+    updateSection("companyInfo", {
+      type: val === "" ? null : Number(val),
+      companyName: "",
+      companySapCode: null,
+      potentialCompanyId: null,
+    });
+    
+    setSuggestions([]);
+    setShowDropdown(false);
+    setHasSearched(false);
+    setPotentialMatchFound(null);
   };
 
-  const baseInput = "rounded-xl border px-2 text-sm outline-none focus:outline-none focus:ring-0 h-10 transition-all duration-200";
-  const okBorder = "border-darkgreen/10 focus:border-[#289800]";
-  const errBorder = "border-red-500 focus:border-red-500 bg-red-50/30";
-  const companyNameVal = String(projectData?.companyInfo?.companyName ?? "");
-  const isInvalid = !readOnly && showErrors && companyNameVal.trim().length === 0;
-  const currentType = projectData?.companyInfo?.type ?? 0;
+  const baseInput =
+    "rounded-xl border px-2 text-sm outline-none focus:outline-none focus:ring-0 h-10 transition-all duration-200";
 
-  const Checkbox = ({ value, label }) => (
-    <label className={`flex items-center gap-2 text-[13px] select-none ${isExistingCompany || readOnly ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}>
-      <div
-        onClick={() => !readOnly && !isExistingCompany && handleTypeChange(value)}
-        className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
-          currentType === value ? "bg-[#289800] border-[#289800]" : "border-gray-300 bg-white"
-        } ${isExistingCompany || readOnly ? "cursor-not-allowed" : "cursor-pointer"}`}
-      >
-        {currentType === value && (
-          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        )}
-      </div>
-      <span className="text-gray-700">{label}</span>
-    </label>
-  );
+  const isNameInvalid = !readOnly && showErrors && companyNameVal.trim().length === 0;
+  const isTypeInvalid = !readOnly && showErrors && typeNotSelected;
+  const wrapperInvalid = isNameInvalid || isTypeInvalid;
+  const nameInputDisabled = readOnly || typeNotSelected || isCompanyLocked;
+
+  const shouldShowDropdown =
+    showDropdown &&
+    companyNameVal.length >= 1 &&
+    !isCompanyLocked &&
+    (isExistingType || isPotentialType);
 
   return (
     <div className="flex flex-col bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl p-8 gap-1 w-full lg:w-[60%] min-w-96">
-      <div className="flex justify-between items-center">
-
-        {/* Company Name */}
-        <div className="flex flex-col gap-1 w-[70%] relative">
+      <div className="flex justify-between items-end">
+        <div className="flex flex-col gap-1 w-full relative">
           <p className="font-bold text-[11px] uppercase">Company Name</p>
-          <input
-            className={`${baseInput} w-full ${isInvalid ? errBorder : okBorder}`}
-            type="text"
-            autoComplete="off"
-            value={companyNameVal}
-            onChange={handleNameChange}
-            onFocus={() => { if (companyNameVal.length >= 1) setShowDropdown(true); }}
-            onBlur={verifyCompanyOnBlur}
-            disabled={readOnly}
-          />
-          {showDropdown && companyNameVal.length >= 1 && (
+
+          <div
+            className={`flex items-center rounded-xl border h-10 bg-white transition-all duration-200 overflow-hidden ${
+              wrapperInvalid ? "border-red-500 bg-red-50/30" : "border-gray-200"
+            }`}
+          >
+            <select
+              className={`h-full text-[14px] -ml-4 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 text-center ${
+                isTypeInvalid
+                  ? "text-red-400"
+                  : typeNotSelected
+                  ? "text-slate-400"
+                  : "text-slate-600"
+              } ${readOnly ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+              style={{ width: "20%", paddingLeft: "0px", paddingRight: "0px", textIndent: "0px" }}
+              value={currentType === null || currentType === undefined ? "" : String(currentType)}
+              onChange={handleTypeSelectChange}
+              disabled={readOnly}
+            >
+              <option value="">Type</option>
+              <option value="1">Existing</option>
+              <option value="0">Potential</option>
+            </select>
+
+            <div className="w-[1px] h-6 bg-gray-200" aria-hidden="true" />
+
+            <input
+              className={`h-full px-4 text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none ${
+                isCompanyLocked ? "opacity-70 cursor-not-allowed" : ""
+              }`}
+              style={{ width: isPotentialType && potentialMatchFound === false ? "70%" : "80%" }}
+              type="text"
+              autoComplete="off"
+              placeholder={
+                typeNotSelected && !readOnly
+                  ? "Select a type first..."
+                  : isCompanyLocked
+                  ? ""
+                  : isExistingType
+                  ? "Search existing company..."
+                  : "Search or enter company name..."
+              }
+              value={companyNameVal}
+              onChange={handleNameChange}
+              onFocus={() => {
+                if (!isCompanyLocked && companyNameVal.length >= 1 && !typeNotSelected) {
+                  setShowDropdown(true);
+                }
+              }}
+              onBlur={handleBlur}
+              disabled={nameInputDisabled}
+            />
+
+            {isPotentialType && potentialMatchFound === false && companyNameVal.trim().length > 0 && (
+              <span className="mr-3 shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 border border-amber-200 whitespace-nowrap">
+                New
+              </span>
+            )}
+          </div>
+
+          {shouldShowDropdown && (
             <ul className="absolute top-[62px] left-0 z-[100] [&::-webkit-scrollbar]:hidden w-full bg-[#ffffff01] backdrop-blur-lg border border-gray-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto py-1 border-t-0 rounded-t-none">
               {isSearching && suggestions.length === 0 && (
                 <li className="px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
-                  <div className="w-3 h-3 border-2 border-darkgreen border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3 h-3 border-2 border-[#289800] border-t-transparent rounded-full animate-spin"></div>
                   Searching database...
                 </li>
               )}
@@ -199,49 +312,36 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                   <li
                     key={index}
                     className="px-4 py-2 hover:bg-green-50 cursor-pointer text-sm text-gray-800 border-b border-gray-50 last:border-none transition-colors"
-                    onMouseDown={(e) => { e.preventDefault(); selectSuggestion(item); }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectSuggestion(item);
+                    }}
                   >
                     {item.company_name}
                   </li>
                 ))
               ) : (
                 !isSearching && hasSearched && (
-                  <li className="px-4 py-3 text-sm text-gray-600">Company not found.</li>
+                  <li className="px-4 py-3 text-sm text-gray-500 italic">
+                    {isExistingType
+                      ? "Company not found."
+                      : "Not in list — will be saved as new on submit."}
+                  </li>
                 )
               )}
             </ul>
           )}
         </div>
-
-        {/* Contract Years */}
-        <div className="flex flex-col gap-1">
-          <p className="font-bold text-[11px] uppercase">Contract Years</p>
-          <input
-            type="number"
-            disabled={readOnly || projectData?.companyInfo?.contractType === "Outright Only (1 year)"}
-            value={projectData?.companyInfo?.contractYears || ""}
-            onChange={(e) => {
-              const val = e.target.value === "" ? 0 : Number(e.target.value);
-              handleChange("contractYears", val);
-            }}
-            className={`${baseInput} md:w-24 xl:w-32 bg-green-50/30 text-center border border-gray-200 focus:border-[#289800]
-              [&::-webkit-outer-spin-button]:appearance-none
-              [&::-webkit-inner-spin-button]:appearance-none ... ${
-              projectData?.companyInfo?.contractType === "Outright Only (1 year)" ? "opacity-60 cursor-not-allowed" : ""
-            }`}
-          />
-        </div>
-
       </div>
 
       <div className="flex flex-col gap-2 mt-4">
-
-        {/* Contract Type + Type checkboxes */}
         <div className="flex items-end justify-between">
           <div className="flex flex-col gap-1 w-[60%]">
             <p className="font-bold text-[11px] uppercase">Contract Type</p>
             <select
-              className={`w-full ${baseInput} bg-white ${!projectData?.companyInfo?.contractType ? "text-slate-400" : "text-black"} border-darkgreen/10 focus:border-[#289800]`}
+              className={`w-full ${baseInput} bg-white ${
+                !projectData?.companyInfo?.contractType ? "text-slate-400" : "text-black"
+              } border-darkgreen/10 focus:border-[#289800]`}
               value={projectData?.companyInfo?.contractType ?? ""}
               onChange={(e) => handleChange("contractType", e.target.value)}
               disabled={readOnly}
@@ -258,13 +358,27 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             </select>
           </div>
 
-          {/* Type */}
-          <div className="flex flex-col gap-1 md:w-24 xl:w-44">
-            <p className="font-bold text-[11px] uppercase">Type</p>
-            <div className="flex flex-row items-center justify-between h-10">
-              <Checkbox value={1} label="Existing" />
-              <Checkbox value={0} label="Potential" />
-            </div>
+          <div className="flex flex-col gap-1 md:w-24 xl:w-32">
+            <p className="font-bold text-[11px] uppercase">Contract Years</p>
+            <input
+              type="number"
+              disabled={
+                readOnly ||
+                projectData?.companyInfo?.contractType === "Outright Only (1 year)"
+              }
+              value={projectData?.companyInfo?.contractYears || ""}
+              onChange={(e) => {
+                const val = e.target.value === "" ? 0 : Number(e.target.value);
+                handleChange("contractYears", val);
+              }}
+              className={`${baseInput} w-full bg-green-50/30 text-center border border-gray-200 focus:border-[#289800]
+                [&::-webkit-outer-spin-button]:appearance-none
+                [&::-webkit-inner-spin-button]:appearance-none ${
+                  projectData?.companyInfo?.contractType === "Outright Only (1 year)"
+                    ? "opacity-60 cursor-not-allowed"
+                    : ""
+                }`}
+            />
           </div>
         </div>
 
@@ -282,7 +396,6 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             <option value="new deployment">New Deployment</option>
           </select>
         </div>
-
       </div>
     </div>
   );
