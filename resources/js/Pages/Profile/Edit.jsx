@@ -32,7 +32,7 @@ export default function Edit({ profile }) {
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
                         {/* Left Column */}
-                        <div className="space-y-6 lg:col-span-2">
+                        <div className=" lg:col-span-2">
                             <BasicInfoCard profile={profile} />
                             <SecurityCard onChangePassword={() => setShowPasswordModal(true)} />
                             <SignatureSection profile={profile} />
