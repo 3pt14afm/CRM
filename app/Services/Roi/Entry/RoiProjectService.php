@@ -33,244 +33,317 @@ class RoiProjectService
     /**
      * Coordinate the database transaction for saving or updating an entry draft.
      */
-public function handleSaveDraft(array $data, $user, Request $request): RoiEntryProject
-{
-    $projectUid = $data['companyInfo']['projectUid'] ?? null;
-    $reference  = $data['companyInfo']['reference']  ?? null;
+    public function handleSaveDraft(array $data, $user, Request $request): RoiEntryProject
+    {
+        $projectUid = $data['companyInfo']['projectUid'] ?? null;
+        $reference  = $data['companyInfo']['reference']  ?? null;
 
-    // ── Company integrity validation ─────────────────────────────────────────
-    $company     = $data['companyInfo'] ?? [];
-    $type        = isset($company['type']) ? (int) $company['type'] : null;
-    $companyName = trim($company['companyName'] ?? '');
-    $sapCode     = $company['companySapCode'] ?? null;
+        // ── Company integrity validation ─────────────────────────────────────────
+        $company     = $data['companyInfo'] ?? [];
+        $type        = isset($company['type']) ? (int) $company['type'] : null;
+        $companyName = trim($company['companyName'] ?? '');
+        $sapCode     = $company['companySapCode'] ?? null;
 
-    if ($type === null) {
-        throw ValidationException::withMessages([
-            'companyInfo.type' => 'Please select whether the company is Existing or Potential.',
-        ]);
-    }
-
-    if ($companyName === '') {
-        throw ValidationException::withMessages([
-            'companyInfo.companyName' => 'Company name is required.',
-        ]);
-    }
-
-    if ($type === 1) {
-        // No SAP code means user typed manually without selecting from the dropdown
-        if (empty($sapCode)) {
+        if ($type === null) {
             throw ValidationException::withMessages([
-                'companyInfo.companyName' =>
-                    "\"{$companyName}\" was not selected from the list. Please search and select a valid existing company.",
+                'companyInfo.type' => 'Please select whether the company is Existing or Potential.',
             ]);
         }
 
-        // SAP code must actually exist in the DB
-        $existsByCode = DB::table('erms.tbl_company')
-            ->where('sap_code', $sapCode)
-            ->exists();
-
-        if (!$existsByCode) {
+        if ($companyName === '') {
             throw ValidationException::withMessages([
-                'companyInfo.companySapCode' =>
-                    'The selected company could not be verified. Please re-select a valid company.',
+                'companyInfo.companyName' => 'Company name is required.',
             ]);
         }
 
-        // Guard against name tampering after selection
-        $actualName = DB::table('erms.tbl_company')
-            ->where('sap_code', $sapCode)
-            ->value('company_name');
+        if ($type === 1) {
+            // No SAP code means user typed manually without selecting from the dropdown
+            if (empty($sapCode)) {
+                throw ValidationException::withMessages([
+                    'companyInfo.companyName' =>
+                        "\"{$companyName}\" was not selected from the list. Please search and select a valid existing company.",
+                ]);
+            }
 
-        if ($actualName && strtolower(trim($actualName)) !== strtolower($companyName)) {
-            throw ValidationException::withMessages([
-                'companyInfo.companyName' =>
-                    'The company name does not match the selected record. Please re-select the company from the list.',
-            ]);
+            // SAP code must actually exist in the DB
+            $existsByCode = DB::table('erms.tbl_company')
+                ->where('sap_code', $sapCode)
+                ->exists();
+
+            if (!$existsByCode) {
+                throw ValidationException::withMessages([
+                    'companyInfo.companySapCode' =>
+                        'The selected company could not be verified. Please re-select a valid company.',
+                ]);
+            }
+
+            // Guard against name tampering after selection
+            // $actualName = DB::table('erms.tbl_company')
+            //     ->where('sap_code', $sapCode)
+            //     ->value('company_name');
+
+            // if ($actualName && strtolower(trim($actualName)) !== strtolower($companyName)) {
+            //     throw ValidationException::withMessages([
+            //         'companyInfo.companyName' =>
+            //             'The company name does not match the selected record. Please re-select the company from the list.',
+            //     ]);
+            // }
         }
+
+        if ($type === 0) {
+            // Stale SAP code from a previous Existing selection that wasn't cleaned up
+            if (!empty($sapCode)) {
+                throw ValidationException::withMessages([
+                    'companyInfo.companySapCode' =>
+                        'A potential company should not have an SAP code. Please clear the selection and try again.',
+                ]);
+            }
+        }
+        // ── End validation ───────────────────────────────────────────────────────
+
+                return DB::transaction(function () use ($data, $user, $projectUid, $reference, $request, $type, $companyName) {
+                    $project = null;
+                    $isNewProject = false;
+                    $oldSnapshot = [];
+
+                    if (!empty($projectUid)) {
+                        $project = RoiEntryProject::where('user_id', $user->id)->where('project_uid', $projectUid)->first();
+                    }
+                    if (!$project && !empty($reference)) {
+                        $project = RoiEntryProject::where('user_id', $user->id)->where('reference', $reference)->first();
+                    }
+
+                    if (!$project) {
+                        $isNewProject = true;
+                        $project = $this->createNewDraftRecord($data, $user);
+                    } else {
+                        $oldSnapshot = $this->getRoiEntrySnapshot($project->fresh());
+                        $project->increment('version');
+                    }
+
+                    $this->persistDraftData($request, $project, $data);
+
+                    // Auto-save potential and link company_id
+                    if ($type === 0 && $companyName !== '') {
+                        $potential = PotentialCustomer::firstOrCreate(
+                            ['company_name' => $companyName],
+                            [
+                                'id_client_mngr' => $user->employee_id,  // $user not $submitter
+                                'status'         => 1,
+                                'address'        => '',
+                                'contact_no'     => '',
+                            ]
+                        );
+                        $project->update(['company_id' => $potential->id]);  // $project not $newProject
+                    }
+
+                    $project = $project->fresh();
+
+                    $newSnapshot = $this->getRoiEntrySnapshot($project);
+                    $changes = $isNewProject ? ['old' => null, 'new' => $newSnapshot] : $this->getChangedValues($oldSnapshot, $newSnapshot);
+
+                    RoiActivityLogger::log(
+                        activityType: $isNewProject ? 'save_draft' : 'update_draft',
+                        moduleType: 'ROI Entry',
+                        details: ($isNewProject ? 'Saved new ROI draft #' : 'Updated ROI draft #') . $project->reference,
+                        subject: $project,
+                        oldValues: $changes['old'],
+                        newValues: $changes['new']
+                    );
+
+                    return $project;
+                });
     }
-
-    if ($type === 0) {
-        // Stale SAP code from a previous Existing selection that wasn't cleaned up
-        if (!empty($sapCode)) {
-            throw ValidationException::withMessages([
-                'companyInfo.companySapCode' =>
-                    'A potential company should not have an SAP code. Please clear the selection and try again.',
-            ]);
-        }
-    }
-    // ── End validation ───────────────────────────────────────────────────────
-
-    return DB::transaction(function () use ($data, $user, $projectUid, $reference, $request) {
-        $project = null;
-        $isNewProject = false;
-        $oldSnapshot = [];
-
-        if (!empty($projectUid)) {
-            $project = RoiEntryProject::where('user_id', $user->id)->where('project_uid', $projectUid)->first();
-        }
-        if (!$project && !empty($reference)) {
-            $project = RoiEntryProject::where('user_id', $user->id)->where('reference', $reference)->first();
-        }
-
-        if (!$project) {
-            $isNewProject = true;
-            $project = $this->createNewDraftRecord($data, $user);
-        } else {
-            $oldSnapshot = $this->getRoiEntrySnapshot($project->fresh());
-            $project->increment('version');
-        }
-
-        $this->persistDraftData($request, $project, $data);
-        $project = $project->fresh();
-
-        $newSnapshot = $this->getRoiEntrySnapshot($project);
-        $changes = $isNewProject ? ['old' => null, 'new' => $newSnapshot] : $this->getChangedValues($oldSnapshot, $newSnapshot);
-
-        RoiActivityLogger::log(
-            activityType: $isNewProject ? 'save_draft' : 'update_draft',
-            moduleType: 'ROI Entry',
-            details: ($isNewProject ? 'Saved new ROI draft #' : 'Updated ROI draft #') . $project->reference,
-            subject: $project,
-            oldValues: $changes['old'],
-            newValues: $changes['new']
-        );
-
-        return $project;
-    });
-}
 
     /**
      * Handle moving data into the "Current Production" tables and cleaning up the staging draft tables.
      */
-        public function handleSubmitProject(RoiEntryProject $project, $submitter, LocationDepartment $matrix, array $oldValues): RoiCurrentProject
-        {
-            // Check if company has an SAP Code
-            $companyHasSap = DB::table('erms.tbl_company')
-                ->where('company_name', $project->company_name)
-                ->whereNotNull('sap_code')
-                ->exists();
+    public function handleSubmitProject(RoiEntryProject $project, $submitter, LocationDepartment $matrix, array $oldValues): RoiCurrentProject
+    {
+        // ── Company integrity validation ─────────────────────────────────────────
+        $type        = $project->type !== null ? (int) $project->type : null;
+        $companyName = trim($project->company_name ?? '');
+        $sapCode     = $project->company_sap_code ?? null;
 
-           $companyType = $companyHasSap ? 1 : 0;
+        if ($type === null) {
+            throw ValidationException::withMessages([
+                'companyInfo.type' => 'Please select whether the company is Existing or Potential.',
+            ]);
+        }
 
-          return DB::transaction(function () use ($project, $submitter, $matrix, $companyType, $companyHasSap) {
-                $newProject = RoiCurrentProject::create([
-                    'user_id' => $project->user_id,
-                    'location_id' => $submitter->primary_location_id,
-                    'project_uid' => $project->project_uid,
-                    'reference' => $project->reference,
-                    'version' => $project->version,
-                    'status' => 'For Review',
-                    'current_level' => 2,
-                    'submitted_at' => now(),
-                    'last_saved_at' => now(),
-                    'reviewed_by' => $matrix->reviewed_by,
-                    'checked_by' => $matrix->checked_by,
-                    'endorsed_by' => $matrix->endorsed_by,
-                    'confirmed_by' => $matrix->confirmed_by,
-                    'approved_by' => $matrix->approved_by,
-                    'company_name' => $project->company_name,
-                    'company_sap_code' => $companyHasSap ? $project->company_sap_code : null,
-                    'company_id'       => $companyHasSap
-                        ? DB::table('erms.tbl_company')
-                            ->where('sap_code', $project->company_sap_code)
-                            ->value('id')
-                        : null,
-                    'type' => $companyType, // <--- Set dynamically here
-                    'contract_years' => $project->contract_years,
-                    'contract_type' => $project->contract_type,
-                    'purpose' => $project->purpose,
-                    'bundled_std_ink' => $project->bundled_std_ink,
-                    'annual_interest' => $project->annual_interest,
-                    'percent_margin' => $project->percent_margin,
-                    'mono_yield_monthly' => $project->mono_yield_monthly,
-                    'mono_yield_annual' => $project->mono_yield_annual,
-                    'color_yield_monthly' => $project->color_yield_monthly,
-                    'color_yield_annual' => $project->color_yield_annual,
-                    'entry_remarks' => $project->entry_remarks,
-                    'entry_remarks_attachments' => $project->entry_remarks_attachments ?? [],
-                    'mc_unit_cost' => $project->mc_unit_cost,
-                    'mc_qty' => $project->mc_qty,
-                    'mc_total_cost' => $project->mc_total_cost,
-                    'mc_yields' => $project->mc_yields,
-                    'mc_cost_cpp' => $project->mc_cost_cpp,
-                    'mc_selling_price' => $project->mc_selling_price,
-                    'mc_total_sell' => $project->mc_total_sell,
-                    'mc_sell_cpp' => $project->mc_sell_cpp,
-                    'mc_total_bundled_price' => $project->mc_total_bundled_price,
-                    'fees_total' => $project->fees_total,
-                    'grand_total_cost' => $project->grand_total_cost,
-                    'grand_total_revenue' => $project->grand_total_revenue,
-                    'grand_roi' => $project->grand_roi,
-                    'grand_roi_percentage' => $project->grand_roi_percentage,
-                    'yearly_breakdown' => $project->yearly_breakdown,
-                    'notes' => $project->notes ?? [],
-                    'comments' => $project->comments ?? [],
+        if ($companyName === '') {
+            throw ValidationException::withMessages([
+                'companyInfo.companyName' => 'Company name is required.',
+            ]);
+        }
+
+        if ($type === 1) {
+            // No SAP code means user typed manually without selecting from the dropdown
+            if (empty($sapCode)) {
+                throw ValidationException::withMessages([
+                    'companyInfo.companyName' =>
+                        "\"{$companyName}\" was not selected from the list. Please search and select a valid existing company.",
                 ]);
-
-                foreach ($project->items as $item) {
-                    RoiCurrentItem::create([
-                        'roi_current_project_id' => $newProject->id,
-                        'client_row_id' => $item->client_row_id,
-                        'kind' => $item->kind,
-                        'sku' => $item->sku,
-                        'qty' => $item->qty,
-                        'yields' => $item->yields,
-                        'mode' => $item->mode,
-                        'remarks' => $item->remarks,
-                        'auto_added' => $item->auto_added,
-                        'inputted_cost' => $item->inputted_cost,
-                        'cost' => $item->cost,
-                        'price' => $item->price,
-                        'base_per_year' => $item->base_per_year,
-                        'total_cost' => $item->total_cost,
-                        'cost_cpp' => $item->cost_cpp,
-                        'total_sell' => $item->total_sell,
-                        'sell_cpp' => $item->sell_cpp,
-                        'machine_margin' => $item->machine_margin,
-                        'machine_margin_total' => $item->machine_margin_total,
-                    ]);
-                }
-
-                foreach ($project->fees as $fee) {
-                    RoiCurrentFee::create([
-                        'roi_current_project_id' => $newProject->id,
-                        'client_row_id' => $fee->client_row_id,
-                        'payer' => $fee->payer,
-                        'label' => $fee->label,
-                        'category' => $fee->category,
-                        'remarks' => $fee->remarks,
-                        'cost' => $fee->cost,
-                        'qty' => $fee->qty,
-                        'total' => $fee->total,
-                        'is_machine' => $fee->is_machine,
-                    ]);
-                }
-
-                            // Auto-save to potential_customers if no SAP code (i.e. it's a potential company)
-            if (empty($project->company_sap_code)) {
-                $companyName = trim($project->company_name ?? '');
-
-                if ($companyName !== '') {
-                    PotentialCustomer::firstOrCreate(
-                        ['company_name' => $companyName],
-                        [
-                            'id_client_mngr' => $submitter->employee_id,
-                            'status' => 1,
-                            'address' => '',
-                            'contact_no' => '',
-                        ]
-                    );
-                }
             }
 
-                $project->items()->delete();
-                $project->fees()->delete();
-                $project->delete();
+            // SAP code must actually exist in the DB
+            $existsByCode = DB::table('erms.tbl_company')
+                ->where('sap_code', $sapCode)
+                ->exists();
 
-                return $newProject;
-            });
+            if (!$existsByCode) {
+                throw ValidationException::withMessages([
+                    'companyInfo.companySapCode' =>
+                        'The selected company could not be verified. Please re-select a valid company.',
+                ]);
+            }
+
+            // Guard against name tampering after selection
+            // $actualName = DB::table('erms.tbl_company')
+            //     ->where('sap_code', $sapCode)
+            //     ->value('company_name');
+
+            // if ($actualName && strtolower(trim($actualName)) !== strtolower($companyName)) {
+            //     throw ValidationException::withMessages([
+            //         'companyInfo.companyName' =>
+            //             'The company name does not match the selected record. Please re-select the company from the list.',
+            //     ]);
+            // }
         }
+
+        if ($type === 0) {
+            // Stale SAP code from a previous Existing selection that wasn't cleaned up
+            if (!empty($sapCode)) {
+                throw ValidationException::withMessages([
+                    'companyInfo.companySapCode' =>
+                        'A potential company should not have an SAP code. Please clear the selection and try again.',
+                ]);
+            }
+        }
+        // ── End validation ───────────────────────────────────────────────────────
+
+        // Check if company actually has an SAP code to determine companyHasSap boolean context
+        $companyHasSap = !empty($sapCode) && $type === 1;
+
+        return DB::transaction(function () use ($project, $submitter, $matrix, $type, $companyHasSap) {
+            $newProject = RoiCurrentProject::create([
+                'user_id' => $project->user_id,
+                'location_id' => $submitter->primary_location_id,
+                'project_uid' => $project->project_uid,
+                'reference' => $project->reference,
+                'version' => $project->version,
+                'status' => 'For Review',
+                'current_level' => 2,
+                'submitted_at' => now(),
+                'last_saved_at' => now(),
+                'reviewed_by' => $matrix->reviewed_by,
+                'checked_by' => $matrix->checked_by,
+                'endorsed_by' => $matrix->endorsed_by,
+                'confirmed_by' => $matrix->confirmed_by,
+                'approved_by' => $matrix->approved_by,
+                'company_name' => $project->company_name,
+                'company_sap_code' => $companyHasSap ? $project->company_sap_code : null,
+                'company_id'       => $companyHasSap
+                    ? DB::table('erms.tbl_company')
+                        ->where('sap_code', $project->company_sap_code)
+                        ->value('id')
+                    : null,
+                'type' => $type, // <--- Set dynamically using validated type
+                'contract_years' => $project->contract_years,
+                'contract_type' => $project->contract_type,
+                'purpose' => $project->purpose,
+                'bundled_std_ink' => $project->bundled_std_ink,
+                'annual_interest' => $project->annual_interest,
+                'percent_margin' => $project->percent_margin,
+                'mono_yield_monthly' => $project->mono_yield_monthly,
+                'mono_yield_annual' => $project->mono_yield_annual,
+                'color_yield_monthly' => $project->color_yield_monthly,
+                'color_yield_annual' => $project->color_yield_annual,
+                'entry_remarks' => $project->entry_remarks,
+                'entry_remarks_attachments' => $project->entry_remarks_attachments ?? [],
+                'mc_unit_cost' => $project->mc_unit_cost,
+                'mc_qty' => $project->mc_qty,
+                'mc_total_cost' => $project->mc_total_cost,
+                'mc_yields' => $project->mc_yields,
+                'mc_cost_cpp' => $project->mc_cost_cpp,
+                'mc_selling_price' => $project->mc_selling_price,
+                'mc_total_sell' => $project->mc_total_sell,
+                'mc_sell_cpp' => $project->mc_sell_cpp,
+                'mc_total_bundled_price' => $project->mc_total_bundled_price,
+                'fees_total' => $project->fees_total,
+                'grand_total_cost' => $project->grand_total_cost,
+                'grand_total_revenue' => $project->grand_total_revenue,
+                'grand_roi' => $project->grand_roi,
+                'grand_roi_percentage' => $project->grand_roi_percentage,
+                'yearly_breakdown' => $project->yearly_breakdown,
+                'notes' => $project->notes ?? [],
+                'comments' => $project->comments ?? [],
+            ]);
+
+            foreach ($project->items as $item) {
+                RoiCurrentItem::create([
+                    'roi_current_project_id' => $newProject->id,
+                    'client_row_id' => $item->client_row_id,
+                    'kind' => $item->kind,
+                    'sku' => $item->sku,
+                    'qty' => $item->qty,
+                    'yields' => $item->yields,
+                    'mode' => $item->mode,
+                    'remarks' => $item->remarks,
+                    'auto_added' => $item->auto_added,
+                    'inputted_cost' => $item->inputted_cost,
+                    'cost' => $item->cost,
+                    'price' => $item->price,
+                    'base_per_year' => $item->base_per_year,
+                    'total_cost' => $item->total_cost,
+                    'cost_cpp' => $item->cost_cpp,
+                    'total_sell' => $item->total_sell,
+                    'sell_cpp' => $item->sell_cpp,
+                    'machine_margin' => $item->machine_margin,
+                    'machine_margin_total' => $item->machine_margin_total,
+                ]);
+            }
+
+            foreach ($project->fees as $fee) {
+                RoiCurrentFee::create([
+                    'roi_current_project_id' => $newProject->id,
+                    'client_row_id' => $fee->client_row_id,
+                    'payer' => $fee->payer,
+                    'label' => $fee->label,
+                    'category' => $fee->category,
+                    'remarks' => $fee->remarks,
+                    'cost' => $fee->cost,
+                    'qty' => $fee->qty,
+                    'total' => $fee->total,
+                    'is_machine' => $fee->is_machine,
+                ]);
+            }
+
+        if (empty($project->company_sap_code)) {
+            $companyName = trim($project->company_name ?? '');
+
+            if ($companyName !== '') {
+                $potential = PotentialCustomer::firstOrCreate(
+                    ['company_name' => $companyName],
+                    [
+                        'id_client_mngr' => $submitter->employee_id,
+                        'status' => 1,
+                        'address' => '',
+                        'contact_no' => '',
+                    ]
+                );
+                $newProject->company_id = $potential->id;
+                $newProject->save();
+            }
+        }
+
+            $project->items()->delete();
+            $project->fees()->delete();
+            $project->delete();
+
+            return $newProject;
+        });
+    }
 
     /**
      * Map payload calculations, attach files, and overwrite items/fees records.

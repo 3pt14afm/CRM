@@ -14,11 +14,24 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const [hasSearched, setHasSearched] = useState(false);
   const [potentialMatchFound, setPotentialMatchFound] = useState(null);
 
+  // For existing combobox: tracks what the user is currently typing (display value)
+  const [existingInputValue, setExistingInputValue] = useState("");
+  // Whether a valid existing company has been committed (locked in)
+  const existingLockedRef = useRef(false);
+
   const abortControllerRef = useRef(null);
 
   const isExistingType = Number(projectData?.companyInfo?.type) === 1;
   const isPotentialType = Number(projectData?.companyInfo?.type) === 0;
   const isCompanyLocked = isExistingType && !!projectData?.companyInfo?.companySapCode;
+
+  // Keep existingInputValue in sync when projectData changes externally
+  useEffect(() => {
+    if (isExistingType) {
+      setExistingInputValue(projectData?.companyInfo?.companyName ?? "");
+      existingLockedRef.current = !!projectData?.companyInfo?.companySapCode;
+    }
+  }, [isExistingType, projectData?.companyInfo?.companyName, projectData?.companyInfo?.companySapCode]);
 
   // --- Calculation Sync ---
   useEffect(() => {
@@ -82,31 +95,61 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const typeNotSelected = currentType === null || currentType === undefined;
   const companyNameVal = String(projectData?.companyInfo?.companyName ?? "");
 
+  // --- Existing combobox handlers ---
+  const handleExistingInputChange = (e) => {
+    const value = e.target.value;
+    setExistingInputValue(value);
+    existingLockedRef.current = false;
+
+    // Clear the committed company data while user is typing
+    updateSection("companyInfo", {
+      companyName: "",
+      companySapCode: null,
+      potentialCompanyId: null,
+    });
+
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      setSuggestions([]);
+      setShowDropdown(false);
+      setHasSearched(false);
+      return;
+    }
+    setShowDropdown(true);
+    fetchSuggestions(trimmed, "existing");
+  };
+
+  const handleExistingBlur = () => {
+    // Use a longer delay to ensure onMouseDown on a suggestion fires first
+    setTimeout(() => {
+      setShowDropdown(false);
+      // Only reset if the user didn't successfully select an option
+      if (!existingLockedRef.current) {
+        setExistingInputValue("");
+        updateSection("companyInfo", {
+          companyName: "",
+          companySapCode: null,
+          potentialCompanyId: null,
+        });
+      }
+    }, 300);
+  };
+
+  const handleExistingFocus = () => {
+    if (typeNotSelected || readOnly) return;
+    // Don't clear the lock on focus — only clear it if the user actually
+    // starts typing (handleExistingInputChange handles that).
+    // Just re-open the dropdown if there's already a search term.
+    if (existingInputValue.length >= 1 && !existingLockedRef.current) {
+      setShowDropdown(true);
+      fetchSuggestions(existingInputValue.trim(), "existing");
+    }
+  };
+
+  // --- Potential handlers (unchanged logic) ---
   const handleNameChange = (e) => {
     const value = e.target.value;
     const trimmed = value.trim();
-
-    if (isExistingType) {
-      if (trimmed === "") {
-        updateSection("companyInfo", { 
-          companyName: "", 
-          companySapCode: null,
-          potentialCompanyId: null 
-        });
-        setShowDropdown(false);
-        setSuggestions([]);
-        setHasSearched(false);
-        return;
-      }
-      updateSection("companyInfo", { 
-        companyName: value, 
-        companySapCode: null,
-        potentialCompanyId: null 
-      });
-      setShowDropdown(true);
-      fetchSuggestions(trimmed, "existing");
-      return;
-    }
 
     if (isPotentialType) {
       updateSection("companyInfo", {
@@ -133,28 +176,6 @@ function CompanyInfo({ readOnly, showErrors = false }) {
       const trimmed = companyNameVal.trim();
       if (!trimmed) return;
 
-      if (isExistingType) {
-        try {
-          const response = await axios.get(route("companies.search"), {
-            params: { search: trimmed },
-          });
-          const match = response.data.find(
-            (item) => item.company_name.trim().toLowerCase() === trimmed.toLowerCase()
-          );
-          if (match) {
-            updateSection("companyInfo", {
-              companyName: match.company_name,
-              companySapCode: match.company_sap_code,
-              potentialCompanyId: null, // Ensure potential ID is cleaned out
-            });
-          } else {
-            updateSection("companyInfo", { companySapCode: null });
-          }
-        } catch (error) {
-          if (!axios.isCancel(error)) console.error("Company verification error:", error);
-        }
-      }
-
       if (isPotentialType) {
         try {
           const response = await axios.get(route("potentials.search"), {
@@ -164,9 +185,9 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             (item) => item.company_name.trim().toLowerCase() === trimmed.toLowerCase()
           );
           if (match) {
-            updateSection("companyInfo", { 
+            updateSection("companyInfo", {
               potentialCompanyId: match.id,
-              companySapCode: null // Ensure SAP code is cleaned out 
+              companySapCode: null,
             });
             setPotentialMatchFound(true);
           } else {
@@ -182,10 +203,13 @@ function CompanyInfo({ readOnly, showErrors = false }) {
 
   const selectSuggestion = (item) => {
     if (isExistingType) {
+      // Set lock FIRST before any state updates so blur's setTimeout sees it
+      existingLockedRef.current = true;
+      setExistingInputValue(item.company_name);
       updateSection("companyInfo", {
         companyName: item.company_name,
         companySapCode: item.company_sap_code,
-        potentialCompanyId: null, // Explicitly clear potential ID
+        potentialCompanyId: null,
       });
     }
 
@@ -193,7 +217,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
       updateSection("companyInfo", {
         companyName: item.company_name,
         potentialCompanyId: item.id ?? null,
-        companySapCode: null, // Explicitly clear SAP code
+        companySapCode: null,
       });
       setPotentialMatchFound(true);
     }
@@ -205,15 +229,16 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const handleTypeSelectChange = (e) => {
     const val = e.target.value;
     if (readOnly) return;
-    
-    // Forcefully reset both conflicting foreign keys upon switching type
+
     updateSection("companyInfo", {
       type: val === "" ? null : Number(val),
       companyName: "",
       companySapCode: null,
       potentialCompanyId: null,
     });
-    
+
+    setExistingInputValue("");
+    existingLockedRef.current = false;
     setSuggestions([]);
     setShowDropdown(false);
     setHasSearched(false);
@@ -230,9 +255,12 @@ function CompanyInfo({ readOnly, showErrors = false }) {
 
   const shouldShowDropdown =
     showDropdown &&
-    companyNameVal.length >= 1 &&
+    (isExistingType ? existingInputValue.length >= 1 : companyNameVal.length >= 1) &&
     !isCompanyLocked &&
     (isExistingType || isPotentialType);
+
+  // Display value for the name input area
+  const displayValue = isExistingType ? existingInputValue : companyNameVal;
 
   return (
     <div className="flex flex-col bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl p-8 gap-1 w-full lg:w-[60%] min-w-96">
@@ -265,38 +293,86 @@ function CompanyInfo({ readOnly, showErrors = false }) {
 
             <div className="w-[1px] h-6 bg-gray-200" aria-hidden="true" />
 
-            <input
-              className={`h-full px-4 text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none ${
-                isCompanyLocked ? "opacity-70 cursor-not-allowed" : ""
-              }`}
-              style={{ width: isPotentialType && potentialMatchFound === false ? "70%" : "80%" }}
-              type="text"
-              autoComplete="off"
-              placeholder={
-                typeNotSelected && !readOnly
-                  ? "Select a type first..."
-                  : isCompanyLocked
-                  ? ""
-                  : isExistingType
-                  ? "Search existing company..."
-                  : "Search or enter company name..."
-              }
-              value={companyNameVal}
-              onChange={handleNameChange}
-              onFocus={() => {
-                if (!isCompanyLocked && companyNameVal.length >= 1 && !typeNotSelected) {
-                  setShowDropdown(true);
+            {/* Existing: combobox — user can type to search but must select from dropdown */}
+            {isExistingType ? (
+              <div className="relative flex items-center h-full" style={{ width: "80%" }}>
+                <input
+                  className={`h-full px-4 text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none w-full ${
+                    readOnly || typeNotSelected ? "opacity-70 cursor-not-allowed" : ""
+                  }`}
+                  type="text"
+                  autoComplete="off"
+                  placeholder={
+                    typeNotSelected && !readOnly
+                      ? "Select a type first..."
+                      : isCompanyLocked
+                      ? ""
+                      : "Search existing company..."
+                  }
+                  value={isCompanyLocked ? companyNameVal : existingInputValue}
+                  onChange={handleExistingInputChange}
+                  onFocus={handleExistingFocus}
+                  onBlur={handleExistingBlur}
+                  disabled={readOnly || typeNotSelected}
+                  readOnly={isCompanyLocked}
+                />
+                {/* Lock icon when company is committed */}
+                {isCompanyLocked && !readOnly && (
+                  <button
+                    type="button"
+                    title="Click to change company"
+                    className="absolute right-3 text-gray-400 hover:text-gray-600 transition-colors"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      const currentName = companyNameVal;
+                      existingLockedRef.current = false;
+                      updateSection("companyInfo", {
+                        companyName: "",
+                        companySapCode: null,
+                        potentialCompanyId: null,
+                      });
+                      // Seed the input with the old name so user can refine search
+                      setExistingInputValue(currentName);
+                      setSuggestions([]);
+                      setHasSearched(false);
+                      // Trigger a search immediately with the seeded value
+                      if (currentName.trim().length >= 1) {
+                        setShowDropdown(true);
+                        fetchSuggestions(currentName.trim(), "existing");
+                      }
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Potential: free-text input, unchanged */
+              <input
+                className={`h-full px-4 text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none`}
+                style={{ width: isPotentialType && potentialMatchFound === false ? "70%" : "80%" }}
+                type="text"
+                autoComplete="off"
+                placeholder={
+                  typeNotSelected && !readOnly
+                    ? "Select a type first..."
+                    : isPotentialType
+                    ? "Search or enter company name..."
+                    : ""
                 }
-              }}
-              onBlur={handleBlur}
-              disabled={nameInputDisabled}
-            />
-
-            {/* {isPotentialType && potentialMatchFound === false && companyNameVal.trim().length > 0 && (
-              <span className="mr-3 shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 border border-amber-200 whitespace-nowrap">
-                New
-              </span>
-            )} */}
+                value={companyNameVal}
+                onChange={handleNameChange}
+                onFocus={() => {
+                  if (!typeNotSelected && companyNameVal.length >= 1) {
+                    setShowDropdown(true);
+                  }
+                }}
+                onBlur={handleBlur}
+                disabled={readOnly || typeNotSelected}
+              />
+            )}
           </div>
 
           {shouldShowDropdown && (
