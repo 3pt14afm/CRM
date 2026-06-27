@@ -247,7 +247,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
         {
             key: 'client_manager',
             header: (
-                <SortHeader label="CLIENT MANAGER" sortKey="client_manager" align="center"
+                <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager" align="center"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
@@ -285,7 +285,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
         {
             key: 'client_manager',
             header: (
-                <SortHeader label="CLIENT MANAGER" sortKey="client_manager" align="center"
+                <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager" align="center"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
