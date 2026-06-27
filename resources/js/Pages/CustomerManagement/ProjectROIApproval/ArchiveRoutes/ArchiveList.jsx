@@ -34,19 +34,46 @@ function formatDateLabel(dateStr) {
   }
 }
 
+const LS = {
+  get: (key, fallback = "") => {
+    try { return localStorage.getItem(`archive_filter_${key}`) ?? fallback; }
+    catch { return fallback; }
+  },
+  set: (key, value) => {
+    try { localStorage.setItem(`archive_filter_${key}`, value); }
+    catch {}
+  },
+  clearAll: () => {
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('archive_filter_'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+  },
+};
+
 function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [] }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
   const [localStats, setLocalStats] = useState(initialStats);
 
-  const [search,        setSearch]       = useState(filters?.search       ?? "");
-  const [typeFilter,    setTypeFilter]   = useState(filters?.type         ?? "");
-  const [statusFilter, setStatusFilter] = useState(filters?.status       ?? "");
-  const [perPage,      setPerPage]      = useState(filters?.per_page     ?? 10);
-  const [dateFrom,     setDateFrom]     = useState(filters?.date_from    ?? "");
-  const [dateTo,       setDateTo]       = useState(filters?.date_to      ?? "");
-  const [decidedBy,    setDecidedBy]    = useState(filters?.decided_by   ?? "");
-  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by  ?? "");
-  const [locationId,   setLocationId]   = useState(filters?.location_id  ?? "");
+  const [search,       setSearch]       = useState(() => LS.get('search',      filters?.search      ?? ""));
+  const [typeFilter,   setTypeFilter]   = useState(() => LS.get('type',        filters?.type        ?? ""));
+  const [statusFilter, setStatusFilter] = useState(() => LS.get('status',      filters?.status      ?? ""));
+  const [perPage,      setPerPage]      = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : (filters?.per_page ?? 10);
+  });
+  const [dateFrom,     setDateFrom]     = useState(() => LS.get('date_from',   filters?.date_from   ?? ""));
+  const [dateTo,       setDateTo]       = useState(() => LS.get('date_to',     filters?.date_to     ?? ""));
+  const [decidedBy,    setDecidedBy]    = useState(() => LS.get('decided_by',  filters?.decided_by  ?? ""));
+  const [preparedBy,   setPreparedBy]   = useState(() => LS.get('prepared_by', filters?.prepared_by ?? ""));
+  const [locationId,   setLocationId]   = useState(() => LS.get('location_id', filters?.location_id ?? ""));
+  const [currentPage,  setCurrentPage]  = useState(() => {
+    const stored = LS.get('page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 1;
+  });
 
   const [showDatePicker,    setShowDatePicker]    = useState(false);
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
@@ -54,7 +81,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const [showPreparedBy,    setShowPreparedBy]    = useState(false);
   const [showLocation,      setShowLocation]      = useState(false);
 
-  const [perPageInput, setPerPageInput] = useState(String(filters?.per_page ?? 10));
+  const [perPageInput, setPerPageInput] = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : String(filters?.per_page ?? 10);
+  });
   const [loading,      setLoading]      = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -63,11 +94,26 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const decidedByRef     = useRef(null);
   const preparedByRef    = useRef(null);
   const locationRef      = useRef(null);
-  
-  const [sortOrder, setSortOrder] = useState("");
 
-  useEffect(() => { 
-    setLocalArchiveProjects(initialArchiveProjects); 
+  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', ""));
+
+  // Persist filters to localStorage whenever they change
+  useEffect(() => {
+    LS.set('search',      search);
+    LS.set('status',      statusFilter);
+    LS.set('type',        String(typeFilter));
+    LS.set('date_from',   dateFrom);
+    LS.set('date_to',     dateTo);
+    LS.set('decided_by',  decidedBy);
+    LS.set('prepared_by', preparedBy);
+    LS.set('location_id', String(locationId));
+    LS.set('per_page',    String(perPage));
+    LS.set('page',        String(currentPage));
+    LS.set('sort_order',  sortOrder);
+  }, [search, statusFilter, typeFilter, dateFrom, dateTo, decidedBy, preparedBy, locationId, perPage, currentPage, sortOrder]);
+
+  useEffect(() => {
+    setLocalArchiveProjects(initialArchiveProjects);
     setLocalStats(initialStats);
   }, [initialArchiveProjects, initialStats]);
 
@@ -83,18 +129,24 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // --- Auto-refresh every 60 seconds ---
+  // Always keep ref pointed at the latest version of fetchArchivedData
+  const fetchArchivedDataRef = useRef(null);
+  useEffect(() => {
+    fetchArchivedDataRef.current = fetchArchivedData;
+  });
+
+  // Auto-refresh every 60 seconds — interval never restarts, never stale
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchArchivedData({ silent: true });
+      fetchArchivedDataRef.current?.({ silent: true });
     }, 60_000);
-
     return () => clearInterval(interval);
-  }, [search, statusFilter, perPage, dateFrom, dateTo, decidedBy, preparedBy, locationId, sortOrder, typeFilter]);
+  }, []);
 
   const handleSortToggle = () => {
     const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
     setSortOrder(next);
+    LS.set('sort_order', next);
     fetchArchivedData({ currentSortOrder: next });
   };
 
@@ -170,31 +222,31 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     {
       key: "status",
       header: <div className="text-center w-full">STATUS</div>,
-        cell: (row) => {
-      const s = String(row.status ?? "").toLowerCase();
-      const isRejected  = s === "rejected";
-      const isApproved  = s === "approved";
-      const isCancelled = s === "cancelled";
-      return (
-        <div className="flex justify-center items-center">
-          <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
-            ${isRejected
-              ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
-              : isApproved
-              ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
-              : isCancelled
-              ? "bg-red-600/10 text-red-600 border border-red-300"
-              : "bg-blue-100 text-blue-700 border border-blue-200"
-            }`}>
-            {isRejected ? (
-              <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
-            ) : isApproved ? (
-              <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
-            ) : isCancelled ? (
-              <MdOutlineCancel className="text-[11px] xl:text-[13px] flex-shrink-0" />
-            ) : (
-              <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />
-            )}
+      cell: (row) => {
+        const s = String(row.status ?? "").toLowerCase();
+        const isRejected  = s === "rejected";
+        const isApproved  = s === "approved";
+        const isCancelled = s === "cancelled";
+        return (
+          <div className="flex justify-center items-center">
+            <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
+              ${isRejected
+                ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
+                : isApproved
+                ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
+                : isCancelled
+                ? "bg-red-600/10 text-red-600 border border-red-300"
+                : "bg-blue-100 text-blue-700 border border-blue-200"
+              }`}>
+              {isRejected ? (
+                <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
+              ) : isApproved ? (
+                <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
+              ) : isCancelled ? (
+                <MdOutlineCancel className="text-[11px] xl:text-[13px] flex-shrink-0" />
+              ) : (
+                <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />
+              )}
               <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">
                 {row.decided_by_name ?? "—"}
               </span>
@@ -236,7 +288,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   /* ── Fetch ── */
   const fetchArchivedData = async ({
     silent            = false,
-    targetPage        = 1,
+    targetPage        = currentPage,
     currentSearch     = search,
     currentStatus     = statusFilter,
     currentType       = typeFilter,
@@ -268,14 +320,13 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       });
-      
+
       const projectsPayload = response.data?.props?.archiveProjects ?? response.data?.archiveProjects ?? response.data;
       setLocalArchiveProjects(projectsPayload);
-      
+      setCurrentPage(targetPage);
+
       const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
-      if (statsPayload) {
-        setLocalStats(statsPayload);
-      }
+      if (statsPayload) setLocalStats(statsPayload);
     } catch (error) {
       console.error("Failed to query archived records:", error);
     } finally {
@@ -289,24 +340,25 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     return () => clearTimeout(t);
   }, [search]);
 
-  const handleStatusChange    = (val) => { setStatusFilter(val); fetchArchivedData({ currentStatus: val }); };
-  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchArchivedData({ currentType: val }); };
-  const handleDecidedByApply  = (val) => { setDecidedBy(val);    fetchArchivedData({ currentDecidedBy: val }); };
-  const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchArchivedData({ currentPreparedBy: val }); };
-  const handleLocationApply   = (val) => { setLocationId(val);   fetchArchivedData({ currentLocationId: val }); };
-  const handleDateApply       = ()    => { setShowDatePicker(false); fetchArchivedData(); };
+  const handleStatusChange    = (val) => { setStatusFilter(val); fetchArchivedData({ currentStatus: val,     targetPage: 1 }); };
+  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchArchivedData({ currentType: val,       targetPage: 1 }); };
+  const handleDecidedByApply  = (val) => { setDecidedBy(val);    fetchArchivedData({ currentDecidedBy: val,  targetPage: 1 }); };
+  const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchArchivedData({ currentPreparedBy: val, targetPage: 1 }); };
+  const handleLocationApply   = (val) => { setLocationId(val);   fetchArchivedData({ currentLocationId: val, targetPage: 1 }); };
+  const handleDateApply       = ()    => { setShowDatePicker(false); fetchArchivedData({ targetPage: 1 }); };
   const handleDateClear       = ()    => {
     setDateFrom("");
     setDateTo("");
     setShowDatePicker(false);
-    fetchArchivedData({ currentDateFrom: undefined, currentDateTo: undefined });
+    fetchArchivedData({ currentDateFrom: undefined, currentDateTo: undefined, targetPage: 1 });
   };
   const handlePerPageInputApply = () => {
     const raw = parseInt(perPageInput, 10);
     const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 500) : perPage;
     setPerPage(num); setPerPageInput(String(num)); setShowPerPagePicker(false);
-    fetchArchivedData({ currentPerPage: num });
+    fetchArchivedData({ currentPerPage: num, targetPage: 1 });
   };
+
   const handleClearAllFilters = () => {
     setSearch("");
     setStatusFilter("");
@@ -320,6 +372,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     setShowDecidedBy(false);
     setShowPreparedBy(false);
     setShowLocation(false);
+    LS.clearAll();
     fetchArchivedData({
       currentSearch:     "",
       currentStatus:     "",
@@ -329,12 +382,12 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       currentDecidedBy:  "",
       currentPreparedBy: "",
       currentLocationId: "",
+      targetPage:        1,
     });
   };
 
   const goToPage = (p) => fetchArchivedData({ targetPage: p });
 
-  const hasDateFilter = dateFrom || dateTo;
   const dateLabel = (() => {
     if (dateFrom && dateTo) return `${formatDateLabel(dateFrom)} – ${formatDateLabel(dateTo)}`;
     if (dateFrom) return `From ${formatDateLabel(dateFrom)}`;
@@ -345,9 +398,9 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const rows = localArchiveProjects?.data ?? [];
   const pagination = localArchiveProjects && typeof localArchiveProjects.current_page === "number"
     ? {
-        page:        localArchiveProjects.current_page,
-        perPage:     localArchiveProjects.per_page ?? perPage,
-        total:       localArchiveProjects.total ?? rows.length,
+        page:         localArchiveProjects.current_page,
+        perPage:      localArchiveProjects.per_page ?? perPage,
+        total:        localArchiveProjects.total ?? rows.length,
         onPageChange: goToPage,
       }
     : null;
@@ -386,22 +439,22 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       />
     </div>
   );
-  
+
   const statusIcon =
     statusFilter === "approved"  ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
     statusFilter === "rejected"  ? <MdCancel className="text-red-500 text-sm" /> :
     statusFilter === "cancelled" ? <MdOutlineCancel className="text-red-500 text-sm" /> :
     null;
-  
+
   const filterToolbar = (
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}
       onClearAll={handleClearAllFilters}
-   
+
       statusOptions={[
-        { value: "",       label: "All Status" },
-        { value: "approved", label: "Approved" },
-        { value: "rejected", label: "Rejected" },
+        { value: "",          label: "All Status" },
+        { value: "approved",  label: "Approved" },
+        { value: "rejected",  label: "Rejected" },
         { value: "cancelled", label: "Cancelled" },
       ]}
 
@@ -416,23 +469,23 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       statusFilter={statusFilter}
       onStatusChange={handleStatusChange}
       statusIcon={statusIcon}
-   
+
       perPage={perPage}
       perPageInput={perPageInput}
       onPerPageInputChange={setPerPageInput}
       onPerPageApply={handlePerPageInputApply}
-   
+
       extraFilters={decidedBySlot}
-   
+
       preparedBy={preparedBy}
       onPreparedByChange={setPreparedBy}
       onPreparedByApply={handlePreparedByApply}
-   
+
       locationId={locationId}
       selectedLocationName={selectedLocationName}
       locations={locations}
       onLocationApply={handleLocationApply}
-   
+
       dateFrom={dateFrom}
       dateTo={dateTo}
       onDateFromChange={setDateFrom}

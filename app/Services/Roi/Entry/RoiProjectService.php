@@ -33,49 +33,112 @@ class RoiProjectService
     /**
      * Coordinate the database transaction for saving or updating an entry draft.
      */
-    public function handleSaveDraft(array $data, $user, Request $request): RoiEntryProject
-    {
-        $projectUid = $data['companyInfo']['projectUid'] ?? null;
-        $reference = $data['companyInfo']['reference'] ?? null;
+public function handleSaveDraft(array $data, $user, Request $request): RoiEntryProject
+{
+    $projectUid = $data['companyInfo']['projectUid'] ?? null;
+    $reference  = $data['companyInfo']['reference']  ?? null;
 
-        return DB::transaction(function () use ($data, $user, $projectUid, $reference, $request) {
-            $project = null;
-            $isNewProject = false;
-            $oldSnapshot = [];
+    // ── Company integrity validation ─────────────────────────────────────────
+    $company     = $data['companyInfo'] ?? [];
+    $type        = isset($company['type']) ? (int) $company['type'] : null;
+    $companyName = trim($company['companyName'] ?? '');
+    $sapCode     = $company['companySapCode'] ?? null;
 
-            if (!empty($projectUid)) {
-                $project = RoiEntryProject::where('user_id', $user->id)->where('project_uid', $projectUid)->first();
-            }
-            if (!$project && !empty($reference)) {
-                $project = RoiEntryProject::where('user_id', $user->id)->where('reference', $reference)->first();
-            }
-
-            if (!$project) {
-                $isNewProject = true;
-                $project = $this->createNewDraftRecord($data, $user);
-            } else {
-                $oldSnapshot = $this->getRoiEntrySnapshot($project->fresh());
-                $project->increment('version');
-            }
-
-            $this->persistDraftData($request, $project, $data);
-            $project = $project->fresh();
-
-            $newSnapshot = $this->getRoiEntrySnapshot($project);
-            $changes = $isNewProject ? ['old' => null, 'new' => $newSnapshot] : $this->getChangedValues($oldSnapshot, $newSnapshot);
-
-            RoiActivityLogger::log(
-                activityType: $isNewProject ? 'save_draft' : 'update_draft',
-                moduleType: 'ROI Entry',
-                details: ($isNewProject ? 'Saved new ROI draft #' : 'Updated ROI draft #') . $project->reference,
-                subject: $project,
-                oldValues: $changes['old'],
-                newValues: $changes['new']
-            );
-
-            return $project;
-        });
+    if ($type === null) {
+        throw ValidationException::withMessages([
+            'companyInfo.type' => 'Please select whether the company is Existing or Potential.',
+        ]);
     }
+
+    if ($companyName === '') {
+        throw ValidationException::withMessages([
+            'companyInfo.companyName' => 'Company name is required.',
+        ]);
+    }
+
+    if ($type === 1) {
+        // No SAP code means user typed manually without selecting from the dropdown
+        if (empty($sapCode)) {
+            throw ValidationException::withMessages([
+                'companyInfo.companyName' =>
+                    "\"{$companyName}\" was not selected from the list. Please search and select a valid existing company.",
+            ]);
+        }
+
+        // SAP code must actually exist in the DB
+        $existsByCode = DB::table('erms.tbl_company')
+            ->where('sap_code', $sapCode)
+            ->exists();
+
+        if (!$existsByCode) {
+            throw ValidationException::withMessages([
+                'companyInfo.companySapCode' =>
+                    'The selected company could not be verified. Please re-select a valid company.',
+            ]);
+        }
+
+        // Guard against name tampering after selection
+        $actualName = DB::table('erms.tbl_company')
+            ->where('sap_code', $sapCode)
+            ->value('company_name');
+
+        if ($actualName && strtolower(trim($actualName)) !== strtolower($companyName)) {
+            throw ValidationException::withMessages([
+                'companyInfo.companyName' =>
+                    'The company name does not match the selected record. Please re-select the company from the list.',
+            ]);
+        }
+    }
+
+    if ($type === 0) {
+        // Stale SAP code from a previous Existing selection that wasn't cleaned up
+        if (!empty($sapCode)) {
+            throw ValidationException::withMessages([
+                'companyInfo.companySapCode' =>
+                    'A potential company should not have an SAP code. Please clear the selection and try again.',
+            ]);
+        }
+    }
+    // ── End validation ───────────────────────────────────────────────────────
+
+    return DB::transaction(function () use ($data, $user, $projectUid, $reference, $request) {
+        $project = null;
+        $isNewProject = false;
+        $oldSnapshot = [];
+
+        if (!empty($projectUid)) {
+            $project = RoiEntryProject::where('user_id', $user->id)->where('project_uid', $projectUid)->first();
+        }
+        if (!$project && !empty($reference)) {
+            $project = RoiEntryProject::where('user_id', $user->id)->where('reference', $reference)->first();
+        }
+
+        if (!$project) {
+            $isNewProject = true;
+            $project = $this->createNewDraftRecord($data, $user);
+        } else {
+            $oldSnapshot = $this->getRoiEntrySnapshot($project->fresh());
+            $project->increment('version');
+        }
+
+        $this->persistDraftData($request, $project, $data);
+        $project = $project->fresh();
+
+        $newSnapshot = $this->getRoiEntrySnapshot($project);
+        $changes = $isNewProject ? ['old' => null, 'new' => $newSnapshot] : $this->getChangedValues($oldSnapshot, $newSnapshot);
+
+        RoiActivityLogger::log(
+            activityType: $isNewProject ? 'save_draft' : 'update_draft',
+            moduleType: 'ROI Entry',
+            details: ($isNewProject ? 'Saved new ROI draft #' : 'Updated ROI draft #') . $project->reference,
+            subject: $project,
+            oldValues: $changes['old'],
+            newValues: $changes['new']
+        );
+
+        return $project;
+    });
+}
 
     /**
      * Handle moving data into the "Current Production" tables and cleaning up the staging draft tables.

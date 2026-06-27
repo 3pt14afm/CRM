@@ -25,29 +25,60 @@ function formatDateLabel(dateStr) {
   });
 }
 
+const LS = {
+  get: (key, fallback = "") => {
+    try { return localStorage.getItem(`current_filter_${key}`) ?? fallback; }
+    catch { return fallback; }
+  },
+  set: (key, value) => {
+    try { localStorage.setItem(`current_filter_${key}`, value); }
+    catch {}
+  },
+  clearAll: () => {
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('current_filter_'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+  },
+};
+
 function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters, locations = [] }) {
   const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
   const [localStats, setLocalStats] = useState(initialStats);
-  
-  const [search,        setSearch]       = useState(filters?.search       ?? "");
-  const [statusFilter, setStatusFilter] = useState(filters?.status       ?? "");
-  const [typeFilter,   setTypeFilter]   = useState(filters?.type         ?? "");
-  const [dateFrom,     setDateFrom]     = useState(filters?.date_from    ?? "");
-  const [dateTo,       setDateTo]       = useState(filters?.date_to      ?? "");
-  const [preparedBy,   setPreparedBy]   = useState(filters?.prepared_by  ?? "");
-  const [locationId,   setLocationId]   = useState(filters?.location_id  ?? "");
-  const [perPage,      setPerPage]      = useState(filters?.per_page     ?? 10);
-  const [perPageInput, setPerPageInput] = useState(String(filters?.per_page ?? 10));
+
+  const [search,       setSearch]       = useState(() => LS.get('search',      filters?.search      ?? ""));
+  const [statusFilter, setStatusFilter] = useState(() => LS.get('status',      filters?.status      ?? ""));
+  const [typeFilter,   setTypeFilter]   = useState(() => LS.get('type',        filters?.type        ?? ""));
+  const [dateFrom,     setDateFrom]     = useState(() => LS.get('date_from',   filters?.date_from   ?? ""));
+  const [dateTo,       setDateTo]       = useState(() => LS.get('date_to',     filters?.date_to     ?? ""));
+  const [preparedBy,   setPreparedBy]   = useState(() => LS.get('prepared_by', filters?.prepared_by ?? ""));
+  const [locationId,   setLocationId]   = useState(() => LS.get('location_id', filters?.location_id ?? ""));
+  const [perPage,      setPerPage]      = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : (filters?.per_page ?? 10);
+  });
+  const [currentPage,  setCurrentPage]  = useState(() => {
+    const stored = LS.get('page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 1;
+  });
+  const [sortOrder,    setSortOrder]    = useState(() => LS.get('sort_order',  filters?.sort_order  ?? ""));
+
+  const [perPageInput, setPerPageInput] = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : String(filters?.per_page ?? 10);
+  });
 
   const [showDatePicker,    setShowDatePicker]    = useState(false);
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
   const [showPreparedBy,    setShowPreparedBy]    = useState(false);
   const [showLocation,      setShowLocation]      = useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [loading,      setLoading]      = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const [sortOrder, setSortOrder] = useState(filters?.sort_order ?? "");
 
   const datePickerRef    = useRef(null);
   const perPagePickerRef = useRef(null);
@@ -58,6 +89,20 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit", month: "2-digit", year: "2-digit",
   }).format(today);
+
+  // Persist all filters + page + sort to localStorage
+  useEffect(() => {
+    LS.set('search',      search);
+    LS.set('status',      statusFilter);
+    LS.set('type',        String(typeFilter));
+    LS.set('date_from',   dateFrom);
+    LS.set('date_to',     dateTo);
+    LS.set('prepared_by', preparedBy);
+    LS.set('location_id', String(locationId));
+    LS.set('per_page',    String(perPage));
+    LS.set('page',        String(currentPage));
+    LS.set('sort_order',  sortOrder);
+  }, [search, statusFilter, typeFilter, dateFrom, dateTo, preparedBy, locationId, perPage, currentPage, sortOrder]);
 
   useEffect(() => {
     setLocalCurrentProjects(initialCurrentProjects);
@@ -75,14 +120,19 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // --- Auto-refresh every 60 seconds ---
+  // Always keep ref pointed at the latest version of fetchCurrentData
+  const fetchCurrentDataRef = useRef(null);
   useEffect(() => {
-      const interval = setInterval(() => {
-          fetchCurrentData({ silent: true });
-      }, 60_000);
+    fetchCurrentDataRef.current = fetchCurrentData;
+  });
 
-      return () => clearInterval(interval);
-  }, [search, statusFilter, dateFrom, dateTo, preparedBy, locationId, perPage, typeFilter]);
+  // Auto-refresh every 60 seconds — interval never restarts, never stale
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchCurrentDataRef.current?.({ silent: true });
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
@@ -94,7 +144,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     const totalCurrentProjects = localStats?.totalCurrentProjects ?? localCurrentProjects?.total ?? 0;
     const recentlyAddedToday   = localStats?.recentlyAddedToday ?? "—";
     return [
-      { label: "Total Currents", value: totalCurrentProjects, icon: <FaFolderOpen />, variant: "normal" },
+      { label: "Total Currents", value: totalCurrentProjects, icon: <FaFolderOpen />,  variant: "normal" },
       { label: "Recently Added", value: recentlyAddedToday,   icon: <IoTimeOutline />, variant: "normal" },
     ];
   }, [localStats, localCurrentProjects]);
@@ -122,7 +172,12 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     {
       key: "company_name",
       header: <div className="text-center w-full">COMPANY NAME</div>,
-      cell: (r) => <span className="font-medium flex justify-center items-center">{r.company_name ?? "—"}</span>,
+      cell: (r) =>
+        <div className="flex justify-center items-center w-full h-full">
+          <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+            {r.company_name ?? "—"}
+          </span>
+        </div>,
     },
     {
       key: "contract_years",
@@ -194,7 +249,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   /* ── Fetch ── */
   const fetchCurrentData = async ({
     silent            = false,
-    targetPage        = 1,
+    targetPage        = currentPage,
     currentSearch     = search,
     currentStatus     = statusFilter,
     currentType       = typeFilter,
@@ -208,38 +263,37 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
-        const response = await axios.get(route("roi.current"), {
-            params: {
-                page:        targetPage,
-                search:      currentSearch     || undefined,
-                status:      currentStatus     || undefined,
-                per_page:    currentPerPage,
-                date_from:   currentDateFrom   || undefined,
-                date_to:     currentDateTo     || undefined,
-                prepared_by: currentPreparedBy || undefined,
-                location_id: currentLocationId || undefined,
-                sort_by:     "last_saved_at",
-                sort_order:  currentSortOrder  || undefined,
-                type:        currentType !== "" ? currentType : undefined,
-            },
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-            },
-        });
-        
-        const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
-        setLocalCurrentProjects(projectsPayload);
-        
-        const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
-        if (statsPayload) {
-          setLocalStats(statsPayload);
-        }
+      const response = await axios.get(route("roi.current"), {
+        params: {
+          page:        targetPage,
+          search:      currentSearch     || undefined,
+          status:      currentStatus     || undefined,
+          per_page:    currentPerPage,
+          date_from:   currentDateFrom   || undefined,
+          date_to:     currentDateTo     || undefined,
+          prepared_by: currentPreparedBy || undefined,
+          location_id: currentLocationId || undefined,
+          sort_by:     "last_saved_at",
+          sort_order:  currentSortOrder  || undefined,
+          type:        currentType !== "" ? currentType : undefined,
+        },
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+        },
+      });
+
+      const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
+      setLocalCurrentProjects(projectsPayload);
+      setCurrentPage(targetPage);
+
+      const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+      if (statsPayload) setLocalStats(statsPayload);
     } catch (error) {
-        console.error("Failed to fetch current projects:", error);
+      console.error("Failed to fetch current projects:", error);
     } finally {
-        setLoading(false);
-        setIsRefreshing(false);
+      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -248,22 +302,22 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     return () => clearTimeout(t);
   }, [search]);
 
-  const handleStatusChange    = (val) => { setStatusFilter(val); fetchCurrentData({ currentStatus: val }); };
-  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchCurrentData({ currentType: val }); };
-  const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchCurrentData({ currentPreparedBy: val }); };
-  const handleLocationApply   = (val) => { setLocationId(val);   fetchCurrentData({ currentLocationId: val }); };
-  const handleDateApply       = ()    => { setShowDatePicker(false); fetchCurrentData(); };
+  const handleStatusChange    = (val) => { setStatusFilter(val); fetchCurrentData({ currentStatus: val,     targetPage: 1 }); };
+  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchCurrentData({ currentType: val,       targetPage: 1 }); };
+  const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchCurrentData({ currentPreparedBy: val, targetPage: 1 }); };
+  const handleLocationApply   = (val) => { setLocationId(val);   fetchCurrentData({ currentLocationId: val, targetPage: 1 }); };
+  const handleDateApply       = ()    => { setShowDatePicker(false); fetchCurrentData({ targetPage: 1 }); };
   const handleDateClear       = ()    => {
     setDateFrom("");
     setDateTo("");
     setShowDatePicker(false);
-    fetchCurrentData({ currentDateFrom: undefined, currentDateTo: undefined });
+    fetchCurrentData({ currentDateFrom: undefined, currentDateTo: undefined, targetPage: 1 });
   };
   const handlePerPageInputApply = () => {
     const raw = parseInt(perPageInput, 10);
     const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 500) : perPage;
     setPerPage(num); setPerPageInput(String(num)); setShowPerPagePicker(false);
-    fetchCurrentData({ currentPerPage: num });
+    fetchCurrentData({ currentPerPage: num, targetPage: 1 });
   };
   const handleClearAllFilters = () => {
     setSearch("");
@@ -276,6 +330,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     setShowDatePicker(false);
     setShowPreparedBy(false);
     setShowLocation(false);
+    LS.clearAll();
     fetchCurrentData({
       currentSearch:     "",
       currentStatus:     "",
@@ -284,18 +339,19 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       currentDateTo:     undefined,
       currentPreparedBy: "",
       currentLocationId: "",
+      targetPage:        1,
     });
   };
 
   const handleSortToggle = () => {
     const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
     setSortOrder(next);
+    LS.set('sort_order', next);
     fetchCurrentData({ currentSortOrder: next });
   };
 
   const goToPage = (p) => fetchCurrentData({ targetPage: p });
 
-  const hasDateFilter = dateFrom || dateTo;
   const dateLabel = (() => {
     if (dateFrom && dateTo) return `${formatDateLabel(dateFrom)} – ${formatDateLabel(dateTo)}`;
     if (dateFrom) return `From ${formatDateLabel(dateFrom)}`;
@@ -306,7 +362,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const rows = localCurrentProjects?.data ?? [];
   const pagination = localCurrentProjects && typeof localCurrentProjects.current_page === "number"
     ? {
-        page:        localCurrentProjects.current_page,
+        page:         localCurrentProjects.current_page,
         perPage:      localCurrentProjects.per_page ?? perPage,
         total:        localCurrentProjects.total ?? rows.length,
         onPageChange: goToPage,
@@ -330,40 +386,40 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}
       onClearAll={handleClearAllFilters}
-  
+
       statusOptions={[
-        { value: "",              label: "All Status" },
-        { value: "for_review",      label: "For Review" },
-        { value: "for_checking",    label: "For Checking" },
+        { value: "",                  label: "All Status" },
+        { value: "for_review",        label: "For Review" },
+        { value: "for_checking",      label: "For Checking" },
         { value: "for_endorsement",   label: "For Endorsement" },
         { value: "for_confirmation",  label: "For Confirmation" },
         { value: "for_approval",      label: "For Approval" },
       ]}
       statusFilter={statusFilter}
       onStatusChange={handleStatusChange}
-      
+
       typeOptions={[
-        { value: "",  label: "All Types" },
-        { value: 1,   label: "Existing" },
-        { value: 0,   label: "Potential" },
+        { value: "", label: "All Types" },
+        { value: 1,  label: "Existing" },
+        { value: 0,  label: "Potential" },
       ]}
       typeFilter={typeFilter}
       onTypeChange={handleTypeChange}
-      
+
       perPage={perPage}
       perPageInput={perPageInput}
       onPerPageInputChange={setPerPageInput}
       onPerPageApply={handlePerPageInputApply}
-  
+
       preparedBy={preparedBy}
       onPreparedByChange={setPreparedBy}
       onPreparedByApply={handlePreparedByApply}
-  
+
       locationId={locationId}
       selectedLocationName={selectedLocationName}
       locations={locations}
       onLocationApply={handleLocationApply}
-  
+
       dateFrom={dateFrom}
       dateTo={dateTo}
       onDateFromChange={setDateFrom}
