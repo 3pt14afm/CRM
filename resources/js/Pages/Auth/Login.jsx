@@ -65,7 +65,7 @@ export default function Login({ status, canResetPassword }) {
                         </div>
                     </div>
 
-                    {/* Right Side: Form */}
+    
                 {/* Right Side: Form */}
               <div className="flex flex-col justify-center items-start flex-1 p-8 md:p-12">
                 <img className=" w-[500px] mx-auto block "src="/images/derms4.png"alt=""srcSet=""/>

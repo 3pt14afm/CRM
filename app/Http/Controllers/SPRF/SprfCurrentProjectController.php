@@ -23,6 +23,8 @@ class SprfCurrentProjectController extends Controller
     public function current(Request $request)
     {
         $userId = (int) Auth::id();
+        $user = Auth::user();
+        $isPresidentCeo = $user->role === 'president_ceo' || strtolower(trim($user->position ?? '')) === 'president & ceo';
         $perPage = (int) $request->input('per_page', 10);
 
         $query = SprfCurrentProject::query()
@@ -34,7 +36,7 @@ class SprfCurrentProjectController extends Controller
             ]);
             
         // Apply visibility restriction only if the user is not ID 1
-        if ($userId !== 1) {
+        if ($userId !== 1 && !$isPresidentCeo) {
             $query->where(function ($q) use ($userId) {
                 $q->where('prepared_by_user_id', $userId)
                     ->orWhere('current_approver_user_id', $userId)
@@ -443,7 +445,10 @@ class SprfCurrentProjectController extends Controller
         $userId = (int) Auth::id();
 
         // Allow user 1 to bypass checks
-        if ($userId === 1) {
+        if ($userId === 1) return;
+        $viewer = Auth::user();
+        if ($viewer->role === 'president_ceo'
+            || strtolower(trim($viewer->position ?? '')) === 'president & ceo') {
             return;
         }
             
