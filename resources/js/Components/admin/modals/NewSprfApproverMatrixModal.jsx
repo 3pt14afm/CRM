@@ -1,55 +1,14 @@
-import React, { useMemo } from "react";
+import React from "react";
 
-const ROLE_LABELS = {
-  DIRECTOR_CUSTOMER_ENGAGEMENT: "Director - Customer Engagement",
-  ESD_DIRECTOR: "ESD Director",
-  VP_CCTO: "VP & CCTO",
-  PRESIDENT_CEO: "President & CEO",
-};
-
-const ROLES_BY_CONDITION = {
-  STANDARD_PRICING: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-  ],
-  VALUE_GT_1M: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-  ],
-  GP_GT_15: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-  ],
-  GP_LTE_15: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-    "PRESIDENT_CEO",
-  ],
-  REBATE_REQUEST: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-    "PRESIDENT_CEO",
-  ],
-};
-
-function buildSteps(conditionCode) {
-  const roles =
-    ROLES_BY_CONDITION[conditionCode] ??
-    ROLES_BY_CONDITION.STANDARD_PRICING;
-
-  return roles.map((role, index) => ({
-    role,
-    sequence: index + 1,
-    position_id: "",
-    approver_user_id: "",
-  }));
-}
-
-export { buildSteps as buildSprfMatrixSteps };
+const APPROVER_FIELDS = [
+  {
+    key: "director_customer_engagement_user_id",
+    label: "Director - Customer Engagement",
+  },
+  { key: "esd_director_user_id", label: "ESD Director" },
+  { key: "vp_ccto_user_id", label: "VP & CCTO" },
+  { key: "president_ceo_user_id", label: "President & CEO" },
+];
 
 export default function NewSprfApproverMatrixModal({
   show,
@@ -58,56 +17,15 @@ export default function NewSprfApproverMatrixModal({
   form,
   setForm,
   onSubmit,
-  sprfConditions = [],
-  positions = [],
+  locations = [],
+  departments = [],
   users = [],
 }) {
-  const selectedCondition = form?.condition_code || "STANDARD_PRICING";
-
-  const selectedRoles = useMemo(() => {
-    return (
-      ROLES_BY_CONDITION[selectedCondition] ??
-      ROLES_BY_CONDITION.STANDARD_PRICING
-    );
-  }, [selectedCondition]);
-
-  const getUsersByPosition = (positionId) => {
-    if (!positionId) return [];
-
-    return users.filter(
-      (user) => String(user.company_position_id ?? "") === String(positionId)
-    );
-  };
-
-  const updateCondition = (conditionCode) => {
+  const updateField = (key, value) => {
     setForm((prev) => ({
       ...prev,
-      condition_code: conditionCode,
-      steps: buildSteps(conditionCode),
+      [key]: value,
     }));
-  };
-
-  const updateStep = (index, changes) => {
-    setForm((prev) => {
-      const nextSteps = [...(prev.steps ?? [])];
-      const current = nextSteps[index] ?? {};
-
-      const updated = {
-        ...current,
-        ...changes,
-      };
-
-      if (Object.prototype.hasOwnProperty.call(changes, "position_id")) {
-        updated.approver_user_id = "";
-      }
-
-      nextSteps[index] = updated;
-
-      return {
-        ...prev,
-        steps: nextSteps,
-      };
-    });
   };
 
   if (!show) return null;
@@ -126,7 +44,7 @@ export default function NewSprfApproverMatrixModal({
               New SPRF Approver Matrix
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Configure approval routing per SPRF condition.
+              Set up SPRF approval routing for a location and department.
             </p>
           </div>
 
@@ -134,18 +52,19 @@ export default function NewSprfApproverMatrixModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-slate-700">
-                  Condition
+                  Location
                 </span>
                 <select
-                  value={selectedCondition}
-                  onChange={(e) => updateCondition(e.target.value)}
+                  value={form?.location_id ?? ""}
+                  onChange={(e) => updateField("location_id", e.target.value)}
                   className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
                   disabled={processing}
                   required
                 >
-                  {sprfConditions.map((condition) => (
-                    <option key={condition.code} value={condition.code}>
-                      {condition.label}
+                  <option value="">Select location</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
                     </option>
                   ))}
                 </select>
@@ -153,113 +72,105 @@ export default function NewSprfApproverMatrixModal({
 
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-slate-700">
-                  Remarks
+                  Department
                 </span>
-                <input
-                  type="text"
-                  value={form.remarks ?? ""}
+                <select
+                  value={form?.department_id ?? ""}
                   onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      remarks: e.target.value,
-                    }))
+                    updateField("department_id", e.target.value)
                   }
                   className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
-                  placeholder="Optional"
                   disabled={processing}
-                />
+                  required
+                >
+                  <option value="">Select department</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-slate-700">
+                Remarks
+              </span>
+              <input
+                type="text"
+                value={form?.remarks ?? ""}
+                onChange={(e) => updateField("remarks", e.target.value)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
+                placeholder="Optional"
+                disabled={processing}
+              />
+            </label>
 
             <div className="rounded-xl border border-slate-200 overflow-hidden">
               <div className="bg-[#efeff4] px-4 py-2">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Approval Steps
+                  Approvers
                 </p>
               </div>
 
               <div className="divide-y divide-slate-100">
-                {selectedRoles.map((role, index) => {
-                  const step = form.steps?.[index] ?? {};
-                  const positionUsers = getUsersByPosition(step.position_id);
-
-                  return (
-                    <div
-                      key={role}
-                      className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-end"
-                    >
-                      <div className="lg:col-span-4">
-                        <p className="text-xs text-slate-500">
-                          Step {index + 1}
-                        </p>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {ROLE_LABELS[role] ?? role}
-                        </p>
-                      </div>
-
-                      <label className="lg:col-span-4 flex flex-col gap-1">
-                        <span className="text-xs font-semibold text-slate-700">
-                          Position
-                        </span>
-                        <select
-                          value={step.position_id ?? ""}
-                          onChange={(e) =>
-                            updateStep(index, {
-                              position_id: e.target.value,
-                            })
-                          }
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
-                          disabled={processing}
-                          required
-                        >
-                          <option value="">Select position</option>
-                          {positions.map((position) => (
-                            <option key={position.id} value={position.id}>
-                              {position.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="lg:col-span-4 flex flex-col gap-1">
-                        <span className="text-xs font-semibold text-slate-700">
-                          User
-                        </span>
-                        <select
-                          value={step.approver_user_id ?? ""}
-                          onChange={(e) =>
-                            updateStep(index, {
-                              approver_user_id: e.target.value,
-                            })
-                          }
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
-                          disabled={processing || !step.position_id}
-                          required
-                        >
-                          <option value="">
-                            {step.position_id
-                              ? "Select user"
-                              : "Select position first"}
-                          </option>
-
-                          {positionUsers.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.name}
-                            </option>
-                          ))}
-                        </select>
-
-                        {step.position_id && positionUsers.length === 0 && (
-                          <span className="text-[11px] text-red-600">
-                            No available user has this position.
-                          </span>
-                        )}
-                      </label>
+                {APPROVER_FIELDS.map((field, index) => (
+                  <div
+                    key={field.key}
+                    className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-end"
+                  >
+                    <div className="lg:col-span-4">
+                      <p className="text-xs text-slate-500">
+                        Step {index + 1}
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {field.label}
+                      </p>
                     </div>
-                  );
-                })}
+
+                    <label className="lg:col-span-8 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-700">
+                        Approver
+                      </span>
+                      <select
+                        value={form?.[field.key] ?? ""}
+                        onChange={(e) =>
+                          updateField(field.key, e.target.value)
+                        }
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
+                        disabled={processing}
+                        required
+                      >
+                        <option value="">Select user</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ))}
               </div>
             </div>
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={Boolean(form?.is_active)}
+                onChange={(e) => updateField("is_active", e.target.checked)}
+                disabled={processing}
+                className="h-4 w-4 rounded border-slate-300 text-[#289800] focus:ring-[#B5EBA2]"
+              />
+              <span className="text-sm font-semibold text-slate-700">
+                Set as active matrix
+              </span>
+            </label>
+            <p className="text-[11px] text-slate-500 -mt-3">
+              Only one active matrix is allowed per location and department.
+              If one already exists, it must be deactivated first.
+            </p>
           </div>
 
           <div className="px-8 py-4 border-t border-slate-200 flex justify-end gap-3">

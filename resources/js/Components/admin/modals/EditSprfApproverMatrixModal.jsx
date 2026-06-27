@@ -1,40 +1,14 @@
-import React, { useMemo } from "react";
+import React from "react";
 
-const ROLE_LABELS = {
-  DIRECTOR_CUSTOMER_ENGAGEMENT: "Director - Customer Engagement",
-  ESD_DIRECTOR: "ESD Director",
-  VP_CCTO: "VP & CCTO",
-  PRESIDENT_CEO: "President & CEO",
-};
-
-const ROLES_BY_CONDITION = {
-  STANDARD_PRICING: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-  ],
-  VALUE_GT_1M: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-  ],
-  GP_GT_15: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-  ],
-  GP_LTE_15: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-    "PRESIDENT_CEO",
-  ],
-  REBATE_REQUEST: [
-    "DIRECTOR_CUSTOMER_ENGAGEMENT",
-    "ESD_DIRECTOR",
-    "VP_CCTO",
-    "PRESIDENT_CEO",
-  ],
-};
+const APPROVER_FIELDS = [
+  {
+    key: "director_customer_engagement_user_id",
+    label: "Director - Customer Engagement",
+  },
+  { key: "esd_director_user_id", label: "ESD Director" },
+  { key: "vp_ccto_user_id", label: "VP & CCTO" },
+  { key: "president_ceo_user_id", label: "President & CEO" },
+];
 
 export default function EditSprfApproverMatrixModal({
   show,
@@ -44,48 +18,16 @@ export default function EditSprfApproverMatrixModal({
   form,
   setForm,
   onSubmit,
-  sprfConditions = [],
-  positions = [],
+  locations = [],
+  departments = [],
   users = [],
+  errors = {},
 }) {
-  const selectedCondition = form?.condition_code || "STANDARD_PRICING";
-
-  const selectedRoles = useMemo(() => {
-    return (
-      ROLES_BY_CONDITION[selectedCondition] ??
-      ROLES_BY_CONDITION.STANDARD_PRICING
-    );
-  }, [selectedCondition]);
-
-  const getUsersByPosition = (positionId) => {
-    if (!positionId) return [];
-
-    return users.filter(
-      (user) => String(user.company_position_id ?? "") === String(positionId)
-    );
-  };
-
-  const updateStep = (index, changes) => {
-    setForm((prev) => {
-      const nextSteps = [...(prev.steps ?? [])];
-      const current = nextSteps[index] ?? {};
-
-      const updated = {
-        ...current,
-        ...changes,
-      };
-
-      if (Object.prototype.hasOwnProperty.call(changes, "position_id")) {
-        updated.approver_user_id = "";
-      }
-
-      nextSteps[index] = updated;
-
-      return {
-        ...prev,
-        steps: nextSteps,
-      };
-    });
+  const updateField = (key, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
   if (!show) return null;
@@ -104,30 +46,33 @@ export default function EditSprfApproverMatrixModal({
               Edit SPRF Approver Matrix
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Update approvers for this inactive SPRF matrix version.
+              Update approval routing for this location and department.
             </p>
           </div>
 
           <div className="px-8 py-6 space-y-5 max-h-[70vh] overflow-y-auto">
-            {editingMatrix?.is_active && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Active matrices cannot be edited. Create a new version instead.
+            {errors?.is_active && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {errors.is_active}
               </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-slate-700">
-                  Condition
+                  Location
                 </span>
                 <select
-                  value={selectedCondition}
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm bg-slate-100 text-slate-600"
-                  disabled
+                  value={form?.location_id ?? ""}
+                  onChange={(e) => updateField("location_id", e.target.value)}
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
+                  disabled={processing}
+                  required
                 >
-                  {sprfConditions.map((condition) => (
-                    <option key={condition.code} value={condition.code}>
-                      {condition.label}
+                  <option value="">Select location</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
                     </option>
                   ))}
                 </select>
@@ -135,26 +80,39 @@ export default function EditSprfApproverMatrixModal({
 
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-slate-700">
-                  Version
+                  Department
                 </span>
-                <input
-                  type="text"
-                  value={`v${editingMatrix?.version ?? 1}`}
-                  className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600"
-                  disabled
-                />
+                <select
+                  value={form?.department_id ?? ""}
+                  onChange={(e) =>
+                    updateField("department_id", e.target.value)
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
+                  disabled={processing}
+                  required
+                >
+                  <option value="">Select department</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
               </label>
 
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-slate-700">
-                  Status
-                </span>
+              <label className="flex items-center gap-2 self-end pb-2">
                 <input
-                  type="text"
-                  value={editingMatrix?.is_active ? "Active" : "Inactive"}
-                  className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600"
-                  disabled
+                  type="checkbox"
+                  checked={Boolean(form?.is_active)}
+                  onChange={(e) =>
+                    updateField("is_active", e.target.checked)
+                  }
+                  disabled={processing}
+                  className="h-4 w-4 rounded border-slate-300 text-[#289800] focus:ring-[#B5EBA2]"
                 />
+                <span className="text-sm font-semibold text-slate-700">
+                  Active
+                </span>
               </label>
             </div>
 
@@ -164,110 +122,59 @@ export default function EditSprfApproverMatrixModal({
               </span>
               <input
                 type="text"
-                value={form.remarks ?? ""}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    remarks: e.target.value,
-                  }))
-                }
+                value={form?.remarks ?? ""}
+                onChange={(e) => updateField("remarks", e.target.value)}
                 className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
                 placeholder="Optional"
-                disabled={processing || editingMatrix?.is_active}
+                disabled={processing}
               />
             </label>
 
             <div className="rounded-xl border border-slate-200 overflow-hidden">
               <div className="bg-[#efeff4] px-4 py-2">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Approval Steps
+                  Approvers
                 </p>
               </div>
 
               <div className="divide-y divide-slate-100">
-                {selectedRoles.map((role, index) => {
-                  const step = form.steps?.[index] ?? {};
-                  const positionUsers = getUsersByPosition(step.position_id);
-
-                  return (
-                    <div
-                      key={role}
-                      className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-end"
-                    >
-                      <div className="lg:col-span-4">
-                        <p className="text-xs text-slate-500">
-                          Step {index + 1}
-                        </p>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {ROLE_LABELS[role] ?? role}
-                        </p>
-                      </div>
-
-                      <label className="lg:col-span-4 flex flex-col gap-1">
-                        <span className="text-xs font-semibold text-slate-700">
-                          Position
-                        </span>
-                        <select
-                          value={step.position_id ?? ""}
-                          onChange={(e) =>
-                            updateStep(index, {
-                              position_id: e.target.value,
-                            })
-                          }
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
-                          disabled={processing || editingMatrix?.is_active}
-                          required
-                        >
-                          <option value="">Select position</option>
-                          {positions.map((position) => (
-                            <option key={position.id} value={position.id}>
-                              {position.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="lg:col-span-4 flex flex-col gap-1">
-                        <span className="text-xs font-semibold text-slate-700">
-                          User
-                        </span>
-                        <select
-                          value={step.approver_user_id ?? ""}
-                          onChange={(e) =>
-                            updateStep(index, {
-                              approver_user_id: e.target.value,
-                            })
-                          }
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
-                          disabled={
-                            processing ||
-                            editingMatrix?.is_active ||
-                            !step.position_id
-                          }
-                          required
-                        >
-                          <option value="">
-                            {step.position_id
-                              ? "Select user"
-                              : "Select position first"}
-                          </option>
-
-                          {positionUsers.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.name}
-                            </option>
-                          ))}
-                        </select>
-
-                        {step.position_id && positionUsers.length === 0 && (
-                          <span className="text-[11px] text-red-600">
-                            No available user has this position.
-                          </span>
-                        )}
-                      </label>
+                {APPROVER_FIELDS.map((field, index) => (
+                  <div
+                    key={field.key}
+                    className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-end"
+                  >
+                    <div className="lg:col-span-4">
+                      <p className="text-xs text-slate-500">
+                        Step {index + 1}
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {field.label}
+                      </p>
                     </div>
-                  );
-                })}
+
+                    <label className="lg:col-span-8 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-700">
+                        Approver
+                      </span>
+                      <select
+                        value={form?.[field.key] ?? ""}
+                        onChange={(e) =>
+                          updateField(field.key, e.target.value)
+                        }
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
+                        disabled={processing}
+                        required
+                      >
+                        <option value="">Select user</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -284,7 +191,7 @@ export default function EditSprfApproverMatrixModal({
 
             <button
               type="submit"
-              disabled={processing || editingMatrix?.is_active}
+              disabled={processing}
               className="px-5 py-2 rounded-xl bg-darkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
             >
               {processing ? "Saving..." : "Save Changes"}

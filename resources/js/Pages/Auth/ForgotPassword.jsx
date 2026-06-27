@@ -1,7 +1,6 @@
 import { FaArrowLeft } from "react-icons/fa";
 import { Head, Link } from "@inertiajs/react";
 import GuestLayout from "@/Layouts/GuestLayout";
-import { MdOutlineLockReset } from "react-icons/md";
 
 export default function ForgotPassword() {
     return (

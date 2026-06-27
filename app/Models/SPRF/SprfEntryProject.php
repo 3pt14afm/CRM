@@ -16,8 +16,9 @@ class SprfEntryProject extends Model
         'current_level',
         'approval_level',
 
-        'sprf_approval_matrix_id',
         'approval_condition_code',
+        'location_id',
+        'department_id',
 
         'prepared_by_user_id',
         'director_customer_engagement_user_id',

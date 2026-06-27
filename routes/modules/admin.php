@@ -79,6 +79,12 @@ Route::middleware(['auth', 'verified', 'admin'])
         // Approver Matrix CRUD
         Route::post('/approver-matrix', [ApproverMatrixController::class, 'store'])->name('approver-matrix.store');
         Route::put('/approver-matrix/{locationDepartment}', [ApproverMatrixController::class, 'update'])->name('approver-matrix.update');
+        // NOTE: this group already prefixes the URI with "admin/" and the
+        // route name with "admin." — do not repeat either here, or you get
+        // "admin/admin/..." and "admin.admin...." (which is what caused the
+        // Ziggy "route not in the list" error).
+        Route::post('/approver-matrix/sprf', [ApproverMatrixController::class, 'storeSprfMatrix'])->name('approver-matrix.sprf.store');
+        Route::put('/approver-matrix/sprf/{sprfApprovalMatrix}', [ApproverMatrixController::class, 'updateSprfMatrix'])->name('approver-matrix.sprf.update');
 
         // Printer Models CRUD
         Route::get('/printer-models', [PrinterController::class, 'printerModelIndex'])->name('printer-models.index');
@@ -126,6 +132,3 @@ Route::middleware(['auth', 'verified', 'admin'])
         Route::put('/sprf-approver-matrix/{matrix}', [SprfApproverMatrixController::class, 'update'])->name('sprf-approver-matrix.update');
         Route::patch('/sprf-approver-matrix/{matrix}/activate', [SprfApproverMatrixController::class, 'activate'])->name('sprf-approver-matrix.activate');
  });
-
-
-

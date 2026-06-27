@@ -3,7 +3,7 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import NewApproverMatrixModal from "@/Components/admin/modals/NewApproverMatrixModal";
 import EditApproverMatrixModal from "@/Components/admin/modals/EditApproverMatrixModal";
-import NewSprfApproverMatrixModal, {buildSprfMatrixSteps,} from "@/Components/admin/modals/NewSprfApproverMatrixModal";
+import NewSprfApproverMatrixModal from "@/Components/admin/modals/NewSprfApproverMatrixModal";
 import EditSprfApproverMatrixModal from "@/Components/admin/modals/EditSprfApproverMatrixModal";
 import { MdEdit, MdOutlinePowerSettingsNew } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
@@ -37,13 +37,18 @@ function ApproverLine({ label, value }) {
   );
 }
 
-function ApproverMatrix({
-  stats,
-  matrices,
-  sprfMatrices = [],
-  sprfConditions = [],
-  positions = [],
-}) {
+const EMPTY_SPRF_FORM = {
+  location_id: "",
+  department_id: "",
+  director_customer_engagement_user_id: "",
+  esd_director_user_id: "",
+  vp_ccto_user_id: "",
+  president_ceo_user_id: "",
+  is_active: false,
+  remarks: "",
+};
+
+function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
   const [activeMatrixTab, setActiveMatrixTab] = useState("ROI");
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -55,22 +60,12 @@ function ApproverMatrix({
 
   const [showCreateSprfModal, setShowCreateSprfModal] = useState(false);
   const [createSprfProcessing, setCreateSprfProcessing] = useState(false);
-
-  const [sprfCreateForm, setSprfCreateForm] = useState({
-    condition_code: "STANDARD_PRICING",
-    remarks: "",
-    steps: buildSprfMatrixSteps("STANDARD_PRICING"),
-  });
+  const [sprfCreateForm, setSprfCreateForm] = useState({ ...EMPTY_SPRF_FORM });
 
   const [showEditSprfModal, setShowEditSprfModal] = useState(false);
   const [editSprfProcessing, setEditSprfProcessing] = useState(false);
   const [editingSprfMatrix, setEditingSprfMatrix] = useState(null);
-
-  const [sprfEditForm, setSprfEditForm] = useState({
-    condition_code: "STANDARD_PRICING",
-    remarks: "",
-    steps: buildSprfMatrixSteps("STANDARD_PRICING"),
-  });
+  const [sprfEditForm, setSprfEditForm] = useState({ ...EMPTY_SPRF_FORM });
 
   const users = stats?.users ?? [];
   const locations = stats?.locations ?? [];
@@ -219,16 +214,11 @@ function ApproverMatrix({
     });
   };
 
+  // ─── SPRF: Create ─────────────────────────────────────────────────────────
+
   const openCreateSprfModal = () => {
-    const defaultCondition = sprfConditions?.[0]?.code ?? "STANDARD_PRICING";
-
     setCreateSprfProcessing(false);
-    setSprfCreateForm({
-      condition_code: defaultCondition,
-      remarks: "",
-      steps: buildSprfMatrixSteps(defaultCondition),
-    });
-
+    setSprfCreateForm({ ...EMPTY_SPRF_FORM });
     setShowCreateSprfModal(true);
   };
 
@@ -241,7 +231,7 @@ function ApproverMatrix({
     e.preventDefault();
     setCreateSprfProcessing(true);
 
-    router.post(route("admin.sprf-approver-matrix.store"), sprfCreateForm, {
+    router.post(route("admin.approver-matrix.sprf.store"), sprfCreateForm, {
       preserveScroll: true,
       onSuccess: () => {
         setCreateSprfProcessing(false);
@@ -256,21 +246,19 @@ function ApproverMatrix({
     });
   };
 
-  const activateSprfMatrix = (row) => {
-    if (!row?.id || row?.is_active) return;
+  // ─── SPRF: Edit ───────────────────────────────────────────────────────────
 
-    if (
-      !confirm(
-        "Activate this SPRF approver matrix? This will deactivate the current active matrix for the same condition."
-      )
-    ) {
-      return;
-    }
-
-    router.patch(route("admin.sprf-approver-matrix.activate", row.id), {}, {
-      preserveScroll: true,
-    });
-  };
+  const buildSprfEditFormFromRow = (row) => ({
+    location_id: row?.location_id ?? "",
+    department_id: row?.department_id ?? "",
+    director_customer_engagement_user_id:
+      row?.director_customer_engagement_user_id ?? "",
+    esd_director_user_id: row?.esd_director_user_id ?? "",
+    vp_ccto_user_id: row?.vp_ccto_user_id ?? "",
+    president_ceo_user_id: row?.president_ceo_user_id ?? "",
+    is_active: Boolean(row?.is_active),
+    remarks: row?.remarks ?? "",
+  });
 
   const openEditSprfModal = (row) => {
     setEditSprfProcessing(false);
@@ -288,12 +276,12 @@ function ApproverMatrix({
   const submitEditSprf = (e) => {
     e.preventDefault();
 
-    if (!editingSprfMatrix?.id || editingSprfMatrix?.is_active) return;
+    if (!editingSprfMatrix?.id) return;
 
     setEditSprfProcessing(true);
 
     router.put(
-      route("admin.sprf-approver-matrix.update", editingSprfMatrix.id),
+      route("admin.approver-matrix.sprf.update", editingSprfMatrix.id),
       sprfEditForm,
       {
         preserveScroll: true,
@@ -312,28 +300,25 @@ function ApproverMatrix({
     );
   };
 
-  const buildSprfEditFormFromRow = (row) => {
-  const conditionCode = row?.condition_code ?? "STANDARD_PRICING";
-  const baseSteps = buildSprfMatrixSteps(conditionCode);
+  // ─── SPRF: Activate (reuses the update endpoint, no dedicated route) ──────
 
-  const stepsByRole = new Map(
-    (row?.steps ?? []).map((step) => [step.role, step])
-  );
+  const activateSprfMatrix = (row) => {
+    if (!row?.id || row?.is_active) return;
 
-  return {
-    condition_code: conditionCode,
-    remarks: row?.remarks ?? "",
-    steps: baseSteps.map((baseStep) => {
-      const savedStep = stepsByRole.get(baseStep.role);
+    if (
+      !confirm(
+        "Activate this SPRF approver matrix? Any other active matrix for the same location and department must already be deactivated."
+      )
+    ) {
+      return;
+    }
 
-      return {
-        ...baseStep,
-        position_id: savedStep?.position_id ?? "",
-        approver_user_id: savedStep?.approver_user_id ?? "",
-      };
-    }),
+    router.put(
+      route("admin.approver-matrix.sprf.update", row.id),
+      { ...buildSprfEditFormFromRow(row), is_active: true },
+      { preserveScroll: true }
+    );
   };
-};
 
   const goToPage = (p) => {
     router.get(
@@ -386,8 +371,8 @@ function ApproverMatrix({
         form={sprfCreateForm}
         setForm={setSprfCreateForm}
         onSubmit={submitCreateSprf}
-        sprfConditions={sprfConditions}
-        positions={positions}
+        locations={locations}
+        departments={departments}
         users={users}
       />
 
@@ -399,9 +384,10 @@ function ApproverMatrix({
         form={sprfEditForm}
         setForm={setSprfEditForm}
         onSubmit={submitEditSprf}
-        sprfConditions={sprfConditions}
-        positions={positions}
+        locations={locations}
+        departments={departments}
         users={users}
+        errors={errors}
       />
 
       <div className="min-h-screen flex flex-col">
@@ -415,7 +401,7 @@ function ApproverMatrix({
                 <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
                   {activeMatrixTab === "ROI"
                     ? "Manage ROI approval routing per location and department."
-                    : "Manage SPRF approval routing per condition."}
+                    : "Manage SPRF approval routing per location and department."}
                 </p>
               </div>
 
@@ -606,10 +592,10 @@ function ApproverMatrix({
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
-                          <th className="px-6 py-2 text-left font-bold">Condition</th>
-                          <th className="px-4 py-2 text-center font-bold">Version</th>
+                          <th className="px-6 py-2 text-left font-bold">Location</th>
+                          <th className="px-4 py-2 text-center font-bold">Department</th>
                           <th className="px-4 py-2 text-center font-bold min-w-[420px]">
-                            Approval Route
+                            Approvers
                           </th>
                           <th className="px-4 py-2 text-center font-bold">Status</th>
                           <th className="px-4 py-2 text-center font-bold">Actions</th>
@@ -637,32 +623,31 @@ function ApproverMatrix({
                                 className="border-b border-slate-100 hover:bg-slate-50/60 align-top"
                               >
                                 <td className="px-6 py-3 text-[11px] lg:text-sm text-slate-900">
-                                  {row.condition_label ?? row.condition_code ?? "—"}
+                                  {row.location_name ?? "—"}
                                 </td>
 
                                 <td className="px-4 py-3 text-center text-[11px] lg:text-sm text-slate-900">
-                                  v{row.version ?? 1}
+                                  {row.department_name ?? "—"}
                                 </td>
 
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex flex-col gap-1.5">
-                                    {(row.steps ?? []).length === 0 ? (
-                                      <span className="text-xs text-slate-500">
-                                        No steps setup
-                                      </span>
-                                    ) : (
-                                      row.steps.map((step) => (
-                                        <ApproverLine
-                                          key={step.id ?? `${rowKey}-${step.role}`}
-                                          label={step.role_label ?? step.role}
-                                          value={
-                                            step.approver_user_name ??
-                                            step.position_name ??
-                                            "Not setup"
-                                          }
-                                        />
-                                      ))
-                                    )}
+                                    <ApproverLine
+                                      label="Director - Customer Engagement"
+                                      value={row.director_customer_engagement_user_name}
+                                    />
+                                    <ApproverLine
+                                      label="ESD Director"
+                                      value={row.esd_director_user_name}
+                                    />
+                                    <ApproverLine
+                                      label="VP & CCTO"
+                                      value={row.vp_ccto_user_name}
+                                    />
+                                    <ApproverLine
+                                      label="President & CEO"
+                                      value={row.president_ceo_user_name}
+                                    />
                                   </div>
                                 </td>
 
@@ -693,7 +678,7 @@ function ApproverMatrix({
                                           onClick={() => activateSprfMatrix(row)}
                                           className="px-1 py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
                                         >
-                                          <MdOutlinePowerSettingsNew/>
+                                          <MdOutlinePowerSettingsNew />
                                         </button>
                                       )}
                                     </div>
