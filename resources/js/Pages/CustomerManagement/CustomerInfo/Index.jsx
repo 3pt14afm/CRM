@@ -9,6 +9,7 @@ import { usePage } from '@inertiajs/react';
 import CompanyDetailsSidebar from './CompanyDetailsSidebar';
 import { FaBuildingUser } from 'react-icons/fa6';
 import { BsBuildingFillAdd } from 'react-icons/bs';
+import { FaRegClock } from 'react-icons/fa';
 
 const STORAGE_KEY = 'customerinfo_filters';
 
@@ -302,6 +303,28 @@ function Index({ companies, potentials, filters, categories = [] }) {
             cell: (r) => (
                 <span className="text-sm flex justify-center items-center text-slate-600">
                     {r.address ?? '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'created_at',
+            header: (
+                <button
+                    type="button"
+                    onClick={() => handleSort('created_at')}
+                    className="flex justify-center items-center w-full text-slate-500 gap-1"
+                >
+                    <FaRegClock className="text-sm" title="Created At" />
+                    <span className={`text-[11px] leading-none ${searchState.sort_by === 'created_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
+                        {searchState.sort_by === 'created_at' ? (searchState.sort_order === 'desc' ? '▼' : '▲') : '⇅'}
+                    </span>
+                </button>
+            ),
+            cell: (r) => (
+                <span className="text-slate-600 text-[10px] flex justify-center items-center whitespace-nowrap">
+                    {r.created_at
+                        ? new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }).format(new Date(r.created_at))
+                        : '—'}
                 </span>
             ),
         },

@@ -102,7 +102,8 @@ class CustomerInfoController extends Controller
 
         // ── Potential customers ─────────────────────────────────────────────
 
-        $allowedPotentialSorts = ['id', 'company_name', 'address', 'status'];
+        $allowedPotentialSorts = ['id', 'company_name', 'address', 'status', 'created_at'];
+
 
         $potentialSortBy = in_array($sortBy, $allowedPotentialSorts) ? $sortBy : 'id';
 
@@ -139,6 +140,8 @@ class CustomerInfoController extends Controller
             'id_client_mngr' => $p->id_client_mngr,
             'client_manager' => $p->clientManager ? $p->clientManager->first_name . ' ' . $p->clientManager->last_name : null,
             'status'         => $p->status,
+            'created_at'     => $p->created_at?->toDateTimeString(), // ← add this
+
         ]);
 
         // ── Render ──────────────────────────────────────────────────────────
