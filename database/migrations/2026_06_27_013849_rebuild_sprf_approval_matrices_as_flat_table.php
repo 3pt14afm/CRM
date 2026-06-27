@@ -9,34 +9,39 @@ return new class extends Migration
     public function up(): void
     {
         // -----------------------------------------------------------------
-        // Remove old approval matrix references (if they still exist)
+        // 1. Remove old approval matrix references (if they still exist)
         // -----------------------------------------------------------------
+
+        // Must drop FK constraints explicitly before dropping columns,
+        // because Laravel's array-syntax dropForeign() generates a
+        // conventional name that may not match the actual constraint name.
 
         Schema::table('sprf_entry_projects', function (Blueprint $table) {
             if (Schema::hasColumn('sprf_entry_projects', 'sprf_approval_matrix_id')) {
+                $table->dropForeign('sprf_entry_projects_sprf_approval_matrix_id_foreign');
                 $table->dropColumn('sprf_approval_matrix_id');
             }
         });
 
         Schema::table('sprf_current_projects', function (Blueprint $table) {
             if (Schema::hasColumn('sprf_current_projects', 'sprf_approval_matrix_id')) {
+                $table->dropForeign('sprf_current_projects_sprf_approval_matrix_id_foreign');
                 $table->dropColumn('sprf_approval_matrix_id');
             }
         });
 
         Schema::table('sprf_archive_projects', function (Blueprint $table) {
             if (Schema::hasColumn('sprf_archive_projects', 'sprf_approval_matrix_id')) {
-                $table->dropForeign(['sprf_approval_matrix_id']);
+                $table->dropForeign('sprf_archive_projects_sprf_approval_matrix_id_foreign');
                 $table->dropColumn('sprf_approval_matrix_id');
             }
         });
 
+        // Now safe to drop — no more FKs pointing at these tables
         Schema::dropIfExists('sprf_approval_matrix_steps');
         Schema::dropIfExists('sprf_approval_matrices');
 
-        // create new table...
-
-        // ── 2. Create new flat approval matrix table ─────────────────────────
+        // ── 2. Create new flat approval matrix table ──────────────────────────
 
         Schema::create('sprf_approval_matrices', function (Blueprint $table) {
             $table->id();
@@ -105,7 +110,7 @@ return new class extends Migration
             );
         });
 
-        // ── 3. Add location_id + department_id to sprf_entry_projects ────────
+        // ── 3. Add location_id + department_id to sprf_entry_projects ─────────
 
         Schema::table('sprf_entry_projects', function (Blueprint $table) {
             $table->foreignId('location_id')
@@ -121,7 +126,7 @@ return new class extends Migration
                 ->nullOnDelete();
         });
 
-        // ── 4. Add location_id + department_id to sprf_current_projects ──────
+        // ── 4. Add location_id + department_id to sprf_current_projects ───────
 
         Schema::table('sprf_current_projects', function (Blueprint $table) {
             $table->foreignId('location_id')
@@ -143,21 +148,13 @@ return new class extends Migration
         Schema::table('sprf_current_projects', function (Blueprint $table) {
             $table->dropForeign(['location_id']);
             $table->dropForeign(['department_id']);
-
-            $table->dropColumn([
-                'location_id',
-                'department_id',
-            ]);
+            $table->dropColumn(['location_id', 'department_id']);
         });
 
         Schema::table('sprf_entry_projects', function (Blueprint $table) {
             $table->dropForeign(['location_id']);
             $table->dropForeign(['department_id']);
-
-            $table->dropColumn([
-                'location_id',
-                'department_id',
-            ]);
+            $table->dropColumn(['location_id', 'department_id']);
         });
 
         Schema::dropIfExists('sprf_approval_matrices');
