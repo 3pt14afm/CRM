@@ -2,6 +2,8 @@
 
 namespace App\Models\SPRF;
 
+use App\Models\CompanyDepartment;
+use App\Models\Location;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,24 +12,56 @@ class SprfApprovalMatrix extends Model
 {
     use SoftDeletes;
 
+    protected $table = 'sprf_approval_matrices';
+
     protected $fillable = [
-        'condition_code',
-        'version',
+        'location_id',
+        'department_id',
+
+        'director_customer_engagement_user_id',
+        'esd_director_user_id',
+        'vp_ccto_user_id',
+        'president_ceo_user_id',
+
         'is_active',
         'remarks',
+
         'created_by_user_id',
         'updated_by_user_id',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'version' => 'integer',
     ];
 
-    public function steps()
+    public function location()
     {
-        return $this->hasMany(SprfApprovalMatrixStep::class)
-            ->orderBy('sequence');
+        return $this->belongsTo(Location::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(CompanyDepartment::class, 'department_id');
+    }
+
+    public function directorCustomerEngagement()
+    {
+        return $this->belongsTo(User::class, 'director_customer_engagement_user_id');
+    }
+
+    public function esdDirector()
+    {
+        return $this->belongsTo(User::class, 'esd_director_user_id');
+    }
+
+    public function vpCcto()
+    {
+        return $this->belongsTo(User::class, 'vp_ccto_user_id');
+    }
+
+    public function presidentCeo()
+    {
+        return $this->belongsTo(User::class, 'president_ceo_user_id');
     }
 
     public function creator()
@@ -38,17 +72,5 @@ class SprfApprovalMatrix extends Model
     public function updater()
     {
         return $this->belongsTo(User::class, 'updated_by_user_id');
-    }
-
-    public function getConditionLabelAttribute(): string
-    {
-        return match ($this->condition_code) {
-            'STANDARD_PRICING' => 'Standard Pricing',
-            'VALUE_GT_1M' => 'Value > 1M',
-            'GP_GT_15' => 'GP > 15%',
-            'GP_LTE_15' => 'GP <= 15%',
-            'REBATE_REQUEST' => 'Rebate Request',
-            default => $this->condition_code,
-        };
     }
 }

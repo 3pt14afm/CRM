@@ -38,7 +38,7 @@ class SprfEntryProjectController extends Controller
         $project->load(['items.subitems', 'fees', 'preparer:id,first_name,last_name,position,email']);
 
         return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
-            'approverUsers' => $this->mapApproverUsersFromProject($project),
+            'approverUsers'  => $this->mapApproverUsersFromProject($project),
             'initialProject' => $this->transformProjectForFrontend($project),
             'route'          => 'entry',
         ]);
@@ -53,12 +53,14 @@ class SprfEntryProjectController extends Controller
         $project->load(['items.subitems', 'fees', 'preparer:id,first_name,last_name,position,email']);
 
         return Inertia::render('CustomerManagement/ProjectSPRF/sprfEntryPrint', [
-            'entryProject' => $this->transformProjectForPrint($project),
-            'storageKey' => request('storageKey'),
-            'autoprint' => (bool) request('autoprint', false),
+            'entryProject'       => $this->transformProjectForPrint($project),
+            'storageKey'         => request('storageKey'),
+            'autoprint'          => (bool) request('autoprint', false),
             'showDraftWatermark' => (bool) request('draftWatermark', true),
         ]);
     }
+
+    // ─── Save Draft ───────────────────────────────────────────────────────────
 
     public function saveDraft(Request $request, SprfNumberGenerator $sprfNumberGenerator)
     {
@@ -73,53 +75,41 @@ class SprfEntryProjectController extends Controller
                 ->firstOrFail()
             : null;
 
-        $oldValues = $existingProject
-            ? $existingProject->toArray()
-            : null;
+        $oldValues = $existingProject ? $existingProject->toArray() : null;
 
-        $revenue = (float) data_get($payload, 'summary.revenue', 0);
-        $cogs = (float) data_get($payload, 'summary.cogs', 0);
+        $revenue           = (float) data_get($payload, 'summary.revenue', 0);
+        $cogs              = (float) data_get($payload, 'summary.cogs', 0);
         $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', 0);
-        $totalExpense = (float) data_get($payload, 'summary.totalExpense', 0);
-        $gpValue = (float) data_get($payload, 'summary.gpValue', 0);
-        $gpPercent = (float) data_get($payload, 'summary.totalGpPercent', 0);
+        $totalExpense      = (float) data_get($payload, 'summary.totalExpense', 0);
+        $gpValue           = (float) data_get($payload, 'summary.gpValue', 0);
+        $gpPercent         = (float) data_get($payload, 'summary.totalGpPercent', 0);
 
         $items = $this->mapItemsPayload((array) data_get($payload, 'items', []));
-        $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
+        $fees  = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
 
         $hasRebate = $this->hasRebateValueFromMappedFees($fees);
 
         $approvalConditionCode = $this->resolveApprovalConditionCode(
-            $payload,
-            $revenue,
-            $gpPercent,
-            $hasRebate
+            $payload, $revenue, $gpPercent, $hasRebate
         );
 
-        $approval = $this->tryResolveActiveSprfApprovalMatrix($approvalConditionCode);
+        // Lenient — no matrix found just means approvers stay null on the draft
+        ['location_id' => $locationId, 'department_id' => $departmentId]
+            = $this->resolvePreparerLocationAndDepartment();
 
-        $approverUsers = $approval['approver_users'] ?? $this->resolveApproverUsers();
-        $flags = $approval['flags'] ?? $this->resolveApprovalFlags($revenue, $gpPercent, $hasRebate);
-        $sprfApprovalMatrixId = $approval['matrix_id'] ?? SprfApprovalMatrix::where('condition_code', $approvalConditionCode)
-                ->where('is_active', true)
-                ->value('id');
+        $matrix        = $this->tryFindActiveMatrix($locationId, $departmentId);
+        $approverUsers = $matrix
+            ? $this->extractApproverUsers($matrix)
+            : ['directorCustomerEngagement' => null, 'esdDirector' => null, 'vpCcto' => null, 'presidentCeo' => null];
+
+        $flags                = $this->resolveApprovalFlagsFromCondition($approvalConditionCode);
+        $sprfApprovalMatrixId = $matrix?->id;
 
         $project = DB::transaction(function () use (
-            $existingProject,
-            $payload,
-            $approverUsers,
-            $revenue,
-            $cogs,
-            $otherExpenseTotal,
-            $totalExpense,
-            $gpValue,
-            $gpPercent,
-            $flags,
-            $items,
-            $fees,
-            $sprfApprovalMatrixId,
-            $approvalConditionCode,
-            $sprfNumberGenerator
+            $existingProject, $payload, $approverUsers, $revenue, $cogs,
+            $otherExpenseTotal, $totalExpense, $gpValue, $gpPercent,
+            $flags, $items, $fees, $sprfApprovalMatrixId, $approvalConditionCode,
+            $locationId, $departmentId, $sprfNumberGenerator
         ) {
             $project = $existingProject ?: new SprfEntryProject();
 
@@ -133,37 +123,39 @@ class SprfEntryProjectController extends Controller
             $companyInfo = (array) data_get($payload, 'company_info', []);
 
             $project->fill([
-                'sprf_no' => $sprfNo,
+                'sprf_no'           => $sprfNo,
                 'document_datetime' => $documentDatetime,
 
-                'status' => $existingProject && $existingProject->status === 'returned' ? 'returned' : 'draft',
-                'current_level' => 1,
-                'approval_level' => $flags['approval_level'],
+                'status'                  => $existingProject && $existingProject->status === 'returned' ? 'returned' : 'draft',
+                'current_level'           => 1,
+                'approval_level'          => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
                 'approval_condition_code' => $approvalConditionCode,
+                'location_id'             => $locationId,
+                'department_id'           => $departmentId,
 
-                'prepared_by_user_id' => $existingProject?->prepared_by_user_id ?: Auth::id(),
+                'prepared_by_user_id'                  => $existingProject?->prepared_by_user_id ?: Auth::id(),
                 'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
-                'esd_director_user_id' => data_get($approverUsers, 'esdDirector.id'),
-                'vp_ccto_user_id' => data_get($approverUsers, 'vpCcto.id'),
-                'president_ceo_user_id' => data_get($approverUsers, 'presidentCeo.id'),
+                'esd_director_user_id'                 => data_get($approverUsers, 'esdDirector.id'),
+                'vp_ccto_user_id'                      => data_get($approverUsers, 'vpCcto.id'),
+                'president_ceo_user_id'                => data_get($approverUsers, 'presidentCeo.id'),
 
-                'sub_category' => data_get($companyInfo, 'subCategory'),
-                'account' => data_get($companyInfo, 'account'),
+                'sub_category'    => data_get($companyInfo, 'subCategory'),
+                'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
 
-                'remarks' => data_get($payload, 'remarks'),
+                'remarks'              => data_get($payload, 'remarks'),
                 'rebate_justification' => data_get($payload, 'rebate_justification'),
 
-                'revenue' => $revenue,
-                'cogs' => $cogs,
+                'revenue'             => $revenue,
+                'cogs'                => $cogs,
                 'other_expense_total' => $otherExpenseTotal,
-                'total_expense' => $totalExpense,
-                'gp_value' => $gpValue,
-                'gp_percent' => $gpPercent,
+                'total_expense'       => $totalExpense,
+                'gp_value'            => $gpValue,
+                'gp_percent'          => $gpPercent,
 
-                'requires_vp_ccto' => $flags['requires_vp_ccto'],
-                'requires_president_ceo' => $flags['requires_president_ceo'],
+                'requires_vp_ccto'              => $flags['requires_vp_ccto'],
+                'requires_president_ceo'        => $flags['requires_president_ceo'],
                 'requires_rebate_justification' => $flags['requires_rebate_justification'],
             ]);
 
@@ -177,10 +169,8 @@ class SprfEntryProjectController extends Controller
 
                 foreach ($createdItems as $createdItem) {
                     $rowKey = $createdItem->row_key;
-                    if (!empty($items['subitemsByRowKey'][$rowKey])) {
-                        $createdItem->subitems()->createMany(
-                            $items['subitemsByRowKey'][$rowKey]
-                        );
+                    if (! empty($items['subitemsByRowKey'][$rowKey])) {
+                        $createdItem->subitems()->createMany($items['subitemsByRowKey'][$rowKey]);
                     }
                 }
             }
@@ -195,9 +185,7 @@ class SprfEntryProjectController extends Controller
         SprfActivityLogger::log(
             activityType: $existingProject ? 'update_draft' : 'create_draft',
             sprf: $project,
-            details: $existingProject
-                ? 'SPRF draft updated'
-                : 'SPRF draft created',
+            details: $existingProject ? 'SPRF draft updated' : 'SPRF draft created',
             oldValues: $oldValues,
             newValues: $project->fresh()->toArray()
         );
@@ -207,13 +195,15 @@ class SprfEntryProjectController extends Controller
             ->with('success', 'SPRF draft saved.');
     }
 
+    // ─── Submit ───────────────────────────────────────────────────────────────
+
     public function submit(Request $request, SprfEntryProject $project, SprfNumberGenerator $sprfNumberGenerator)
     {
         if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
             abort(403);
         }
 
-        if (!in_array($project->status, ['draft', 'returned'], true)) {
+        if (! in_array($project->status, ['draft', 'returned'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'Only draft SPRF projects can be submitted.',
             ]);
@@ -223,32 +213,32 @@ class SprfEntryProjectController extends Controller
 
         $payload = $this->validatePayload($request);
 
-        $revenue = (float) data_get($payload, 'summary.revenue', $project->revenue);
-        $cogs = (float) data_get($payload, 'summary.cogs', $project->cogs);
+        $revenue           = (float) data_get($payload, 'summary.revenue', $project->revenue);
+        $cogs              = (float) data_get($payload, 'summary.cogs', $project->cogs);
         $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', $project->other_expense_total);
-        $totalExpense = (float) data_get($payload, 'summary.totalExpense', $project->total_expense);
-        $gpValue = (float) data_get($payload, 'summary.gpValue', $project->gp_value);
-        $gpPercent = (float) data_get($payload, 'summary.totalGpPercent', $project->gp_percent);
+        $totalExpense      = (float) data_get($payload, 'summary.totalExpense', $project->total_expense);
+        $gpValue           = (float) data_get($payload, 'summary.gpValue', $project->gp_value);
+        $gpPercent         = (float) data_get($payload, 'summary.totalGpPercent', $project->gp_percent);
 
         $items = $this->mapItemsPayload((array) data_get($payload, 'items', []));
-        $fees = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
+        $fees  = $this->mapFeesPayload((array) data_get($payload, 'other_expenses', []));
 
         $hasRebate = $this->hasRebateValueFromMappedFees($fees);
 
         $approvalConditionCode = $this->resolveApprovalConditionCode(
-            $payload,
-            $revenue,
-            $gpPercent,
-            $hasRebate
+            $payload, $revenue, $gpPercent, $hasRebate
         );
 
-        $approval = $this->resolveActiveSprfApprovalMatrix($approvalConditionCode);
+        // Strict — hard fail if no active matrix found for this location + department
+        ['location_id' => $locationId, 'department_id' => $departmentId]
+            = $this->resolvePreparerLocationAndDepartment();
 
-        $approverUsers = $approval['approver_users'];
-        $flags = $approval['flags'];
-        $sprfApprovalMatrixId = $approval['matrix_id'];
+        $matrix = $this->findActiveMatrixOrFail($locationId, $departmentId);
+        $this->validateMatrixApprovers($matrix);
 
-        $this->validateRequiredApprovers($approverUsers, $flags);
+        $approverUsers        = $this->extractApproverUsers($matrix);
+        $flags                = $this->resolveApprovalFlagsFromCondition($approvalConditionCode);
+        $sprfApprovalMatrixId = $matrix->id;
 
         $rebateJustification = (string) data_get(
             $payload,
@@ -257,67 +247,61 @@ class SprfEntryProjectController extends Controller
         );
 
         $currentProject = DB::transaction(function () use (
-            $project,
-            $payload,
-            $approverUsers,
-            $revenue,
-            $cogs,
-            $otherExpenseTotal,
-            $totalExpense,
-            $gpValue,
-            $gpPercent,
-            $flags,
-            $items,
-            $fees,
-            $rebateJustification,
-            $sprfApprovalMatrixId,
-            $approvalConditionCode,
-            $sprfNumberGenerator
+            $project, $payload, $approverUsers, $revenue, $cogs,
+            $otherExpenseTotal, $totalExpense, $gpValue, $gpPercent,
+            $flags, $items, $fees, $rebateJustification,
+            $sprfApprovalMatrixId, $approvalConditionCode,
+            $locationId, $departmentId, $sprfNumberGenerator
         ) {
             $companyInfo = (array) data_get($payload, 'company_info', []);
 
-            $documentDatetime = $project->document_datetime ? Carbon::parse($project->document_datetime) : now();
+            $documentDatetime = $project->document_datetime
+                ? Carbon::parse($project->document_datetime)
+                : now();
 
-            $sprfNo = $project->sprf_no ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
+            $sprfNo = $project->sprf_no
+                ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
 
             $currentProject = SprfCurrentProject::create([
-                'sprf_no' => $sprfNo,
+                'sprf_no'           => $sprfNo,
                 'document_datetime' => $documentDatetime,
 
-                'status' => 'for_review',
-                'current_level' => 2,
-                'approval_level' => $flags['approval_level'],
+                'status'                  => 'for_review',
+                'current_level'           => 2,
+                'approval_level'          => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
                 'approval_condition_code' => $approvalConditionCode,
+                'location_id'             => $locationId,
+                'department_id'           => $departmentId,
 
-                'submitted_at' => now(),                                                           
+                'submitted_at'             => now(),
                 'current_approver_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
 
-                'prepared_by_user_id' => $project->prepared_by_user_id ?: Auth::id(),
+                'prepared_by_user_id'                  => $project->prepared_by_user_id ?: Auth::id(),
                 'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
-                'esd_director_user_id' => data_get($approverUsers, 'esdDirector.id'),
-                'vp_ccto_user_id' => data_get($approverUsers, 'vpCcto.id'),
-                'president_ceo_user_id' => data_get($approverUsers, 'presidentCeo.id'),
+                'esd_director_user_id'                 => data_get($approverUsers, 'esdDirector.id'),
+                'vp_ccto_user_id'                      => data_get($approverUsers, 'vpCcto.id'),
+                'president_ceo_user_id'                => data_get($approverUsers, 'presidentCeo.id'),
 
-                'sub_category' => data_get($companyInfo, 'subCategory'),
-                'account' => data_get($companyInfo, 'account'),
+                'sub_category'    => data_get($companyInfo, 'subCategory'),
+                'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
 
-                'remarks' => data_get($payload, 'remarks', $project->remarks),
+                'remarks'              => data_get($payload, 'remarks', $project->remarks),
                 'rebate_justification' => $rebateJustification,
 
-                'notes' => $project->notes ?? [],
+                'notes'    => $project->notes    ?? [],
                 'comments' => $project->comments ?? [],
 
-                'revenue' => $revenue,
-                'cogs' => $cogs,
+                'revenue'             => $revenue,
+                'cogs'                => $cogs,
                 'other_expense_total' => $otherExpenseTotal,
-                'total_expense' => $totalExpense,
-                'gp_value' => $gpValue,
-                'gp_percent' => $gpPercent,
+                'total_expense'       => $totalExpense,
+                'gp_value'            => $gpValue,
+                'gp_percent'          => $gpPercent,
 
-                'requires_vp_ccto' => $flags['requires_vp_ccto'],
-                'requires_president_ceo' => $flags['requires_president_ceo'],
+                'requires_vp_ccto'              => $flags['requires_vp_ccto'],
+                'requires_president_ceo'        => $flags['requires_president_ceo'],
                 'requires_rebate_justification' => $flags['requires_rebate_justification'],
             ]);
 
@@ -326,10 +310,8 @@ class SprfEntryProjectController extends Controller
 
                 foreach ($createdItems as $createdItem) {
                     $rowKey = $createdItem->row_key;
-                    if (!empty($items['subitemsByRowKey'][$rowKey])) {
-                        $createdItem->subitems()->createMany(
-                            $items['subitemsByRowKey'][$rowKey]
-                        );
+                    if (! empty($items['subitemsByRowKey'][$rowKey])) {
+                        $createdItem->subitems()->createMany($items['subitemsByRowKey'][$rowKey]);
                     }
                 }
             }
@@ -357,7 +339,7 @@ class SprfEntryProjectController extends Controller
             );
         } catch (\Throwable $e) {
             Log::error('SPRF submit activity log failed', [
-                'message' => $e->getMessage(),
+                'message'                 => $e->getMessage(),
                 'sprf_current_project_id' => $currentProject->id ?? null,
             ]);
         }
@@ -367,13 +349,15 @@ class SprfEntryProjectController extends Controller
             ->with('success', 'Draft successfully submitted.');
     }
 
+    // ─── Destroy ─────────────────────────────────────────────────────────────
+
     public function destroy(SprfEntryProject $project)
     {
         if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
             abort(403);
         }
 
-        if (!in_array($project->status, ['draft', 'Returned'], true)) {
+        if (! in_array($project->status, ['draft', 'Returned'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'Only draft SPRF projects can be deleted.',
             ]);
@@ -383,8 +367,8 @@ class SprfEntryProjectController extends Controller
 
         $oldValues = [
             'project' => $project->toArray(),
-            'items' => $project->items->map->toArray()->toArray(),
-            'fees' => $project->fees->map->toArray()->toArray(),
+            'items'   => $project->items->map->toArray()->toArray(),
+            'fees'    => $project->fees->map->toArray()->toArray(),
         ];
 
         $wasReturned = $project->status === 'Returned';
@@ -399,7 +383,8 @@ class SprfEntryProjectController extends Controller
             SprfActivityLogger::log(
                 activityType: $wasReturned ? 'delete_returned_draft' : 'delete_draft',
                 sprf: null,
-                details: ($wasReturned ? 'Deleted returned SPRF draft #' : 'Deleted SPRF draft #') . ($oldValues['project']['sprf_no'] ?? $project->id),
+                details: ($wasReturned ? 'Deleted returned SPRF draft #' : 'Deleted SPRF draft #')
+                    . ($oldValues['project']['sprf_no'] ?? $project->id),
                 oldValues: $oldValues,
                 newValues: null
             );
@@ -413,48 +398,94 @@ class SprfEntryProjectController extends Controller
         return redirect()->route('sprf.entry.list');
     }
 
+    // ─── Store Note ───────────────────────────────────────────────────────────
+
+    public function storeNote(Request $request, SprfEntryProject $project): \Illuminate\Http\RedirectResponse
+    {
+        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+
+        if ((int) $project->current_level !== 1) {
+            abort(403, 'Notes can only be added while the project is at level 1.');
+        }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $user = Auth::user();
+
+        $newEntry = [
+            'id'         => (string) \Illuminate\Support\Str::ulid(),
+            'body'       => trim($validated['body']),
+            'created_at' => now()->toIso8601String(),
+            'author'     => [
+                'id'   => $user->id,
+                'name' => $user->name,
+                'role' => $user->role ?? null,
+            ],
+        ];
+
+        $notes   = is_array($project->notes) ? $project->notes : [];
+        $notes[] = $newEntry;
+
+        usort($notes, fn ($a, $b) =>
+            (strtotime($b['created_at'] ?? '') ?: 0) <=> (strtotime($a['created_at'] ?? '') ?: 0)
+        );
+
+        $project->notes = array_values($notes);
+        $project->save();
+
+        return back()->with('success', 'Note added successfully.');
+    }
+
+    // ─── Payload Validation ───────────────────────────────────────────────────
+
     private function validatePayload(Request $request): array
     {
         return $request->validate([
-            'project_id' => ['nullable', 'integer', 'exists:sprf_entry_projects,id'],
+            'project_id'              => ['nullable', 'integer', 'exists:sprf_entry_projects,id'],
             'approval_condition_code' => ['nullable', 'string', 'max:50'],
 
-            'company_info' => ['nullable', 'array'],
-            'company_info.subCategory' => ['nullable', 'string', 'max:255'],
-            'company_info.account' => ['nullable', 'string', 'max:255'],
+            'company_info'                => ['nullable', 'array'],
+            'company_info.subCategory'    => ['nullable', 'string', 'max:255'],
+            'company_info.account'        => ['nullable', 'string', 'max:255'],
             'company_info.accountManager' => ['nullable', 'string', 'max:255'],
 
-            'remarks' => ['nullable', 'string'],
+            'remarks'              => ['nullable', 'string'],
             'rebate_justification' => ['nullable', 'string'],
 
-            'items' => ['nullable', 'array'],
-            'items.*.rowKey' => ['nullable', 'string', 'max:255'],
-            'items.*.subitems' => ['nullable', 'array'],
-            'items.*.subitems.*.rowKey' => ['nullable', 'string', 'max:255'],
-            'items.*.subitems.*.productCode' => ['nullable', 'string', 'max:255'],
+            'items'                              => ['nullable', 'array'],
+            'items.*.rowKey'                     => ['nullable', 'string', 'max:255'],
+            'items.*.subitems'                   => ['nullable', 'array'],
+            'items.*.subitems.*.rowKey'          => ['nullable', 'string', 'max:255'],
+            'items.*.subitems.*.productCode'     => ['nullable', 'string', 'max:255'],
             'items.*.subitems.*.itemDescription' => ['nullable', 'string'],
-            'items.*.subitems.*.qty' => ['nullable', 'integer', 'min:0'],
-            'items.*.subitems.*.disty' => ['nullable', 'string', 'max:255'],
-            'items.*.subitems.*.costPerUnit' => ['nullable', 'numeric'],
-            'items.*.subitems.*.markupPercent' => ['nullable', 'numeric'],
+            'items.*.subitems.*.qty'             => ['nullable', 'integer', 'min:0'],
+            'items.*.subitems.*.disty'           => ['nullable', 'string', 'max:255'],
+            'items.*.subitems.*.costPerUnit'     => ['nullable', 'numeric'],
+            'items.*.subitems.*.markupPercent'   => ['nullable', 'numeric'],
 
-            'other_expenses' => ['nullable', 'array'],
-            'other_expenses.*.expenseKey' => ['nullable', 'string', 'max:255'],
-            'other_expenses.*.isFixed' => ['nullable', 'boolean'],
-            'other_expenses.*.productCode' => ['nullable', 'string', 'max:255'],
+            'other_expenses'                   => ['nullable', 'array'],
+            'other_expenses.*.expenseKey'      => ['nullable', 'string', 'max:255'],
+            'other_expenses.*.isFixed'         => ['nullable', 'boolean'],
+            'other_expenses.*.productCode'     => ['nullable', 'string', 'max:255'],
             'other_expenses.*.itemDescription' => ['nullable', 'string'],
-            'other_expenses.*.qty' => ['nullable', 'integer', 'min:0'],
-            'other_expenses.*.unitPrice' => ['nullable', 'numeric'],
+            'other_expenses.*.qty'             => ['nullable', 'integer', 'min:0'],
+            'other_expenses.*.unitPrice'       => ['nullable', 'numeric'],
 
-            'summary' => ['nullable', 'array'],
-            'summary.revenue' => ['nullable', 'numeric'],
-            'summary.cogs' => ['nullable', 'numeric'],
-            'summary.otherExpense' => ['nullable', 'numeric'],
-            'summary.totalExpense' => ['nullable', 'numeric'],
-            'summary.gpValue' => ['nullable', 'numeric'],
+            'summary'                => ['nullable', 'array'],
+            'summary.revenue'        => ['nullable', 'numeric'],
+            'summary.cogs'           => ['nullable', 'numeric'],
+            'summary.otherExpense'   => ['nullable', 'numeric'],
+            'summary.totalExpense'   => ['nullable', 'numeric'],
+            'summary.gpValue'        => ['nullable', 'numeric'],
             'summary.totalGpPercent' => ['nullable', 'numeric'],
         ]);
     }
+
+    // ─── Item / Fee Mapping ───────────────────────────────────────────────────
 
     private function isBlankValue($value): bool
     {
@@ -470,12 +501,11 @@ class SprfEntryProjectController extends Controller
     {
         $mapped = $this->itemCalc->mapPayload($items);
 
-        // Keep only groups that have at least one non-blank subitem
         $validRowKeys = collect($mapped['subitemsByRowKey'])
-            ->filter(fn($subitems) => collect($subitems)->contains(fn($row) =>
-                !blank($row['product_code']) ||
-                !blank($row['item_description']) ||
-                !blank($row['disty']) ||
+            ->filter(fn ($subitems) => collect($subitems)->contains(fn ($row) =>
+                ! blank($row['product_code']) ||
+                ! blank($row['item_description']) ||
+                ! blank($row['disty']) ||
                 $row['qty'] !== null ||
                 $row['cost_per_unit'] !== null ||
                 $row['markup_percent'] !== null
@@ -483,7 +513,7 @@ class SprfEntryProjectController extends Controller
             ->keys();
 
         $mapped['parentRows'] = collect($mapped['parentRows'])
-            ->filter(fn($row) => $validRowKeys->contains($row['row_key']))
+            ->filter(fn ($row) => $validRowKeys->contains($row['row_key']))
             ->values()
             ->all();
 
@@ -498,51 +528,42 @@ class SprfEntryProjectController extends Controller
     {
         return collect($fees)
             ->map(function ($row) {
-                $qty = $this->toNullableFloat(data_get($row, 'qty'));
+                $qty       = $this->toNullableFloat(data_get($row, 'qty'));
                 $unitPrice = $this->toNullableFloat(data_get($row, 'unitPrice'));
 
-                $total =
-                    $qty === null || $unitPrice === null
-                        ? null
-                        : $qty * $unitPrice;
+                $total = $qty === null || $unitPrice === null ? null : $qty * $unitPrice;
 
                 return [
-                    'expense_key' => data_get($row, 'expenseKey'),
-                    'is_fixed' => (bool) data_get($row, 'isFixed', false),
-                    'product_code' => data_get($row, 'productCode'),
+                    'expense_key'      => data_get($row, 'expenseKey'),
+                    'is_fixed'         => (bool) data_get($row, 'isFixed', false),
+                    'product_code'     => data_get($row, 'productCode'),
                     'item_description' => data_get($row, 'itemDescription'),
-                    'qty' => $qty,
-                    'unit_price' => $unitPrice,
-                    'total' => $total,
+                    'qty'              => $qty,
+                    'unit_price'       => $unitPrice,
+                    'total'            => $total,
                 ];
             })
-            ->filter(function ($row) {
-                return !(
-                    blank($row['expense_key']) &&
-                    blank($row['product_code']) &&
-                    blank($row['item_description']) &&
-                    $row['qty'] === null &&
-                    $row['unit_price'] === null
-                );
-            })
+            ->filter(fn ($row) => ! (
+                blank($row['expense_key']) &&
+                blank($row['product_code']) &&
+                blank($row['item_description']) &&
+                $row['qty'] === null &&
+                $row['unit_price'] === null
+            ))
             ->values()
             ->all();
     }
 
-    /**
-     * Rebate condition only applies once the rebate line's value
-     * reaches the documented threshold (see Conditions panel:
-     * "For Rebate requests, Value must be 100K above").
-     * Threshold is inclusive: exactly 100,000 counts as a rebate request.
-     */
+    // ─── Rebate Detection ─────────────────────────────────────────────────────
+
     private const REBATE_VALUE_THRESHOLD = 0;
 
     private function hasRebateValueFromMappedFees(array $fees): bool
     {
         foreach ($fees as $row) {
-            $expenseKey = (string) data_get($row, 'expense_key', '');
+            $expenseKey  = (string) data_get($row, 'expense_key', '');
             $productCode = trim((string) data_get($row, 'product_code', ''));
-            $total = (float) data_get($row, 'total', 0);
+            $total       = (float) data_get($row, 'total', 0);
 
             if ($expenseKey === 'rebate' || strcasecmp($productCode, 'Rebate') === 0) {
                 return $total > self::REBATE_VALUE_THRESHOLD;
@@ -552,6 +573,8 @@ class SprfEntryProjectController extends Controller
         return false;
     }
 
+    // ─── Condition Code Resolution ────────────────────────────────────────────
+
     private function resolveApprovalConditionCode(
         array $payload,
         float $revenue,
@@ -560,429 +583,217 @@ class SprfEntryProjectController extends Controller
     ): string {
         $conditionCode = strtoupper(trim((string) data_get($payload, 'approval_condition_code', '')));
 
-        $allowed = [
-            'STANDARD_PRICING',
-            'VALUE_GT_1M',
-            'GP_GT_15',
-            'GP_LTE_15',
-            'REBATE_REQUEST',
-        ];
+        $allowed = ['STANDARD_PRICING', 'VALUE_GT_1M', 'GP_GT_15', 'GP_LTE_15', 'REBATE_REQUEST'];
 
-        // Rebate status is always derived from the actual fee data, never
-        // trusted from client input. This stops a caller from passing an
-        // explicit non-rebate condition code to dodge the rebate approval
-        // chain on a qualifying rebate line, and likewise stops a stale
-        // REBATE_REQUEST code from sticking once the rebate is removed.
-        if ($hasRebate) {
-            return 'REBATE_REQUEST';
-        }
+        if ($hasRebate) return 'REBATE_REQUEST';
 
         if (in_array($conditionCode, $allowed, true) && $conditionCode !== 'REBATE_REQUEST') {
             return $conditionCode;
         }
 
-        if ($gpPercent <= 15) {
-            return 'GP_LTE_15';
-        }
-
-        if ($revenue > 1000000) {
-            return 'VALUE_GT_1M';
-        }
-
-        if ($gpPercent > 15) {
-            return 'GP_GT_15';
-        }
+        if ($gpPercent <= 15)    return 'GP_LTE_15';
+        if ($revenue > 1000000)  return 'VALUE_GT_1M';
+        if ($gpPercent > 15)     return 'GP_GT_15';
 
         return 'STANDARD_PRICING';
     }
 
-    private function tryResolveActiveSprfApprovalMatrix(string $conditionCode): ?array
+    // ─── Matrix Resolution ────────────────────────────────────────────────────
+
+    /**
+     * Resolves the preparer's location and department from their user record.
+     */
+    private function resolvePreparerLocationAndDepartment(): array
     {
-        $matrix = SprfApprovalMatrix::query()
-            ->with([
-                'steps.position:id,name',
-                'steps.approver:id,first_name,last_name,position,email,company_position_id,is_banned',
-            ])
-            ->where('condition_code', $conditionCode)
-            ->where('is_active', true)
-            ->first();
-
-        if (! $matrix) {
-            return null;
-        }
-
-        $stepsByRole = $matrix->steps->keyBy('role');
+        $user = User::find(Auth::id());
 
         return [
-            'matrix_id'      => $matrix->id,
-            'condition_code' => $matrix->condition_code,
-            'flags'          => $this->resolveApprovalFlagsFromCondition($conditionCode),
-            'approver_users' => [
-                'directorCustomerEngagement' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('DIRECTOR_CUSTOMER_ENGAGEMENT')
-                ),
-                'esdDirector' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('ESD_DIRECTOR')
-                ),
-                'vpCcto' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('VP_CCTO')
-                ),
-                'presidentCeo' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('PRESIDENT_CEO')
-                ),
-            ],
+            'location_id'   => $user?->primary_location_id,
+            'department_id' => $user?->department_id,
         ];
     }
 
-    private function resolveActiveSprfApprovalMatrix(string $conditionCode): array
+    /**
+     * Lenient lookup — returns null if no active matrix exists.
+     * Used during saveDraft so a missing matrix never blocks saving.
+     */
+    private function tryFindActiveMatrix(?int $locationId, ?int $departmentId): ?SprfApprovalMatrix
     {
+        if (! $locationId || ! $departmentId) return null;
+
+        return SprfApprovalMatrix::query()
+            ->where('location_id', $locationId)
+            ->where('department_id', $departmentId)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    /**
+     * Strict lookup — throws if no active matrix is found.
+     * Used during submit so a missing matrix hard-blocks submission.
+     */
+    private function findActiveMatrixOrFail(?int $locationId, ?int $departmentId): SprfApprovalMatrix
+    {
+        if (! $locationId || ! $departmentId) {
+            throw ValidationException::withMessages([
+                'approvers' => 'Your account is not assigned to a location and department. Please contact your administrator.',
+            ]);
+        }
+
         $matrix = SprfApprovalMatrix::query()
-            ->with([
-                'steps.position:id,name',
-                'steps.approver:id,first_name,last_name,position,email,company_position_id,is_banned',
-            ])
-            ->where('condition_code', $conditionCode)
+            ->where('location_id', $locationId)
+            ->where('department_id', $departmentId)
             ->where('is_active', true)
             ->first();
 
         if (! $matrix) {
             throw ValidationException::withMessages([
-                'approvers' => "No active SPRF approver matrix found for {$conditionCode}.",
+                'approvers' => 'No active SPRF approver matrix found for your location and department.',
             ]);
         }
 
-        $stepsByRole = $matrix->steps->keyBy('role');
-        $requiredRoles = $this->requiredSprfRolesForCondition($conditionCode);
+        return $matrix;
+    }
 
-        foreach ($requiredRoles as $role) {
-            if (! $stepsByRole->has($role)) {
-                throw ValidationException::withMessages([
-                    'approvers' => "The active SPRF approver matrix is missing role: {$role}.",
-                ]);
-            }
+    /**
+     * Validates that all 4 approver slots on the matrix are filled with
+     * valid, non-banned users. Called at submit time only.
+     */
+    private function validateMatrixApprovers(SprfApprovalMatrix $matrix): void
+    {
+        $missing = [];
 
-            $step = $stepsByRole->get($role);
+        if (! $matrix->director_customer_engagement_user_id) $missing[] = 'Director - Customer Engagement';
+        if (! $matrix->esd_director_user_id)                 $missing[] = 'ESD Director';
+        if (! $matrix->vp_ccto_user_id)                      $missing[] = 'VP & CCTO';
+        if (! $matrix->president_ceo_user_id)                $missing[] = 'President & CEO';
 
-            if (! $step->approver || $step->approver->is_banned) {
-                throw ValidationException::withMessages([
-                    'approvers' => "The active SPRF approver matrix has an invalid or inactive approver for role: {$role}.",
-                ]);
-            }
-
-            if ((int) $step->approver->company_position_id !== (int) $step->position_id) {
-                throw ValidationException::withMessages([
-                    'approvers' => "The selected approver does not match the selected position for role: {$role}.",
-                ]);
-            }
+        if (! empty($missing)) {
+            throw ValidationException::withMessages([
+                'approvers' => 'SPRF approver matrix is missing: ' . implode(', ', $missing) . '.',
+            ]);
         }
+    }
 
+    /**
+     * Pulls the 4 approver user arrays directly from the flat matrix columns.
+     */
+    private function extractApproverUsers(SprfApprovalMatrix $matrix): array
+    {
         return [
-            'matrix_id' => $matrix->id,
-            'condition_code' => $matrix->condition_code,
-            'flags' => $this->resolveApprovalFlagsFromCondition($conditionCode),
-            'approver_users' => [
-                'directorCustomerEngagement' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('DIRECTOR_CUSTOMER_ENGAGEMENT')
-                ),
-                'esdDirector' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('ESD_DIRECTOR')
-                ),
-                'vpCcto' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('VP_CCTO')
-                ),
-                'presidentCeo' => $this->mapSprfStepApprover(
-                    $stepsByRole->get('PRESIDENT_CEO')
-                ),
-            ],
+            'directorCustomerEngagement' => $this->findUserById($matrix->director_customer_engagement_user_id),
+            'esdDirector'                => $this->findUserById($matrix->esd_director_user_id),
+            'vpCcto'                     => $this->findUserById($matrix->vp_ccto_user_id),
+            'presidentCeo'               => $this->findUserById($matrix->president_ceo_user_id),
         ];
     }
 
-    private function mapSprfStepApprover($step): ?array
-    {
-        if (! $step?->approver) {
-            return null;
-        }
-
-        return [
-            'id' => $step->approver->id,
-            'name' => $step->approver->name,
-            'position' => $step->approver->position,
-            'email' => $step->approver->email,
-        ];
-    }
-
-    private function requiredSprfRolesForCondition(string $conditionCode): array
-    {
-        return match ($conditionCode) {
-            'STANDARD_PRICING' => [
-                'DIRECTOR_CUSTOMER_ENGAGEMENT',
-                'ESD_DIRECTOR',
-            ],
-
-            'VALUE_GT_1M',
-            'GP_GT_15' => [
-                'DIRECTOR_CUSTOMER_ENGAGEMENT',
-                'ESD_DIRECTOR',
-                'VP_CCTO',
-            ],
-
-            'GP_LTE_15',
-            'REBATE_REQUEST' => [
-                'DIRECTOR_CUSTOMER_ENGAGEMENT',
-                'ESD_DIRECTOR',
-                'VP_CCTO',
-                'PRESIDENT_CEO',
-            ],
-
-            default => throw ValidationException::withMessages([
-                'approval_condition_code' => 'Invalid SPRF approval condition.',
-            ]),
-        };
-    }
+    // ─── Approval Flags ───────────────────────────────────────────────────────
 
     private function resolveApprovalFlagsFromCondition(string $conditionCode): array
     {
         return match ($conditionCode) {
             'STANDARD_PRICING' => [
-                'approval_level' => 'ESD_ONLY',
-                'requires_vp_ccto' => false,
-                'requires_president_ceo' => false,
+                'approval_level'                => 'ESD_ONLY',
+                'requires_vp_ccto'              => false,
+                'requires_president_ceo'        => false,
                 'requires_rebate_justification' => false,
-                'final_level' => 3,
+                'final_level'                   => 3,
             ],
-
             'VALUE_GT_1M',
             'GP_GT_15' => [
-                'approval_level' => 'VP_AND_CCTO',
-                'requires_vp_ccto' => true,
-                'requires_president_ceo' => false,
+                'approval_level'                => 'VP_AND_CCTO',
+                'requires_vp_ccto'              => true,
+                'requires_president_ceo'        => false,
                 'requires_rebate_justification' => false,
-                'final_level' => 4,
+                'final_level'                   => 4,
             ],
-
             'GP_LTE_15' => [
-                'approval_level' => 'PRESIDENT_AND_CEO',
-                'requires_vp_ccto' => true,
-                'requires_president_ceo' => true,
+                'approval_level'                => 'PRESIDENT_AND_CEO',
+                'requires_vp_ccto'              => true,
+                'requires_president_ceo'        => true,
                 'requires_rebate_justification' => false,
-                'final_level' => 5,
+                'final_level'                   => 5,
             ],
-
             'REBATE_REQUEST' => [
-                'approval_level' => 'PRESIDENT_AND_CEO',
-                'requires_vp_ccto' => true,
-                'requires_president_ceo' => true,
+                'approval_level'                => 'PRESIDENT_AND_CEO',
+                'requires_vp_ccto'              => true,
+                'requires_president_ceo'        => true,
                 'requires_rebate_justification' => true,
-                'final_level' => 5,
+                'final_level'                   => 5,
             ],
-
             default => throw ValidationException::withMessages([
                 'approval_condition_code' => 'Invalid SPRF approval condition.',
             ]),
         };
     }
 
-    private function resolveApprovalFlags(float $revenue, float $gpPercent, bool $hasRebate): array
-    {
-        if ($hasRebate) {
-            return [
-                'approval_level' => 'PRESIDENT_AND_CEO',
-                'requires_vp_ccto' => true,
-                'requires_president_ceo' => true,
-                'requires_rebate_justification' => true,
-                'final_level' => 5,
-            ];
-        }
-
-        if ($gpPercent <= 15) {
-            return [
-                'approval_level' => 'PRESIDENT_AND_CEO',
-                'requires_vp_ccto' => true,
-                'requires_president_ceo' => true,
-                'requires_rebate_justification' => false,
-                'final_level' => 5,
-            ];
-        }
-
-        if ($gpPercent > 15 || $revenue > 1000000) {
-            return [
-                'approval_level' => 'VP_AND_CCTO',
-                'requires_vp_ccto' => true,
-                'requires_president_ceo' => false,
-                'requires_rebate_justification' => false,
-                'final_level' => 4,
-            ];
-        }
-
-        return [
-            'approval_level' => 'ESD_ONLY',
-            'requires_vp_ccto' => false,
-            'requires_president_ceo' => false,
-            'requires_rebate_justification' => false,
-            'final_level' => 3,
-        ];
-    }
-
-    private function validateRequiredApprovers(array $approverUsers, array $flags): void
-    {
-        $missing = [];
-
-        if (! data_get($approverUsers, 'directorCustomerEngagement.id')) {
-            $missing[] = 'Director - Customer Engagement';
-        }
-
-        if (! data_get($approverUsers, 'esdDirector.id')) {
-            $missing[] = 'ESD Director';
-        }
-
-        if ($flags['requires_vp_ccto'] && ! data_get($approverUsers, 'vpCcto.id')) {
-            $missing[] = 'VP & CCTO';
-        }
-
-        if ($flags['requires_president_ceo'] && ! data_get($approverUsers, 'presidentCeo.id')) {
-            $missing[] = 'President & CEO';
-        }
-
-        if (! empty($missing)) {
-            throw ValidationException::withMessages([
-                'approvers' => 'Missing required approver setup in SPRF Approver Matrix: ' . implode(', ', $missing) . '.',
-            ]);
-        }
-    }
-
-    private function resolveApproverUsers(): array
-    {
-        return [
-            'directorCustomerEngagement' => $this->findActiveUserByPosition('Director - Customer Engagement'),
-            'esdDirector' => $this->findActiveUserByPosition('Director - Enterprise Solutions'),
-            'vpCcto' => $this->findActiveUserByPosition('VP & CCTO'),
-            'presidentCeo' => $this->findActiveUserByPosition('President & CEO'),
-        ];
-    }
-
-    private function findActiveUserByPosition(string $position): ?array
-    {
-        $user = User::query()
-            ->where('position', $position)
-            ->where('is_banned', false)
-            ->first(['id', 'first_name', 'last_name', 'position', 'email']);
-
-        if (! $user) {
-            return null;
-        }
-
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'position' => $user->position,
-            'email' => $user->email,
-        ];
-    }
+    // ─── User Helpers ─────────────────────────────────────────────────────────
 
     private function mapApproverUsersFromProject(SprfEntryProject $project): array
     {
         return [
             'directorCustomerEngagement' => $this->findUserById($project->director_customer_engagement_user_id),
-            'esdDirector' => $this->findUserById($project->esd_director_user_id),
-            'vpCcto' => $this->findUserById($project->vp_ccto_user_id),
-            'presidentCeo' => $this->findUserById($project->president_ceo_user_id),
+            'esdDirector'                => $this->findUserById($project->esd_director_user_id),
+            'vpCcto'                     => $this->findUserById($project->vp_ccto_user_id),
+            'presidentCeo'               => $this->findUserById($project->president_ceo_user_id),
         ];
     }
 
     private function findUserById(?int $id): ?array
     {
-        if (! $id) {
-            return null;
-        }
+        if (! $id) return null;
 
         $user = User::query()
             ->whereKey($id)
             ->first(['id', 'first_name', 'last_name', 'position', 'email']);
 
-        if (! $user) {
-            return null;
-        }
+        if (! $user) return null;
 
         return [
-            'id' => $user->id,
-            'name' => $user->name,
+            'id'       => $user->id,
+            'name'     => $user->name,
             'position' => $user->position,
-            'email' => $user->email,
+            'email'    => $user->email,
         ];
     }
 
-    public function storeNote(Request $request, SprfEntryProject $project): \Illuminate\Http\RedirectResponse
-    {
-        // Gate 1: caller must be the preparer
-        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
-            abort(403);
-        }
-    
-        // Gate 2: notes are only valid while the project is at entry level
-        if ((int) $project->current_level !== 1) {
-            abort(403, 'Notes can only be added while the project is at level 1.');
-        }
-    
-        $validated = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
-        ]);
-    
-        $user = Auth::user();
-    
-        $newEntry = [
-            'id'         => (string) \Illuminate\Support\Str::ulid(),
-            'body'       => trim($validated['body']),
-            'created_at' => now()->toIso8601String(),
-            'author'     => [
-                'id'   => $user->id,
-                'name' => $user->name,          // User model must have a `name` accessor
-                'role' => $user->role ?? null,
-            ],
-        ];
-    
-        // Append and re-sort descending (newest first), matching
-        // SprfCurrentWorkflowService::sortTimelineEntries()
-        $notes   = is_array($project->notes) ? $project->notes : [];
-        $notes[] = $newEntry;
-    
-        usort($notes, fn ($a, $b) =>
-            (strtotime($b['created_at'] ?? '') ?: 0) <=> (strtotime($a['created_at'] ?? '') ?: 0)
-        );
-    
-        $project->notes = array_values($notes);
-        $project->save();
-    
-        return back()->with('success', 'Note added successfully.');
-    }
+    // ─── Frontend Transforms ──────────────────────────────────────────────────
 
     private function transformProjectForFrontend(SprfEntryProject $project): array
     {
         return [
-            'id' => $project->id,
-            'sprf_no' => $project->sprf_no,
-            'status' => $project->status,
-            'current_level' => $project->current_level,
+            'id'             => $project->id,
+            'sprf_no'        => $project->sprf_no,
+            'status'         => $project->status,
+            'current_level'  => $project->current_level,
             'approval_level' => $project->approval_level,
-            'requires_vp_ccto' => $project->requires_vp_ccto,
-            'requires_president_ceo' => $project->requires_president_ceo,
+
+            'requires_vp_ccto'              => $project->requires_vp_ccto,
+            'requires_president_ceo'        => $project->requires_president_ceo,
             'requires_rebate_justification' => $project->requires_rebate_justification,
+
             'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
             'approval_condition_code' => $project->approval_condition_code,
+            'location_id'             => $project->location_id,
+            'department_id'           => $project->department_id,
+
             'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
-            'approved_at' => optional($project->approved_at)?->toISOString(),
-            'rejected_at' => optional($project->rejected_at)?->toISOString(),
-            'prepared_by_name' => $project->preparer?->name,
+            'approved_at'   => optional($project->approved_at)?->toISOString(),
+            'rejected_at'   => optional($project->rejected_at)?->toISOString(),
+
+            'prepared_by_name'    => $project->preparer?->name,
             'prepared_by_user_id' => $project->prepared_by_user_id,
             'notes'               => $project->notes    ?? [],
             'comments'            => $project->comments ?? [],
 
             'company_info' => [
-                'subCategory' => $project->sub_category,
-                'account' => $project->account,
+                'subCategory'    => $project->sub_category,
+                'account'        => $project->account,
                 'accountManager' => $project->account_manager,
             ],
 
-            'remarks' => $project->remarks,
+            'remarks'              => $project->remarks,
             'rebate_justification' => $project->rebate_justification,
 
             'items' => $project->items
@@ -994,7 +805,7 @@ class SprfEntryProjectController extends Controller
                         'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
                         'markupValue'               => $item->markup_value,
                         'subitems' => $item->subitems
-                            ->map(fn(SprfEntryItemSubitem $sub) => [
+                            ->map(fn (SprfEntryItemSubitem $sub) => [
                                 'rowKey'          => $sub->row_key,
                                 'productCode'     => $sub->product_code,
                                 'itemDescription' => $sub->item_description,
@@ -1012,16 +823,14 @@ class SprfEntryProjectController extends Controller
                 ->all(),
 
             'other_expenses' => $project->fees
-                ->map(function (SprfEntryFee $fee) {
-                    return [
-                        'expenseKey' => $fee->expense_key,
-                        'isFixed' => $fee->is_fixed,
-                        'productCode' => $fee->product_code,
-                        'itemDescription' => $fee->item_description,
-                        'qty' => $fee->qty,
-                        'unitPrice' => $fee->unit_price,
-                    ];
-                })
+                ->map(fn (SprfEntryFee $fee) => [
+                    'expenseKey'      => $fee->expense_key,
+                    'isFixed'         => $fee->is_fixed,
+                    'productCode'     => $fee->product_code,
+                    'itemDescription' => $fee->item_description,
+                    'qty'             => $fee->qty,
+                    'unitPrice'       => $fee->unit_price,
+                ])
                 ->values()
                 ->all(),
         ];
@@ -1030,20 +839,24 @@ class SprfEntryProjectController extends Controller
     private function transformProjectForPrint(SprfEntryProject $project): array
     {
         return [
-            'id' => $project->id,
-            'sprf_no' => $project->sprf_no,
-            'status' => $project->status,
+            'id'             => $project->id,
+            'sprf_no'        => $project->sprf_no,
+            'status'         => $project->status,
             'approval_level' => $project->approval_level,
+
             'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
             'approval_condition_code' => $project->approval_condition_code,
-            'remarks' => $project->remarks,
+            'location_id'             => $project->location_id,
+            'department_id'           => $project->department_id,
+
+            'remarks'              => $project->remarks,
             'rebate_justification' => $project->rebate_justification,
-            'notes'               => $project->notes    ?? [],
-            'comments'            => $project->comments ?? [],
+            'notes'                => $project->notes    ?? [],
+            'comments'             => $project->comments ?? [],
 
             'company_info' => [
-                'subCategory' => $project->sub_category,
-                'account' => $project->account,
+                'subCategory'    => $project->sub_category,
+                'account'        => $project->account,
                 'accountManager' => $project->account_manager,
             ],
 
@@ -1056,7 +869,7 @@ class SprfEntryProjectController extends Controller
                         'totalSellingPriceVatInc'   => $item->total_selling_price_vat_inc,
                         'markupValue'               => $item->markup_value,
                         'subitems' => $item->subitems
-                            ->map(fn(SprfEntryItemSubitem $sub) => [
+                            ->map(fn (SprfEntryItemSubitem $sub) => [
                                 'rowKey'          => $sub->row_key,
                                 'productCode'     => $sub->product_code,
                                 'itemDescription' => $sub->item_description,
@@ -1074,25 +887,23 @@ class SprfEntryProjectController extends Controller
                 ->all(),
 
             'other_expenses' => $project->fees
-                ->map(function (SprfEntryFee $fee) {
-                    return [
-                        'expenseKey' => $fee->expense_key,
-                        'isFixed' => $fee->is_fixed,
-                        'productCode' => $fee->product_code,
-                        'itemDescription' => $fee->item_description,
-                        'qty' => $fee->qty,
-                        'unitPrice' => $fee->unit_price,
-                    ];
-                })
+                ->map(fn (SprfEntryFee $fee) => [
+                    'expenseKey'      => $fee->expense_key,
+                    'isFixed'         => $fee->is_fixed,
+                    'productCode'     => $fee->product_code,
+                    'itemDescription' => $fee->item_description,
+                    'qty'             => $fee->qty,
+                    'unitPrice'       => $fee->unit_price,
+                ])
                 ->values()
                 ->all(),
 
             'approver_users' => $this->mapApproverUsersFromProject($project),
             'preparer' => [
-                'id' => $project->preparer?->id,
-                'name' => $project->preparer?->name,
+                'id'       => $project->preparer?->id,
+                'name'     => $project->preparer?->name,
                 'position' => $project->preparer?->position,
-                'email' => $project->preparer?->email,
+                'email'    => $project->preparer?->email,
             ],
         ];
     }

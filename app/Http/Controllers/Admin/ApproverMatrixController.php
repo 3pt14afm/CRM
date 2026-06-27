@@ -6,15 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ApproverMatrix\StoreApproverMatrixRequest;
 use App\Http\Requests\ApproverMatrix\UpdateApproverMatrixRequest;
 use App\Models\SPRF\SprfApprovalMatrix;
-use App\Models\CompanyPosition;
 use App\Models\CompanyDepartment;
 use App\Models\Location;
 use App\Models\LocationDepartment;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class ApproverMatrixController extends Controller
 {
+    // ─── Index ────────────────────────────────────────────────────────────────
+
     public function index()
     {
         $perPage = 10;
@@ -23,6 +27,7 @@ class ApproverMatrixController extends Controller
             ->selectRaw("id, CONCAT(first_name, ' ', last_name) as full_name")
             ->pluck('full_name', 'id');
 
+        // ── ROI matrices ──────────────────────────────────────────
         $matrices = LocationDepartment::query()
             ->with([
                 'location:id,name',
@@ -32,107 +37,80 @@ class ApproverMatrixController extends Controller
             ->paginate($perPage)
             ->through(function (LocationDepartment $row) use ($userNames) {
                 return [
-                    'id' => $row->id,
-                    'location_id' => $row->location_id,
+                    'id'            => $row->id,
+                    'location_id'   => $row->location_id,
                     'department_id' => $row->department_id,
                     'location_name' => $row->location?->name ?? '—',
-                    'dept_name' => $row->department?->name ?? '—',
+                    'dept_name'     => $row->department?->name ?? '—',
 
-                    'reviewed_by' => $row->reviewed_by,
-                    'checked_by' => $row->checked_by,
-                    'endorsed_by' => $row->endorsed_by,
+                    'reviewed_by'  => $row->reviewed_by,
+                    'checked_by'   => $row->checked_by,
+                    'endorsed_by'  => $row->endorsed_by,
                     'confirmed_by' => $row->confirmed_by,
-                    'approved_by' => $row->approved_by,
+                    'approved_by'  => $row->approved_by,
 
-                    'reviewed_by_name' => $row->reviewed_by ? ($userNames[$row->reviewed_by] ?? 'Unknown') : null,
-                    'checked_by_name' => $row->checked_by ? ($userNames[$row->checked_by] ?? 'Unknown') : null,
-                    'endorsed_by_name' => $row->endorsed_by ? ($userNames[$row->endorsed_by] ?? 'Unknown') : null,
+                    'reviewed_by_name'  => $row->reviewed_by  ? ($userNames[$row->reviewed_by]  ?? 'Unknown') : null,
+                    'checked_by_name'   => $row->checked_by   ? ($userNames[$row->checked_by]   ?? 'Unknown') : null,
+                    'endorsed_by_name'  => $row->endorsed_by  ? ($userNames[$row->endorsed_by]  ?? 'Unknown') : null,
                     'confirmed_by_name' => $row->confirmed_by ? ($userNames[$row->confirmed_by] ?? 'Unknown') : null,
-                    'approved_by_name' => $row->approved_by ? ($userNames[$row->approved_by] ?? 'Unknown') : null,
+                    'approved_by_name'  => $row->approved_by  ? ($userNames[$row->approved_by]  ?? 'Unknown') : null,
 
                     'status' => $row->status ?? 'Inactive',
                 ];
             })
             ->withQueryString();
 
+        // ── SPRF matrices (flat table, keyed by location + department) ────────
         $sprfMatrices = SprfApprovalMatrix::query()
             ->with([
-                'steps.position:id,name',
-                'steps.approver:id,first_name,last_name',
+                'location:id,name',
+                'department:id,name',
+                'directorCustomerEngagement:id,first_name,last_name',
+                'esdDirector:id,first_name,last_name',
+                'vpCcto:id,first_name,last_name',
+                'presidentCeo:id,first_name,last_name',
             ])
-            ->orderBy('condition_code')
+            ->orderBy('location_id')
+            ->orderBy('department_id')
             ->orderByDesc('is_active')
-            ->orderByDesc('version')
             ->get()
             ->map(function (SprfApprovalMatrix $matrix) {
                 return [
-                    'id' => $matrix->id,
-                    'condition_code' => $matrix->condition_code,
-                    'condition_label' => $matrix->condition_label,
-                    'version' => $matrix->version,
-                    'is_active' => $matrix->is_active,
-                    'remarks' => $matrix->remarks,
+                    'id'              => $matrix->id,
+                    'location_id'     => $matrix->location_id,
+                    'location_name'   => $matrix->location?->name ?? '—',
+                    'department_id'   => $matrix->department_id,
+                    'department_name' => $matrix->department?->name ?? '—',
+                    'is_active'       => $matrix->is_active,
+                    'remarks'         => $matrix->remarks,
 
-                    'steps' => $matrix->steps->map(function ($step) {
-                        $approverName = $step->approver
-                            ? trim($step->approver->first_name . ' ' . $step->approver->last_name)
-                            : null;
+                    'director_customer_engagement_user_id'   => $matrix->director_customer_engagement_user_id,
+                    'director_customer_engagement_user_name' => $matrix->directorCustomerEngagement
+                        ? trim($matrix->directorCustomerEngagement->first_name . ' ' . $matrix->directorCustomerEngagement->last_name)
+                        : null,
 
-                        return [
-                            'id' => $step->id,
-                            'role' => $step->role,
-                            'role_label' => $step->role_label,
-                            'sequence' => $step->sequence,
+                    'esd_director_user_id'   => $matrix->esd_director_user_id,
+                    'esd_director_user_name' => $matrix->esdDirector
+                        ? trim($matrix->esdDirector->first_name . ' ' . $matrix->esdDirector->last_name)
+                        : null,
 
-                            'position_id' => $step->position_id,
-                            'position_name' => $step->position?->name,
+                    'vp_ccto_user_id'   => $matrix->vp_ccto_user_id,
+                    'vp_ccto_user_name' => $matrix->vpCcto
+                        ? trim($matrix->vpCcto->first_name . ' ' . $matrix->vpCcto->last_name)
+                        : null,
 
-                            'approver_user_id' => $step->approver_user_id,
-                            'approver_user_name' => $approverName,
-
-                            'resolution_mode' => $step->resolution_mode,
-                        ];
-                    })->values(),
+                    'president_ceo_user_id'   => $matrix->president_ceo_user_id,
+                    'president_ceo_user_name' => $matrix->presidentCeo
+                        ? trim($matrix->presidentCeo->first_name . ' ' . $matrix->presidentCeo->last_name)
+                        : null,
                 ];
             })
             ->values();
 
-        $sprfConditions = [
-            [
-                'code' => 'STANDARD_PRICING',
-                'label' => 'Standard Pricing',
-            ],
-            [
-                'code' => 'VALUE_GT_1M',
-                'label' => 'Value > 1M',
-            ],
-            [
-                'code' => 'GP_GT_15',
-                'label' => 'GP > 15%',
-            ],
-            [
-                'code' => 'GP_LTE_15',
-                'label' => 'GP <= 15%',
-            ],
-            [
-                'code' => 'REBATE_REQUEST',
-                'label' => 'Rebate Request',
-            ],
-        ];
-
-        $positions = CompanyPosition::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($position) => [
-                'id' => $position->id,
-                'name' => $position->name,
-            ])
-            ->values();
-
+        // ── Shared lookup data ────────────────────────────────────────────────
         $stats = [
-            'totalMatrices' => LocationDepartment::count(),
-            'activeMatrices' => LocationDepartment::where('status', 'Active')->count(),
+            'totalMatrices'    => LocationDepartment::count(),
+            'activeMatrices'   => LocationDepartment::where('status', 'Active')->count(),
             'inactiveMatrices' => LocationDepartment::where('status', 'Inactive')->count(),
 
             'locations' => Location::query()
@@ -150,25 +128,22 @@ class ApproverMatrixController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(['id', 'first_name', 'last_name', 'company_position_id'])
-                ->map(function ($user) {
-                    return [
-                        'id' => $user->id,
-                        'name' => trim($user->first_name . ' ' . $user->last_name),
-                        'company_position_id' => $user->company_position_id,
-                    ];
-                })
+                ->map(fn ($user) => [
+                    'id'                  => $user->id,
+                    'name'                => trim($user->first_name . ' ' . $user->last_name),
+                    'company_position_id' => $user->company_position_id,
+                ])
                 ->values(),
         ];
 
         return Inertia::render('Admin/ApproverMatrix', [
-            'matrices' => $matrices,
-            'stats' => $stats,
-
+            'matrices'     => $matrices,
+            'stats'        => $stats,
             'sprfMatrices' => $sprfMatrices,
-            'sprfConditions' => $sprfConditions,
-            'positions' => $positions,
         ]);
     }
+
+    // ─── ROI: Store ───────────────────────────────────────────────
 
     public function store(StoreApproverMatrixRequest $request)
     {
@@ -176,16 +151,16 @@ class ApproverMatrixController extends Controller
 
         LocationDepartment::updateOrCreate(
             [
-                'location_id' => $data['location_id'],
+                'location_id'   => $data['location_id'],
                 'department_id' => $data['department_id'],
             ],
             [
-                'reviewed_by' => $data['reviewed_by'] ?? null,
-                'checked_by' => $data['checked_by'] ?? null,
-                'endorsed_by' => $data['endorsed_by'] ?? null,
+                'reviewed_by'  => $data['reviewed_by']  ?? null,
+                'checked_by'   => $data['checked_by']   ?? null,
+                'endorsed_by'  => $data['endorsed_by']  ?? null,
                 'confirmed_by' => $data['confirmed_by'] ?? null,
-                'approved_by' => $data['approved_by'] ?? null,
-                'status' => $data['status'],
+                'approved_by'  => $data['approved_by']  ?? null,
+                'status'       => $data['status'],
             ]
         );
 
@@ -194,6 +169,8 @@ class ApproverMatrixController extends Controller
             ->with('success', 'Approver matrix saved successfully.');
     }
 
+    // ─── ROI: Update  ──────────────────────────────────────────────
+
     public function update(UpdateApproverMatrixRequest $request, LocationDepartment $locationDepartment)
     {
         $locationDepartment->update($request->validated());
@@ -201,5 +178,98 @@ class ApproverMatrixController extends Controller
         return redirect()
             ->route('admin.approver-matrix.index')
             ->with('success', 'Approver matrix updated successfully.');
+    }
+
+    // ─── SPRF: Store ─────────────────────────────────────────────────────────
+
+    public function storeSprfMatrix(Request $request)
+    {
+        $data = $this->validateSprfMatrixRequest($request);
+
+        // Block duplicate active matrix for this location + department
+        $alreadyActive = SprfApprovalMatrix::query()
+            ->where('location_id',   $data['location_id'])
+            ->where('department_id', $data['department_id'])
+            ->where('is_active', true)
+            ->exists();
+
+        if ($alreadyActive && $data['is_active']) {
+            throw ValidationException::withMessages([
+                'is_active' => 'An active SPRF matrix already exists for this location and department. Deactivate it first.',
+            ]);
+        }
+
+        SprfApprovalMatrix::create([
+            'location_id'                          => $data['location_id'],
+            'department_id'                        => $data['department_id'],
+            'director_customer_engagement_user_id' => $data['director_customer_engagement_user_id'],
+            'esd_director_user_id'                 => $data['esd_director_user_id'],
+            'vp_ccto_user_id'                      => $data['vp_ccto_user_id'],
+            'president_ceo_user_id'                => $data['president_ceo_user_id'],
+            'is_active'                            => $data['is_active'],
+            'remarks'                              => $data['remarks'] ?? null,
+            'created_by_user_id'                   => Auth::id(),
+            'updated_by_user_id'                   => Auth::id(),
+        ]);
+
+        return redirect()
+            ->route('admin.approver-matrix.index')
+            ->with('success', 'SPRF approver matrix created successfully.');
+    }
+
+    // ─── SPRF: Update ────────────────────────────────────────────────────────
+
+    public function updateSprfMatrix(Request $request, SprfApprovalMatrix $sprfApprovalMatrix)
+    {
+        $data = $this->validateSprfMatrixRequest($request);
+
+        // If activating this matrix, ensure no other active matrix exists for
+        // the same location + department (excluding self).
+        if ($data['is_active']) {
+            $conflict = SprfApprovalMatrix::query()
+                ->where('location_id',   $data['location_id'])
+                ->where('department_id', $data['department_id'])
+                ->where('is_active', true)
+                ->where('id', '!=', $sprfApprovalMatrix->id)
+                ->exists();
+
+            if ($conflict) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'Another active SPRF matrix already exists for this location and department. Deactivate it first.',
+                ]);
+            }
+        }
+
+        $sprfApprovalMatrix->update([
+            'location_id'                          => $data['location_id'],
+            'department_id'                        => $data['department_id'],
+            'director_customer_engagement_user_id' => $data['director_customer_engagement_user_id'],
+            'esd_director_user_id'                 => $data['esd_director_user_id'],
+            'vp_ccto_user_id'                      => $data['vp_ccto_user_id'],
+            'president_ceo_user_id'                => $data['president_ceo_user_id'],
+            'is_active'                            => $data['is_active'],
+            'remarks'                              => $data['remarks'] ?? null,
+            'updated_by_user_id'                   => Auth::id(),
+        ]);
+
+        return redirect()
+            ->route('admin.approver-matrix.index')
+            ->with('success', 'SPRF approver matrix updated successfully.');
+    }
+
+    // ─── SPRF: Validation ────────────────────────────────────────────────────
+
+    private function validateSprfMatrixRequest(Request $request): array
+    {
+        return $request->validate([
+            'location_id'                          => ['required', 'integer', 'exists:locations,id'],
+            'department_id'                        => ['required', 'integer', 'exists:company_departments,id'],
+            'director_customer_engagement_user_id' => ['required', 'integer', 'exists:users,id'],
+            'esd_director_user_id'                 => ['required', 'integer', 'exists:users,id'],
+            'vp_ccto_user_id'                      => ['required', 'integer', 'exists:users,id'],
+            'president_ceo_user_id'                => ['required', 'integer', 'exists:users,id'],
+            'is_active'                            => ['required', 'boolean'],
+            'remarks'                              => ['nullable', 'string', 'max:1000'],
+        ]);
     }
 }
