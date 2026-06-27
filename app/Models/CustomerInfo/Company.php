@@ -52,6 +52,6 @@ class Company extends Model
 
     public function clientManager()
     {
-        return $this->belongsTo(User::class, 'id_client_mngr');
+        return $this->belongsTo(User::class, 'id_client_mngr', 'employee_id');
     }
 }

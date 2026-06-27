@@ -106,7 +106,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                             {/* Client Manager Card */}
                             <div className="mt-4 border border-[#00000010] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,0.8),0px_0px_0_rgba(255,255,255,0.8),2px_2px_4px_rgba(0,0,0,0.2)] rounded-2xl bg-[#F2FAEE] backdrop-blur-sm overflow-hidden">
                                 <div className="px-5 pt-4 border-b border-gray-50 flex justify-between items-center bg-[#F2FAEE]">
-                                    <h3 className="text-[11px] font-bold text-slate-600 tracking-wide uppercase">Client Manager</h3>
+                                    <h3 className="text-[11px] font-bold text-slate-600 tracking-wide uppercase">Account Manager</h3>
                                     <MdPersonOutline className="text-slate-400 text-lg" />
                                 </div>
                                 <div className="p-5 pt-4">
@@ -119,7 +119,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                                 </div>
                                             </div>
                                             <div>
-                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Assigned Manager</div>
+                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">(ID) {company.id_client_mngr}</div>
                                                 <div className="text-[14px] font-semibold text-slate-800 leading-tight">
                                                     {company.client_manager || company.id_client_mngr}
                                                 </div>
