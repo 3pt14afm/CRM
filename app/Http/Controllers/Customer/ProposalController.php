@@ -7,6 +7,7 @@ use App\Models\Proposal;
 use App\Models\RoiArchiveProject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ProposalController extends Controller
@@ -172,8 +173,23 @@ private function transformProposal($p)
 }
   private function buildProposal(RoiArchiveProject $project, ?Proposal $doc): array
 {
+
+        $user = $project->user;
+    $userSignature = null;
+
+    if ($user?->employee_id) {
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = 'signatures/' . $user->employee_id . '.' . $ext;
+            if (Storage::disk('public')->exists($path)) {
+                $userSignature = asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+                break;
+            }
+        }
+    }
+
     $base = [
         'id'             => $project->id,
+        'proposal_id'    => $doc?->id,   // ← add this
         'company_name'   => $project->company_name,
         'attention'      => null,
         'designation'    => null,
@@ -197,7 +213,7 @@ private function transformProposal($p)
         'unit_price'         => 0,
         'terms_text'         => null,
         'closing_text'       => null,
-        'user_signature'     => null,
+         'user_signature' => $userSignature, // ← replaces null
         'conforme_name'      => null,
         'conforme_signature' => null,
     ];
@@ -206,7 +222,10 @@ private function transformProposal($p)
         return $base;
     }
 
+    // dd($userSignature, $user?->employee_id);
+
     return array_merge($base, [
+        'proposal_id' => $doc->id,   // ← add this
         'proposal_ref'       => $doc->proposal_ref,
         'status'             => $doc->status,
         'message'            => $doc->message,
@@ -215,7 +234,7 @@ private function transformProposal($p)
         'unit_price'         => $doc->unit_price,
         'terms_text'         => $doc->terms_text,
         'closing_text'       => $doc->closing_text,
-        'user_signature'     => $doc->user_signature,
+        // 'user_signature'     => $doc->user_signature,
         'conforme_name'      => $doc->conforme_name,
         'conforme_signature' => $doc->conforme_signature,
 
@@ -267,6 +286,7 @@ public function print($id)
         'showDraftWatermark' => $proposal->status === 'draft',
     ]);
 }
+
 
     // ProposalController.php
 

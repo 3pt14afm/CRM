@@ -76,17 +76,17 @@ function ApproveProjects({ proposals, stats }) {
       key: "actions",
       header: "ACTIONS",
       cell: (r) => (
-  <div className="flex items-center gap-2">
+
         <button
-            className="px-4 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+            className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
             type="button"
             // Change "proposals.show" to just "show" to match your web.php name('show')
             onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
         >
-            <FaFileInvoice className="text-[16px]" />
-            <span className="text-xs uppercase tracking-wide">Generate Proposal</span>
+            <FaFileInvoice className="text-[15px]" />
+           
         </button>
-    </div>
+   
       ),
     },
   ], []);
@@ -110,6 +110,8 @@ function ApproveProjects({ proposals, stats }) {
     : null;
 
   return (
+    
+
     <ProjectListSection
       tiles={tiles}
       tableTitle="Approved Projects"
@@ -118,6 +120,7 @@ function ApproveProjects({ proposals, stats }) {
       rowKey={(r) => String(r.id)}
       pagination={pagination}
     />
+
   );
 }
 
