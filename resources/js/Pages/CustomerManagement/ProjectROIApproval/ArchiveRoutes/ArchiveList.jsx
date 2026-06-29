@@ -154,7 +154,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
   , [locationId, locations]);
 
-  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId);
+  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId || perPage !== 10);
 
   const tiles = useMemo(() => {
     const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
@@ -368,11 +368,17 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     setDecidedBy("");
     setPreparedBy("");
     setLocationId("");
+    // Reset pagination items per page to 10
+    setPerPage(10);
+    setPerPageInput("10");
     setShowDatePicker(false);
     setShowDecidedBy(false);
     setShowPreparedBy(false);
     setShowLocation(false);
     LS.clearAll();
+    // Ensure 'per_page' is also cleared/reset in localStorage
+    LS.set('per_page', "10");
+
     fetchArchivedData({
       currentSearch:     "",
       currentStatus:     "",
