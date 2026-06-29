@@ -29,7 +29,7 @@ function StatusPill({ children, tone = "neutral" }) {
 
 function ApproverLine({ label, value, note }) {
   return (
-    <div className="text-[11px] lg:text-xs text-slate-700 flex items-center gap-1.5">
+    <div className="text-[11px] lg:text-xs text-slate-700 flex items-center justify-center gap-1.5">
       <span className="font-semibold text-slate-900">{label}</span>
       <span className="text-slate-500"> — </span>
       <span>{value && String(value).trim() !== "" ? value : "Not setup"}</span>
@@ -655,7 +655,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
                           <th className="px-6 py-2 text-left font-bold">Location</th>
                           <th className="px-4 py-2 text-center font-bold">Department</th>
                           <th className="px-4 py-2 text-center font-bold">Condition</th>
-                          <th className="px-4 py-2 text-left font-bold min-w-[320px]">
+                          <th className="px-4 py-2 text-center font-bold min-w-[320px]">
                             Approvers
                           </th>
                           <th className="px-4 py-2 text-center font-bold">Status</th>

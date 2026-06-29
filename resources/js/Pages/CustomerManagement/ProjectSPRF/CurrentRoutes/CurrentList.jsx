@@ -363,7 +363,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
         <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
         <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}
           className="h-9 w-28 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none flex items-center focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            focus:outline-none flex items-center focus:ring-0 focus:border-[#4FA34E]
             transition-[border-color,box-shadow] duration-150 text-slate-700">
           <option value="">All Status</option>
           <option value="for_review">For Review</option>
@@ -375,7 +375,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
       {/* Per Page */}
       <div className="relative h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
         <button type="button" onClick={() => setShowPerPagePicker(!showPerPagePicker)}
-          className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors">
+          className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors ">
           <TbLayoutRows size={15} className="text-slate-400" />
           <span>Rows: {perPage}</span>
           <MdExpandMore size={14} className="text-slate-400" />
@@ -383,7 +383,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
         {showPerPagePicker && (
           <div className="absolute left-0 top-11 z-50 w-40 bg-white border border-gray-200 rounded-2xl shadow-lg p-3">
             <span className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Rows per page</span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 ">
               <input autoFocus type="number" value={perPageInput}
                 onChange={(e) => setPerPageInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handlePerPageInputApply()}
@@ -424,7 +424,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
         <MdVerifiedUser className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
         <select value={approvalLevel} onChange={(e) => handleApprovalLevelChange(e.target.value)}
           className="h-9 w-36 sm:w-44 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none flex items-center focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            focus:outline-none flex items-center focus:ring-0 focus:border-[#4FA34E]
             transition-[border-color,box-shadow] duration-150 text-slate-700">
           <option value="">All Levels</option>
           <option value="DIRECTOR_CUSTOMER_ENGAGEMENT">Director - Customer Engagement</option>
