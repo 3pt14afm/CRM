@@ -1,11 +1,12 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { useState, useRef } from "react";
-import { FaUser } from "react-icons/fa";
+import { FaUser, FaArrowLeft } from "react-icons/fa"; // Added FaArrowLeft
 import { MdLock } from "react-icons/md";
 import { LuEye, LuEyeClosed } from "react-icons/lu";
+import GuestLayout from '@/Layouts/GuestLayout'; 
 
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -23,6 +24,7 @@ export default function Login({ status, canResetPassword }) {
     };
 
     const [showPassword, setShowPassword] = useState(false);
+    const [showForgotModal, setShowForgotModal] = useState(false);
     const passwordRef = useRef(null);
 
     const togglePassword = () => {
@@ -48,117 +50,154 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-        <form onSubmit={submit}>
-            <Head title="Log in" />
+        <>
+            <form onSubmit={submit}>
+                <Head title="Log in" />
 
-            <div className="min-h-screen w-full flex items-center justify-center bg-gray-200 font-sans p-4">
-                <div className="flex shadow-2xl w-full max-w-5xl min-h-[600px] rounded-3xl overflow-hidden bg-white">
-                    
-                    {/* Left Side: Branding */}
-                    <div className="hidden md:flex w-[55%] bg-[#2D7813] p-8 flex-col justify-between items-center text-white">
-                        <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
-                            <img src="/images/logo.webp" alt="Logo" />
-                        </div>
+                <div className="min-h-screen w-full flex items-center justify-center bg-gray-200 font-sans p-4">
+                    <div className="flex shadow-2xl w-full max-w-5xl min-h-[600px] rounded-3xl overflow-hidden bg-white">
                         
-                        <div className="flex justify-center w-full">
-                            <img src="/images/graphics.webp" alt="Graphics" className="max-w-full h-auto object-contain" />
+                        {/* Left Side: Branding */}
+                        <div className="hidden md:flex w-[55%] bg-[#2D7813] p-8 flex-col justify-between items-center text-white">
+                            <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
+                                <img src="/images/logo.webp" alt="Logo" />
+                            </div>
+                            
+                            <div className="flex justify-center w-full">
+                                <img src="/images/graphics.webp" alt="Graphics" className="max-w-full h-auto object-contain" />
+                            </div>
                         </div>
-                    </div>
 
-    
-                {/* Right Side: Form */}
-              <div className="flex flex-col justify-center items-start flex-1 p-8 md:p-12">
-                <img className=" w-[500px] mx-auto block "src="/images/derms4.png"alt=""srcSet=""/>
+                        {/* Right Side: Form */}
+                        <div className="flex flex-col justify-center items-start flex-1 p-8 md:p-12">
+                            <img className=" w-[500px] mx-auto block" src="/images/derms4.png" alt="" />
 
-                <div className="mb-4 w-full">
-                
-                    {/* <h2 className='text-text-secondary font-semibold text-2xl mb-2'>Account Login</h2> */}
-
-                    <p className="text-sm text-darkgreen text-center opacity-55">
-                    Please enter your credentials.
-                    </p>
-                </div>
-                
-
-                        <div className="w-full">
-                            {/* Employee ID / Email Field */}
-                            <div className="mb-4">
-                                <InputLabel
-                                    htmlFor="login"
-                                    value="Email"
-                                    className="text-text-secondary font-bold text-sm mb-2 ml-1"
-                                />
-
-                                <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.login ? 'border-red-500' : ''}`}>
-                                    <FaUser className="text-darkgreen/50 group-focus-within:text-darkgreen w-4 h-4 ml-3" />
-                                    <input
-                                        id="login"
-                                        type="text"
-                                        name="login"
-                                        value={data.login}
-                                        onChange={(e) => setData('login', e.target.value)}
-                                        placeholder="Enter ID No. / Email"
-                                        className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
-                                        autoComplete="username"
+                            <div className="mb-4 w-full">
+                                <p className="text-sm text-darkgreen text-center opacity-55">
+                                Please enter your credentials.
+                                </p>
+                            </div>
+                    
+                            <div className="w-full">
+                                {/* Employee ID / Email Field */}
+                                <div className="mb-4">
+                                    <InputLabel
+                                        htmlFor="login"
+                                        value="Email"
+                                        className="text-text-secondary font-bold text-sm mb-2 ml-1"
                                     />
+
+                                    <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.login ? 'border-red-500' : ''}`}>
+                                        <FaUser className="text-darkgreen/50 group-focus-within:text-darkgreen w-4 h-4 ml-3" />
+                                        <input
+                                            id="login"
+                                            type="text"
+                                            name="login"
+                                            value={data.login}
+                                            onChange={(e) => setData('login', e.target.value)}
+                                            placeholder="Enter ID No. / Email"
+                                            className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
+                                            autoComplete="username"
+                                        />
+                                    </div>
+
+                                    <InputError message={errors.login} className="mt-2" />
                                 </div>
 
-                                <InputError message={errors.login} className="mt-2" />
+                                {/* Password Field */}
+                                <div className="mb-2">
+                                    <InputLabel htmlFor="password" value="Password" className="text-text-secondary font-bold text-sm mb-2 ml-1" />
+
+                                    <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.password ? 'border-red-500' : ''}`}>
+                                        <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen w-5 h-5 ml-3" />
+                                        <input
+                                            ref={passwordRef}
+                                            id="password"
+                                            type={showPassword ? "text" : "password"}
+                                            name="password"
+                                            value={data.password}
+                                            onChange={(e) => setData('password', e.target.value)}
+                                            placeholder="••••••••"
+                                            className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
+                                            autoComplete="current-password"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={togglePassword}
+                                            className="mr-3 text-darkgreen/50 hover:text-darkgreen transition"
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showPassword ? <LuEye className="w-5 h-5" /> : <LuEyeClosed className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+
+                                    <InputError message={errors.password} className="mt-2" />
+                                </div>
+
+                                <div className="flex items-center justify-end mt-2">
+                                    {canResetPassword && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowForgotModal(true)}
+                                            className="text-darkgreen opacity-65 font-medium text-xs hover:opacity-100 transition"
+                                        >
+                                            Forgot Credentials?
+                                        </button>
+                                    )}
+                                </div>
+
+                                <PrimaryButton
+                                    className="w-full h-[53px] rounded-xl justify-center mt-6"
+                                    disabled={processing}
+                                >
+                                    {processing ? 'AUTHORIZING...' : 'AUTHORIZE LOGIN'}
+                                </PrimaryButton>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
 
-                            {/* Password Field */}
-                            <div className="mb-2">
-                                <InputLabel htmlFor="password" value="Password" className="text-text-secondary font-bold text-sm mb-2 ml-1" />
+            {/* Forgot Credentials Modal */}
+            {showForgotModal && (
+                <div className="fixed inset-0 z-50 backdrop-blur-[1px]">
+                    {/* Overlay background */}
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowForgotModal(false)}></div>
+                    
+                    <div className="relative min-h-screen w-full">
+                        <GuestLayout>
+                            <div className="flex flex-col h-full w-full items-center justify-center pt-8">
+                                <div className="text-center w-full flex flex-col items-center">
+                                    <h2 className="text-3xl font-bold text-gray-900">
+                                        Forgot Password?
+                                    </h2>
 
-                                <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.password ? 'border-red-500' : ''}`}>
-                                    <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen w-5 h-5 ml-3" />
-                                    <input
-                                        ref={passwordRef}
-                                        id="password"
-                                        type={showPassword ? "text" : "password"}
-                                        name="password"
-                                        value={data.password}
-                                        onChange={(e) => setData('password', e.target.value)}
-                                        placeholder="••••••••"
-                                        className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
-                                        autoComplete="current-password"
-                                    />
+                                    <p className="mt-6 text-gray-600 px-6">
+                                        Please contact your administrator to reset your password.
+                                    </p>
 
                                     <button
                                         type="button"
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={togglePassword}
-                                        className="mr-3 text-darkgreen/50 hover:text-darkgreen transition"
-                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                        onClick={() => setShowForgotModal(false)}
+                                        className="mt-8 flex w-[80%] max-w-sm items-center justify-center gap-2 rounded-xl bg-[#428f28] px-4 py-3 font-semibold text-white transition hover:bg-darkgreen"
                                     >
-                                        {showPassword ? <LuEye className="w-5 h-5" /> : <LuEyeClosed className="w-5 h-5" />}
+                                        <FaArrowLeft />
+                                        Back to Login
                                     </button>
                                 </div>
-
-                                <InputError message={errors.password} className="mt-2" />
+                                
+                                <div className="mt-36 border-t pt-6 w-full text-center">
+                                    <p className="text-[11px] uppercase text-gray-400">
+                                        Enterprise Resource Management System
+                                    </p>
+                                </div>
                             </div>
-
-                            <div className="flex items-center justify-end mt-2">
-                                {canResetPassword && (
-                                    <Link
-                                        href={route('password.request')}
-                                        className="text-darkgreen opacity-65 font-medium text-xs hover:opacity-100 transition"
-                                    >
-                                        Forgot Credentials?
-                                    </Link>
-                                )}
-                            </div>
-
-                            <PrimaryButton
-                                className="w-full h-[53px] rounded-xl justify-center mt-6"
-                                disabled={processing}
-                            >
-                                {processing ? 'AUTHORIZING...' : 'AUTHORIZE LOGIN'}
-                            </PrimaryButton>
-                        </div>
+                        </GuestLayout>
                     </div>
                 </div>
-            </div>
-        </form>
+            )}
+        </>
     );
 }

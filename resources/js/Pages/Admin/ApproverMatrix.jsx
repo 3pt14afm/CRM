@@ -27,15 +27,72 @@ function StatusPill({ children, tone = "neutral" }) {
   );
 }
 
-function ApproverLine({ label, value }) {
+function ApproverLine({ label, value, note }) {
   return (
-    <div className="text-[11px] lg:text-xs text-slate-700">
+    <div className="text-[11px] lg:text-xs text-slate-700 flex items-center gap-1.5">
       <span className="font-semibold text-slate-900">{label}</span>
       <span className="text-slate-500"> — </span>
       <span>{value && String(value).trim() !== "" ? value : "Not setup"}</span>
+      {note && (
+        <span className="relative group inline-flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-amber-500 cursor-default" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label={note}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[180px] rounded-lg bg-slate-800 text-white text-[10px] px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center">
+            {note}
+          </span>
+        </span>
+      )}
     </div>
   );
 }
+// Maps each condition label → which approver keys are required
+const SPRF_CONDITIONS = [
+  {
+    label: "Standard Pricing",
+    keys: ["director_customer_engagement_user_name", "esd_director_user_name"],
+  },
+  {
+    label: "Value > 1M",
+    keys: [
+      "director_customer_engagement_user_name",
+      "esd_director_user_name",
+      "vp_ccto_user_name",
+    ],
+  },
+  {
+    label: "GP > 15%",
+    keys: ["director_customer_engagement_user_name", "esd_director_user_name", "vp_ccto_user_name",],
+  },
+  {
+    label: "GP ≤ 15%",
+    keys: [
+      "director_customer_engagement_user_name",
+      "esd_director_user_name",
+      "vp_ccto_user_name",
+      "president_ceo_user_name",
+    ],
+  },
+  {
+    label: "Rebate Request",
+    keys: [
+      "director_customer_engagement_user_name",
+      "esd_director_user_name",
+      "vp_ccto_user_name",
+      "president_ceo_user_name",
+    ],
+  },
+];
+
+// Friendly labels for each approver name field
+const SPRF_APPROVER_LABELS = {
+  director_customer_engagement_user_name: "Director - Customer Engagement",
+  esd_director_user_name: "ESD Director",
+  vp_ccto_user_name: "VP & CCTO",
+  president_ceo_user_name: "President & CEO",
+};
 
 const EMPTY_SPRF_FORM = {
   location_id: "",
@@ -66,6 +123,9 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
   const [editSprfProcessing, setEditSprfProcessing] = useState(false);
   const [editingSprfMatrix, setEditingSprfMatrix] = useState(null);
   const [sprfEditForm, setSprfEditForm] = useState({ ...EMPTY_SPRF_FORM });
+
+  // Per-row condition filter: rowKey → condition label (local UI only, not saved)
+  const [sprfConditionFilter, setSprfConditionFilter] = useState({});
 
   const users = stats?.users ?? [];
   const locations = stats?.locations ?? [];
@@ -594,7 +654,8 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
                         <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
                           <th className="px-6 py-2 text-left font-bold">Location</th>
                           <th className="px-4 py-2 text-center font-bold">Department</th>
-                          <th className="px-4 py-2 text-center font-bold min-w-[420px]">
+                          <th className="px-4 py-2 text-center font-bold">Condition</th>
+                          <th className="px-4 py-2 text-left font-bold min-w-[320px]">
                             Approvers
                           </th>
                           <th className="px-4 py-2 text-center font-bold">Status</th>
@@ -606,7 +667,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
                         {sprfMatrixRows.length === 0 ? (
                           <tr>
                             <td
-                              colSpan={5}
+                              colSpan={6}
                               className="px-6 py-10 text-center text-sm text-slate-500"
                             >
                               No SPRF approver matrix rows found.
@@ -617,10 +678,20 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
                             const rowKey = String(row.id ?? `sprf-${index}`);
                             const isActive = Boolean(row.is_active);
 
+                            const selectedConditionLabel =
+                              sprfConditionFilter[rowKey] ?? "";
+                            const selectedCondition =
+                              SPRF_CONDITIONS.find((c) => c.label === selectedConditionLabel) ?? null;
+
+                            // When no condition is selected, show all approvers
+                            const visibleApproverKeys = selectedCondition
+                              ? selectedCondition.keys
+                              : Object.keys(SPRF_APPROVER_LABELS);
+
                             return (
                               <tr
                                 key={rowKey}
-                                className="border-b border-slate-100 hover:bg-slate-50/60 align-top"
+                                className=" hover:bg-gray-50 border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] border-black/5 align-top"
                               >
                                 <td className="px-6 py-3 text-[11px] lg:text-sm text-slate-900">
                                   {row.location_name ?? "—"}
@@ -631,23 +702,40 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
                                 </td>
 
                                 <td className="px-4 py-3 text-center">
+                                  <select
+                                    value={selectedConditionLabel}
+                                    onChange={(e) =>
+                                      setSprfConditionFilter((prev) => ({
+                                        ...prev,
+                                        [rowKey]: e.target.value,
+                                      }))
+                                    }
+                                    className="rounded-lg border border-slate-300 px-2 pr-7 py-1.5 text-xs focus:outline-none focus:ring-0 focus:border-[#4FA34E] bg-white"
+                                  >
+                                    <option value="">Select a condition</option>
+                                    {SPRF_CONDITIONS.map((c) => (
+                                      <option key={c.label} value={c.label}>
+                                        {c.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+
+                                <td className="px-4 py-3 text-center">
                                   <div className="flex flex-col gap-1.5">
-                                    <ApproverLine
-                                      label="Director - Customer Engagement"
-                                      value={row.director_customer_engagement_user_name}
-                                    />
-                                    <ApproverLine
-                                      label="ESD Director"
-                                      value={row.esd_director_user_name}
-                                    />
-                                    <ApproverLine
-                                      label="VP & CCTO"
-                                      value={row.vp_ccto_user_name}
-                                    />
-                                    <ApproverLine
-                                      label="President & CEO"
-                                      value={row.president_ceo_user_name}
-                                    />
+                                    {visibleApproverKeys.map((nameKey) => (
+                                      <ApproverLine
+                                        key={nameKey}
+                                        label={SPRF_APPROVER_LABELS[nameKey]}
+                                        value={row[nameKey]}
+                                        note={
+                                          selectedConditionLabel === "Rebate Request" &&
+                                          nameKey === "director_customer_engagement_user_name"
+                                            ? "Rebate justification required"
+                                            : null
+                                        }
+                                      />
+                                    ))}
                                   </div>
                                 </td>
 

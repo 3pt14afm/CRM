@@ -328,6 +328,7 @@ class SprfEntryProjectController extends Controller
         });
 
         $this->workflowService->handleAutoAdvanceOnSubmit($currentProject->fresh());
+        $this->workflowService->notifySubmit($currentProject->fresh());
 
         try {
             SprfActivityLogger::log(

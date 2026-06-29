@@ -26,7 +26,7 @@ export default function ForgotPassword() {
                     Back to Login
                 </Link>
             </div>
-                <div className="mt-12 border-t pt-6">
+                <div className="mt-20 border-t pt-6">
                     <p className="text-[11px] uppercase text-gray-400">
                         Enterprise Resource Management System
                     </p>

@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROI Proposal {{ $reference }} Rejected</title>
+    <title>ROI Proposal {{ $reference }} Disapproved</title>
 </head>
 <body>
 
 
-<p>Your ROI proposal <strong>{{ $reference }}</strong> has been <strong>Rejected</strong> by <strong>{{ $actorName }}</strong>.</p>
+<p>Your ROI proposal <strong>{{ $reference }}</strong> has been <strong>Disapproved</strong> by <strong>{{ $actorName }}</strong>.</p>
 
 <ul>
-    <li>Current Status: Rejected</li>
+    <li>Current Status: Disapproved</li>
     <li>Rejection Stage: {{ $stageOfRejection }}</li>
 </ul>
 

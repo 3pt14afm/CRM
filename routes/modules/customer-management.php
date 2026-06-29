@@ -130,6 +130,10 @@ Route::middleware(['auth', 'verified'])
             Route::post('/current/{project}/notes', [SprfCurrentProjectController::class, 'storeNote'])->name('sprf.current.notes.store');
             Route::post('/current/{project}/comments', [SprfCurrentProjectController::class, 'storeComment'])->name('sprf.current.comments.store');
 
+            // Withdraw / Cancel (Preparer-only actions)
+            Route::post('/current/{project}/withdraw', [SprfCurrentProjectController::class, 'withdraw'])->name('sprf.current.withdraw');
+            Route::post('/current/{project}/cancel', [SprfCurrentProjectController::class, 'cancel'])->name('sprf.current.cancel');
+
             // --- SPRF Archive ---
             Route::get('/archive', [SprfController::class, 'archive'])->name('sprf.archive');
             Route::get('/archive/{project}', [SprfController::class, 'archiveShow'])->name('sprf.archive.show');
@@ -160,5 +164,3 @@ Route::middleware(['auth', 'verified'])
             Route::get('/companies/{id}', [CustomerInfoController::class, 'show'])->name('companies.show');
             Route::get('/customer-info/potentials', [PotentialCustomerController::class, 'index'])->name('customerinfo.potentials.index');
         });
-
-    
