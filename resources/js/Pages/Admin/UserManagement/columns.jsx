@@ -97,7 +97,16 @@ export function getUserColumns({
     },
     {
       key: "position",
-      header: <div className="text-center w-full">POSITION</div>,
+      header: (
+        <SortHeader
+          label="POSITION"
+          sortKey="position"
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
           <span className="text-center">
@@ -108,7 +117,16 @@ export function getUserColumns({
     },
     {
       key: "department",
-      header: <div className="text-center w-full">DEPARTMENT</div>,
+      header: (
+        <SortHeader
+          label="DEPARTMENT"
+          sortKey="department_name"
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
           <span className="text-center">
@@ -130,7 +148,16 @@ export function getUserColumns({
     },
     {
       key: "location_name",
-      header: <div className="text-center w-full">LOCATION</div>,
+      header: (
+        <SortHeader
+          label="LOCATION"
+          sortKey="location_name"
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <div className="w-full flex justify-center items-center">
           <span className="text-center">
