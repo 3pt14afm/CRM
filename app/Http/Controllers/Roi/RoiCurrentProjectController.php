@@ -99,7 +99,7 @@ class RoiCurrentProjectController extends Controller
 
         $search     = $request->input('search');
         $status     = $request->input('status');
-        $type       = $request->input('type'); // <-- ADD THIS LINE
+        $type       = $request->input('type');
         $dateFrom   = $request->input('date_from');
         $dateTo     = $request->input('date_to');
         $preparedBy = $request->input('prepared_by');
@@ -108,12 +108,14 @@ class RoiCurrentProjectController extends Controller
 
         $query = RoiCurrentProject::with([
             'items', 'fees', 'user',
-            'reviewedByUser:id,first_name,last_name,employee_id', // 👈 Added employee_id
-            'checkedByUser:id,first_name,last_name,employee_id',  // 👈 Added employee_id
-            'endorsedByUser:id,first_name,last_name,employee_id',// 👈 Added employee_id
-            'confirmedByUser:id,first_name,last_name,employee_id',// 👈 Added employee_id
-            'approvedByUser:id,first_name,last_name,employee_id',// 👈 Added employee_id
-        ]);
+            'reviewedByUser:id,first_name,last_name,employee_id',
+            'checkedByUser:id,first_name,last_name,employee_id',
+            'endorsedByUser:id,first_name,last_name,employee_id',
+            'confirmedByUser:id,first_name,last_name,employee_id',
+            'approvedByUser:id,first_name,last_name,employee_id',
+        ])
+        ->leftJoin('users', 'roi_current_projects.user_id', '=', 'users.id')
+        ->select('roi_current_projects.*');
 
         // Enforce user pipeline visibility constraints
         $this->applyCurrentVisibilityScope($query, $user);
@@ -122,14 +124,14 @@ class RoiCurrentProjectController extends Controller
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('roi_current_projects.company_name', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.reference', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.company_sap_code', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.contract_type', 'like', "%{$search}%")
-                  ->orWhere('roi_current_projects.status', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('first_name', 'like', "%{$search}%")
+                ->orWhere('roi_current_projects.reference', 'like', "%{$search}%")
+                ->orWhere('roi_current_projects.company_sap_code', 'like', "%{$search}%")
+                ->orWhere('roi_current_projects.contract_type', 'like', "%{$search}%")
+                ->orWhere('roi_current_projects.status', 'like', "%{$search}%")
+                ->orWhereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('first_name', 'like', "%{$search}%")
                                 ->orWhere('last_name', 'like', "%{$search}%");
-                  });
+                });
             });
         }
 
@@ -138,72 +140,87 @@ class RoiCurrentProjectController extends Controller
             match ($status) {
                 'for_review' => $query->where(function ($q) {
                     $q->where('roi_current_projects.status', '=', 'For Review')
-                      ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 2));
+                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 2));
                 }),
                 'for_checking' => $query->where(function ($q) {
                     $q->where('roi_current_projects.status', '=', 'For Checking')
-                      ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 3));
+                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 3));
                 }),
                 'for_endorsement' => $query->where(function ($q) {
                     $q->where('roi_current_projects.status', '=', 'For Endorsement')
-                      ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 4));
+                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 4));
                 }),
                 'for_confirmation' => $query->where(function ($q) {
                     $q->where('roi_current_projects.status', '=', 'For Confirmation')
-                      ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 5));
+                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 5));
                 }),
                 'for_approval' => $query->where(function ($q) {
                     $q->where('roi_current_projects.status', '=', 'For Approval')
-                      ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 6));
+                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 6));
                 }),
                 default => $query->where('roi_current_projects.status', '=', $status),
             };
         }
 
-        // 3. Type filter <-- ADD THIS BLOCK -->
-    // 4.5 Type filter (Existing vs Potential) 👈 ADD THIS BLOCK
-            if ($type !== null && $type !== '') {
-                $query->where('roi_current_projects.type', '=', (int) $type);
-            }
-            
-        // 3. Prepared By filter
+        // 3. Type filter
+        if ($type !== null && $type !== '') {
+            $query->where('roi_current_projects.type', '=', (int) $type);
+        }
+
+        // 4. Prepared By filter
         if (!empty($preparedBy)) {
             $query->whereHas('user', function ($q) use ($preparedBy) {
                 $q->where('first_name', 'like', "%{$preparedBy}%")
-                  ->orWhere('last_name', 'like', "%{$preparedBy}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+                ->orWhere('last_name', 'like', "%{$preparedBy}%")
+                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
             });
         }
 
-        // 4. Location filter
+        // 5. Location filter
         if (!empty($locationId)) {
             $query->where('roi_current_projects.location_id', '=', (int) $locationId);
         }
 
-        // 5. Date range filter
+        // 6. Date range filter
         if (!empty($dateFrom)) $query->whereDate('roi_current_projects.last_saved_at', '>=', $dateFrom);
-        if (!empty($dateTo)) $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
+        if (!empty($dateTo))   $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
 
         $userId = (int) $user->id;
 
-        // WITH THIS:
+        // 7. Sorting
         $sortOrder = in_array($request->input('sort_order'), ['asc', 'desc']) ? $request->input('sort_order') : null;
 
-        $query->when($sortOrder,
-            fn($q) => $q->orderBy('last_saved_at', $sortOrder),
+        $allowedSorts = [
+            'last_saved_at'    => 'roi_current_projects.last_saved_at',
+            'prepared_by_name' => "TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, '')))",
+            'reference'        => 'roi_current_projects.reference',
+            'company_sap_code' => 'roi_current_projects.company_sap_code',
+            'company_name'     => 'roi_current_projects.company_name',
+            'contract_years'   => 'roi_current_projects.contract_years',
+            'contract_type'    => 'roi_current_projects.contract_type',
+            'type'             => 'roi_current_projects.type',
+            'status'           => 'roi_current_projects.status',
+        ];
+
+        $sortByKey = $request->input('sort_by', 'last_saved_at');
+        $sortCol   = $allowedSorts[$sortByKey] ?? $allowedSorts['last_saved_at'];
+
+        $query->when(
+            $sortOrder,
+            fn($q) => $q->orderByRaw("{$sortCol} {$sortOrder}"),
             fn($q) => $q->orderByRaw("
                 CASE 
-                    WHEN current_level = 2 AND reviewed_by = ? THEN 0
-                    WHEN current_level = 3 AND checked_by = ? THEN 0
-                    WHEN current_level = 4 AND endorsed_by = ? THEN 0
-                    WHEN current_level = 5 AND confirmed_by = ? THEN 0
-                    WHEN current_level = 6 AND approved_by = ? THEN 0
-                    WHEN user_id = ? THEN 1
+                    WHEN roi_current_projects.current_level = 2 AND roi_current_projects.reviewed_by  = ? THEN 0
+                    WHEN roi_current_projects.current_level = 3 AND roi_current_projects.checked_by   = ? THEN 0
+                    WHEN roi_current_projects.current_level = 4 AND roi_current_projects.endorsed_by  = ? THEN 0
+                    WHEN roi_current_projects.current_level = 5 AND roi_current_projects.confirmed_by = ? THEN 0
+                    WHEN roi_current_projects.current_level = 6 AND roi_current_projects.approved_by  = ? THEN 0
+                    WHEN roi_current_projects.user_id = ? THEN 1
                     ELSE 2
-                END ASC, last_saved_at DESC
+                END ASC, roi_current_projects.last_saved_at DESC
             ", [$userId, $userId, $userId, $userId, $userId, $userId])
         );
-        
+
         $statsQuery = clone $query;
 
         $currentProjects = $query->paginate($perPage)->withQueryString()->through(function ($p) use ($user) {
@@ -215,14 +232,16 @@ class RoiCurrentProjectController extends Controller
                 2 => $p->reviewedByUser, 3 => $p->checkedByUser, 4 => $p->endorsedByUser,
                 5 => $p->confirmedByUser, 6 => $p->approvedByUser, default => null
             };
-            $p->status_assignee_name = $assignedUser ? trim(($assignedUser->first_name ?? '') . ' ' . ($assignedUser->last_name ?? '')) : '—';
+            $p->status_assignee_name = $assignedUser
+                ? trim(($assignedUser->first_name ?? '') . ' ' . ($assignedUser->last_name ?? ''))
+                : '—';
 
             $isSentBack = strtolower((string) $p->status) === 'sent back';
             $p->status_display_main   = $isSentBack ? $this->workflowService->getQueueLabelForLevel($lvl) : ($p->status ?? '—');
             $p->status_display_suffix = $isSentBack ? ' (Sent Back)' : '';
 
-            $p->viewer_is_preparer          = (int) $p->user_id === (int) $user->id;
-            $p->viewer_is_current_approver    = $this->currentProjectAssignedToUser($p, (int) $user->id);
+            $p->viewer_is_preparer         = (int) $p->user_id === (int) $user->id;
+            $p->viewer_is_current_approver = $this->currentProjectAssignedToUser($p, (int) $user->id);
 
             return $p;
         });
@@ -232,7 +251,7 @@ class RoiCurrentProjectController extends Controller
         $stats = [
             'totalCurrentProjects' => $statsQuery->count(),
             'recentlyModifiedText' => $latest?->last_saved_at?->diffForHumans() ?? '—',
-            'recentlyAddedToday'   => (clone $statsQuery)->whereDate('last_saved_at', now()->toDateString())->count() . ' Today',
+            'recentlyAddedToday'   => (clone $statsQuery)->whereDate('roi_current_projects.last_saved_at', now()->toDateString())->count() . ' Today',
         ];
 
         if ($request->wantsJson()) {
@@ -249,7 +268,7 @@ class RoiCurrentProjectController extends Controller
             'stats'           => $stats,
             'viewerId'        => (int) $user->id,
             'locations'       => $locations,
-            'filters' => [
+            'filters'         => [
                 'search'      => $search,
                 'status'      => $status,
                 'date_from'   => $dateFrom,
@@ -257,7 +276,8 @@ class RoiCurrentProjectController extends Controller
                 'prepared_by' => $preparedBy,
                 'location_id' => $locationId,
                 'per_page'    => $perPage,
-                'sort_order'  => $sortOrder,   // ← add
+                'sort_by'     => $sortByKey,    // ← added
+                'sort_order'  => $sortOrder,
                 'type'        => $type,
             ],
         ]);

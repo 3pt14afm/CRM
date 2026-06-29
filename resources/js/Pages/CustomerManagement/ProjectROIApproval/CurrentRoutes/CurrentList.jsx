@@ -6,7 +6,7 @@ import FilterChip from '@/Components/roi/filters/FilterChip';
 import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
 import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
 import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
-import { FaFolderOpen } from 'react-icons/fa';
+import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
 import {
   MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose, MdExpandMore,
@@ -23,6 +23,25 @@ function formatDateLabel(dateStr) {
   return new Date(year, month - 1, day).toLocaleDateString('en-US', {
     month: 'long', day: '2-digit', year: 'numeric',
   });
+}
+
+function formatLastSavedDate(dateValue) {
+  if (!dateValue) return null;
+  const savedDate = new Date(dateValue);
+  if (isNaN(savedDate.getTime())) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const targetDate = new Date(savedDate);
+  targetDate.setHours(0, 0, 0, 0);
+  const diffTime = now.getTime() - targetDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+  if (diffDays >= 1) {
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    const yy = String(targetDate.getFullYear()).slice(-2);
+    return `${mm}/${dd}/${yy}`;
+  }
+  return savedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
 const LS = {
@@ -43,6 +62,26 @@ const LS = {
   },
 };
 
+/* ── Sort Header ── */
+function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'left' }) {
+  const active = sortBy === sortKey;
+  const indicator = active ? (sortDirection === 'desc' ? '▼' : '▲') : '⇅';
+  const justifyClass = align === 'center' ? 'justify-center text-center' : 'justify-start text-left';
+  return (
+    <button
+      type="button"
+      title={`Sort by ${label}`}
+      onClick={() => onSort(sortKey)}
+      className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
+    >
+      <span>{label}</span>
+      <span className={`text-[11px] leading-none ${
+        active ? 'text-[#289800]' : 'text-slate-400 transition-colors group-hover:text-slate-500'
+      }`}>{indicator}</span>
+    </button>
+  );
+}
+
 function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters, locations = [] }) {
   const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
   const [localStats, setLocalStats] = useState(initialStats);
@@ -59,12 +98,15 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     const parsed = parseInt(stored, 10);
     return !isNaN(parsed) && parsed > 0 ? parsed : (filters?.per_page ?? 10);
   });
-  const [currentPage,  setCurrentPage]  = useState(() => {
+  const [currentPage, setCurrentPage] = useState(() => {
     const stored = LS.get('page', "");
     const parsed = parseInt(stored, 10);
     return !isNaN(parsed) && parsed > 0 ? parsed : 1;
   });
-  const [sortOrder,    setSortOrder]    = useState(() => LS.get('sort_order',  filters?.sort_order  ?? ""));
+
+  // ── Sort state ──
+  const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? "last_saved_at"));
+  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? "desc"));
 
   const [perPageInput, setPerPageInput] = useState(() => {
     const stored = LS.get('per_page', "");
@@ -90,7 +132,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     day: "2-digit", month: "2-digit", year: "2-digit",
   }).format(today);
 
-  // Persist all filters + page + sort to localStorage
+  // Persist filters
   useEffect(() => {
     LS.set('search',      search);
     LS.set('status',      statusFilter);
@@ -101,8 +143,9 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     LS.set('location_id', String(locationId));
     LS.set('per_page',    String(perPage));
     LS.set('page',        String(currentPage));
+    LS.set('sort_by',     sortBy);
     LS.set('sort_order',  sortOrder);
-  }, [search, statusFilter, typeFilter, dateFrom, dateTo, preparedBy, locationId, perPage, currentPage, sortOrder]);
+  }, [search, statusFilter, typeFilter, dateFrom, dateTo, preparedBy, locationId, perPage, currentPage, sortBy, sortOrder]);
 
   useEffect(() => {
     setLocalCurrentProjects(initialCurrentProjects);
@@ -120,13 +163,11 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Always keep ref pointed at the latest version of fetchCurrentData
   const fetchCurrentDataRef = useRef(null);
   useEffect(() => {
     fetchCurrentDataRef.current = fetchCurrentData;
   });
 
-  // Auto-refresh every 60 seconds — interval never restarts, never stale
   useEffect(() => {
     const interval = setInterval(() => {
       fetchCurrentDataRef.current?.({ silent: true });
@@ -134,11 +175,25 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     return () => clearInterval(interval);
   }, []);
 
+  // ── Sort handler ──
+  const handleSort = (key) => {
+    const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortBy(key);
+    setSortOrder(newOrder);
+    LS.set('sort_by',    key);
+    LS.set('sort_order', newOrder);
+    fetchCurrentData({ currentSortBy: key, currentSortOrder: newOrder });
+  };
+
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
   , [locationId, locations]);
 
-  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || preparedBy || locationId ||  perPage !== 10);
+  const hasActiveFilters = !!(
+    search || statusFilter || typeFilter !== "" || dateFrom || dateTo ||
+    preparedBy || locationId || perPage !== 10 ||
+    sortBy !== "last_saved_at" || sortOrder !== "desc"   // ← include sort
+  );
 
   const tiles = useMemo(() => {
     const totalCurrentProjects = localStats?.totalCurrentProjects ?? localCurrentProjects?.total ?? 0;
@@ -149,39 +204,85 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     ];
   }, [localStats, localCurrentProjects]);
 
+  // ── Columns with SortHeader ──
   const columns = useMemo(() => [
     {
       key: "Created by",
-      header: "PREPARED BY",
+      header: (
+        <SortHeader
+          label="PREPARED BY"
+          sortKey="prepared_by_name"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+        />
+      ),
       cell: (r) => <span className="text-[#195c00] font-semibold">{r.user?.name ?? "—"}</span>,
     },
     {
       key: "reference",
-      header: <div className="text-center w-full">REFERENCE</div>,
+      header: (
+        <SortHeader
+          label="REFERENCE"
+          sortKey="reference"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => <span className="font-medium flex justify-center items-center">{r.reference ?? "—"}</span>,
     },
     {
       key: "company_sap_code",
-      header: <div className="text-center w-full">SAP CODE</div>,
+      header: (
+        <SortHeader
+          label="SAP CODE"
+          sortKey="company_sap_code"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
-        <span className="font-mono text-sm text-[#33721c] flex justify-center items-center">
+        <span className="font-mono text-xs text-[#33721c] flex justify-center items-center">
           {r.company_sap_code ?? "—"}
         </span>
       ),
     },
     {
       key: "company_name",
-      header: <div className="text-center w-full">COMPANY NAME</div>,
-      cell: (r) =>
+      header: (
+        <SortHeader
+          label="COMPANY NAME"
+          sortKey="company_name"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
+      cell: (r) => (
         <div className="flex justify-center items-center w-full h-full">
           <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
             {r.company_name ?? "—"}
           </span>
-        </div>,
+        </div>
+      ),
     },
     {
       key: "contract_years",
-      header: <div className="text-center w-full">CONTRACT TERM</div>,
+      header: (
+        <SortHeader
+          label="CONTRACT TERM"
+          sortKey="contract_years"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <span className="font-medium flex justify-center items-center">
           {r.contract_years != null ? `${r.contract_years}` : "—"}
@@ -190,12 +291,30 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     },
     {
       key: "contract_type",
-      header: <div className="text-center w-full">CONTRACT TYPE</div>,
+      header: (
+        <SortHeader
+          label="CONTRACT TYPE"
+          sortKey="contract_type"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => <span className="font-medium flex justify-center items-center">{r.contract_type ?? "—"}</span>,
     },
     {
       key: "type",
-      header: <div className="text-center w-full">TYPE</div>,
+      header: (
+        <SortHeader
+          label="TYPE"
+          sortKey="type"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
           {r.type === 1 ? "Existing" : "Potential"}
@@ -204,7 +323,16 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     },
     {
       key: "status",
-      header: <div className="text-center w-full">STATUS</div>,
+      header: (
+        <SortHeader
+          label="STATUS"
+          sortKey="status"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (row) => (
         <div className="w-full flex justify-center items-center">
           <div className="flex flex-col items-center leading-tight">
@@ -223,12 +351,51 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     },
     {
       key: "last_saved_at",
-      header: <div className="text-center w-full">LAST SAVED</div>,
-      cell: (r) => (
-        <span className="text-slate-600 text-[11px] xl:text-xs flex justify-center items-center">
-          {r.last_saved_display ?? "—"}
-        </span>
+      header: (
+        // Clock icon style matching ArchiveList's decided_at column
+        <button
+          type="button"
+          onClick={() => handleSort('last_saved_at')}
+          className="flex justify-center items-center w-full text-slate-500 gap-1"
+        >
+          <FaRegClock className="text-sm" title="Last Saved" />
+          <span className={`text-[11px] leading-none ${
+            sortBy === 'last_saved_at' ? 'text-[#289800]' : 'text-slate-400'
+          }`}>
+            {sortBy === 'last_saved_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+          </span>
+        </button>
       ),
+      cell: (r) => {
+        const displayVal = r.last_saved_display ?? r.last_saved_at;
+        const timeDiff = new Date().getTime() - new Date(r.last_saved_at).getTime();
+        const sevenDaysMs = 7 * 24 * 3600 * 1000;
+        const isPastOneWeek = displayVal && (
+          String(displayVal).includes('week') ||
+          String(displayVal).includes('weeks') ||
+          (String(displayVal).includes('day') && parseInt(displayVal) > 6) ||
+          timeDiff >= sevenDaysMs
+        );
+        let formattedDate = "—";
+        if (isPastOneWeek) {
+          const d = new Date(r.last_saved_at);
+          if (!isNaN(d.getTime())) {
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const yy = String(d.getFullYear()).slice(-2);
+            formattedDate = `${mm}/${dd}/${yy}`;
+          } else {
+            formattedDate = displayVal;
+          }
+        } else {
+          formattedDate = displayVal;
+        }
+        return (
+          <span className="text-slate-600 text-[11px] xl:text-xs flex justify-center items-center">
+            {formattedDate}
+          </span>
+        );
+      },
     },
     {
       key: "actions",
@@ -244,7 +411,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         </div>
       ),
     },
-  ], []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sortBy, sortOrder]);
 
   /* ── Fetch ── */
   const fetchCurrentData = async ({
@@ -258,6 +426,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     currentDateTo     = dateTo,
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
+    currentSortBy     = sortBy,      // ← was hardcoded "last_saved_at"
     currentSortOrder  = sortOrder,
   } = {}) => {
     if (!silent) setLoading(true);
@@ -273,7 +442,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
           date_to:     currentDateTo     || undefined,
           prepared_by: currentPreparedBy || undefined,
           location_id: currentLocationId || undefined,
-          sort_by:     "last_saved_at",
+          sort_by:     currentSortBy     || undefined,  // ← dynamic
           sort_order:  currentSortOrder  || undefined,
           type:        currentType !== "" ? currentType : undefined,
         },
@@ -319,6 +488,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     setPerPage(num); setPerPageInput(String(num)); setShowPerPagePicker(false);
     fetchCurrentData({ currentPerPage: num, targetPage: 1 });
   };
+
   const handleClearAllFilters = () => {
     setSearch("");
     setStatusFilter("");
@@ -327,19 +497,17 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     setDateTo("");
     setPreparedBy("");
     setLocationId("");
-
-    // Reset pagination items per page to 10
     setPerPage(10);
     setPerPageInput("10");
-
+    setSortBy("last_saved_at");   // ← reset sort
+    setSortOrder("desc");         // ← reset sort
     setShowDatePicker(false);
     setShowPreparedBy(false);
     setShowLocation(false);
-
     LS.clearAll();
-
-    // Ensure 'per_page' is also cleared/reset in localStorage
-    LS.set('per_page', "10");
+    LS.set('per_page',   "10");
+    LS.set('sort_by',    "last_saved_at");
+    LS.set('sort_order', "desc");
 
     fetchCurrentData({
       currentSearch:     "",
@@ -349,15 +517,10 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       currentDateTo:     undefined,
       currentPreparedBy: "",
       currentLocationId: "",
+      currentSortBy:     "last_saved_at",
+      currentSortOrder:  "desc",
       targetPage:        1,
     });
-  };
-
-  const handleSortToggle = () => {
-    const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
-    setSortOrder(next);
-    LS.set('sort_order', next);
-    fetchCurrentData({ currentSortOrder: next });
   };
 
   const goToPage = (p) => fetchCurrentData({ targetPage: p });
@@ -379,19 +542,44 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       }
     : null;
 
+  // ── Sort badge (same as ArchiveList) ──
+  const activeSortLabel = {
+    prepared_by_name: 'Prepared By',
+    reference:        'Reference',
+    company_sap_code: 'SAP Code',
+    company_name:     'Company',
+    contract_years:   'Contract Term',
+    contract_type:    'Contract Type',
+    type:             'Existing/Potential',
+    status:           'Status',
+    last_saved_at:    'Last Saved',
+  }[sortBy] ?? 'Last Saved';
+
+  const isDefaultSort = sortBy === 'last_saved_at' && sortOrder === 'desc';
+
+  const clearSort = () => {
+    setSortBy("last_saved_at");
+    setSortOrder("desc");
+    LS.set('sort_by',    "last_saved_at");
+    LS.set('sort_order', "desc");
+    fetchCurrentData({ currentSortBy: "last_saved_at", currentSortOrder: "desc" });
+  };
+
   const searchControl = (
-    <SearchControl
-      search={search}
-      onSearchChange={setSearch}
-      sortOrder={sortOrder}
-      onSortToggle={handleSortToggle}
-      loading={loading}
-      isRefreshing={isRefreshing}
-      onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
-    />
+    <div className="flex items-center gap-2">
+      <SearchControl
+        search={search}
+        onSearchChange={setSearch}
+        sortOrder={sortOrder}
+        onSortToggle={() => handleSort(sortBy)}
+        loading={loading}
+        isRefreshing={isRefreshing}
+        onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
+      />
+     
+    </div>
   );
 
-  /* ── Filter toolbar ── */
   const filterToolbar = (
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}

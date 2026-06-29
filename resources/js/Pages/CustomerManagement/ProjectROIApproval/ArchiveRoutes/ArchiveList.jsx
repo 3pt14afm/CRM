@@ -52,6 +52,27 @@ const LS = {
   },
 };
 
+/* ── Sort Header ── */
+function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'left' }) {
+  const active = sortBy === sortKey;
+  const indicator = active ? (sortDirection === 'desc' ? '▼' : '▲') : '⇅';
+  const justifyClass = align === 'center' ? 'justify-center text-center' : 'justify-start text-left';
+
+  return (
+    <button
+      type="button"
+      title={`Sort by ${label}`}
+      onClick={() => onSort(sortKey)}
+      className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
+    >
+      <span>{label}</span>
+      <span className={`text-[11px] leading-none ${
+        active ? 'text-[#289800]' : 'text-slate-400 transition-colors group-hover:text-slate-500'
+      }`}>{indicator}</span>
+    </button>
+  );
+}
+
 function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [] }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
   const [localStats, setLocalStats] = useState(initialStats);
@@ -95,7 +116,9 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const preparedByRef    = useRef(null);
   const locationRef      = useRef(null);
 
-  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', ""));
+  // ── Sort state: two separate values instead of one ──
+  const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? "decided_at"));
+  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? "desc"));
 
   // Persist filters to localStorage whenever they change
   useEffect(() => {
@@ -109,8 +132,9 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     LS.set('location_id', String(locationId));
     LS.set('per_page',    String(perPage));
     LS.set('page',        String(currentPage));
+    LS.set('sort_by',     sortBy);
     LS.set('sort_order',  sortOrder);
-  }, [search, statusFilter, typeFilter, dateFrom, dateTo, decidedBy, preparedBy, locationId, perPage, currentPage, sortOrder]);
+  }, [search, statusFilter, typeFilter, dateFrom, dateTo, decidedBy, preparedBy, locationId, perPage, currentPage, sortBy, sortOrder]);
 
   useEffect(() => {
     setLocalArchiveProjects(initialArchiveProjects);
@@ -129,13 +153,11 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Always keep ref pointed at the latest version of fetchArchivedData
   const fetchArchivedDataRef = useRef(null);
   useEffect(() => {
     fetchArchivedDataRef.current = fetchArchivedData;
   });
 
-  // Auto-refresh every 60 seconds — interval never restarts, never stale
   useEffect(() => {
     const interval = setInterval(() => {
       fetchArchivedDataRef.current?.({ silent: true });
@@ -143,18 +165,21 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     return () => clearInterval(interval);
   }, []);
 
-  const handleSortToggle = () => {
-    const next = sortOrder === "" ? "desc" : sortOrder === "desc" ? "asc" : "";
-    setSortOrder(next);
-    LS.set('sort_order', next);
-    fetchArchivedData({ currentSortOrder: next });
+  // ── Unified sort handler (matches CustomerInfo pattern) ──
+  const handleSort = (key) => {
+    const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortBy(key);
+    setSortOrder(newOrder);
+    LS.set('sort_by',    key);
+    LS.set('sort_order', newOrder);
+    fetchArchivedData({ currentSortBy: key, currentSortOrder: newOrder });
   };
 
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
   , [locationId, locations]);
 
-  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId || perPage !== 10);
+  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId || perPage !== 10 || sortBy !== "decided_at" || sortOrder !== "desc");
 
   const tiles = useMemo(() => {
     const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
@@ -165,29 +190,65 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     ];
   }, [localStats, localArchiveProjects]);
 
+  // ── Columns now use SortHeader ──
   const columns = useMemo(() => [
     {
       key: "PreparedBy",
-      header: <div>PREPARED BY</div>,
-      cell: (r) => <span className="text-[#195c00] font-medium ">{r.user?.name ?? r.prepared_by_name ?? "—"}</span>,
+      header: (
+        <SortHeader
+          label="PREPARED BY"
+          sortKey="prepared_by_name"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+        />
+      ),
+      cell: (r) => <span className="text-[#195c00] font-medium">{r.user?.name ?? r.prepared_by_name ?? "—"}</span>,
     },
     {
       key: "reference",
-      header: <div className="text-center w-full">REFERENCE</div>,
+      header: (
+        <SortHeader
+          label="REFERENCE"
+          sortKey="reference"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => <span className="font-mono flex justify-center items-center">{r.reference ?? "—"}</span>,
     },
     {
       key: "company_sap_code",
-      header: <div className="text-center w-full">SAP CODE</div>,
+      header: (
+        <SortHeader
+          label="SAP CODE"
+          sortKey="company_sap_code"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
-        <span className="font-mono text-sm text-[#33721c] flex justify-center items-center">
+        <span className="font-mono text-xs text-[#33721c] flex justify-center items-center">
           {r.company_sap_code ?? "—"}
         </span>
       ),
     },
     {
       key: "company_name",
-      header: <div className="text-center w-full">COMPANY NAME</div>,
+      header: (
+        <SortHeader
+          label="COMPANY NAME"
+          sortKey="company_name"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <div className="flex justify-center items-center w-full h-full">
           <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
@@ -198,7 +259,16 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     },
     {
       key: "contract_years",
-      header: <div className="text-center">CONTRACT TERM</div>,
+      header: (
+        <SortHeader
+          label="CONTRACT TERM"
+          sortKey="contract_years"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <span className="font-medium flex justify-center items-center">
           {r.contract_years != null ? `${r.contract_years}` : "—"}
@@ -207,12 +277,30 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     },
     {
       key: "contract_type",
-      header: <div className="text-center w-full">CONTRACT TYPE</div>,
+      header: (
+        <SortHeader
+          label="CONTRACT TYPE"
+          sortKey="contract_type"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => <span className="font-medium flex justify-center items-center">{r.contract_type ?? "—"}</span>,
     },
     {
       key: "type",
-      header: <div className="text-center w-full">TYPE</div>,
+      header: (
+        <SortHeader
+          label="TYPE"
+          sortKey="type"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (r) => (
         <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
           {r.type === 1 ? "Existing" : "Potential"}
@@ -221,7 +309,16 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     },
     {
       key: "status",
-      header: <div className="text-center w-full">STATUS</div>,
+      header: (
+        <SortHeader
+          label="STATUS"
+          sortKey="status"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
       cell: (row) => {
         const s = String(row.status ?? "").toLowerCase();
         const isRejected  = s === "rejected";
@@ -258,9 +355,18 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     {
       key: "decided_at",
       header: (
-        <div className="flex justify-center items-center w-full text-slate-500">
+        <button
+          type="button"
+          onClick={() => handleSort('decided_at')}
+          className="flex justify-center items-center w-full text-slate-500 gap-1"
+        >
           <FaRegClock className="text-sm" title="Decision Date" />
-        </div>
+          <span className={`text-[11px] leading-none ${
+            sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'
+          }`}>
+            {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+          </span>
+        </button>
       ),
       cell: (r) => (
         <span className="text-slate-600 text-[10px] flex justify-center items-center whitespace-nowrap">
@@ -283,7 +389,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
         </div>
       ),
     },
-  ], []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sortBy, sortOrder]);
 
   /* ── Fetch ── */
   const fetchArchivedData = async ({
@@ -298,6 +405,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     currentDecidedBy  = decidedBy,
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
+    currentSortBy     = sortBy,      // ← was hardcoded "decided_at"
     currentSortOrder  = sortOrder,
   } = {}) => {
     if (!silent) setLoading(true);
@@ -314,7 +422,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
           decided_by:  currentDecidedBy  || undefined,
           prepared_by: currentPreparedBy || undefined,
           location_id: currentLocationId || undefined,
-          sort_by:     "decided_at",
+          sort_by:     currentSortBy     || undefined,  // ← dynamic now
           sort_order:  currentSortOrder  || undefined,
           type:        currentType !== "" ? currentType : undefined,
         },
@@ -368,16 +476,19 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     setDecidedBy("");
     setPreparedBy("");
     setLocationId("");
-    // Reset pagination items per page to 10
     setPerPage(10);
     setPerPageInput("10");
+    // Reset sort to defaults
+    setSortBy("decided_at");
+    setSortOrder("desc");
     setShowDatePicker(false);
     setShowDecidedBy(false);
     setShowPreparedBy(false);
     setShowLocation(false);
     LS.clearAll();
-    // Ensure 'per_page' is also cleared/reset in localStorage
-    LS.set('per_page', "10");
+    LS.set('per_page',   "10");
+    LS.set('sort_by',    "decided_at");
+    LS.set('sort_order', "desc");
 
     fetchArchivedData({
       currentSearch:     "",
@@ -388,6 +499,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       currentDecidedBy:  "",
       currentPreparedBy: "",
       currentLocationId: "",
+      currentSortBy:     "decided_at",
+      currentSortOrder:  "desc",
       targetPage:        1,
     });
   };
@@ -411,13 +524,12 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       }
     : null;
 
-  /* ── Search control ── */
   const searchControl = (
     <SearchControl
       search={search}
       onSearchChange={setSearch}
       sortOrder={sortOrder}
-      onSortToggle={handleSortToggle}
+      onSortToggle={() => handleSort(sortBy)}
       loading={loading || isRefreshing}
       onRefresh={() => fetchArchivedData({ targetPage: localArchiveProjects?.current_page ?? 1 })}
     />
@@ -456,14 +568,12 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}
       onClearAll={handleClearAllFilters}
-
       statusOptions={[
         { value: "",          label: "All Status" },
         { value: "approved",  label: "Approved" },
         { value: "rejected",  label: "Rejected" },
         { value: "cancelled", label: "Cancelled" },
       ]}
-
       typeOptions={[
         { value: "", label: "All Types" },
         { value: 1,  label: "Existing" },
@@ -471,27 +581,21 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       ]}
       typeFilter={typeFilter}
       onTypeChange={handleTypeChange}
-
       statusFilter={statusFilter}
       onStatusChange={handleStatusChange}
       statusIcon={statusIcon}
-
       perPage={perPage}
       perPageInput={perPageInput}
       onPerPageInputChange={setPerPageInput}
       onPerPageApply={handlePerPageInputApply}
-
       extraFilters={decidedBySlot}
-
       preparedBy={preparedBy}
       onPreparedByChange={setPreparedBy}
       onPreparedByApply={handlePreparedByApply}
-
       locationId={locationId}
       selectedLocationName={selectedLocationName}
       locations={locations}
       onLocationApply={handleLocationApply}
-
       dateFrom={dateFrom}
       dateTo={dateTo}
       onDateFromChange={setDateFrom}

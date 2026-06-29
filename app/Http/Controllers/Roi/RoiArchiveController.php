@@ -93,18 +93,38 @@ public function index(Request $request)
         }
 
     // Sorting and Pagination
-        $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
+    $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
 
-        $archiveProjects = $query
-        // REPLACE WITH:
-        ->when($sortOrder,
-            fn($q) => $q->orderByRaw("COALESCE(rejected_at, approved_at, last_saved_at) $sortOrder"),
-            fn($q) => $q->orderByRaw("CASE WHEN user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(rejected_at, approved_at, last_saved_at) DESC", [$userId])
+    $allowedSorts = [
+        'decided_at'       => "COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.last_saved_at)",
+        'prepared_by_name' => "TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, '')))",
+        'reference'        => 'roi_archive_projects.reference',
+        'company_sap_code' => 'roi_archive_projects.company_sap_code',
+        'company_name'     => 'roi_archive_projects.company_name',
+        'contract_years'   => 'roi_archive_projects.contract_years',
+        'contract_type'    => 'roi_archive_projects.contract_type',
+        'type'             => 'roi_archive_projects.type',
+
+        // Sorts by the decider's name — mirrors the decided_by_name logic in ->through()
+        'status' => "
+            CASE LOWER(roi_archive_projects.status)
+                WHEN 'rejected'  THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
+                WHEN 'cancelled' THEN TRIM(CONCAT(COALESCE(creator_user.first_name,  ''), ' ', COALESCE(creator_user.last_name,  '')))
+                ELSE                  TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
+            END
+        ",
+    ];
+
+    $sortByKey = $request->input('sort_by', 'decided_at');
+    $sortCol   = $allowedSorts[$sortByKey] ?? $allowedSorts['decided_at'];
+
+    $archiveProjects = $query
+        ->when(
+            $sortOrder,
+            fn($q) => $q->orderByRaw("{$sortCol} {$sortOrder}"),
+            fn($q) => $q->orderByRaw("CASE WHEN roi_archive_projects.user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.last_saved_at) DESC", [$userId])
         )
-        ->when($request->type !== null && $request->type !== '', fn($q) =>
-            $q->where('type', $request->type)
-        )
-        ->paginate($perPage)
+        ->paginate($perPage)    
         ->withQueryString()
         ->through(function ($p) {
             $status = strtolower((string)($p->status ?? ''));
@@ -131,7 +151,7 @@ public function index(Request $request)
     }
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
-        'filters' => $request->only(['search', 'status', 'type', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_order']),
+        'filters' => $request->only(['search', 'status', 'type', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_by', 'sort_order']),
         'archiveProjects' => $archiveProjects,
         'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
         'stats' => [
