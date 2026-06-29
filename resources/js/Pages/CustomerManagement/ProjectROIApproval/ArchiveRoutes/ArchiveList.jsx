@@ -12,12 +12,14 @@ import {
   MdSearch, MdCheck, MdExpandMore,
   MdOutlineFilterAlt, MdDateRange, MdClose,
   MdCheckCircle, MdCancel, MdPerson, MdLocationOn, MdVerifiedUser,
-  MdOutlineClose, MdOutlineCancel,
+  MdOutlineClose, MdOutlineCancel, MdOutlineDescription
 } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { route as ziggyRoute } from 'ziggy-js';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
+import { createPortal } from 'react-dom';
+import SortHeader from '@/Components/roi/filters/SortHeader';
 
 function formatDateLabel(dateStr) {
   try {
@@ -52,27 +54,112 @@ const LS = {
   },
 };
 
-/* ── Sort Header ── */
-function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'left' }) {
-  const active = sortBy === sortKey;
-  const indicator = active ? (sortDirection === 'desc' ? '▼' : '▲') : '⇅';
-  const justifyClass = align === 'center' ? 'justify-center text-center' : 'justify-start text-left';
 
-  return (
-    <button
-      type="button"
-      title={`Sort by ${label}`}
-      onClick={() => onSort(sortKey)}
-      className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
-    >
-      <span>{label}</span>
-      <span className={`text-[11px] leading-none ${
-        active ? 'text-[#289800]' : 'text-slate-400 transition-colors group-hover:text-slate-500'
-      }`}>{indicator}</span>
-    </button>
-  );
-}
 
+
+function ActionsDropdown({ row }) {
+      const [open, setOpen] = useState(false);
+      const [coords, setCoords] = useState({ top: 0, left: 0 });
+      const triggerRef = useRef(null);
+      const dropdownRef = useRef(null);
+
+      useEffect(() => {
+        const handler = (e) => {
+          if (
+            triggerRef.current && !triggerRef.current.contains(e.target) &&
+            dropdownRef.current && !dropdownRef.current.contains(e.target)
+          ) setOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+      }, []);
+
+      const handleTriggerClick = () => {
+        if (!open && triggerRef.current) {
+          const rect = triggerRef.current.getBoundingClientRect();
+          setCoords({
+            top:  rect.bottom + window.scrollY + 4,
+            left: rect.right  + window.scrollX,
+          });
+        }
+        setOpen((p) => !p);
+      };
+
+      const isApproved  = String(row.status ?? "").toLowerCase() === "approved";
+      const hasProposal = isApproved && row.is_owner;
+
+      // View only — no dropdown
+      if (!hasProposal) {
+        return (
+          <div className="flex justify-center items-center">
+            <button
+              type="button"
+              className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+              onClick={() => router.visit(ziggyRoute("roi.archive.show", row.id))}
+            >
+              <IoEyeOutline className="text-[17px]" />
+            </button>
+          </div>
+        );
+      }
+
+      // Both actions — three-dot horizontal dropdown via portal
+      return (
+        <div className="flex justify-center items-center">
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={handleTriggerClick}
+            className="px-1.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          >
+            <span className="flex flex-col gap-[3px] items-center justify-center">
+              <span className="w-[3px] h-[3px] rounded-full bg-current" />
+              <span className="w-[3px] h-[3px] rounded-full bg-current" />
+              <span className="w-[3px] h-[3px] rounded-full bg-current" />
+            </span>
+          </button>
+
+          {open && createPortal(
+            <div
+              ref={dropdownRef}
+              style={{
+                position: 'absolute',
+                top:  coords.top,
+                left: coords.left,
+                transform: 'translateX(-100%)',
+                zIndex: 9999,
+              }}
+              className="flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[130px]"
+            >
+              <button
+                type="button"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold transition-colors"
+                onClick={() => {
+                  setOpen(false);
+                  router.visit(ziggyRoute("roi.archive.show", row.id));
+                }}
+              >
+                <IoEyeOutline className="text-[15px] flex-shrink-0" />
+                <span>View</span>
+              </button>
+
+              <button
+                type="button"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-semibold transition-colors"
+                onClick={() => {
+                  setOpen(false);
+                  router.visit(ziggyRoute("proposals.show", row.id));
+                }}
+              >
+                <MdOutlineDescription className="text-[15px] flex-shrink-0" />
+                <span>Proposal</span>
+              </button>
+            </div>,
+            document.body
+          )}
+        </div>
+      );
+    }
 function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [] }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
   const [localStats, setLocalStats] = useState(initialStats);
@@ -117,9 +204,9 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   const locationRef      = useRef(null);
 
   // ── Sort state: two separate values instead of one ──
-  const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? "decided_at"));
-  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? "desc"));
-
+ const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? ""));
+ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ""));
+ 
   // Persist filters to localStorage whenever they change
   useEffect(() => {
     LS.set('search',      search);
@@ -165,21 +252,20 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     return () => clearInterval(interval);
   }, []);
 
-  // ── Unified sort handler (matches CustomerInfo pattern) ──
-  const handleSort = (key) => {
-    const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
-    setSortBy(key);
-    setSortOrder(newOrder);
-    LS.set('sort_by',    key);
-    LS.set('sort_order', newOrder);
-    fetchArchivedData({ currentSortBy: key, currentSortOrder: newOrder });
-  };
+const handleSort = (key) => {
+  const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
+  setSortBy(key);
+  setSortOrder(newOrder);
+  LS.set('sort_by',    key);
+  LS.set('sort_order', newOrder);
+  fetchArchivedData({ currentSortBy: key, currentSortOrder: newOrder });
+};
 
   const selectedLocationName = useMemo(() =>
     locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
   , [locationId, locations]);
 
-  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId || perPage !== 10 || sortBy !== "decided_at" || sortOrder !== "desc");
+  const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId || perPage !== 10 || sortBy !== "" || sortOrder !== "");
 
   const tiles = useMemo(() => {
     const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
@@ -377,17 +463,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     {
       key: "actions",
       header: <div className="text-center w-full">ACTIONS</div>,
-      cell: (r) => (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
-            onClick={() => router.visit(ziggyRoute("roi.archive.show", r.id))}
-          >
-            <IoEyeOutline className="text-[17px]" />
-          </button>
-        </div>
-      ),
+      cell: (r) => <ActionsDropdown row={r} />,
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sortBy, sortOrder]);
@@ -479,16 +555,18 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
     setPerPage(10);
     setPerPageInput("10");
     // Reset sort to defaults
-    setSortBy("decided_at");
-    setSortOrder("desc");
+    setSortBy("");
+    setSortOrder("");
     setShowDatePicker(false);
     setShowDecidedBy(false);
     setShowPreparedBy(false);
     setShowLocation(false);
     LS.clearAll();
     LS.set('per_page',   "10");
-    LS.set('sort_by',    "decided_at");
-    LS.set('sort_order', "desc");
+    LS.set('sort_by',    "");
+    LS.set('sort_order', "");
+    LS.set('sort_by',    "");
+    LS.set('sort_order', "");
 
     fetchArchivedData({
       currentSearch:     "",
@@ -499,8 +577,9 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       currentDecidedBy:  "",
       currentPreparedBy: "",
       currentLocationId: "",
-      currentSortBy:     "decided_at",
-      currentSortOrder:  "desc",
+      currentSortBy:     "",
+      currentSortOrder:  "",
+      
       targetPage:        1,
     });
   };
@@ -529,7 +608,7 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
       search={search}
       onSearchChange={setSearch}
       sortOrder={sortOrder}
-      onSortToggle={() => handleSort(sortBy)}
+      onSortToggle={() => handleSort(sortBy || 'decided_at')}
       loading={loading || isRefreshing}
       onRefresh={() => fetchArchivedData({ targetPage: localArchiveProjects?.current_page ?? 1 })}
     />

@@ -16,6 +16,7 @@ import { TbLayoutRows } from 'react-icons/tb';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
+import SortHeader from '@/Components/roi/filters/SortHeader';
 
 function formatDateLabel(dateStr) {
   if (!dateStr) return null;
@@ -62,25 +63,7 @@ const LS = {
   },
 };
 
-/* ── Sort Header ── */
-function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'left' }) {
-  const active = sortBy === sortKey;
-  const indicator = active ? (sortDirection === 'desc' ? '▼' : '▲') : '⇅';
-  const justifyClass = align === 'center' ? 'justify-center text-center' : 'justify-start text-left';
-  return (
-    <button
-      type="button"
-      title={`Sort by ${label}`}
-      onClick={() => onSort(sortKey)}
-      className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
-    >
-      <span>{label}</span>
-      <span className={`text-[11px] leading-none ${
-        active ? 'text-[#289800]' : 'text-slate-400 transition-colors group-hover:text-slate-500'
-      }`}>{indicator}</span>
-    </button>
-  );
-}
+
 
 function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters, locations = [] }) {
   const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
@@ -105,8 +88,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   });
 
   // ── Sort state ──
-  const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? "last_saved_at"));
-  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? "desc"));
+const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? ""));
+const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ""));
 
   const [perPageInput, setPerPageInput] = useState(() => {
     const stored = LS.get('per_page', "");
@@ -192,7 +175,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const hasActiveFilters = !!(
     search || statusFilter || typeFilter !== "" || dateFrom || dateTo ||
     preparedBy || locationId || perPage !== 10 ||
-    sortBy !== "last_saved_at" || sortOrder !== "desc"   // ← include sort
+    sortBy !== "" || sortOrder !== ""   // ← include sort
   );
 
   const tiles = useMemo(() => {
@@ -426,8 +409,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     currentDateTo     = dateTo,
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
-    currentSortBy     = sortBy,      // ← was hardcoded "last_saved_at"
-    currentSortOrder  = sortOrder,
+    currentSortBy     = "",      // ← was hardcoded "last_saved_at"
+    currentSortOrder  = "",
   } = {}) => {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
@@ -489,39 +472,47 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     fetchCurrentData({ currentPerPage: num, targetPage: 1 });
   };
 
-  const handleClearAllFilters = () => {
-    setSearch("");
-    setStatusFilter("");
-    setTypeFilter("");
-    setDateFrom("");
-    setDateTo("");
-    setPreparedBy("");
-    setLocationId("");
-    setPerPage(10);
-    setPerPageInput("10");
-    setSortBy("last_saved_at");   // ← reset sort
-    setSortOrder("desc");         // ← reset sort
-    setShowDatePicker(false);
-    setShowPreparedBy(false);
-    setShowLocation(false);
-    LS.clearAll();
-    LS.set('per_page',   "10");
-    LS.set('sort_by',    "last_saved_at");
-    LS.set('sort_order', "desc");
+const handleClearAllFilters = () => {
+  LS.clearAll();
+  LS.set('per_page', "10");
 
-    fetchCurrentData({
-      currentSearch:     "",
-      currentStatus:     "",
-      currentType:       "",
-      currentDateFrom:   undefined,
-      currentDateTo:     undefined,
-      currentPreparedBy: "",
-      currentLocationId: "",
-      currentSortBy:     "last_saved_at",
-      currentSortOrder:  "desc",
-      targetPage:        1,
-    });
-  };
+  setSearch("");
+  setStatusFilter("");
+  setTypeFilter("");
+  setDateFrom("");
+  setDateTo("");
+  setPreparedBy("");
+  setLocationId("");
+  setPerPage(10);
+  setPerPageInput("10");
+  setSortBy("");
+  setSortOrder("");
+  setShowDatePicker(false);
+  setShowPreparedBy(false);
+  setShowLocation(false);
+
+  // Call axios directly instead of fetchCurrentData
+  // so we're not at the mercy of stale state
+  axios.get(route("roi.current"), {
+    params: {
+      page:     1,
+      per_page: 10,
+      // intentionally omit sort_by and sort_order entirely
+    },
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': 'application/json',
+    },
+  }).then((response) => {
+    const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
+    setLocalCurrentProjects(projectsPayload);
+    setCurrentPage(1);
+    const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+    if (statsPayload) setLocalStats(statsPayload);
+  }).catch((error) => {
+    console.error("Failed to fetch current projects:", error);
+  });
+};
 
   const goToPage = (p) => fetchCurrentData({ targetPage: p });
 
@@ -571,7 +562,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         search={search}
         onSearchChange={setSearch}
         sortOrder={sortOrder}
-        onSortToggle={() => handleSort(sortBy)}
+        onSortToggle={() => handleSort(sortBy || 'last_saved_at')}
         loading={loading}
         isRefreshing={isRefreshing}
         onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}

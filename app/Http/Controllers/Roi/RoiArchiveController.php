@@ -126,7 +126,7 @@ public function index(Request $request)
         )
         ->paginate($perPage)    
         ->withQueryString()
-        ->through(function ($p) {
+        ->through(function ($p) use ($userId){
             $status = strtolower((string)($p->status ?? ''));
 
             $p->decided_by_name = match($status) {
@@ -140,6 +140,7 @@ public function index(Request $request)
                 'cancelled' => $p->last_saved_at,
                 default     => $p->approved_at,
             };
+             $p->is_owner = (int) $p->user_id === $userId; // ← add this
 
             return $p;
         });

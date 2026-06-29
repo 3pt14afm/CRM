@@ -188,7 +188,9 @@ class RoiCurrentProjectController extends Controller
         $userId = (int) $user->id;
 
         // 7. Sorting
-        $sortOrder = in_array($request->input('sort_order'), ['asc', 'desc']) ? $request->input('sort_order') : null;
+        $sortOrder = in_array($request->input('sort_order'), ['asc', 'desc'])
+            ? $request->input('sort_order')
+            : null;
 
         $allowedSorts = [
             'last_saved_at'    => 'roi_current_projects.last_saved_at',
@@ -202,19 +204,21 @@ class RoiCurrentProjectController extends Controller
             'status'           => 'roi_current_projects.status',
         ];
 
-        $sortByKey = $request->input('sort_by', 'last_saved_at');
-        $sortCol   = $allowedSorts[$sortByKey] ?? $allowedSorts['last_saved_at'];
+        $sortByKey = $request->input('sort_by'); // ← no default
+        $sortCol   = $allowedSorts[$sortByKey] ?? null;
 
         $query->when(
-            $sortOrder,
+              $sortOrder && $sortCol,
             fn($q) => $q->orderByRaw("{$sortCol} {$sortOrder}"),
             fn($q) => $q->orderByRaw("
                 CASE 
-                    WHEN roi_current_projects.current_level = 2 AND roi_current_projects.reviewed_by  = ? THEN 0
-                    WHEN roi_current_projects.current_level = 3 AND roi_current_projects.checked_by   = ? THEN 0
-                    WHEN roi_current_projects.current_level = 4 AND roi_current_projects.endorsed_by  = ? THEN 0
-                    WHEN roi_current_projects.current_level = 5 AND roi_current_projects.confirmed_by = ? THEN 0
-                    WHEN roi_current_projects.current_level = 6 AND roi_current_projects.approved_by  = ? THEN 0
+                    WHEN (
+                        (roi_current_projects.current_level = 2 AND roi_current_projects.reviewed_by  = ?) OR
+                        (roi_current_projects.current_level = 3 AND roi_current_projects.checked_by   = ?) OR
+                        (roi_current_projects.current_level = 4 AND roi_current_projects.endorsed_by  = ?) OR
+                        (roi_current_projects.current_level = 5 AND roi_current_projects.confirmed_by = ?) OR
+                        (roi_current_projects.current_level = 6 AND roi_current_projects.approved_by  = ?)
+                    ) THEN 0
                     WHEN roi_current_projects.user_id = ? THEN 1
                     ELSE 2
                 END ASC, roi_current_projects.last_saved_at DESC
