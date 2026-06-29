@@ -7,7 +7,7 @@
 </head>
 <body>
 
-<p>Your proposal <strong>{{ $reference }}</strong> is successfully submitted <strong>For Review</strong> by <strong>{{ $reviewerName }}</strong>.</p>
+<p>Your ROI proposal <strong>{{ $reference }}</strong> is successfully submitted <strong>For Review</strong> by <strong>{{ $reviewerName }}</strong>.</p>
 
 <p><a href="{{ $projectUrl }}">Click here to view the project</a></p>
 

@@ -280,6 +280,8 @@ function Entry({
   route: pageRoute = 'entry',
   createdBy = '—',
   canActOnCurrentProject = false,
+  canWithdraw: canWithdrawProp = false,
+  canCancel: canCancelProp = false,
 }) {
   const { auth } = usePage().props;
 
@@ -360,6 +362,8 @@ function Entry({
   const [rejectNote, setRejectNote] = useState('');
   const [showSendBackModal, setShowSendBackModal] = useState(false);
   const [sendBackMessage, setSendBackMessage] = useState('');
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const hydratedProjectIdRef = useRef(null);
 
   useEffect(() => {
@@ -476,6 +480,12 @@ function Entry({
   const isEntryRoute = pageRoute === 'entry';
   const isCurrentRoute = pageRoute === 'current';
   const isArchiveRoute = pageRoute === 'archive';
+
+  // Withdraw/Cancel — Preparer-only actions, only meaningful on the current route.
+  // Trust the backend-computed flags (mirrors canActOnCurrentProject); they're the
+  // source of truth since the same rules are enforced server-side on submit.
+  const canWithdraw = isCurrentRoute && canWithdrawProp;
+  const canCancel = isCurrentRoute && canCancelProp;
 
   const isDirectorCustomerEngagementStep = Number(sourceProject?.current_level || 0) === 2;
 
@@ -923,6 +933,60 @@ function Entry({
     );
   };
 
+  const handleWithdraw = () => {
+    if (isSubmitting || !sourceProject?.id) return;
+
+    setIsSubmitting(true);
+
+    router.post(
+      ziggyRoute('sprf.current.withdraw', sourceProject.id),
+      {},
+      {
+        preserveScroll: true,
+        onStart: () => toast.loading('Withdrawing SPRF...', { id: 'sprf-withdraw' }),
+        onSuccess: () => toast.success('SPRF withdrawn and returned to your entry list.', { id: 'sprf-withdraw' }),
+        onError: (errors) => {
+          const firstError = Object.values(errors || {})[0];
+          toast.error(
+            Array.isArray(firstError) ? firstError[0] : (firstError || 'Failed to withdraw SPRF.'),
+            { id: 'sprf-withdraw' }
+          );
+        },
+        onFinish: () => {
+          setIsSubmitting(false);
+          setShowWithdrawModal(false);
+        },
+      }
+    );
+  };
+
+  const handleCancel = () => {
+    if (isSubmitting || !sourceProject?.id) return;
+
+    setIsSubmitting(true);
+
+    router.post(
+      ziggyRoute('sprf.current.cancel', sourceProject.id),
+      {},
+      {
+        preserveScroll: true,
+        onStart: () => toast.loading('Cancelling SPRF...', { id: 'sprf-cancel' }),
+        onSuccess: () => toast.success('SPRF cancelled and archived.', { id: 'sprf-cancel' }),
+        onError: (errors) => {
+          const firstError = Object.values(errors || {})[0];
+          toast.error(
+            Array.isArray(firstError) ? firstError[0] : (firstError || 'Failed to cancel SPRF.'),
+            { id: 'sprf-cancel' }
+          );
+        },
+        onFinish: () => {
+          setIsSubmitting(false);
+          setShowCancelModal(false);
+        },
+      }
+    );
+  };
+
   return (
     <>
       <Head title={`SPRF ${pageLabel}`} />
@@ -1128,6 +1192,28 @@ function Entry({
                     </button>
                   </>
                 )}
+
+                {canWithdraw && (
+                  <button
+                    type="button"
+                    onClick={() => setShowWithdrawModal(true)}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] hover:bg-blue-50 font-semibold disabled:opacity-50"
+                  >
+                    Withdraw
+                  </button>
+                )}
+
+                {canCancel && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center justify-center gap-2">
@@ -1285,6 +1371,81 @@ function Entry({
                 className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold disabled:opacity-50"
               >
                 Confirm Send Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Withdraw Modal ── */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
+            <h2 className="text-lg font-bold text-[#0565D2]">Withdraw SPRF</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              This will pull the project out of the approval pipeline and return it
+              to your entry list. You can resubmit it after making changes.
+            </p>
+
+            <div className="mt-4 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+              <span className="font-semibold">SPRF No.:</span> {sprfNo}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(false)}
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Go Back
+              </button>
+
+              <button
+                type="button"
+                onClick={handleWithdraw}
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-xl bg-[#0565D2] hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                Yes, Withdraw
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Modal ── */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
+            <h2 className="text-lg font-bold text-red-600">Cancel SPRF</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              This will permanently archive the project with a{' '}
+              <span className="font-semibold text-slate-700">Cancelled</span> status.
+              This action cannot be undone.
+            </p>
+
+            <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+              <span className="font-semibold">SPRF No.:</span> {sprfNo}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 disabled:opacity-50"
+              >
+                Go Back
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                Yes, Cancel Project
               </button>
             </div>
           </div>

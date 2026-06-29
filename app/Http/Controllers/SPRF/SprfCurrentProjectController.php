@@ -183,6 +183,8 @@ class SprfCurrentProjectController extends Controller
             'route' => 'current',
             'createdBy' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : '—',
             'canActOnCurrentProject' => $this->canActOnCurrentProject($project),
+            'canWithdraw' => $this->canWithdraw($project),
+            'canCancel' => $this->canCancel($project),
             'timestamps' => [
                 'submitted_at' => $project->submitted_at?->toIso8601String(),
                 'dce_acted_at' => $project->dce_acted_at?->toIso8601String(),
@@ -381,7 +383,79 @@ class SprfCurrentProjectController extends Controller
 
         return to_route('sprf.current')->with('success', 'SPRF project sent back to previous approver.');
     }
-    
+
+    public function withdraw(SprfCurrentProject $project)
+    {
+        $this->assertIsPreparer($project);
+
+        if ((int) $project->current_level < 2) {
+            throw ValidationException::withMessages([
+                'project' => 'This SPRF project has not yet entered the approval pipeline.',
+            ]);
+        }
+
+        $project->load(['items.subitems', 'fees']);
+
+        // Snapshot before reverting/deleting
+        $oldValues = [
+            'project' => $project->toArray(),
+            'items' => $project->items->map->toArray()->toArray(),
+            'fees' => $project->fees->map->toArray()->toArray(),
+        ];
+
+        $entryProject = $this->workflowService->handleWithdraw($project, Auth::id());
+
+        try {
+            SprfActivityLogger::log(
+                activityType: 'withdrawn',
+                sprf: $entryProject,
+                details: 'SPRF project withdrawn and returned to Preparer entry list',
+                oldValues: $oldValues,
+                newValues: $entryProject->fresh()->toArray()
+            );
+        } catch (\Throwable $e) {
+            Log::error('SPRF withdraw activity log failed', [
+                'message' => $e->getMessage(),
+                'sprf_entry_project_id' => $entryProject->id ?? null,
+            ]);
+        }
+
+        return to_route('sprf.entry.list')->with('success', 'SPRF project withdrawn and returned to your entry list.');
+    }
+
+    public function cancel(SprfCurrentProject $project)
+    {
+        $this->assertIsPreparer($project);
+
+        $project->load(['items.subitems', 'fees']);
+
+        // Snapshot before archiving/deleting
+        $oldValues = [
+            'project' => $project->toArray(),
+            'items' => $project->items->map->toArray()->toArray(),
+            'fees' => $project->fees->map->toArray()->toArray(),
+        ];
+
+        $archiveProject = $this->workflowService->handleCancel($project, Auth::id());
+
+        try {
+            SprfActivityLogger::log(
+                activityType: 'cancelled',
+                sprf: $archiveProject,
+                details: 'SPRF project cancelled and archived',
+                oldValues: $oldValues,
+                newValues: $archiveProject->fresh()->toArray()
+            );
+        } catch (\Throwable $e) {
+            Log::error('SPRF cancel activity log failed', [
+                'message' => $e->getMessage(),
+                'sprf_archive_project_id' => $archiveProject->id ?? null,
+            ]);
+        }
+
+        return to_route('sprf.current')->with('success', 'SPRF project cancelled and archived.');
+    }
+
     public function storeNote(Request $request, SprfCurrentProject $project)
     {
         $this->ensureCanView($project);
@@ -440,6 +514,33 @@ class SprfCurrentProjectController extends Controller
         return $isActionableStatus && $isAssignedApprover;
     }
 
+    /**
+     * Withdraw is only available to the Preparer once the project has
+     * actually entered the approval pipeline (current_level >= 2) and
+     * hasn't already reached a terminal state.
+     */
+    private function canWithdraw(SprfCurrentProject $project): bool
+    {
+        $userId = (int) Auth::id();
+        $isPreparer = (int) $project->prepared_by_user_id === $userId;
+        $isTerminal = in_array($project->status, ['approved', 'rejected', 'cancelled', 'withdrawn'], true);
+
+        return $isPreparer && !$isTerminal && (int) $project->current_level >= 2;
+    }
+
+    /**
+     * Cancel is available to the Preparer at any non-terminal point in
+     * the pipeline (including level 1, unlike withdraw).
+     */
+    private function canCancel(SprfCurrentProject $project): bool
+    {
+        $userId = (int) Auth::id();
+        $isPreparer = (int) $project->prepared_by_user_id === $userId;
+        $isTerminal = in_array($project->status, ['approved', 'rejected', 'cancelled', 'withdrawn'], true);
+
+        return $isPreparer && !$isTerminal;
+    }
+
     private function ensureCanView(SprfCurrentProject $project): void
     {
         $userId = (int) Auth::id();
@@ -477,6 +578,20 @@ class SprfCurrentProjectController extends Controller
         if ((int) $project->current_approver_user_id !== (int) Auth::id()) {
             throw ValidationException::withMessages([
                 'project' => 'You are not the assigned approver for this SPRF project.',
+            ]);
+        }
+    }
+
+    /**
+     * Withdraw/Cancel are Preparer-only actions. Unlike assertAssignedApprover,
+     * these don't require the project to be sitting with a specific approver —
+     * the Preparer can pull it back from wherever it currently is in the queue.
+     */
+    private function assertIsPreparer(SprfCurrentProject $project): void
+    {
+        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
+            throw ValidationException::withMessages([
+                'project' => 'Only the Preparer of this SPRF project can perform this action.',
             ]);
         }
     }
@@ -587,7 +702,9 @@ class SprfCurrentProjectController extends Controller
             'president_ceo_acted_at' => $project->president_ceo_acted_at ? $project->president_ceo_acted_at->toISOString() : null,
 
             'prepared_by_name' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : null,
+            'prepared_by_user_id' => $project->prepared_by_user_id,
             'current_approver_name' => $project->currentApprover ? $project->currentApprover->first_name . ' ' . $project->currentApprover->last_name : null,
+            'current_approver_user_id' => $project->current_approver_user_id,
 
             'company_info' => [
                 'subCategory' => $project->sub_category,

@@ -288,7 +288,7 @@ const columns = useMemo(
             <FaRegClock className="text-sm" title="Decision Date" />
           </div>
         ),
-        cell: (r) => (
+        cell: (r) => (  
           <div className="w-full text-slate-600 flex justify-center items-center text-center">
             <span className="text-[10px] xl:text-[11px]">{r.decided_at_display ?? '—'}</span>
           </div>
