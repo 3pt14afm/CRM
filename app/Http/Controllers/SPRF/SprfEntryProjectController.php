@@ -262,12 +262,14 @@ class SprfEntryProjectController extends Controller
             $sprfNo = $project->sprf_no
                 ?: $sprfNumberGenerator->generateForCreatedAt($documentDatetime);
 
+            $startLevel = $flags['requires_rebate_justification'] ? 2 : 3;
+
             $currentProject = SprfCurrentProject::create([
                 'sprf_no'           => $sprfNo,
                 'document_datetime' => $documentDatetime,
 
                 'status'                  => 'for_review',
-                'current_level'           => 2,
+                'current_level'           => $startLevel,
                 'approval_level'          => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
                 'approval_condition_code' => $approvalConditionCode,
@@ -275,7 +277,9 @@ class SprfEntryProjectController extends Controller
                 'department_id'           => $departmentId,
 
                 'submitted_at'             => now(),
-                'current_approver_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
+                'current_approver_user_id' => $startLevel === 2
+                    ? data_get($approverUsers, 'directorCustomerEngagement.id')
+                    : data_get($approverUsers, 'esdDirector.id'),
 
                 'prepared_by_user_id'                  => $project->prepared_by_user_id ?: Auth::id(),
                 'director_customer_engagement_user_id' => data_get($approverUsers, 'directorCustomerEngagement.id'),
@@ -592,9 +596,9 @@ class SprfEntryProjectController extends Controller
             return $conditionCode;
         }
 
-        if ($gpPercent <= 15)    return 'GP_LTE_15';
+        if ($gpPercent < 16)    return 'GP_LTE_15';
         if ($revenue > 1000000)  return 'VALUE_GT_1M';
-        if ($gpPercent > 15)     return 'GP_GT_15';
+        if ($gpPercent >= 16)     return 'GP_GT_15';
 
         return 'STANDARD_PRICING';
     }

@@ -4,6 +4,7 @@ export default function NamesBlock({
   status = null,
   currentLevel = null,
   rejectedAt = null,
+  showDirectorCustomerEngagement = false,
   showVpCcto = false,
   showPresidentCeo = false,
   showRebateJustification = true,
@@ -46,12 +47,14 @@ export default function NamesBlock({
               timestamp={timestampForLevel(1)}
               isRejector={isRejectorAtLevel(1)}
             />
-            <Signatory
-              name={leftDce.name}
-              title={leftDce.title}
-              timestamp={timestampForLevel(2)}
-              isRejector={isRejectorAtLevel(2)}
-            />
+            {showDirectorCustomerEngagement && (
+              <Signatory
+                name={leftDce.name}
+                title={leftDce.title}
+                timestamp={timestampForLevel(2)}
+                isRejector={isRejectorAtLevel(2)}
+              />
+            )}
             {showRebateJustification && (
               <JustificationField
                 value={rebateJustification}

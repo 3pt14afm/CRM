@@ -89,10 +89,11 @@ class SprfCurrentWorkflowService
     public function handleAutoAdvanceOnSubmit(SprfCurrentProject $project): void
     {
         $preparerId = (int) $project->prepared_by_user_id;
+        $startLevel = $project->requires_rebate_justification ? 2 : 3;
 
-        if ($this->approverUserIdForLevel($project, 2) !== $preparerId) return;
+        if ($this->approverUserIdForLevel($project, $startLevel) !== $preparerId) return;
 
-        $autoLevels    = $this->collectAutoAdvanceLevels($project, $preparerId, 2);
+        $autoLevels    = $this->collectAutoAdvanceLevels($project, $preparerId, $startLevel);
         $lastLevel     = end($autoLevels);
         $terminalLevel = $this->getTerminalLevel($project);
 
@@ -143,7 +144,18 @@ class SprfCurrentWorkflowService
                 return $entryProject;
             }
 
-            $prevLevel  = $currentLevel - 1;
+            $prevLevel = $currentLevel - 1;
+
+            // DCE (level 2) is only part of the pipeline when rebate justification
+            // is required. Otherwise, sending back from ESD (level 3) should go
+            // straight to the preparer, not to DCE.
+            if ($prevLevel === 2 && !$project->requires_rebate_justification) {
+                $entryProject = $this->revertToEntryProject($project);
+                // Emails: Template 7 → PM, Template 8 → actor
+                $this->notifyReturnedToPreparer($project, $userId, $entryProject);
+                return $entryProject;
+            }
+
             $firstLevel = $this->findFirstConsecutiveLevelForApprover($project, $prevLevel);
 
             if ($this->approverUserIdForLevel($project, $firstLevel) === (int) $project->prepared_by_user_id) {
@@ -286,6 +298,9 @@ class SprfCurrentWorkflowService
         $dceRole = 'Director – Customer Engagement';
         $projectUrl = $this->buildProjectUrl('current', $project->id);
 
+        $firstApprover = $this->userById((int) ($project->current_approver_user_id ?? 0));
+        $firstApproverRole = $project->requires_rebate_justification ? $dceRole : 'ESD Director';
+
         // Template 1 — PM
         $this->dispatchMail(
             $preparer->email,
@@ -293,8 +308,8 @@ class SprfCurrentWorkflowService
                 type: 'submitted',
                 referenceNo: $project->sprf_no,
                 data: [
-                    'approverName' => $dce?->name ?? '—',
-                    'approverRole' => $dceRole,
+                    'approverName' => $firstApprover?->name ?? $dce?->name ?? '—',
+                    'approverRole' => $firstApproverRole,
                 ],
                 projectLink: $projectUrl,
             )

@@ -122,9 +122,9 @@ const processRow = (r) => {
 // ── Shared class strings ───────────────────────────────────────────────────
 const cls = {
   input:
-    'w-full capitalize min-w-0 h-8 text-[12px] text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+    'w-full capitalize min-w-0 h-8 text-[11px] xl:text-[12px] text-center rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
   readonly:
-    'w-full h-8 text-[12px] text-center rounded-sm text-slate-900 font-medium flex items-center justify-center',
+    'w-full h-8 text-[11px] xl:text-[12px] text-center rounded-sm text-slate-900 font-medium flex items-center justify-center',
 };
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -223,22 +223,22 @@ const Fees = ({ readOnly }) => {
         <table className="w-full table-fixed border-separate border-spacing-0">
           <colgroup>
             <col style={{ width: "4%"  }} />
-            <col style={{ width: "37%" }} />
+            <col style={{ width: "32%" }} />
             <col style={{ width: "10%" }} />
             <col style={{ width: "5%"  }} />
             <col style={{ width: "11%" }} />
-            <col style={{ width: "6%"  }} />
-            <col style={{ width: "24%" }} />
+            <col style={{ width: "10%"  }} />
+            <col style={{ width: "25%" }} />
           </colgroup>
 
           <thead>
             <tr className="bg-lightgreen/25 text-[10px] uppercase text-slate-800">
-              <th className="border-b border-r border-darkgreen/15 p-2" />
+              <th className="border-b border-r border-darkgreen/15 p-1 xl:p-2" />
               <th className="border-b border-r border-darkgreen/15 p-2 font-bold text-left">Description</th>
-              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Cost</th>
-              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Qty</th>
-              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Total</th>
-              <th className="border-b border-r border-darkgreen/15 p-2 font-bold">Actions</th>
+              <th className="border-b border-r border-darkgreen/15 p-1 xl:p-2 font-bold">Cost</th>
+              <th className="border-b border-r border-darkgreen/15 p-1 xl:p-2 font-bold">Qty</th>
+              <th className="border-b border-r border-darkgreen/15 p-1 xl:p-2 font-bold">Total</th>
+              <th className="border-b border-r border-darkgreen/15 p-1 xl:p-2 font-bold">Actions</th>
               <th className="border-b border-darkgreen/15 p-2 font-bold text-left">Remarks</th>
             </tr>
           </thead>
@@ -269,7 +269,7 @@ const Fees = ({ readOnly }) => {
                   {/* Description */}
                   <td className="border-b border-r border-darkgreen/15 p-1 bg-[#F6FDF5]/30">
                     {isFixed ? (
-                      <div className="h-8 flex items-center text-[12px] font-semibold text-slate-800 px-2">
+                      <div className="h-8 flex items-center text-[11px] xl:text-[12px] font-semibold text-slate-800 px-2">
                         {row.label}
                       </div>
                     ) : (

@@ -308,17 +308,25 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
                 <button
                   type="button"
                   onClick={() => openPrintPage(false)}
-                  className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
                 >
-                  <LuScanEye /> Print Preview
+                    <LuScanEye className="text-xl" />
+                        
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                        Print Preview
+                    </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => openPrintPage(true)}
-                  className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
                 >
-                  <IoPrintSharp /> Print
+                    <IoPrintSharp className="text-xl" />
+                    
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                        Print
+                    </span>
                 </button>
               </div>
 
@@ -346,51 +354,65 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
           {/* ── Preparer actions — withdraw / cancel ── */}
           {showPreparerCurrentActions && (
               <>
+                  <div className="flex items-center gap-3">
+                      {canWithdraw && (
+                        <button
+                            type="button"
+                            onClick={handleWithdraw}
+                            className="group relative flex items-center gap-1 px-4 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs xl:text-sm hover:shadow-innerSkyBlue font-semibold
+                                bg-blue-400/10 backdrop-blur-md
+                                shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]
+                                hover:bg-blue-400/20 hover:border-[#0565D2]/70
+                                transition-all duration-200"
+                        >
+                            <FaUndo size={12}/> Withdraw
 
-
-            <div className="flex items-center gap-3">
-                {canWithdraw && (
-                    <button
-                        type="button"
-                        onClick={handleWithdraw}
-                        className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] hover:shadow-innerSkyBlue font-semibold
-                            bg-blue-400/10 backdrop-blur-md
-                            shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]
-                            hover:bg-blue-400/20 hover:border-[#0565D2]/70
-                            transition-all duration-200"
-                    >
-                        <FaUndo size={12}/> Withdraw
-                    </button>
-                )}
-            </div>
+                            <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-[#0a4e9c] px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
+                                Withdraw Proposal
+                            </span>
+                        </button>
+                      )}
+                  </div>
 
                   <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-                      <button
-                          type="button"
-                          onClick={() => openPrintPage(false)}
-                          className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
-                      >
-                          <LuScanEye /> Print Preview
-                      </button>
+                    <button
+                        type="button"
+                        onClick={() => openPrintPage(false)}
+                        className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                    >
+                        <LuScanEye className="text-xl" />
+                        
+                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                            Print Preview
+                        </span>
+                    </button>
 
-                      <button
-                          type="button"
-                          onClick={() => openPrintPage(true)}
-                          className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
-                      >
-                          <IoPrintSharp /> Print
-                      </button>
-                  </div>
+                    <button
+                        type="button"
+                        onClick={() => openPrintPage(true)}
+                        className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                    >
+                        <IoPrintSharp className="text-xl" />
+                        
+                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                            Print
+                        </span>
+                    </button>
+                </div>
 
                   <div className="flex items-center gap-3">
                       {canCancel && (
-                          <button
-                              type="button"
-                              onClick={handleCancel}
-                              className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold"
-                          >
-                              <MdOutlineCancel /> Cancel
-                          </button>
+                        <button
+                            type="button"
+                            onClick={handleCancel}
+                            className="group relative flex items-center gap-1 px-2 xl:px-3 py-1 rounded-xl border border-[#F27373] text-red-600 text-xs xl:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold transition-all"
+                        >
+                            <MdOutlineCancel size={16}/> Cancel
+
+                            <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-red-600 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
+                                Cancel Proposal
+                            </span>
+                        </button>
                       )}
                   </div>
 
@@ -422,17 +444,25 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
                 <button
                   type="button"
                   onClick={() => openPrintPage(false)}
-                  className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
                 >
-                  <LuScanEye /> Print Preview
+                  <LuScanEye className="text-xl" />
+                      
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                      Print Preview
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => openPrintPage(true)}
-                  className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
                 >
-                  <IoPrintSharp /> Print
+                    <IoPrintSharp className="text-xl" />
+                        
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                        Print
+                    </span>
                 </button>
               </div>
 
@@ -464,17 +494,25 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
               <button
                 type="button"
                 onClick={() => openPrintPage(false)}
-                className="flex items-center gap-2 px-4 pl-3 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
               >
-                <LuScanEye /> Print Preview
+                <LuScanEye className="text-xl" />
+                        
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                  Print Preview
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => openPrintPage(true)}
-                className="flex items-center gap-2 px-4 py-1 pl-3 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow"
+                className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
               >
-                <IoPrintSharp /> Print
+                <IoPrintSharp className="text-xl" />
+                      
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    Print
+                </span>
               </button>
             </div>
           )}

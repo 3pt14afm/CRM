@@ -8,11 +8,11 @@ const CONDITION_ROWS = [
     requiredApprovals: 'ESD Director + VP & CCTO',
   },
   {
-    condition: 'GP > 15%',
+    condition: 'GP >= 16%',
     requiredApprovals: 'ESD Director + VP & CCTO',
   },
   {
-    condition: 'GP <= 15%',
+    condition: 'GP < 16%',
     requiredApprovals: 'ESD Director + VP & CCTO + President & CEO',
   },
   {
@@ -31,7 +31,7 @@ export default function Conditions() {
         </h3>
       </div>
 
-      <div className="px-3 py-1">
+      <div className="px-2.5 py-1">
         <table className="w-full border-collapse text-[11px] print:text-[10px]">
         <colgroup>
             <col className="w-1/4" />

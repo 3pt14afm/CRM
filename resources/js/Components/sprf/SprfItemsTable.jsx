@@ -22,7 +22,7 @@ export default function SprfItemsTable({
   }));
 
   const inputClass =
-    'w-full min-w-0 min-h-5 text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+    'w-full min-w-0 min-h-5 text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-0 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyClass =
     'w-full h-5 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end font-medium';
@@ -39,21 +39,21 @@ export default function SprfItemsTable({
         <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
             <col className="w-[3.5%]" />
-            <col className="w-[10%]" />
+            <col className="w-[8%]" />
             <col className="w-[19%]" />
-            <col className="w-[4%] xl:w-[5%]" />
+            <col className="w-[3.7%] xl:w-[5%]" />
             <col className="w-[5%]" />
-            <col className="w-[7%] xl:w-[9%]" />
-            <col className="w-[9.5%]" />
+            <col className="w-[8.5%] xl:w-[9%]" />
+            <col className="w-[10%]" />
             <col className="w-[9%] xl:w-[11%]" />
-            <col className="w-[9%] xl:w-[11%]" />
+            <col className="w-[9.5%] xl:w-[11%]" />
             <col className="w-[8%] xl:w-[6%]" />
-            <col className="w-[6%]" />
+            <col className="w-[5%]" />
             {showActionColumn && <col className="w-[3%] xl:w-[5%]" />}
           </colgroup>
 
           <thead>
-            <tr className="bg-lightgreen/30 text-[10px] uppercase">
+            <tr className="bg-lightgreen/30 text-[9px] xl:text-[10px] uppercase">
               <th className="border-r border-darkgreen/15 py-2">Item Lot</th>
               <th className="border-r border-darkgreen/15 p-2">Product Code</th>
               <th className="border-r border-darkgreen/15 py-2">Item Description</th>
@@ -64,7 +64,7 @@ export default function SprfItemsTable({
               <th className="border-r border-darkgreen/15 py-2 px-1">Selling Price/unit (VAT INC)</th>
               <th className="border-r border-darkgreen/15 p-2">Total Selling Price (VAT INC)</th>
               <th className="border-r border-darkgreen/15 p-2">Mark Up Value</th>
-              <th className={`border-darkgreen/15 p-2 ${showActionColumn ? 'border-r' : ''}`}>Mark-up %</th>
+              <th className={`border-darkgreen/15 p-2 px-1 ${showActionColumn ? 'border-r' : ''}`}>Mark - up%</th>
               {showActionColumn && <th className="border-darkgreen/15 p-1 xl:p-2">+/-</th>}
             </tr>
           </thead>

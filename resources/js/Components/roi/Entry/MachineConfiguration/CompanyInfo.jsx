@@ -263,10 +263,10 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const displayValue = isExistingType ? existingInputValue : companyNameVal;
 
   return (
-    <div className="flex flex-col bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl p-8 gap-1 w-full lg:w-[60%] min-w-96">
+    <div className="flex flex-col bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl p-6 xl:p-8 gap-1 w-full lg:w-[60%] min-w-96">
       <div className="flex justify-between items-end">
         <div className="flex flex-col gap-1 w-full relative">
-          <p className="font-bold text-[11px] uppercase">Company Name</p>
+          <p className="font-bold text-[10px] xl:text-[11px] uppercase">Company Name</p>
 
           <div
             className={`flex items-center rounded-xl border h-10 bg-white transition-all duration-200 overflow-hidden ${
@@ -274,7 +274,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             }`}
           >
             <select
-              className={`h-full text-[14px] -ml-4 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 text-center ${
+              className={`h-full text-[12px] xl:text-[14px] ml-2 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 text-left ${
                 isTypeInvalid
                   ? "text-red-400"
                   : typeNotSelected
@@ -297,7 +297,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             {isExistingType ? (
               <div className="relative flex items-center h-full" style={{ width: "80%" }}>
                 <input
-                  className={`h-full px-4 text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none w-full ${
+                  className={`h-full px-4 text-xs xl:text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none w-full ${
                     readOnly || typeNotSelected ? "opacity-70 cursor-not-allowed" : ""
                   }`}
                   type="text"
@@ -351,7 +351,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             ) : (
               /* Potential: free-text input, unchanged */
               <input
-                className={`h-full px-4 text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none`}
+                className={`h-full px-4 text-xs xl:text-sm outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none`}
                 style={{ width: isPotentialType && potentialMatchFound === false ? "70%" : "80%" }}
                 type="text"
                 autoComplete="off"
@@ -413,9 +413,9 @@ function CompanyInfo({ readOnly, showErrors = false }) {
       <div className="flex flex-col gap-2 mt-4">
         <div className="flex items-end justify-between">
           <div className="flex flex-col gap-1 w-[60%]">
-            <p className="font-bold text-[11px] uppercase">Contract Type</p>
+            <p className="font-bold text-[10px] xl:text-[11px] uppercase">Contract Type</p>
             <select
-              className={`w-full ${baseInput} bg-white ${
+              className={`w-full ${baseInput} bg-white text-xs xl:text-sm ${
                 !projectData?.companyInfo?.contractType ? "text-slate-400" : "text-black"
               } border-darkgreen/10 focus:border-[#289800]`}
               value={projectData?.companyInfo?.contractType ?? ""}
@@ -435,7 +435,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
           </div>
 
           <div className="flex flex-col gap-1 md:w-24 xl:w-32">
-            <p className="font-bold text-[11px] uppercase">Contract Years</p>
+            <p className="font-bold text-[10px] xl:text-[11px] uppercase">Contract Years</p>
             <input
               type="number"
               disabled={
@@ -447,7 +447,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
                 const val = e.target.value === "" ? 0 : Number(e.target.value);
                 handleChange("contractYears", val);
               }}
-              className={`${baseInput} w-full bg-green-50/30 text-center border border-gray-200 focus:border-[#289800]
+              className={`${baseInput} w-full bg-green-50/30 text-xs xl:text-sm text-center border border-gray-200 focus:border-[#289800]
                 [&::-webkit-outer-spin-button]:appearance-none
                 [&::-webkit-inner-spin-button]:appearance-none ${
                   projectData?.companyInfo?.contractType === "Outright Only (1 year)"
@@ -459,9 +459,9 @@ function CompanyInfo({ readOnly, showErrors = false }) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <p className="font-bold text-[11px] uppercase">Purpose</p>
+          <p className="font-bold text-[10px] xl:text-[11px] uppercase">Purpose</p>
           <select
-            className={`w-full ${baseInput} bg-white border-darkgreen/10 focus:border-[#289800]`}
+            className={`w-full ${baseInput} bg-white text-xs xl:text-sm border-darkgreen/10 focus:border-[#289800]`}
             value={projectData?.companyInfo?.purpose ?? ""}
             onChange={(e) => handleChange("purpose", e.target.value)}
             disabled={readOnly}

@@ -110,11 +110,11 @@ export const resolveApprovalLevel = ({
     return APPROVAL_LEVEL.ESD_ONLY;
   }
 
-  if (totalGpPercent <= 15) {
+  if (totalGpPercent < 16) {
     return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
   }
 
-  if (totalGpPercent > 15 || revenue > 1000000) {
+  if (totalGpPercent >= 16 || revenue > 1000000) {
     return APPROVAL_LEVEL.VP_AND_CCTO;
   }
 
