@@ -22,7 +22,8 @@ public function index(Request $request)
     $user = Auth::user();
     $perPage = $request->integer('per_page', 10);
     $userId = (int) ($user->id ?? 0);
-
+    $isAdmin = $userId === 1;
+   
     // Build the query using Eloquent
     $query = RoiArchiveProject::query()
         ->with('user')
@@ -141,20 +142,22 @@ public function index(Request $request)
                 default     => $p->approved_at,
             };
              $p->is_owner = (int) $p->user_id === $userId; // ← add this
-
+             $p->is_approver = (int) $p->approved_by === $userId; // ← new
+   
             return $p;
         });
 
         
 
-    if ($request->wantsJson()) {
-        return response()->json(['archiveProjects' => $archiveProjects]);
-    }
+        if ($request->wantsJson()) {
+            return response()->json(['archiveProjects' => $archiveProjects, 'isAdmin' => $isAdmin]);
+        }
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
         'filters' => $request->only(['search', 'status', 'type', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_by', 'sort_order']),
         'archiveProjects' => $archiveProjects,
         'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
+         'isAdmin' => $isAdmin, // ← add this
         'stats' => [
             'totalArchiveProjects' => RoiArchiveProject::count(),
             'recentlyArchivedToday' => RoiArchiveProject::whereDate('approved_at', now()->toDateString())

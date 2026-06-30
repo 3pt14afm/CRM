@@ -69,25 +69,30 @@ public function proposalList(Request $request)
 
     // ─── Show Proposal Page ───────────────────────────────────────
 
-    public function show($id)
-    {
-      $project = RoiArchiveProject::with(['items', 'fees', 'user'])
-            ->where('user_id', Auth::id())
-            ->findOrFail($id);
+        public function show($id)
+        {
+            $project = RoiArchiveProject::with(['items', 'fees', 'user'])
+                ->findOrFail($id);
 
-        $document = Proposal::where('roi_archive_project_id', $id)
-            ->where('user_id', Auth::id())
-            ->latest()
-            ->first();
+            $userId     = Auth::id();
+            $isOwner    = (int) $project->user_id === (int) $userId;
+            $isApprover = (int) $project->approved_by === (int) $userId;
+            $isAdmin    = (int) $userId === 1;
 
-        return Inertia::render('CustomerManagement/Proposal/Proposal', [
-            'proposal'  => $this->buildProposal($project, $document),
-            'items'     => $project->items,
-            'fees'      => $project->fees,
-            'is_locked' => $document?->isGenerated() ?? false,
-        ]);
-    }
+            abort_unless($isOwner || $isApprover || $isAdmin, 403, 'You are not authorized to view this proposal.');
 
+            $document = Proposal::where('roi_archive_project_id', $id)
+                ->latest()
+                ->first();
+
+            return Inertia::render('CustomerManagement/Proposal/Proposal', [
+                'proposal'  => $this->buildProposal($project, $document),
+                'items'     => $project->items,
+                'fees'      => $project->fees,
+                'is_locked' => $document?->isGenerated() ?? false,
+                'is_owner'  => $isOwner, // ← new
+            ]);
+        }
     // ─── Save Draft ───────────────────────────────────────────────
 
     public function saveDraft(Request $request, $id)

@@ -57,7 +57,7 @@ const LS = {
 
 
 
-function ActionsDropdown({ row }) {
+function ActionsDropdown({ row, isAdmin }) {
       const [open, setOpen] = useState(false);
       const [coords, setCoords] = useState({ top: 0, left: 0 });
       const triggerRef = useRef(null);
@@ -85,8 +85,9 @@ function ActionsDropdown({ row }) {
         setOpen((p) => !p);
       };
 
-      const isApproved  = String(row.status ?? "").toLowerCase() === "approved";
-      const hasProposal = isApproved && row.is_owner;
+    const isApproved  = String(row.status ?? "").toLowerCase() === "approved";
+    const hasProposal = isAdmin || (isApproved && (row.is_owner || row.is_approver));
+    console.log({ rowId: row.id, status: row.status, isAdmin, isApproved, hasProposal });
 
       // View only — no dropdown
       if (!hasProposal) {
@@ -160,7 +161,7 @@ function ActionsDropdown({ row }) {
         </div>
       );
     }
-function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [] }) {
+function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [], isAdmin = false }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
   const [localStats, setLocalStats] = useState(initialStats);
 
@@ -196,6 +197,8 @@ function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialSt
   });
   const [loading,      setLoading]      = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  
 
   const datePickerRef    = useRef(null);
   const perPagePickerRef = useRef(null);
@@ -463,7 +466,7 @@ const handleSort = (key) => {
     {
       key: "actions",
       header: <div className="text-center w-full">ACTIONS</div>,
-      cell: (r) => <ActionsDropdown row={r} />,
+      cell: (r) => <ActionsDropdown row={r} isAdmin={isAdmin} />,
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sortBy, sortOrder]);

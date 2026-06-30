@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import ProposalSideBar from '../../../Components/proposal/ProposalSideBar';
 import Paper from '../../../Components/proposal/Paper';
 
-export default function Proposal({ proposal, items, fees }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+export default function Proposal({ proposal, items, fees, is_owner = false }) {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(is_owner);
     const [processing, setProcessing] = useState(false);
 
     const [pageData, setPageData] = useState({ ...proposal });
@@ -17,70 +17,62 @@ export default function Proposal({ proposal, items, fees }) {
     };
 
     useEffect(() => {
-    setPageData({ ...proposal });
+        setPageData({ ...proposal });
     }, [proposal]);
 
-    // --- New Functions ---
+    const saveDraft = () => {
+        const projectId = pageData.id || proposal.id;
 
-   // Proposal.jsx
+        if (!projectId) {
+            console.error("ID not found in proposal data:", pageData);
+            alert("Error: Missing ID. Check console for details.");
+            return;
+        }
 
-// Proposal.jsx
+        setProcessing(true);
+        router.post(route('proposals.draft', { id: projectId }), pageData, {
+            preserveScroll: true,
+            onFinish: () => setProcessing(false),
+        });
+    };
 
-// Proposal.jsx
+    const generateProposal = () => {
+        const projectId = pageData.id || proposal.id;
 
-        const saveDraft = () => {
-            // Look for 'id' because that's what your new controller uses in buildProposal
-            const projectId = pageData.id || proposal.id;
+        if (!projectId) {
+            alert("Error: Missing ID.");
+            return;
+        }
 
-            if (!projectId) {
-                console.error("ID not found in proposal data:", pageData);
-                alert("Error: Missing ID. Check console for details.");
-                return;
-            }
+        if (!confirm('Are you sure? This will lock the proposal.')) return;
 
-            setProcessing(true);
-            router.post(route('proposals.draft', { id: projectId }), pageData, {
-                preserveScroll: true,
-                onFinish: () => setProcessing(false),
-            });
-        };
-
-        const generateProposal = () => {
-            const projectId = pageData.id || proposal.id;
-
-            if (!projectId) {
-                alert("Error: Missing ID.");
-                return;
-            }
-
-            if (!confirm('Are you sure? This will lock the proposal.')) return;
-            
-            setProcessing(true);
-            router.post(route('proposals.generate', { id: projectId }), pageData, {
-                onFinish: () => setProcessing(false),
-            });
-        };
+        setProcessing(true);
+        router.post(route('proposals.generate', { id: projectId }), pageData, {
+            onFinish: () => setProcessing(false),
+        });
+    };
 
     return (
         <>
             <Head title="Proposal Generation" />
-            
-            <ProposalSideBar 
-                isOpen={isSidebarOpen} 
-                setIsOpen={setIsSidebarOpen}
-                proposal={pageData}
-                items={currentItems} 
-                fees={currentFees}
-                onUpdate={handleUpdate}
-                // Pass the functions to the sidebar so your buttons can use them
-                onSaveDraft={saveDraft}
-                onGenerate={generateProposal}
-                processing={processing}
-                isLocked={proposal.status === 'generated'}
-            />
 
-            <Paper 
-                isSidebarOpen={isSidebarOpen}
+            {is_owner && (
+                <ProposalSideBar
+                    isOpen={isSidebarOpen}
+                    setIsOpen={setIsSidebarOpen}
+                    proposal={pageData}
+                    items={currentItems}
+                    fees={currentFees}
+                    onUpdate={handleUpdate}
+                    onSaveDraft={saveDraft}
+                    onGenerate={generateProposal}
+                    processing={processing}
+                    isLocked={proposal.status === 'generated'}
+                />
+            )}
+
+            <Paper
+                isSidebarOpen={is_owner && isSidebarOpen}
                 proposal={pageData}
                 items={currentItems}
                 fees={currentFees}
