@@ -179,7 +179,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
         const isActive = row.status == 1;
         return (
             <div className="flex justify-center items-center">
-                <span className={`px-2 rounded-full text-[9px] font-bold uppercase tracking-wider border
+                <span className={`px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider border
                     ${isActive
                         ? 'bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20'
                         : 'bg-[#FDECEC] text-[#C40000] border-[#C40000]/20'
@@ -201,7 +201,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
             cell: (r) => {
                 const isActive = r.status == 1;
                 return (
-                    <div className={`font-medium flex items-center ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
+                    <div className={`font-medium flex items-center min-w-72 max-w-80 ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
                         <FaBuildingUser className="w-4 h-4 mr-2 flex-shrink-0" />
                         {r.company_name ?? '—'}
                     </div>
@@ -251,7 +251,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
-                <span className="font-medium flex justify-center items-center">
+                <span className="font-medium flex justify-center items-center text-center">
                     {r.client_manager ?? r.id_client_mngr ?? '—'} 
                 </span>
             ),
@@ -264,11 +264,11 @@ function Index({ companies, potentials, filters, categories = [] }) {
             ),
             cell: statusCell,
         },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], [searchState.sort_by, searchState.sort_order]);
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            ], [searchState.sort_by, searchState.sort_order]);
 
-    /* ── Potentials Columns (company name, client manager, address, status only) ── */
-    const potentialsColumns = useMemo(() => [
+            /* ── Potentials Columns (company name, client manager, address, status only) ── */
+            const potentialsColumns = useMemo(() => [
         {
             key: 'company_name',
             header: (
@@ -276,7 +276,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
-                <div className="font-medium flex items-center text-[#0f3800]">
+                <div className="font-medium flex items-center min-w-72 max-w-72 text-[#0f3800]">
                     <FaBuildingUser className="w-4 h-4 mr-2 flex-shrink-0" />
                     {r.company_name ?? '—'}
                 </div>
@@ -368,7 +368,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                 value={searchState.search}
                 onChange={(e) => updateFilters({ search: e.target.value })}
                 className="h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
-                    placeholder:text-slate-400 focus:outline-none focus:ring-0 focus:border-[#4FA34E]
+                    placeholder:text-slate-400 
                     transition-[border-color,box-shadow] duration-150"
             />
         </div>

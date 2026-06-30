@@ -150,19 +150,15 @@ class SprfApproverMatrixController extends Controller
     private function validateRequiredRoles(string $conditionCode, array $steps): void
     {
         $requiredRoles = match ($conditionCode) {
-            'STANDARD_PRICING' => [
-                'DIRECTOR_CUSTOMER_ENGAGEMENT',
-                'ESD_DIRECTOR',
-            ],
-
+            'STANDARD_PRICING',
             'VALUE_GT_1M',
-            'GP_GT_15' => [
-                'DIRECTOR_CUSTOMER_ENGAGEMENT',
+            'GP_GT_15',
+            'GP_LTE_15' => [
                 'ESD_DIRECTOR',
                 'VP_CCTO',
+                'PRESIDENT_CEO',
             ],
 
-            'GP_LTE_15',
             'REBATE_REQUEST' => [
                 'DIRECTOR_CUSTOMER_ENGAGEMENT',
                 'ESD_DIRECTOR',

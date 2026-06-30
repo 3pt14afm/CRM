@@ -26,7 +26,7 @@ function SummaryRow({ label, value, isPercent = false, isLast = false }) {
           </span>
 
           <span className="text-right">
-            {isPercent ? `${Number(value || 0).toFixed(0)}%` : formatPeso(value)}
+            {isPercent ? `${Number(value || 0).toFixed(2)}%` : formatPeso(value)}
           </span>
         </div>
       </td>

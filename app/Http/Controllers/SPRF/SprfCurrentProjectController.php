@@ -40,7 +40,10 @@ class SprfCurrentProjectController extends Controller
             $query->where(function ($q) use ($userId) {
                 $q->where('prepared_by_user_id', $userId)
                     ->orWhere('current_approver_user_id', $userId)
-                    ->orWhere('director_customer_engagement_user_id', $userId)
+                    ->orWhere(function ($sub) use ($userId) {
+                        $sub->where('director_customer_engagement_user_id', $userId)
+                            ->where('requires_rebate_justification', true);
+                    })
                     ->orWhere('esd_director_user_id', $userId)
                     ->orWhere('vp_ccto_user_id', $userId)
                     ->orWhere('president_ceo_user_id', $userId);
@@ -554,7 +557,7 @@ class SprfCurrentProjectController extends Controller
         }
             
         $approverIds = array_filter([
-            $project->director_customer_engagement_user_id,
+            $project->requires_rebate_justification ? $project->director_customer_engagement_user_id : null,
             $project->esd_director_user_id,
             $project->vp_ccto_user_id,
             $project->president_ceo_user_id,

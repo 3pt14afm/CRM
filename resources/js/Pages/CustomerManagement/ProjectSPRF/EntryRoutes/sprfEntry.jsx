@@ -15,6 +15,10 @@ import Conditions from '@/Components/sprf/Conditions';
 import NamesBlock from '@/Components/sprf/NamesBlock';
 import SprfAddNotes from '@/Components/sprf/SprfAddNotes';
 import SprfAddComments from '@/Components/sprf/SprfAddComments';
+import { FaUndo } from 'react-icons/fa';
+import { MdOutlineCancel } from 'react-icons/md';
+import { LuScanEye } from 'react-icons/lu';
+import { IoPrintSharp } from 'react-icons/io5';
 
 const FIXED_OTHER_EXPENSE_ROWS = [
   { key: 'deliveryCharge', productCode: 'Delivery Charge' },
@@ -434,7 +438,7 @@ function Entry({
   const computedApprovalLevel = useMemo(() => {
     if (hasRebate) return APPROVAL_LEVEL.REBATE_REQUEST;
     if (summary.revenue <= 0) return APPROVAL_LEVEL.STANDARD_PRICING;
-    if (summary.totalGpPercent <= 15) return APPROVAL_LEVEL.GP_LTE_15;
+    if (summary.totalGpPercent < 16) return APPROVAL_LEVEL.GP_LTE_15;
     if (summary.revenue > 1000000) return APPROVAL_LEVEL.VALUE_GT_1M;
     return APPROVAL_LEVEL.GP_GT_15;
   }, [summary.revenue, summary.totalGpPercent, hasRebate]);
@@ -467,6 +471,13 @@ function Entry({
           approvalLevel === APPROVAL_LEVEL.GP_GT_15 ||
           approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO
         );
+
+  const showDirectorCustomerEngagement =
+    sourceProject?.requires_rebate_justification != null
+      ? Boolean(sourceProject.requires_rebate_justification)
+      : sourceProject
+        ? sourceProject?.approval_condition_code === 'REBATE_REQUEST'
+        : approvalLevel === APPROVAL_LEVEL.REBATE_REQUEST;
 
   const currentLevel = Number(sourceProject?.current_level || 0);
   
@@ -1094,6 +1105,7 @@ function Entry({
                     status={sourceProject?.status}
                     currentLevel={sourceProject?.current_level}
                     rejectedAt={sourceProject?.rejected_at}
+                    showDirectorCustomerEngagement={showDirectorCustomerEngagement}
                     showVpCcto={showVpCcto}
                     showPresidentCeo={showPresidentCeo}
                     showRebateJustification={true}
@@ -1118,7 +1130,7 @@ function Entry({
 
         <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
           {isEntryRoute && !readOnly ? (
-            <div className="px-10 py-3 flex items-center justify-between relative">
+            <div className="px-10 py-2 flex items-center justify-between relative">
               <button
                 type="button"
                 onClick={handleClearAll}
@@ -1133,18 +1145,26 @@ function Entry({
                   type="button"
                   onClick={() => openPrintPage(false)}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
                 >
-                  Print Preview
+                  <LuScanEye className="text-xl" />
+                        
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    Print Preview
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => openPrintPage(true)}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  Print
+                  <IoPrintSharp className="text-xl" />
+
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    Print
+                  </span>
                 </button>
               </div>
 
@@ -1169,7 +1189,7 @@ function Entry({
               </div>
             </div>
           ) : isCurrentRoute && readOnly ? (
-            <div className="px-10 py-3 grid grid-cols-3 items-center">
+            <div className="px-10 py-2 grid grid-cols-3 items-center">
               <div className="flex items-center justify-start gap-2">
                 {canActOnCurrentProject && (
                   <>
@@ -1198,20 +1218,12 @@ function Entry({
                     type="button"
                     onClick={() => setShowWithdrawModal(true)}
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] hover:bg-blue-50 font-semibold disabled:opacity-50"
-                  >
-                    Withdraw
-                  </button>
-                )}
-
-                {canCancel && (
-                  <button
-                    type="button"
-                    onClick={() => setShowCancelModal(true)}
-                    disabled={isSubmitting}
-                    className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
-                  >
-                    Cancel
+                    className="group relative flex items-center gap-1 px-4 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs xl:text-sm hover:shadow-innerSkyBlue font-semibold bg-blue-400/10 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] hover:bg-blue-400/20 hover:border-[#0565D2]/70 transition-all duration-200"
+                        >
+                      <FaUndo size={12}/> Withdraw
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-[#0a4e9c] px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
+                      Withdraw Proposal
+                    </span>
                   </button>
                 )}
               </div>
@@ -1221,22 +1233,45 @@ function Entry({
                   type="button"
                   onClick={() => openPrintPage(false)}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  Print Preview
+                  <LuScanEye className="text-xl" />
+
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    Print Preview
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => openPrintPage(true)}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  Print
+                  <IoPrintSharp className="text-xl" />
+
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    Print
+                  </span>
                 </button>
               </div>
 
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end gap-3">
+                {canCancel && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    disabled={isSubmitting}
+                    className="group relative flex items-center gap-1 px-2 xl:px-3 py-1 rounded-xl border border-[#F27373] text-red-600 text-xs xl:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold disabled:opacity-50 transition-all"
+                  >
+                    <MdOutlineCancel size={16}/> Cancel
+
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-red-600 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
+                        Cancel Proposal
+                    </span>
+                  </button>
+                )}
+
                 {canActOnCurrentProject && (
                   <>
                     {isFinalApprover ? (
@@ -1263,23 +1298,31 @@ function Entry({
               </div>
             </div>
           ) : isArchiveRoute && readOnly ? (
-            <div className="px-10 py-3 flex items-center justify-center gap-2">
+            <div className="px-10 py-2 flex items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => openPrintPage(false)}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
               >
-                Print Preview
+                <LuScanEye className="text-xl" />
+                        
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                  Print Preview
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => openPrintPage(true)}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-4 py-1 rounded-lg text-sm bg-lightgreen/80 hover:shadow-innerGreen text-black font-medium shadow disabled:opacity-50"
+                className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
               >
-                Print
+                <IoPrintSharp className="text-xl" />
+
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                  Print
+                </span>
               </button>
             </div>
           ) : (
