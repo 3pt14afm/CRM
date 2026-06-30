@@ -44,7 +44,7 @@ export default function NewUserModal({
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
               value={assignForm.first_name ?? ""}
               onChange={(e) =>
                 setAssignForm((p) => ({ ...p, first_name: e.target.value }))
@@ -62,7 +62,7 @@ export default function NewUserModal({
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
               value={assignForm.last_name ?? ""}
               onChange={(e) =>
                 setAssignForm((p) => ({ ...p, last_name: e.target.value }))
@@ -83,7 +83,7 @@ export default function NewUserModal({
             <input
               type="number"
               min="0"
-              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
               value={assignForm.employee_id ?? ""}
               onChange={(e) =>
                 setAssignForm((p) => ({ ...p, employee_id: e.target.value }))
@@ -101,7 +101,7 @@ export default function NewUserModal({
             </label>
             <input
               type="email"
-              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
               value={assignForm.email ?? ""}
               onChange={(e) =>
                 setAssignForm((p) => ({ ...p, email: e.target.value }))
@@ -120,7 +120,7 @@ export default function NewUserModal({
               Department
             </label>
             <select
-              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
               value={assignForm.department_id ?? ""}
               onChange={(e) =>
                 setAssignForm((p) => ({
@@ -152,7 +152,7 @@ export default function NewUserModal({
               Position
             </label>
             <select
-                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30 disabled:bg-slate-100"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 focus:border-[#4FA34E] disabled:bg-slate-100"
                 value={assignForm.company_position_id ?? ""}
                 onChange={(e) => {
                   const selectedPosition = filteredPositions.find(
@@ -192,7 +192,7 @@ export default function NewUserModal({
             Location
           </label>
           <select
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
             value={assignForm.primary_location_id ?? ""}
             onChange={(e) =>
               setAssignForm((p) => ({

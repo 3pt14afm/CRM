@@ -367,7 +367,7 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
         }
         <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}
           className="h-9 w-28 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
             transition-[border-color,box-shadow] duration-150 text-slate-700">
           <option value="">All Status</option>
           <option value="approved">Approved</option>
@@ -403,7 +403,7 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
         <MdVerifiedUser className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
         <select value={approvalLevel} onChange={(e) => handleApprovalLevelChange(e.target.value)}
           className="h-9 w-36 sm:w-44 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none focus:border-[#4FA34E] text-slate-700">
+            focus:outline-none focus:ring-0 focus:border-[#4FA34E] text-slate-700">
           <option value="">All Levels</option>
           <option value="DIRECTOR_CUSTOMER_ENGAGEMENT">Director - Customer Engagement</option>
           <option value="ESD_DIRECTOR">ESD Director</option>

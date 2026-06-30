@@ -696,6 +696,24 @@ class UserController extends Controller
                     ->orderBy('users.last_name', 'asc');
                 break;
 
+            case 'position':
+                $query->orderByRaw("COALESCE(users.position, '') {$direction}")
+                    ->orderBy('users.first_name', 'asc')
+                    ->orderBy('users.last_name', 'asc');
+                break;
+
+            case 'department_name':
+                $query->orderByRaw("COALESCE(sort_departments.name, '') {$direction}")
+                    ->orderBy('users.first_name', 'asc')
+                    ->orderBy('users.last_name', 'asc');
+                break;
+
+            case 'location_name':
+                $query->orderByRaw("COALESCE(sort_locations.name, '') {$direction}")
+                    ->orderBy('users.first_name', 'asc')
+                    ->orderBy('users.last_name', 'asc');
+                break;
+
             default:
                 $query->orderBy('users.first_name', 'asc')
                     ->orderBy('users.last_name', 'asc');
