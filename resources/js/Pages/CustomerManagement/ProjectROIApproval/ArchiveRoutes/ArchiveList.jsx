@@ -86,7 +86,7 @@ function ActionsDropdown({ row, isAdmin  }) {
       };
 
     const isApproved  = String(row.status ?? "").toLowerCase() === "approved";
-    const hasProposal = isAdmin || (isApproved && (row.is_owner || row.is_approver));
+    const hasProposal = isApproved && (isAdmin || row.is_owner || row.is_approver);
    
       // View only — no dropdown
       if (!hasProposal) {
