@@ -1,45 +1,69 @@
-import { APPROVAL_LEVEL } from './constants';
+// resources/js/utils/sprf/calculations.js
+//
+// Single source of truth for SPRF item/expense/summary calculations.
+// Previously sprfEntry.jsx had its own inline copies of these functions —
+// they have been moved here so there is only one place to fix formulas.
+// sprfEntry.jsx should import from this file instead of redefining them.
 
 export const isBlank = (value) =>
   value === '' || value === null || value === undefined;
 
 export const toNumber = (value) => Number(value || 0);
 
-export const computeItem = (row) => {
-  const qtyBlank = isBlank(row.qty);
-  const costBlank = isBlank(row.costPerUnit);
-  const markupBlank = isBlank(row.markupPercent);
+// ─────────────────────────────────────────────────────────────────────────
+// Item lots (group of subitems)
+// ─────────────────────────────────────────────────────────────────────────
 
+export const computeSubitem = (row) => {
   const qty = toNumber(row.qty);
   const costPerUnit = toNumber(row.costPerUnit);
   const markupPercent = toNumber(row.markupPercent);
 
+  const qtyBlank = isBlank(row.qty);
+  const costBlank = isBlank(row.costPerUnit);
+  const markupBlank = isBlank(row.markupPercent);
+
+  const markupPerUnit = costBlank || markupBlank ? '' : costPerUnit * (markupPercent / 100);
   const totalCost = qtyBlank || costBlank ? '' : qty * costPerUnit;
+  const totalMarkup = qtyBlank || markupPerUnit === '' ? '' : qty * markupPerUnit;
 
-  const sellingPricePerUnitVatInc =
-    costBlank || markupBlank
-      ? ''
-      : costPerUnit * (1 + markupPercent / 100);
+  return { ...row, markupPerUnit, totalCost, totalMarkup };
+};
 
-  const totalSellingPriceVatInc =
-    qtyBlank || sellingPricePerUnitVatInc === ''
-      ? ''
-      : qty * sellingPricePerUnitVatInc;
+export const computeGroup = (group) => {
+  const computedSubitems = (group.subitems || []).map(computeSubitem);
 
-  const markupValue =
-    totalSellingPriceVatInc === '' || totalCost === ''
-      ? ''
-      : totalSellingPriceVatInc - totalCost;
+  let sumCostPerUnit = 0;
+  let sumMarkupPerUnit = 0;
+  let grandTotalCost = 0;
+  let grandTotalMarkup = 0;
+  let hasIncompleteMarkup = false;
+
+  computedSubitems.forEach((row) => {
+    if (!isBlank(row.costPerUnit)) sumCostPerUnit += toNumber(row.costPerUnit);
+    if (row.totalCost !== '') grandTotalCost += toNumber(row.totalCost);
+
+    if (isBlank(row.markupPercent)) {
+      hasIncompleteMarkup = true;
+    } else {
+      sumMarkupPerUnit += toNumber(row.markupPerUnit);
+      grandTotalMarkup += toNumber(row.totalMarkup);
+    }
+  });
 
   return {
-    ...row,
-    totalCost,
-    sellingPricePerUnitVatInc,
-    totalSellingPriceVatInc,
-    markupValue,
-    markupPercent: row.markupPercent,
+    ...group,
+    computedSubitems,
+    totalCost: grandTotalCost,
+    sellingPricePerUnitVatInc: hasIncompleteMarkup ? '' : sumCostPerUnit + sumMarkupPerUnit,
+    totalSellingPriceVatInc: hasIncompleteMarkup ? '' : grandTotalCost + grandTotalMarkup,
+    markupValue: hasIncompleteMarkup ? '' : grandTotalMarkup,
   };
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Other expenses
+// ─────────────────────────────────────────────────────────────────────────
 
 export const computeExpense = (row) => {
   const qtyBlank = isBlank(row.qty);
@@ -54,81 +78,69 @@ export const computeExpense = (row) => {
   };
 };
 
-export const computeSummary = (computedItems, computedExpenses) => {
-  const revenue = computedItems.reduce(
-    (sum, row) => sum + toNumber(row.totalSellingPriceVatInc),
-    0
-  );
-
-  const cogs = computedItems.reduce(
-    (sum, row) => sum + toNumber(row.totalCost),
-    0
-  );
-
-  const otherExpense = computedExpenses.reduce(
-    (sum, row) => sum + toNumber(row.total),
-    0
-  );
-
-  const totalExpense = cogs + otherExpense;
-  const gpValue = revenue - totalExpense;
-  const totalGpPercent = revenue > 0 ? (gpValue / revenue) * 100 : 0;
-
-  return {
-    revenue,
-    cogs,
-    otherExpense,
-    totalExpense,
-    gpValue,
-    totalGpPercent,
-  };
-};
-
-export const computeItemTotals = (computedItems) => ({
-  ttlCost: computedItems.reduce((sum, row) => sum + toNumber(row.totalCost), 0),
-  ttlRev: computedItems.reduce(
-    (sum, row) => sum + toNumber(row.totalSellingPriceVatInc),
-    0
-  ),
-});
-
 export const computeRebateTotal = (computedExpenses) =>
   computedExpenses
     .filter((row) => row.expenseKey === 'rebate')
     .reduce((sum, row) => sum + toNumber(row.total), 0);
 
-export const resolveApprovalLevel = ({
-  revenue,
-  totalGpPercent,
-  hasRebate,
-}) => {
-  if (hasRebate) {
-    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  }
+// ─────────────────────────────────────────────────────────────────────────
+// Summary / totals
+// ─────────────────────────────────────────────────────────────────────────
 
-  if (revenue <= 0) {
-    return APPROVAL_LEVEL.ESD_ONLY;
-  }
+// Overall summary block: revenue, cost, GP value/percent — nets out
+// otherExpense in addition to item cost.
+export const computeSummary = (computedItems, computedExpenses) => {
+  const revenue = computedItems.reduce((sum, g) => sum + toNumber(g.totalSellingPriceVatInc), 0);
+  const cogs = computedItems.reduce((sum, g) => sum + toNumber(g.totalCost), 0);
+  const otherExpense = computedExpenses.reduce((sum, row) => sum + toNumber(row.total), 0);
 
-  if (totalGpPercent < 16) {
-    return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  }
+  const totalExpense = cogs + otherExpense;
+  const gpValue = revenue - totalExpense;
+  const totalGpPercent = revenue > 0 ? (gpValue / revenue) * 100 : 0;
 
-  if (totalGpPercent >= 16 || revenue > 1000000) {
-    return APPROVAL_LEVEL.VP_AND_CCTO;
-  }
-
-  return APPROVAL_LEVEL.ESD_ONLY;
+  return { revenue, cogs, otherExpense, totalExpense, gpValue, totalGpPercent };
 };
 
-export const finalApprovalLevelNumber = (approvalLevel) => {
-  if (approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO) return 5;
-  if (approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO) return 4;
+// Items-table footer totals: item-only, does NOT net out otherExpense.
+// ttlMarkupValue must equal the sum of each row's "Mark Up Value" column.
+export const computeItemTotals = (computedItems) => ({
+  ttlCost: computedItems.reduce((sum, g) => sum + toNumber(g.totalCost), 0),
+  ttlRev: computedItems.reduce((sum, g) => sum + toNumber(g.totalSellingPriceVatInc), 0),
+  ttlMarkupValue: computedItems.reduce((sum, g) => sum + toNumber(g.markupValue), 0),
+});
 
-  return 3;
+// ─────────────────────────────────────────────────────────────────────────
+// Approval level (matrix conditions)
+// ─────────────────────────────────────────────────────────────────────────
+
+export const APPROVAL_LEVEL = {
+  // Legacy / Fallback
+  ESD_ONLY: 'ESD_ONLY',
+  VP_AND_CCTO: 'VP_AND_CCTO',
+  PRESIDENT_AND_CEO: 'PRESIDENT_AND_CEO',
+
+  // Matrix Conditions
+  STANDARD_PRICING: 'STANDARD_PRICING',
+  VALUE_GT_1M: 'VALUE_GT_1M',
+  GP_GT_15: 'GP_GT_15',
+  GP_LTE_15: 'GP_LTE_15',
+  REBATE_REQUEST: 'REBATE_REQUEST',
 };
 
-// Formatting helpers used by UI
+// Pure derivation only — used as a fallback when sourceProject (backend)
+// hasn't supplied approval_level yet, e.g. on a brand-new draft.
+export const resolveApprovalLevelMatrix = ({ hasRebate, revenue, totalGpPercent }) => {
+  if (hasRebate) return APPROVAL_LEVEL.REBATE_REQUEST;
+  if (revenue <= 0) return APPROVAL_LEVEL.STANDARD_PRICING;
+  if (totalGpPercent < 16) return APPROVAL_LEVEL.GP_LTE_15;
+  if (revenue > 1000000) return APPROVAL_LEVEL.VALUE_GT_1M;
+  return APPROVAL_LEVEL.GP_GT_15;
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// Formatting helpers used by UI (SprfItemsTable, etc.)
+// ─────────────────────────────────────────────────────────────────────────
+
 export const peso = (value) => {
   if (isBlank(value)) return '';
   return Number(value).toLocaleString('en-PH', {
@@ -150,7 +162,10 @@ export const percent = (value) => {
   return `${trimmed}%`;
 };
 
-// Helpers to compute child/group sums used by SprfItemsTable
+// ─────────────────────────────────────────────────────────────────────────
+// Helpers to compute child/group sums used by SprfItemsTable (bundle rows)
+// ─────────────────────────────────────────────────────────────────────────
+
 export const getChildSums = (computedItems, items, parentIndex) => {
   let sumCost = 0;
   let sumTotalSelling = 0;
@@ -185,13 +200,11 @@ export const getGroupUnitSums = (computedItems, items, parentIndex) => {
   if (parentIndex < 0 || parentIndex >= computedItems.length) return { sumCostPerUnit: 0, sumMarkupPerUnit: 0, sumSellingPerUnit: 0 };
 
   let p = parentIndex;
-  // include parent and any subsequent bundle rows
   while (p < computedItems.length) {
     const curItem = items[p] ?? {};
     sumCostPerUnit += Number(curItem.costPerUnit || 0);
     sumSellingPerUnit += Number(getSellingPerUnitForRow(p) || 0);
 
-    // if at parent and next is bundle, consume bundles
     if (p === parentIndex) {
       if (items[p + 1]?.rowType === 'bundle' || computedItems[p + 1]?.rowType === 'bundle') {
         p += 1;

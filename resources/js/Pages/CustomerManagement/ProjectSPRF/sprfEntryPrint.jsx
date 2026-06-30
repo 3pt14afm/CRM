@@ -579,7 +579,7 @@ function PrintSummaryRow({ label, value, isPercent = false, isLast = false }) {
   const displayValue = isPercent
     ? isBlank(value)
       ? ''
-      : `${Number(value).toFixed(0)}%`
+      : `${Number(value).toFixed(2)}%`
     : displayWholePeso(value);
 
   return (

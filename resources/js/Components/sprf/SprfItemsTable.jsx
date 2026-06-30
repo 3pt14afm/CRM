@@ -3,6 +3,37 @@ import { MdKeyboardArrowDown, MdKeyboardArrowRight, MdOutlineDelete } from 'reac
 import { peso, blankIfEmpty, percent } from '../../utils/sprf/calculations';
 import { PackagePlus } from 'lucide-react';
 
+const formatCurrencyInput = (val) => {
+  if (val === '' || val === null || val === undefined) return '';
+  let str = String(val).replace(/[^0-9.]/g, '');
+  const parts = str.split('.');
+  if (parts.length > 2) {
+    str = parts[0] + '.' + parts.slice(1).join('');
+  }
+  const finalParts = str.split('.');
+  finalParts[0] = finalParts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  if (finalParts.length > 1) {
+    finalParts[1] = finalParts[1].slice(0, 2); // Strictly 2 decimals
+    return `${finalParts[0]}.${finalParts[1]}`;
+  }
+  return finalParts[0];
+};
+
+// 2. Helper to truncate decimals BEFORE hitting state
+const truncateToTwoDecimals = (val) => {
+  const parts = val.split('.');
+  if (parts.length > 1) {
+    return `${parts[0]}.${parts[1].slice(0, 2)}`;
+  }
+  return val;
+};
+
+const parseCurrencyInput = (val) => {
+  if (val === '' || val === null || val === undefined) return '';
+  const clean = String(val).replace(/,/g, '');
+  return truncateToTwoDecimals(clean); // Enforce before returning
+};
+
 export default function SprfItemsTable({
   items,
   computedItems,
@@ -47,8 +78,8 @@ export default function SprfItemsTable({
             <col className="w-[10%]" />
             <col className="w-[9%] xl:w-[11%]" />
             <col className="w-[9.5%] xl:w-[11%]" />
-            <col className="w-[8%] xl:w-[6%]" />
-            <col className="w-[5%]" />
+            <col className="w-[9%] xl:w-[7%]" />
+            <col className="w-[4%]" />
             {showActionColumn && <col className="w-[3%] xl:w-[5%]" />}
           </colgroup>
 
@@ -313,11 +344,12 @@ export default function SprfItemsTable({
                       <div className={readonlyClass}>{peso(sub.costPerUnit)}</div>
                     ) : (
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={sub.costPerUnit ?? ''}
-                        onChange={(e) => onUpdateSubitem(groupIndex, subIndex, 'costPerUnit', e.target.value)}
+                        type="text"
+                        value={formatCurrencyInput(sub.costPerUnit)}
+                        onChange={(e) => {
+                          const rawValue = parseCurrencyInput(e.target.value);
+                          onUpdateSubitem(groupIndex, subIndex, 'costPerUnit', rawValue);
+                        }}
                         className={`${inputClass} py-0.5`}
                         placeholder="0.00"
                       />
@@ -356,11 +388,12 @@ export default function SprfItemsTable({
                       <div className={readonlyClass}>{percent(sub.markupPercent)}</div>
                     ) : (
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={sub.markupPercent ?? ''}
-                        onChange={(e) => onUpdateSubitem(groupIndex, subIndex, 'markupPercent', e.target.value)}
+                        type="text"
+                        value={formatCurrencyInput(sub.markupPercent)}
+                        onChange={(e) => {
+                          const rawValue = parseCurrencyInput(e.target.value);
+                          onUpdateSubitem(groupIndex, subIndex, 'markupPercent', rawValue);
+                        }}
                         className={`${inputClass} py-0.5`}
                         placeholder="0"
                       />
@@ -409,7 +442,7 @@ export default function SprfItemsTable({
               <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlCost)}</td>
               <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
               <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlRev)}</td>
-              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(summary.gpValue)}</td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlMarkupValue ?? totals.totalMarkupValue)}</td>
               <td className={`${footerCellClass} ${showActionColumn ? 'border-r border-darkgreen/15' : 'rounded-br-xl'}`}></td>
               {showActionColumn && <td className={`${footerCellClass} rounded-br-xl`}></td>}
             </tr>

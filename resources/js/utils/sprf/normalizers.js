@@ -1,5 +1,6 @@
 import { FIXED_OTHER_EXPENSE_ROWS } from './constants';
-import { makeExpenseRow, makeItemRow } from './factories';
+import { makeExpenseRow, makeItemRow, makeRowKey, makeSubitemRow, makeGroupRow } from './factories';
+import { isBlank } from './calculations';
 
 export const normalizeExpenseRows = (rows = []) => {
   const incoming = Array.isArray(rows) ? rows : [];
@@ -74,4 +75,33 @@ export const normalizeItemRows = (items = []) => {
     costPerUnit: row?.costPerUnit ?? '',
     markupPercent: row?.markupPercent ?? '',
   }));
+};
+
+// Rehydrates the grouped/bundled item-table shape used by sprfEntry.jsx
+// (array of groups, each with a `subitems` array) from whatever the API
+// returns, filling in stable rowKeys and coercing numeric fields.
+export const flattenItemsFromApi = (apiItems = []) => {
+  if (!Array.isArray(apiItems) || apiItems.length === 0) {
+    return [makeGroupRow()];
+  }
+
+  return apiItems.map((group) =>
+    makeGroupRow({
+      rowKey: group.rowKey || makeRowKey('group'),
+      subitems:
+        (group.subitems || []).length > 0
+          ? group.subitems.map((sub) =>
+              makeSubitemRow({
+                rowKey: sub.rowKey || makeRowKey('sub'),
+                productCode: sub.productCode ?? '',
+                itemDescription: sub.itemDescription ?? '',
+                qty: sub.qty ?? '',
+                disty: sub.disty ?? '',
+                costPerUnit: isBlank(sub.costPerUnit) ? '' : Number(sub.costPerUnit),
+                markupPercent: isBlank(sub.markupPercent) ? '' : Number(sub.markupPercent),
+              })
+            )
+          : [makeSubitemRow()],
+    })
+  );
 };
