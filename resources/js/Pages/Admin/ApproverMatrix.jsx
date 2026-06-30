@@ -101,7 +101,7 @@ const EMPTY_SPRF_FORM = {
   esd_director_user_id: "",
   vp_ccto_user_id: "",
   president_ceo_user_id: "",
-  is_active: false,
+  is_active: true,
   remarks: "",
 };
 
@@ -118,11 +118,13 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
   const [showCreateSprfModal, setShowCreateSprfModal] = useState(false);
   const [createSprfProcessing, setCreateSprfProcessing] = useState(false);
   const [sprfCreateForm, setSprfCreateForm] = useState({ ...EMPTY_SPRF_FORM });
+  const [sprfCreateErrors, setSprfCreateErrors] = useState({});
 
   const [showEditSprfModal, setShowEditSprfModal] = useState(false);
   const [editSprfProcessing, setEditSprfProcessing] = useState(false);
   const [editingSprfMatrix, setEditingSprfMatrix] = useState(null);
   const [sprfEditForm, setSprfEditForm] = useState({ ...EMPTY_SPRF_FORM });
+  const [sprfEditErrors, setSprfEditErrors] = useState({});
 
   // Per-row condition filter: rowKey → condition label (local UI only, not saved)
   const [sprfConditionFilter, setSprfConditionFilter] = useState({});
@@ -279,26 +281,31 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
   const openCreateSprfModal = () => {
     setCreateSprfProcessing(false);
     setSprfCreateForm({ ...EMPTY_SPRF_FORM });
+    setSprfCreateErrors({});
     setShowCreateSprfModal(true);
   };
 
   const closeCreateSprfModal = () => {
     if (createSprfProcessing) return;
     setShowCreateSprfModal(false);
+    setSprfCreateErrors({});
   };
 
   const submitCreateSprf = (e) => {
     e.preventDefault();
     setCreateSprfProcessing(true);
+    setSprfCreateErrors({});
 
     router.post(route("admin.approver-matrix.sprf.store"), sprfCreateForm, {
       preserveScroll: true,
       onSuccess: () => {
         setCreateSprfProcessing(false);
+        setSprfCreateErrors({});
         setShowCreateSprfModal(false);
       },
-      onError: () => {
+      onError: (errors) => {
         setCreateSprfProcessing(false);
+        setSprfCreateErrors(errors ?? {});
       },
       onFinish: () => {
         setCreateSprfProcessing(false);
@@ -324,6 +331,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
     setEditSprfProcessing(false);
     setEditingSprfMatrix(row);
     setSprfEditForm(buildSprfEditFormFromRow(row));
+    setSprfEditErrors({});
     setShowEditSprfModal(true);
   };
 
@@ -331,6 +339,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
     if (editSprfProcessing) return;
     setShowEditSprfModal(false);
     setEditingSprfMatrix(null);
+    setSprfEditErrors({});
   };
 
   const submitEditSprf = (e) => {
@@ -339,6 +348,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
     if (!editingSprfMatrix?.id) return;
 
     setEditSprfProcessing(true);
+    setSprfEditErrors({});
 
     router.put(
       route("admin.approver-matrix.sprf.update", editingSprfMatrix.id),
@@ -347,11 +357,13 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
         preserveScroll: true,
         onSuccess: () => {
           setEditSprfProcessing(false);
+          setSprfEditErrors({});
           setShowEditSprfModal(false);
           setEditingSprfMatrix(null);
         },
-        onError: () => {
+        onError: (errors) => {
           setEditSprfProcessing(false);
+          setSprfEditErrors(errors ?? {});
         },
         onFinish: () => {
           setEditSprfProcessing(false);
@@ -376,7 +388,15 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
     router.put(
       route("admin.approver-matrix.sprf.update", row.id),
       { ...buildSprfEditFormFromRow(row), is_active: true },
-      { preserveScroll: true }
+      {
+        preserveScroll: true,
+        onError: (errors) => {
+          alert(
+            errors?.is_active ??
+              "Could not activate this matrix. Please try again."
+          );
+        },
+      }
     );
   };
 
@@ -434,6 +454,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
         locations={locations}
         departments={departments}
         users={users}
+        errors={sprfCreateErrors}
       />
 
       <EditSprfApproverMatrixModal
@@ -447,7 +468,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
         locations={locations}
         departments={departments}
         users={users}
-        errors={errors}
+        errors={sprfEditErrors}
       />
 
       <div className="min-h-screen flex flex-col">

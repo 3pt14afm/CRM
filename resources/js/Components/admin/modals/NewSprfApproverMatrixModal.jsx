@@ -20,6 +20,7 @@ export default function NewSprfApproverMatrixModal({
   locations = [],
   departments = [],
   users = [],
+  errors = {},
 }) {
   const updateField = (key, value) => {
     setForm((prev) => ({
@@ -49,6 +50,12 @@ export default function NewSprfApproverMatrixModal({
           </div>
 
           <div className="px-8 py-6 space-y-5 max-h-[70vh] overflow-y-auto">
+            {(errors?.department_id || errors?.location_id) && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {errors.department_id ?? errors.location_id}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-slate-700">

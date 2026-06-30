@@ -58,47 +58,23 @@ export default function EditSprfApproverMatrixModal({
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <label className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-slate-700">
                   Location
                 </span>
-                <select
-                  value={form?.location_id ?? ""}
-                  onChange={(e) => updateField("location_id", e.target.value)}
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
-                  disabled={processing}
-                  required
-                >
-                  <option value="">Select location</option>
-                  {locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  {editingMatrix?.location_name ?? "—"}
+                </div>
+              </div>
 
-              <label className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-slate-700">
                   Department
                 </span>
-                <select
-                  value={form?.department_id ?? ""}
-                  onChange={(e) =>
-                    updateField("department_id", e.target.value)
-                  }
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B5EBA2]"
-                  disabled={processing}
-                  required
-                >
-                  <option value="">Select department</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  {editingMatrix?.department_name ?? "—"}
+                </div>
+              </div>
 
               <label className="flex items-center gap-2 self-end pb-2">
                 <input
@@ -115,6 +91,12 @@ export default function EditSprfApproverMatrixModal({
                 </span>
               </label>
             </div>
+
+            <p className="text-[11px] text-slate-500 -mt-3">
+              Location and department can't be changed after a matrix is
+              created. Create a new matrix if a different combination is
+              needed.
+            </p>
 
             <label className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-slate-700">
