@@ -677,6 +677,54 @@ class SprfCurrentProjectController extends Controller
         ];
     }
 
+    // ─── Remarks Attachments ──────────────────────────────────────────────────
+
+    /**
+     * Defensively normalizes the raw remarks_attachments column value to an
+     * array, in case the model attribute isn't cast to 'array'.
+     */
+    private function normalizeAttachmentsArray($attachments): array
+    {
+        if (is_string($attachments)) {
+            $attachments = json_decode($attachments, true);
+        }
+
+        return is_array($attachments) ? $attachments : [];
+    }
+
+    /**
+     * Shapes a saved remarks_attachments map into the { index: [{name, url}, ...] }
+     * structure the RemarksBlock frontend component expects. Each row can hold
+     * multiple attachments; legacy rows stored as a single {path,name} object
+     * are wrapped into a one-item array for backward compatibility.
+     */
+    private function mapRemarksAttachmentsForFrontend($attachments): array
+    {
+        $attachments = $this->normalizeAttachmentsArray($attachments);
+
+        if (! $attachments) return [];
+
+        $mapToUrl = function ($attachment) {
+            $path = data_get($attachment, 'path');
+
+            return [
+                'name' => data_get($attachment, 'name'),
+                'url'  => $path ? asset('storage/' . ltrim($path, '/')) : null,
+            ];
+        };
+
+        return collect($attachments)
+            ->mapWithKeys(function ($row, $index) use ($mapToUrl) {
+                $isLegacySingle = ! isset($row[0]) && isset($row['path']);
+                $rowItems = $isLegacySingle ? [$row] : (array) $row;
+
+                return [
+                    (string) $index => collect($rowItems)->map($mapToUrl)->values()->all(),
+                ];
+            })
+            ->all();
+    }
+
     private function transformProjectForFrontend(SprfCurrentProject $project, int $viewerId): array
     {
         $isSentBack = strtolower((string) $project->status) === 'sent back';
@@ -716,6 +764,8 @@ class SprfCurrentProjectController extends Controller
             ],
 
             'remarks' => $project->remarks,
+            'remarks_attachments' => $this->normalizeAttachmentsArray($project->remarks_attachments),
+            'attachments' => $this->mapRemarksAttachmentsForFrontend($project->remarks_attachments),
             'rebate_justification' => $project->rebate_justification,
             
             // Notes and Comments Arrays
@@ -771,6 +821,8 @@ class SprfCurrentProjectController extends Controller
             'sprf_no' => $project->sprf_no,
             'status' => $project->status,
             'remarks' => $project->remarks,
+            'remarks_attachments' => $this->normalizeAttachmentsArray($project->remarks_attachments),
+            'attachments' => $this->mapRemarksAttachmentsForFrontend($project->remarks_attachments),
             'rebate_justification' => $project->rebate_justification,
             'notes' => $project->notes ?? [],
             'comments' => $project->comments ?? [],

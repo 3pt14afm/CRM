@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
+import { FaAngleLeft } from 'react-icons/fa';
 import CurrentList from './CurrentList';
 
 export default function Current({
@@ -22,7 +23,14 @@ export default function Current({
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
           <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
-            <div className="flex gap-1">
+            <div className="flex items-baseline gap-1">
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="mr-2 mt-3 self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all"
+              >
+                <FaAngleLeft size={20} className="text-[#195C00]" />
+              </button>
               <h1 className="font-semibold mt-3">Project SPRF Approval</h1>
               <p className="mt-3">/</p>
               <p className="text-3xl font-semibold">Current</p>

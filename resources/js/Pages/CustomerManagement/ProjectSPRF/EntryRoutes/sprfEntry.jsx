@@ -13,7 +13,7 @@ import Conditions from '@/Components/sprf/Conditions';
 import NamesBlock from '@/Components/sprf/NamesBlock';
 import SprfAddNotes from '@/Components/sprf/SprfAddNotes';
 import SprfAddComments from '@/Components/sprf/SprfAddComments';
-import { FaUndo } from 'react-icons/fa';
+import { FaUndo, FaAngleLeft } from 'react-icons/fa';
 import { MdOutlineCancel } from 'react-icons/md';
 import { LuScanEye } from 'react-icons/lu';
 import { IoPrintSharp } from 'react-icons/io5';
@@ -114,11 +114,11 @@ function Entry({
 
   const lastSavedDisplay = useMemo(() => {
     const lastSavedAt = sourceProject?.last_saved_at ?? sourceProject?.updated_at;
- 
+
     if (!lastSavedAt) {
       return '—';
     }
- 
+
     return formatDateTime(lastSavedAt);
   }, [sourceProject?.last_saved_at, sourceProject?.updated_at]);
 
@@ -132,6 +132,55 @@ function Entry({
 
   const [remarks, setRemarks] = useState(['']);
   const [rebateJustification, setRebateJustification] = useState('');
+
+  // Pending remark attachment uploads/removals, keyed by remark row index.
+  // remarksAttachments[index] = File[] (newly selected, not yet saved)
+  // remarksRemovedIndexes = "rowIndex:savedSubIndex" strings to delete on next save
+  const [remarksAttachments, setRemarksAttachments] = useState({});
+  const [remarksRemovedIndexes, setRemarksRemovedIndexes] = useState([]);
+
+  const handleRemarkImageSelect = (index, files) => {
+    setRemarksAttachments((prev) => {
+      const next = { ...prev };
+      if (files && files.length) {
+        next[index] = files;
+      } else {
+        delete next[index];
+      }
+      return next;
+    });
+  };
+
+  const handleRemarkAttachmentRemove = (index, savedSubIndex) => {
+    const key = `${index}:${savedSubIndex}`;
+    setRemarksRemovedIndexes((prev) => (prev.includes(key) ? prev : [...prev, key]));
+  };
+
+  // Remarks must have at least one file attachment to save/submit — the remark
+  // text itself is optional as long as a file is attached. This accounts for
+  // attachments already saved on the project (minus any the user just removed)
+  // plus any newly-selected files pending upload.
+  const hasRemarksAttachment = useMemo(() => {
+    const existingAttachments = sourceProject?.attachments ?? {};
+
+    const existingCount = Object.entries(existingAttachments).reduce(
+      (count, [rowIndex, subItems]) => {
+        const rowAttachments = Array.isArray(subItems) ? subItems : [];
+        const remaining = rowAttachments.filter(
+          (_, subIndex) => !remarksRemovedIndexes.includes(`${rowIndex}:${subIndex}`)
+        );
+        return count + remaining.length;
+      },
+      0
+    );
+
+    const newCount = Object.values(remarksAttachments).reduce(
+      (count, files) => count + (Array.isArray(files) ? files.length : 0),
+      0
+    );
+
+    return existingCount + newCount > 0;
+  }, [sourceProject?.attachments, remarksAttachments, remarksRemovedIndexes]);
 
   const [items, setItems] = useState([makeGroupRow()]);
   const [otherExpenses, setOtherExpenses] = useState(() => makeInitialExpenseRows());
@@ -162,6 +211,8 @@ function Entry({
       setRebateJustification('');
       setItems([makeGroupRow()]);
       setOtherExpenses(makeInitialExpenseRows());
+      setRemarksAttachments({});
+      setRemarksRemovedIndexes([]);
       return;
     }
 
@@ -177,6 +228,8 @@ function Entry({
     setItems(flattenItemsFromApi(sourceProject?.items ?? []));
 
     setOtherExpenses(normalizeExpenseRows(sourceProject?.other_expenses ?? []));
+    setRemarksAttachments({});
+    setRemarksRemovedIndexes([]);
   }, [sourceProject?.id]);
 
   const computedItems = useMemo(() => items.map(computeGroup), [items]);
@@ -489,11 +542,49 @@ function Entry({
       return;
     }
 
+    if (!hasRemarksAttachment) {
+      toast.error('Please attach at least one file in Remarks before saving.');
+      return;
+    }
+
     setIsSubmitting(true);
 
-    router.post(ziggyRoute('sprf.entry.draft.save'), buildPayload(), {
+    // 1. Initialize FormData
+    const formData = new FormData();
+
+    // 2. Append the main payload values as a JSON string
+    formData.append('payload', JSON.stringify(buildPayload()));
+
+    // 3. Append newly-selected remark attachment files, keyed by row index (each row can have multiple files)
+    Object.entries(remarksAttachments).forEach(([index, files]) => {
+      (files || []).forEach((file) => {
+        if (file) {
+          formData.append(`remarks_attachments[${index}][]`, file);
+        }
+      });
+    });
+
+    // 3b. Append "rowIndex:savedSubIndex" keys of previously-saved attachments the user removed
+    remarksRemovedIndexes.forEach((key) => {
+      formData.append('remarks_attachments_remove[]', key);
+    });
+
+    // 4. Send FormData with forceFormData enabled
+    router.post(ziggyRoute('sprf.entry.draft.save'), formData, {
+      forceFormData: true, // <--- Crucial for file uploads
       preserveScroll: true,
       preserveState: true,
+      onSuccess: () => {
+        setRemarksAttachments({});
+        setRemarksRemovedIndexes([]);
+        toast.success('Draft saved successfully!');
+      },
+      onError: (errors) => {
+        const firstError = Object.values(errors || {})[0];
+        if (firstError) {
+          toast.error(Array.isArray(firstError) ? firstError[0] : firstError);
+        }
+      },
       onFinish: () => {
         setIsSubmitting(false);
       },
@@ -514,6 +605,10 @@ function Entry({
 
       case !hasValidItemGroups(items):
         toast.error("Please add at least one item before submitting.");
+        return;
+
+      case !hasRemarksAttachment:
+        toast.error('Please attach at least one file in Remarks before submitting.');
         return;
 
       default:
@@ -575,6 +670,8 @@ function Entry({
               setRebateJustification('');
               setItems([makeGroupRow()]);
               setOtherExpenses(makeInitialExpenseRows());
+              setRemarksAttachments({});
+              setRemarksRemovedIndexes([]);
 
               toast.success('All data cleared.');
             }}
@@ -749,7 +846,14 @@ function Entry({
       <div className="min-h-screen flex flex-col print:min-h-0 print:block">
       <div className="flex-1">
         <div className="px-2 pt-8 pb-3 flex justify-between mx-10 print:mx-0 print:pt-0">
-          <div className="flex gap-1">
+          <div className="flex items-baseline gap-1">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="mr-2 mt-3 self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all print:hidden"
+            >
+              <FaAngleLeft size={20} className="text-[#195C00]" />
+            </button>
             <h1 className="font-semibold mt-3">{pageTitle}</h1>
             <p className="mt-3">/</p>
             <p className="text-3xl font-semibold">{pageLabel}</p>
@@ -779,10 +883,14 @@ function Entry({
                   />
 
                   <RemarksBlock
+                    key={`remarks-${sourceProject?.id ?? 'new'}-${sourceProject?.last_saved_at ?? 'unsaved'}`}
                     value={remarks}
                     onChange={setRemarks}
                     readOnly={readOnly}
                     lastRejectNote={isArchiveRoute ? sourceProject?.last_reject_note ?? '' : ''}
+                    attachments={sourceProject?.attachments ?? {}}
+                    onImageSelect={handleRemarkImageSelect}
+                    onAttachmentRemove={handleRemarkAttachmentRemove}
                   />
                 </div>
 

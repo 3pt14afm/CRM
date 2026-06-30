@@ -109,7 +109,7 @@ class SprfEntryProjectController extends Controller
             $existingProject, $payload, $approverUsers, $revenue, $cogs,
             $otherExpenseTotal, $totalExpense, $gpValue, $gpPercent,
             $flags, $items, $fees, $sprfApprovalMatrixId, $approvalConditionCode,
-            $locationId, $departmentId, $sprfNumberGenerator
+            $locationId, $departmentId, $sprfNumberGenerator, $request
         ) {
             $project = $existingProject ?: new SprfEntryProject();
 
@@ -144,8 +144,10 @@ class SprfEntryProjectController extends Controller
                 'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
 
-                'remarks'              => data_get($payload, 'remarks'),
+               'remarks'              => data_get($payload, 'remarks'),
+                'remarks_attachments'  => $this->resolveRemarksAttachments($payload, $existingProject),
                 'rebate_justification' => data_get($payload, 'rebate_justification'),
+             
 
                 'revenue'             => $revenue,
                 'cogs'                => $cogs,
@@ -292,6 +294,7 @@ class SprfEntryProjectController extends Controller
                 'account_manager' => data_get($companyInfo, 'accountManager'),
 
                 'remarks'              => data_get($payload, 'remarks', $project->remarks),
+                'remarks_attachments'  => $this->resolveRemarksAttachments($payload, $project),
                 'rebate_justification' => $rebateJustification,
 
                 'notes'    => $project->notes    ?? [],
@@ -379,6 +382,17 @@ class SprfEntryProjectController extends Controller
         $wasReturned = $project->status === 'Returned';
 
         DB::transaction(function () use ($project) {
+            foreach ($this->normalizeAttachmentsArray($project->remarks_attachments) as $row) {
+                $isLegacySingle = ! isset($row[0]) && isset($row['path']);
+                $rowItems = $isLegacySingle ? [$row] : (array) $row;
+
+                foreach ($rowItems as $attachment) {
+                    if (! empty($attachment['path'])) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($attachment['path']);
+                    }
+                }
+            }
+
             $project->items()->delete();
             $project->fees()->delete();
             $project->forceDelete();
@@ -449,6 +463,18 @@ class SprfEntryProjectController extends Controller
 
     private function validatePayload(Request $request): array
     {
+        // When the frontend sends a multipart FormData request (required for file
+        // uploads), the structured payload arrives as a single JSON string under
+        // 'payload' rather than as flat top-level fields. Merge it in first so
+        // validation below can treat both request shapes identically.
+        if ($request->has('payload') && is_string($request->input('payload'))) {
+            $decoded = json_decode($request->input('payload'), true);
+
+            if (is_array($decoded)) {
+                $request->merge($decoded);
+            }
+        }
+
         return $request->validate([
             'project_id'              => ['nullable', 'integer', 'exists:sprf_entry_projects,id'],
             'approval_condition_code' => ['nullable', 'string', 'max:50'],
@@ -457,9 +483,18 @@ class SprfEntryProjectController extends Controller
             'company_info.subCategory'    => ['nullable', 'string', 'max:255'],
             'company_info.account'        => ['nullable', 'string', 'max:255'],
             'company_info.accountManager' => ['nullable', 'string', 'max:255'],
-
             'remarks'              => ['nullable', 'string'],
-            'rebate_justification' => ['nullable', 'string'],
+
+            // Attachments are keyed by remark row index, each holding multiple files,
+            // e.g. remarks_attachments[2][] => file, remarks_attachments[2][] => file
+            'remarks_attachments'    => ['nullable', 'array'],
+            'remarks_attachments.*'  => ['array'],
+            'remarks_attachments.*.*' => ['file'],
+            // "rowIndex:savedSubIndex" keys of previously-saved attachments the user removed on this save
+            'remarks_attachments_remove'   => ['nullable', 'array'],
+            'remarks_attachments_remove.*' => ['string', 'regex:/^\d+:\d+$/'],
+
+            'rebate_justification'       => ['nullable', 'string'],
 
             'items'                              => ['nullable', 'array'],
             'items.*.rowKey'                     => ['nullable', 'string', 'max:255'],
@@ -488,6 +523,123 @@ class SprfEntryProjectController extends Controller
             'summary.gpValue'        => ['nullable', 'numeric'],
             'summary.totalGpPercent' => ['nullable', 'numeric'],
         ]);
+    }
+
+    // ─── Remarks Attachments ──────────────────────────────────────────────────
+
+    /**
+     * Merges newly-uploaded remark files with whatever was already saved,
+     * keyed by remark row index so attachments stay aligned with their row.
+     * Each row can hold multiple attachments.
+     *
+     * - $payload['remarks_attachments'][$index]  => array of newly uploaded UploadedFiles, appended to that row
+     * - $payload['remarks_attachments_remove']   => "rowIndex:savedSubIndex" keys to delete (no replacement upload)
+     */
+    private function resolveRemarksAttachments(array $payload, ?SprfEntryProject $existingProject): array
+    {
+        $existing = $this->normalizeAttachmentsArray($existingProject?->remarks_attachments);
+
+        // Normalize legacy single-attachment rows ({path,name}) into arrays before mutating
+        foreach ($existing as $index => $row) {
+            if (! isset($row[0]) && isset($row['path'])) {
+                $existing[$index] = [$row];
+            }
+        }
+
+        $removeKeys = collect((array) data_get($payload, 'remarks_attachments_remove', []))
+            ->map(function ($key) {
+                [$rowIndex, $subIndex] = array_pad(explode(':', (string) $key, 2), 2, null);
+                return ['row' => (string) $rowIndex, 'sub' => (int) $subIndex];
+            })
+            ->groupBy('row');
+
+        foreach ($removeKeys as $rowIndex => $entries) {
+            if (! isset($existing[$rowIndex]) || ! is_array($existing[$rowIndex])) continue;
+
+            $subIndexes = $entries->pluck('sub')->sort()->reverse()->values();
+
+            foreach ($subIndexes as $subIndex) {
+                if (isset($existing[$rowIndex][$subIndex]['path'])) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($existing[$rowIndex][$subIndex]['path']);
+                }
+                unset($existing[$rowIndex][$subIndex]);
+            }
+
+            $existing[$rowIndex] = array_values($existing[$rowIndex]);
+            if (empty($existing[$rowIndex])) {
+                unset($existing[$rowIndex]);
+            }
+        }
+
+        $uploadedRows = (array) data_get($payload, 'remarks_attachments', []);
+
+        foreach ($uploadedRows as $index => $files) {
+            $index = (string) $index;
+            $files = is_array($files) ? $files : [$files];
+
+            foreach ($files as $file) {
+                if (! $file instanceof \Illuminate\Http\UploadedFile) continue;
+
+                $existing[$index][] = [
+                    'path' => $file->store('sprf-remarks', 'public'),
+                    'name' => $file->getClientOriginalName(),
+                ];
+            }
+        }
+
+        ksort($existing);
+
+        return $existing;
+    }
+
+    /**
+     * Defensively normalizes the raw remarks_attachments column value to an
+     * array, in case the model attribute isn't cast to 'array'.
+     */
+    private function normalizeAttachmentsArray($attachments): array
+    {
+        if (is_string($attachments)) {
+            $attachments = json_decode($attachments, true);
+        }
+
+        return is_array($attachments) ? $attachments : [];
+    }
+
+    /**
+     * Shapes a saved remarks_attachments map into the { index: [{name, url}, ...] }
+     * structure the RemarksBlock frontend component expects. Each row can hold
+     * multiple attachments; legacy rows stored as a single {path,name} object
+     * are wrapped into a one-item array for backward compatibility.
+     *
+     * Accepts array|string|null because the underlying model attribute may not
+     * be cast to 'array', in which case Eloquent returns the raw JSON string.
+     */
+    private function mapRemarksAttachmentsForFrontend($attachments): array
+    {
+        $attachments = $this->normalizeAttachmentsArray($attachments);
+
+        if (! $attachments) return [];
+
+        $mapToUrl = function ($attachment) {
+            $path = data_get($attachment, 'path');
+
+            return [
+                'name' => data_get($attachment, 'name'),
+                'url'  => $path ? asset('storage/' . ltrim($path, '/')) : null,
+            ];
+        };
+
+        return collect($attachments)
+            ->mapWithKeys(function ($row, $index) use ($mapToUrl) {
+                // Legacy shape: a single {path,name} object instead of an array of them
+                $isLegacySingle = ! isset($row[0]) && isset($row['path']);
+                $rowItems = $isLegacySingle ? [$row] : (array) $row;
+
+                return [
+                    (string) $index => collect($rowItems)->map($mapToUrl)->values()->all(),
+                ];
+            })
+            ->all();
     }
 
     // ─── Item / Fee Mapping ───────────────────────────────────────────────────
@@ -784,9 +936,9 @@ class SprfEntryProjectController extends Controller
             'department_id'           => $project->department_id,
 
             'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
-            'updated_at'    => optional($project->updated_at)?->toISOString(),
             'approved_at'   => optional($project->approved_at)?->toISOString(),
             'rejected_at'   => optional($project->rejected_at)?->toISOString(),
+            'updated_at'    => optional($project->updated_at)?->toISOString(),
 
             'prepared_by_name'    => $project->preparer?->name,
             'prepared_by_user_id' => $project->prepared_by_user_id,
@@ -800,6 +952,8 @@ class SprfEntryProjectController extends Controller
             ],
 
             'remarks'              => $project->remarks,
+            'remarks_attachments'  => $this->normalizeAttachmentsArray($project->remarks_attachments),
+            'attachments'          => $this->mapRemarksAttachmentsForFrontend($project->remarks_attachments),
             'rebate_justification' => $project->rebate_justification,
 
             'items' => $project->items
@@ -856,6 +1010,8 @@ class SprfEntryProjectController extends Controller
             'department_id'           => $project->department_id,
 
             'remarks'              => $project->remarks,
+            'remarks_attachments'  => $this->normalizeAttachmentsArray($project->remarks_attachments),
+            'attachments'          => $this->mapRemarksAttachmentsForFrontend($project->remarks_attachments),
             'rebate_justification' => $project->rebate_justification,
             'notes'                => $project->notes    ?? [],
             'comments'             => $project->comments ?? [],

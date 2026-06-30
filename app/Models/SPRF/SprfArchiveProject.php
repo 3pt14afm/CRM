@@ -39,6 +39,7 @@ class SprfArchiveProject extends Model
         'account_manager',
 
         'remarks',
+        'remarks_attachments', // <--- ADD THIS
         'rebate_justification',
         'notes',
         'comments',
@@ -80,6 +81,7 @@ class SprfArchiveProject extends Model
         'president_ceo_acted_at' => 'datetime',
         'notes' => 'array',
         'comments' => 'array',
+        'remarks_attachments' => 'array'
     ];
 
     public function items()

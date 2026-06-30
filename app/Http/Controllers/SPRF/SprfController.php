@@ -339,6 +339,8 @@ class SprfController extends Controller
             ],
 
             'remarks'               => $project->remarks,
+            'remarks_attachments'   => $this->normalizeAttachmentsArray($project->remarks_attachments),
+            'attachments'           => $this->mapRemarksAttachmentsForFrontend($project->remarks_attachments),
             'rebate_justification'  => $project->rebate_justification,
 
             'items' => $project->items->map(function ($item) {
@@ -375,8 +377,7 @@ class SprfController extends Controller
     }
 
     private function transformArchiveProjectForPrint(SprfArchiveProject $project): array
-    {
-        return [
+    {        return [
             'id'                      => $project->id,
             'sprf_no'                 => $project->sprf_no,
             'status'                  => $project->status,
@@ -385,6 +386,8 @@ class SprfController extends Controller
             'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
             'approval_condition_code' => $project->approval_condition_code,
             'remarks'                 => $project->remarks,
+            'remarks_attachments'     => $this->normalizeAttachmentsArray($project->remarks_attachments),
+            'attachments'             => $this->mapRemarksAttachmentsForFrontend($project->remarks_attachments),
             'last_reject_note'        => $project->last_reject_note,
             'rebate_justification'    => $project->rebate_justification,
 
@@ -404,7 +407,9 @@ class SprfController extends Controller
                 'account'        => $project->account,
                 'accountManager' => $project->account_manager,
             ],
-
+           
+         
+            
             'items' => $project->items->map(function ($item) {
                 return [
                     'rowKey'                    => $item->row_key,
@@ -445,5 +450,58 @@ class SprfController extends Controller
                 'email'    => $project->preparer?->email,
             ],
         ];
+    }
+
+    /**
+     * Defensively normalizes the raw remarks_attachments column value to an
+     * array, in case the model attribute isn't cast to 'array'.
+     */
+    private function normalizeAttachmentsArray($attachments): array
+    {
+        if (is_string($attachments)) {
+            $attachments = json_decode($attachments, true);
+        }
+
+        return is_array($attachments) ? $attachments : [];
+    }
+
+    /**
+     * Shapes a saved remarks_attachments map into the { index: {name, url} }
+     * structure the RemarksBlock frontend component expects.
+     *
+     * Accepts array|string|null because the underlying model attribute may not
+     * be cast to 'array', in which case Eloquent returns the raw JSON string.
+     */
+    /**
+     * Shapes a saved remarks_attachments map into the { index: [{name, url}, ...] }
+     * structure the RemarksBlock frontend component expects. Each row can hold
+     * multiple attachments; legacy rows stored as a single {path,name} object
+     * are wrapped into a one-item array for backward compatibility.
+     */
+    private function mapRemarksAttachmentsForFrontend($attachments): array
+    {
+        $attachments = $this->normalizeAttachmentsArray($attachments);
+
+        if (! $attachments) return [];
+
+        $mapToUrl = function ($attachment) {
+            $path = data_get($attachment, 'path');
+
+            return [
+                'name' => data_get($attachment, 'name'),
+                'url'  => $path ? asset('storage/' . ltrim($path, '/')) : null,
+            ];
+        };
+
+        return collect($attachments)
+            ->mapWithKeys(function ($row, $index) use ($mapToUrl) {
+                $isLegacySingle = ! isset($row[0]) && isset($row['path']);
+                $rowItems = $isLegacySingle ? [$row] : (array) $row;
+
+                return [
+                    (string) $index => collect($rowItems)->map($mapToUrl)->values()->all(),
+                ];
+            })
+            ->all();
     }
 }

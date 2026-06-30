@@ -31,6 +31,7 @@ class SprfEntryProject extends Model
         'account_manager',
 
         'remarks',
+        'remarks_attachments',
         'rebate_justification',
         'notes',
         'comments',
@@ -55,6 +56,7 @@ class SprfEntryProject extends Model
         'total_expense' => 'decimal:2',
         'gp_value' => 'decimal:2',
         'gp_percent' => 'decimal:2',
+        'remarks_attachments' => 'array',
         'requires_vp_ccto' => 'boolean',
         'requires_president_ceo' => 'boolean',
         'requires_rebate_justification' => 'boolean',
