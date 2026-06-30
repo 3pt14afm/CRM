@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CustomerInfo\Company;
 use App\Models\CustomerInfo\PotentialCustomer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class CustomerInfoController extends Controller
@@ -20,25 +21,41 @@ class CustomerInfoController extends Controller
             $perPage = 100;
         }
 
-        $sortBy    = $request->input('sort_by', 'id');
-        $sortOrder = $request->input('sort_order', 'desc');
+        $sortBy    = $request->input('sort_by', 'company_name');
+        $sortOrder = $request->input('sort_order', 'asc');
+        $statusParam = $request->input('status', '1'); // default to Active only
 
         // ── Existing companies ──────────────────────────────────────────────
 
         $allowedSorts = [
             'id', 'company_name', 'sap_code',
-            'client_category', 'delsan_company', 'status',
+            'client_category', 'delsan_company', 'status', 'client_manager',
         ];
 
         if (!in_array($sortBy, $allowedSorts)) {
-            $sortBy = 'id';
+            $sortBy = 'company_name';
         }
 
-        $sortOrder = $sortOrder === 'asc' ? 'asc' : 'desc';
+        $sortOrder = $sortOrder === 'desc' ? 'desc' : 'asc';
 
         $numericColumns = ['id', 'status'];
 
+        $companyTable = (new Company())->getTable();
+
+        // Safely backtick a possibly db-prefixed table (e.g. "erms.tbl_company")
+        // together with a column, producing `erms`.`tbl_company`.`column`.
+        $qualify = fn (string $table, string $column) =>
+            '`' . str_replace('.', '`.`', $table) . '`.`' . $column . '`';
+
         $companies = Company::query()
+            ->leftJoin('users as client_managers', function ($join) use ($companyTable) {
+                $join->on(
+                    DB::raw("{$companyTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
+                    '=',
+                    DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
+                );
+            })
+            ->select("{$companyTable}.*")
             ->with('clientManager')
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -54,13 +71,13 @@ class CustomerInfoController extends Controller
             ->when($request->input('delsan_company'), function ($query, $delsan) {
                 $query->where('delsan_company', $delsan);
             })
-            ->when($request->input('status') !== null && $request->input('status') !== '', function ($query) use ($request) {
+            ->when($statusParam !== null && $statusParam !== '', function ($query) use ($statusParam, $companyTable) {
                 $statuses = array_filter(
-                    explode(',', $request->input('status')),
+                    explode(',', $statusParam),
                     fn($v) => $v !== ''
                 );
                 if (!empty($statuses)) {
-                    $query->whereIn('status', $statuses);
+                    $query->whereIn("{$companyTable}.status", $statuses);
                 }
             })
             ->when($sortBy === 'sap_code', function ($query) use ($sortOrder) {
@@ -69,11 +86,16 @@ class CustomerInfoController extends Controller
                      sap_code {$sortOrder}"
                 );
             })
-            ->when($sortBy !== 'sap_code' && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder) {
-                $query->orderBy($sortBy, $sortOrder);
+            ->when($sortBy === 'client_manager', function ($query) use ($sortOrder) {
+                $query->orderByRaw(
+                    "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) {$sortOrder}"
+                );
             })
-            ->when($sortBy !== 'sap_code' && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder) {
-                $query->orderByRaw("LOWER(`{$sortBy}`) {$sortOrder}");
+            ->when(!in_array($sortBy, ['sap_code', 'client_manager']) && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable) {
+                $query->orderBy("{$companyTable}.{$sortBy}", $sortOrder);
+            })
+            ->when(!in_array($sortBy, ['sap_code', 'client_manager']) && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable, $qualify) {
+                $query->orderByRaw("LOWER({$qualify($companyTable, $sortBy)}) {$sortOrder}");
             })
             ->paginate($perPage)
             ->withQueryString();
@@ -102,32 +124,48 @@ class CustomerInfoController extends Controller
 
         // ── Potential customers ─────────────────────────────────────────────
 
-        $allowedPotentialSorts = ['id', 'company_name', 'address', 'status', 'created_at'];
+        $allowedPotentialSorts = ['id', 'company_name', 'address', 'status', 'created_at', 'client_manager'];
 
 
-        $potentialSortBy = in_array($sortBy, $allowedPotentialSorts) ? $sortBy : 'id';
+        $potentialSortBy = in_array($sortBy, $allowedPotentialSorts) ? $sortBy : 'company_name';
 
-        $potentials = PotentialCustomer::with('clientManager')
+        $potentialTable = (new PotentialCustomer())->getTable();
+
+        $potentials = PotentialCustomer::query()
+            ->leftJoin('users as client_managers', function ($join) use ($potentialTable) {
+                $join->on(
+                    DB::raw("{$potentialTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
+                    '=',
+                    DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
+                );
+            })
+            ->select("{$potentialTable}.*")
+            ->with('clientManager')
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('company_name', 'like', "%{$search}%")
                       ->orWhere('address', 'like', "%{$search}%");
                 });
             })
-            ->when($request->input('status') !== null && $request->input('status') !== '', function ($query) use ($request) {
+            ->when($statusParam !== null && $statusParam !== '', function ($query) use ($statusParam, $potentialTable) {
                 $statuses = array_filter(
-                    explode(',', $request->input('status')),
+                    explode(',', $statusParam),
                     fn($v) => $v !== ''
                 );
                 if (!empty($statuses)) {
-                    $query->whereIn('status', $statuses);
+                    $query->whereIn("{$potentialTable}.status", $statuses);
                 }
             })
-            ->when(in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder) {
-                $query->orderBy($potentialSortBy, $sortOrder);
+            ->when($potentialSortBy === 'client_manager', function ($query) use ($sortOrder) {
+                $query->orderByRaw(
+                    "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) {$sortOrder}"
+                );
             })
-            ->when(!in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder) {
-                $query->orderByRaw("LOWER(`{$potentialSortBy}`) {$sortOrder}");
+            ->when($potentialSortBy !== 'client_manager' && in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder, $potentialTable) {
+                $query->orderBy("{$potentialTable}.{$potentialSortBy}", $sortOrder);
+            })
+            ->when($potentialSortBy !== 'client_manager' && !in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder, $potentialTable, $qualify) {
+                $query->orderByRaw("LOWER({$qualify($potentialTable, $potentialSortBy)}) {$sortOrder}");
             })
             ->paginate($perPage)
             ->withQueryString();
