@@ -784,6 +784,7 @@ class SprfEntryProjectController extends Controller
             'department_id'           => $project->department_id,
 
             'last_saved_at' => optional($project->last_saved_at)?->toISOString(),
+            'updated_at'    => optional($project->updated_at)?->toISOString(),
             'approved_at'   => optional($project->approved_at)?->toISOString(),
             'rejected_at'   => optional($project->rejected_at)?->toISOString(),
 

@@ -93,16 +93,15 @@ const mergeWithDefaults = (base, incoming) => {
 const recalcItemRow = (row) => {
   const qty = Number(row.qty ?? 0);
   const costPerUnit = Number(row.costPerUnit ?? 0);
+  // Markup % is user-entered (edited directly in SprfItemsTable) and drives
+  // selling price — it must NOT be derived/overwritten here. Mirrors
+  // computeItem() in utils/sprf/calculations.js.
+  const markupPercent = Number(row.markupPercent ?? 0);
 
   const totalCost = qty * costPerUnit;
-  const sellingPricePerUnitVatInc = costPerUnit * 1.15;
+  const sellingPricePerUnitVatInc = costPerUnit * (1 + markupPercent / 100);
   const totalSellingPriceVatInc = qty * sellingPricePerUnitVatInc;
   const markupValue = totalSellingPriceVatInc - totalCost;
-
-  const markupPercent =
-    costPerUnit > 0
-      ? ((sellingPricePerUnitVatInc / costPerUnit) - 1) * 100
-      : 0;
 
   return {
     ...row,
@@ -110,7 +109,7 @@ const recalcItemRow = (row) => {
     sellingPricePerUnitVatInc,
     totalSellingPriceVatInc,
     markupValue,
-    markupPercent,
+    markupPercent: row.markupPercent,
   };
 };
 

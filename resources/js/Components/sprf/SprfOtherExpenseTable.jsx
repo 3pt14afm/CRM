@@ -1,3 +1,5 @@
+import React from 'react';
+
 const peso = (value) => {
   if (value === '' || value === null || value === undefined) return '';
 
@@ -10,6 +12,37 @@ const peso = (value) => {
 const blankIfEmpty = (value) => {
   if (value === '' || value === null || value === undefined) return '';
   return value;
+};
+
+const formatCurrencyInput = (val) => {
+  if (val === '' || val === null || val === undefined) return '';
+  let str = String(val).replace(/[^0-9.]/g, '');
+  const parts = str.split('.');
+  if (parts.length > 2) {
+    str = parts[0] + '.' + parts.slice(1).join('');
+  }
+  const finalParts = str.split('.');
+  finalParts[0] = finalParts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  
+  if (finalParts.length > 1) {
+    finalParts[1] = finalParts[1].slice(0, 2); // Strictly 2 decimals
+    return `${finalParts[0]}.${finalParts[1]}`;
+  }
+  return finalParts[0];
+};
+
+const truncateToTwoDecimals = (val) => {
+  const parts = val.split('.');
+  if (parts.length > 1) {
+    return `${parts[0]}.${parts[1].slice(0, 2)}`;
+  }
+  return val;
+};
+
+const parseCurrencyInput = (val) => {
+  if (val === '' || val === null || val === undefined) return '';
+  const clean = String(val).replace(/,/g, '');
+  return truncateToTwoDecimals(clean); // Enforce before returning
 };
 
 export default function SprfOtherExpenseTable({
@@ -170,13 +203,12 @@ export default function SprfOtherExpenseTable({
                       </div>
                     ) : (
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={sourceRow.unitPrice}
-                        onChange={(e) =>
-                          onUpdateExpense(index, 'unitPrice', e.target.value)
-                        }
+                        type="text"
+                        value={formatCurrencyInput(sourceRow.unitPrice)}
+                        onChange={(e) => {
+                          const rawValue = parseCurrencyInput(e.target.value);
+                          onUpdateExpense(index, 'unitPrice', rawValue);
+                        }}
                         className={inputClass}
                         placeholder="0.00"
                       />

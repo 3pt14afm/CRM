@@ -17,6 +17,22 @@ export const hasValidItems = (items) => {
   });
 };
 
+// Same check as hasValidItems but for the grouped/bundled item-table shape
+// used by sprfEntry.jsx, where each `items` entry is a group containing a
+// `subitems` array rather than a flat row.
+export const hasValidItemGroups = (groups) => {
+  return groups.some((group) =>
+    (group.subitems || []).some((row) => {
+      return (
+        row.productCode?.trim() ||
+        row.itemDescription?.trim() ||
+        Number(row.qty) > 0 ||
+        Number(row.costPerUnit) > 0
+      );
+    })
+  );
+};
+
 export const hasValidExpenses = (expenses) => {
   return expenses.some((row) => {
     return (
@@ -65,7 +81,7 @@ export const validateSubmit = ({
     };
   }
 
-  if (!hasValidItems(items)) {
+  if (!hasValidItemGroups(items)) {
     return {
       ok: false,
       message: 'Please add at least one item before submitting.',
