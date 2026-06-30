@@ -237,9 +237,14 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
               value={isFocused('qty') ? row.qty || '' : row.qty || 1}
               disabled={readOnly || !qtyEditable}
               onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
-              onBlur={() => setFocusedField(null)}
+              onBlur={() => {
+                setFocusedField(null);
+                if (qtyEditable && !String(row.qty || '').trim()) {
+                  handleInputChange(row.id, 'qty', '1');
+                }
+              }}
               onKeyDown={onlyNumericKeys(false)}
-              onChange={(e) => qtyEditable && handleInputChange(row.id, 'qty', sanitizeInt(e.target.value) || '1')}
+              onChange={(e) => qtyEditable && handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
               className={`${cls.input} ${!qtyEditable ? cls.disabled : ''}`}
             />
           );
