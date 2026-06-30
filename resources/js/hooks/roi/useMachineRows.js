@@ -10,6 +10,33 @@ const genId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random()}`;
 
+// ── Mandatory printer row ──────────────────────────────────────────────────
+export const MANDATORY_ROW_ID = '__mandatory_printer__';
+
+const makeMandatoryRow = (overrides = {}) => ({
+  id:                   MANDATORY_ROW_ID,
+  sku:                  '',
+  cost:                 '',
+  qty:                  1,
+  yields:               '',
+  price:                '',
+  remarks:              '',
+  type:                 ROW_TYPE.MACHINE,
+  mode:                 '',
+  selectedMachineId:    '',
+  selectedConsumableId: '',
+  linkedMachineRowId:   null,
+  autoAdded:            false,
+  isMandatory:          true,
+  ...overrides,
+  // These must never be overridden
+  id:          MANDATORY_ROW_ID,
+  isMandatory: true,
+  type:        ROW_TYPE.MACHINE,
+  mode:        '',
+  qty:         1,
+});
+
 // ── Value normalizers (pure) ───────────────────────────────────────────────
 const normalize2dp = (raw) => {
   const s = String(raw ?? '').trim();
@@ -31,71 +58,94 @@ const sanitize2dp = (v) => {
 
 // ── Row factories ──────────────────────────────────────────────────────────
 const makeBlankRow = () => ({
-  id: genId(),
-  sku: '',
-  cost: '',
-  qty: 1,
-  yields: '',
-  price: '',
-  remarks: '',
-  type: ROW_TYPE.CONSUMABLE,
-  mode: '',
-  selectedMachineId: '',
+  id:                   genId(),
+  sku:                  '',
+  cost:                 '',
+  qty:                  1,
+  yields:               '',
+  price:                '',
+  remarks:              '',
+  type:                 ROW_TYPE.CONSUMABLE,
+  mode:                 '',
+  selectedMachineId:    '',
   selectedConsumableId: '',
-  linkedMachineRowId: null,
-  autoAdded: false,
+  linkedMachineRowId:   null,
+  autoAdded:            false,
 });
 
 const makeAutoConsumableRow = (machineRowId, consumable) => ({
-  id: genId(),
-  sku: consumable.name,
-  cost: normalize2dp(consumable.unitCost),
-  qty: 1,
-  yields: consumable.yields,
-  price: normalize2dp(consumable.sellingPrice),
-  remarks: '',
-  type: ROW_TYPE.CONSUMABLE,
-  mode: consumable.mode || '',
-  selectedMachineId: '',
+  id:                   genId(),
+  sku:                  consumable.name,
+  cost:                 normalize2dp(consumable.unitCost),
+  qty:                  1,
+  yields:               consumable.yields,
+  price:                normalize2dp(consumable.sellingPrice),
+  remarks:              '',
+  type:                 ROW_TYPE.CONSUMABLE,
+  mode:                 consumable.mode || '',
+  selectedMachineId:    '',
   selectedConsumableId: consumable.id,
-  linkedMachineRowId: machineRowId,
-  autoAdded: true,
+  linkedMachineRowId:   machineRowId,
+  autoAdded:            true,
 });
 
-const enforceRowQty = (row) => ({ ...row, qty: 1 });
+// ── Qty enforcement ────────────────────────────────────────────────────────
+// Machine rows are always qty 1.
+// Consumable mono/color rows are free to have user-defined qty when contract
+// is "fixed monthly only"; everything else is locked to 1.
+const isQtyEditable = (row, contractType = '') =>
+  (contractType || '').toLowerCase() === 'fixed monthly only' &&
+  row.type === ROW_TYPE.CONSUMABLE &&
+  (row.mode === MODE.MONO || row.mode === MODE.COLOR);
+
+const enforceRowQty = (row, contractType = '') =>
+  isQtyEditable(row, contractType) ? row : { ...row, qty: 1 };
 
 // ── Hydration ──────────────────────────────────────────────────────────────
 function buildHydratedRows(
   { machine = [], consumable = [] },
   { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable }
 ) {
-  const hydratedMachines = machine.map((r) => {
+  const persistedMandatory = machine.find((r) => r.id === MANDATORY_ROW_ID);
+  const otherMachines      = machine.filter((r) => r.id !== MANDATORY_ROW_ID);
+
+  const mandatoryRow = makeMandatoryRow({
+    sku:               persistedMandatory?.sku ?? '',
+    cost:              persistedMandatory?.inputtedCost ?? persistedMandatory?.cost ?? '',
+    price:             persistedMandatory?.price ?? '',
+    yields:            persistedMandatory?.yields ?? '',
+    remarks:           persistedMandatory?.remarks ?? '',
+    selectedMachineId: persistedMandatory?.selectedMachineId ?? '',
+  });
+
+  const hydratedMachines = otherMachines.map((r) => {
     const base = {
       ...r,
-      id: r.id ?? genId(),
-      cost: r.inputtedCost ?? r.cost ?? '',
-      mode: r.mode || '',
-      selectedMachineId: r.selectedMachineId || '',
+      id:                   r.id ?? genId(),
+      cost:                 r.inputtedCost ?? r.cost ?? '',
+      mode:                 r.mode || '',
+      selectedMachineId:    r.selectedMachineId || '',
       selectedConsumableId: '',
-      linkedMachineRowId: null,
-      autoAdded: false,
-      qty: 1,
+      linkedMachineRowId:   null,
+      autoAdded:            false,
+      qty:                  1,
     };
-    return enforceRowQty(hydrateMachineFields(base));
+    return hydrateMachineFields(base);
   });
 
   const hydratedConsumables = consumable.map((r) => {
     const wasAutoAdded = r.autoAdded === true || r.autoAdded === 1 || isPersistedAutoConsumable(r);
     const base = {
       ...r,
-      id: r.id ?? genId(),
-      cost: r.inputtedCost ?? r.cost ?? '',
-      mode: r.mode || '',
-      selectedMachineId: '',
+      id:                   r.id ?? genId(),
+      cost:                 r.inputtedCost ?? r.cost ?? '',
+      mode:                 r.mode || '',
+      selectedMachineId:    '',
       selectedConsumableId: r.selectedConsumableId || '',
-      linkedMachineRowId: r.linkedMachineRowId ?? null,
-      autoAdded: wasAutoAdded,
-      qty: 1,
+      linkedMachineRowId:   r.linkedMachineRowId ?? null,
+      autoAdded:            wasAutoAdded,
+      // Preserve persisted qty for mono/color consumables; default to 1
+      qty:                  Number(r.qty) || 1,
     };
 
     if (
@@ -106,31 +156,25 @@ function buildHydratedRows(
       base.selectedConsumableId = inferSelectedConsumableId(base);
     }
 
-    return enforceRowQty(base);
+    return base;
   });
 
-  return [...hydratedMachines, ...hydratedConsumables];
+  return [mandatoryRow, ...hydratedMachines, ...hydratedConsumables];
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────
-/**
- * Manages all row state and mutations for MachineConfig.
- *
- * @param {object} params
- * @param {array}  params.machineCatalog
- * @param {object} params.consumableCatalog  - { mono: [], color: [], others: [] }
- * @param {boolean} params.canEditRemarks
- * @returns row state + all mutation handlers
- */
 export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, canEditRemarks }) {
   const { setProjectData, projectData } = useProjectData();
 
-  const [rows, setRows] = useState([makeBlankRow()]);
+  const [rows, setRows] = useState([makeMandatoryRow()]);
   const [focusedField, setFocusedField] = useState(null);
   const [activeSearchRowId, setActiveSearchRowId] = useState(null);
   const [manuallyEdited, setManuallyEdited] = useState({});
 
   const hydratedProjectKeyRef = useRef(null);
+
+  // Derived contract type — used throughout for qty logic
+  const contractType = (projectData.companyInfo?.contractType || '');
 
   // ── Catalog lookups ──────────────────────────────────────────────────────
   const findMachineById = (id) =>
@@ -153,16 +197,16 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   const hydrateMachineFields = (row) => {
     if (row?.type !== ROW_TYPE.MACHINE) return row;
     const machineId = row.selectedMachineId || inferSelectedMachineId(row);
-    const machine = findMachineById(machineId);
+    const machine   = findMachineById(machineId);
     return {
       ...row,
       selectedMachineId: machineId || '',
-      cost: row.cost !== '' && row.cost != null ? row.cost : normalize2dp(machine?.unitCost),
+      cost:  row.cost  !== '' && row.cost  != null ? row.cost  : normalize2dp(machine?.unitCost),
       price: row.price !== '' && row.price != null ? row.price : normalize2dp(machine?.sellingPrice),
     };
   };
 
-  // ── Hydration effect (fires when project changes) ────────────────────────
+  // ── Hydration effect ─────────────────────────────────────────────────────
   useEffect(() => {
     const projectKey = projectData?.metadata?.projectId ?? 'new';
     if (hydratedProjectKeyRef.current === projectKey) return;
@@ -173,37 +217,37 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable }
     );
 
-    setRows(combined.length > 0 ? combined : [makeBlankRow()]);
+    setRows(combined);
     setFocusedField(null);
     setActiveSearchRowId(null);
     setManuallyEdited({});
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
-  // ── Sync to ProjectContext whenever rows or relevant project fields change ─
+  // ── Sync to ProjectContext ───────────────────────────────────────────────
   useEffect(() => {
-    const contractType = projectData.companyInfo?.contractType || '';
-    const isMonthlyRental = contractType === 'Rental + Supplies';
+    const isMonthlyRental = contractType.toLowerCase() === 'rental + supplies';
     const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
 
     const rowsWithCalculations = rows.map((r) => {
-      const normalized = enforceRowQty(r);
-      const calcs = getRowCalculations(normalized, projectData);
+      const normalized = enforceRowQty(r, contractType);
+      const calcs      = getRowCalculations(normalized, projectData);
       return {
         ...normalized,
-        linkedMachineRowId: r.linkedMachineRowId ?? null,
-        autoAdded: r.autoAdded ?? false,
-        inputtedCost: calcs.inputtedCost,
-        cost: calcs.computedCost,
-        basePerYear: calcs.basePerYear,
-        totalCost: calcs.totalCost,
-        yields: calcs.yields,
-        price: calcs.price,
-        costCpp: calcs.costCpp,
-        totalSell: calcs.totalSell,
-        sellCpp: calcs.sellCpp,
-        machineMargin: calcs.machineMargin,
-        machineMarginTotal: calcs.machineMarginTotal,
+        linkedMachineRowId:  r.linkedMachineRowId ?? null,
+        autoAdded:           r.autoAdded ?? false,
+        isMandatory:         r.isMandatory ?? false,
+        inputtedCost:        calcs.inputtedCost,
+        cost:                calcs.computedCost,
+        basePerYear:         calcs.basePerYear,
+        totalCost:           calcs.totalCost,
+        yields:              calcs.yields,
+        price:               calcs.price,
+        costCpp:             calcs.costCpp,
+        totalSell:           calcs.totalSell,
+        sellCpp:             calcs.sellCpp,
+        machineMargin:       calcs.machineMargin,
+        machineMarginTotal:  calcs.machineMarginTotal,
       };
     });
 
@@ -227,35 +271,25 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     const totalsObj = rowsWithCalculations.reduce(
       (acc, r) => {
         const calcs = getRowCalculations(r, projectData);
-        acc.unitCost += r.inputtedCost;
-        acc.qty += Number(r.qty) || 0;
-        acc.totalCost += r.totalCost;
-        acc.yields += Number(calcs.yields) || 0;
-        acc.costCpp += r.costCpp;
+        acc.unitCost     += r.inputtedCost;
+        acc.qty          += Number(r.qty) || 0;
+        acc.totalCost    += r.totalCost;
+        acc.yields       += Number(calcs.yields) || 0;
+        acc.costCpp      += r.costCpp;
         acc.sellingPrice += Number(calcs.price) || 0;
-        acc.totalSell += r.totalSell;
-        acc.sellCpp += r.sellCpp;
+        acc.totalSell    += r.totalSell;
+        acc.sellCpp      += r.sellCpp;
         return acc;
       },
-      {
-        unitCost: 0,
-        qty: 0,
-        totalCost: 0,
-        yields: 0,
-        costCpp: 0,
-        sellingPrice: 0,
-        totalSell: 0,
-        sellCpp: 0,
-        totalBundledPrice: calculatedBundledPrice,
-      }
+      { unitCost: 0, qty: 0, totalCost: 0, yields: 0, costCpp: 0, sellingPrice: 0, totalSell: 0, sellCpp: 0, totalBundledPrice: calculatedBundledPrice }
     );
 
     setProjectData((prev) => ({
       ...prev,
       machineConfiguration: {
-        machine: machines,
+        machine:    machines,
         consumable: consumables,
-        totals: totalsObj,
+        totals:     totalsObj,
       },
     }));
   }, [
@@ -277,10 +311,13 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       prev.map((row) => {
         if (row.id !== id) return row;
         if (field === 'remarks' && !canEditRemarks) return row;
+        if (row.isMandatory && (field === 'type' || field === 'mode')) return row;
+        // Prevent qty changes on rows where qty is not editable
+        if (field === 'qty' && !isQtyEditable(row, contractType)) return row;
         if (field === 'sku') {
-          return enforceRowQty({ ...row, sku: value, selectedMachineId: '', selectedConsumableId: '' });
+          return enforceRowQty({ ...row, sku: value, selectedMachineId: '', selectedConsumableId: '' }, contractType);
         }
-        return enforceRowQty({ ...row, [field]: value });
+        return enforceRowQty({ ...row, [field]: value }, contractType);
       })
     );
   };
@@ -295,7 +332,7 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       const currentRow = prev[currentIndex];
       const oldMachine = findMachineById(currentRow.selectedMachineId);
       const oldConsumableSkus = new Set((oldMachine?.consumables || []).map((c) => String(c.name).trim()));
-      const oldConsumableIds = new Set((oldMachine?.consumables || []).map((c) => String(c.id)));
+      const oldConsumableIds  = new Set((oldMachine?.consumables || []).map((c) => String(c.id)));
 
       let nextMachineIndex = prev.findIndex((r, i) => i > currentIndex && r.type === ROW_TYPE.MACHINE);
       if (nextMachineIndex === -1) nextMachineIndex = prev.length;
@@ -309,8 +346,8 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
         if (isInBlock && r.type === ROW_TYPE.CONSUMABLE) {
           if (r.linkedMachineRowId === id) continue;
           const isMonoColor = r.mode === MODE.MONO || r.mode === MODE.COLOR;
-          const skuMatch = oldConsumableSkus.has(String(r.sku || '').trim());
-          const idMatch = r.selectedConsumableId && oldConsumableIds.has(String(r.selectedConsumableId));
+          const skuMatch    = oldConsumableSkus.has(String(r.sku || '').trim());
+          const idMatch     = r.selectedConsumableId && oldConsumableIds.has(String(r.selectedConsumableId));
           if (isMonoColor && (skuMatch || idMatch)) continue;
         }
         result.push(r);
@@ -321,15 +358,18 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
         return result;
       }
 
-      const updatedMachineRow = {
+      const base = {
         ...currentRow,
-        type: ROW_TYPE.MACHINE,
+        type:              ROW_TYPE.MACHINE,
         selectedMachineId: selectedMachine.id,
-        sku: selectedMachine.name,
-        cost: normalize2dp(selectedMachine.unitCost),
-        price: normalize2dp(selectedMachine.sellingPrice),
-        qty: 1,
+        sku:               selectedMachine.name,
+        cost:              normalize2dp(selectedMachine.unitCost),
+        price:             normalize2dp(selectedMachine.sellingPrice),
+        qty:               1,
       };
+      const updatedMachineRow = currentRow.isMandatory
+        ? { ...base, isMandatory: true, mode: '' }
+        : base;
 
       const newConsumableRows = (selectedMachine.consumables || []).map((c) =>
         makeAutoConsumableRow(id, c)
@@ -348,42 +388,46 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       prev.map((row) => {
         if (row.id !== id) return row;
         if (!selected) {
-          return enforceRowQty({ ...row, selectedConsumableId: '', sku: '', cost: '', price: '', yields: '' });
+          return enforceRowQty({ ...row, selectedConsumableId: '', sku: '', cost: '', price: '', yields: '' }, contractType);
         }
         return enforceRowQty({
           ...row,
           selectedConsumableId: selected.id,
-          sku: selected.name,
-          cost: normalize2dp(selected.unitCost),
-          price: normalize2dp(selected.sellingPrice),
-          yields: selected.yields,
-        });
+          sku:                  selected.name,
+          cost:                 normalize2dp(selected.unitCost),
+          price:                normalize2dp(selected.sellingPrice),
+          yields:               selected.yields,
+        }, contractType);
       })
     );
     setActiveSearchRowId(null);
   };
 
   const toggleMachine = (id, isMachine) => {
+    if (id === MANDATORY_ROW_ID) return;
+
     setRows((prev) => {
       const withoutLinked = prev.filter(
         (r) => !(r.type === ROW_TYPE.CONSUMABLE && r.linkedMachineRowId === id)
       );
       return withoutLinked.map((r) => {
         if (r.id !== id) return r;
-        return {
+        return enforceRowQty({
           ...r,
-          type: isMachine ? ROW_TYPE.MACHINE : ROW_TYPE.CONSUMABLE,
-          mode: r.mode || '',
-          selectedMachineId: '',
+          type:                 isMachine ? ROW_TYPE.MACHINE : ROW_TYPE.CONSUMABLE,
+          mode:                 r.mode || '',
+          selectedMachineId:    '',
           selectedConsumableId: '',
-          linkedMachineRowId: null,
-          autoAdded: false,
-        };
+          linkedMachineRowId:   null,
+          autoAdded:            false,
+        }, contractType);
       });
     });
   };
 
   const setMode = (id, mode) => {
+    if (id === MANDATORY_ROW_ID) return;
+
     setManuallyEdited((prev) => {
       const next = { ...prev };
       delete next[`${id}:cost`];
@@ -394,16 +438,16 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r;
-        return {
+        return enforceRowQty({
           ...r,
-          type: mode === MODE.OTHERS ? ROW_TYPE.CONSUMABLE : r.type,
+          type:                 mode === MODE.OTHERS ? ROW_TYPE.CONSUMABLE : r.type,
           mode,
-          sku: '',
-          selectedMachineId: '',
+          sku:                  '',
+          selectedMachineId:    '',
           selectedConsumableId: '',
-          linkedMachineRowId: null,
-          autoAdded: false,
-        };
+          linkedMachineRowId:   null,
+          autoAdded:            false,
+        }, contractType);
       })
     );
   };
@@ -411,7 +455,10 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   const addRow = () => setRows((prev) => [...prev, makeBlankRow()]);
 
   const removeRow = (id) => {
-    if (rows.length <= 1) return;
+    if (id === MANDATORY_ROW_ID) return;
+    const nonMandatoryRows = rows.filter((r) => r.id !== MANDATORY_ROW_ID);
+    if (nonMandatoryRows.length <= 0) return;
+
     setRows((prev) => {
       const target = prev.find((r) => r.id === id);
       return prev.filter((r) => {
@@ -460,15 +507,13 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   };
 
   return {
-    // State
     rows,
     focusedField,
     setFocusedField,
     activeSearchRowId,
     setActiveSearchRowId,
     manuallyEdited,
-
-    // Mutations
+    contractType,
     handleInputChange,
     handleMachineSelect,
     handleConsumableSelect,
@@ -479,12 +524,8 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     setMode,
     addRow,
     removeRow,
-
-    // Suggestions
     getMachineSuggestions,
     getConsumableSuggestions,
-
-    // Helpers
     keyOf,
     onBlurNormalize,
     sanitizeInt,

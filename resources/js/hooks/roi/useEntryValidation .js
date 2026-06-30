@@ -74,12 +74,17 @@ export function useEntryValidation({ setTab }) {
       isRental,
     } = getContractFlags();
 
+
+
+
     const machines    = projectData?.machineConfiguration?.machine    || [];
     const consumables = projectData?.machineConfiguration?.consumable || [];
     const allItems    = [...machines, ...consumables];
 
     const monoAMVP  = parseFloat(projectData?.yield?.monoAmvpYields?.monthly  || 0);
     const colorAMVP = parseFloat(projectData?.yield?.colorAmvpYields?.monthly || 0);
+
+
 
     // AMVP required unless Outright Only or Fixed Monthly
     if (!isOutrightOnly && !isFixed) {
@@ -146,6 +151,19 @@ export function useEntryValidation({ setTab }) {
         }
       }
     }
+
+            // --- MANDATORY PRINTER ROW VALIDATION ---
+      const mandatoryPrinter = machines.find((m) => m.id === '__mandatory_printer__');
+      if (!mandatoryPrinter || !String(mandatoryPrinter.sku ?? '').trim()) {
+        toast.error("A printer is required. Please select a printer in the Machine Configuration.");
+        setTab(MACHINE_TAB);
+        return false;
+      }
+      if (parseFloat(mandatoryPrinter.cost ?? 0) <= 0) {
+        toast.error("The mandatory printer must have a Unit Cost.");
+        setTab(MACHINE_TAB);
+        return false;
+      }
 
     // --- FEE VALIDATION ---
     const companyFees  = projectData?.additionalFees?.company  || [];

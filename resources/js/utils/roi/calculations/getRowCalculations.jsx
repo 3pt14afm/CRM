@@ -107,10 +107,9 @@ export const getRowCalculations = (row, projectData) => {
         computedCost: finalComputedCost,
         basePerYear,
 
-        // IMPORTANT: OUTRIGHT SAFE TOTAL COST
-        totalCost: isOutright
-            ? finalComputedCost
-            : finalComputedCost + machineMarginTotal,
+        totalCost: isMachine
+            ? (isOutright ? finalComputedCost : finalComputedCost + machineMarginTotal)
+            : rawCost * qty,
 
         yields,
 

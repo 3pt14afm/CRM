@@ -1,7 +1,7 @@
 import React from 'react';
 import { usePage } from '@inertiajs/react';
 import { useProjectData } from '@/Context/ProjectContext';
-import { useMachineRows } from '@/hooks/roi/useMachineRows';
+import { useMachineRows, MANDATORY_ROW_ID } from '@/hooks/roi/useMachineRows';
 import { getRowDisplayFlags } from '@/utils/roi/machineconfig/rowLogic';
 import { getRowCalculations } from '@/utils/roi/calculations/getRowCalculations';
 import { format2dpWithCommas, formatIntWithCommas, formatNum, sanitizeInt, sanitize2dp, normalize2dp } from '@/utils/roi/machineconfig/formatter';
@@ -42,10 +42,10 @@ function SKUCell({ row, readOnly, activeSearchRowId, handlers }) {
     getMachineSuggestions, getConsumableSuggestions, setActiveSearchRowId,
   } = handlers;
 
-  const isMachine  = row.type === ROW_TYPE.MACHINE;
-  const mode       = String(row.mode || '').toLowerCase();
+  const isMachine   = row.type === ROW_TYPE.MACHINE;
+  const mode        = String(row.mode || '').toLowerCase();
   const isMonoColor = mode === MODE.MONO || mode === MODE.COLOR;
-  const isActive   = activeSearchRowId === row.id && !readOnly && row.sku?.trim();
+  const isActive    = activeSearchRowId === row.id && !readOnly && row.sku?.trim();
 
   const Dropdown = ({ items, onSelect }) => (
     <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md bg-white/20 backdrop-blur-lg border border-gray-200 shadow-xl max-h-48 overflow-auto no-scrollbar">
@@ -65,7 +65,8 @@ function SKUCell({ row, readOnly, activeSearchRowId, handlers }) {
     </div>
   );
 
-  if (isMachine && mode !== MODE.OTHERS) {
+  // Machine rows (including mandatory printer) that are not mono/color → searchable machine input
+  if (isMachine && mode !== MODE.MONO && mode !== MODE.COLOR) {
     return (
       <div className="relative">
         <input
@@ -137,46 +138,70 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
   const flags  = getRowDisplayFlags(row, contractType, errors, showOutrightErrors);
   const { isYieldDisabled, isPriceProhibited, isYieldError, isPriceError } = flags;
 
-  const isMachineRow    = row.type === ROW_TYPE.MACHINE;
-  const modeStr         = String(row.mode || '').toLowerCase();
+  const isMachineRow      = row.type === ROW_TYPE.MACHINE;
+  const modeStr           = String(row.mode || '').toLowerCase();
   const isAutoOrMonoColor = !!row.autoAdded || modeStr === MODE.MONO || modeStr === MODE.COLOR;
-  const keyOf           = (field) => `${row.id}:${field}`;
-  const isFocused       = (field) => focusedField === keyOf(field);
+  const isMandatory       = !!row.isMandatory;
+  const keyOf             = (field) => `${row.id}:${field}`;
+  const isFocused         = (field) => focusedField === keyOf(field);
 
   return (
-    <tr className={`border-b relative transition-all duration-300 ${activeSearchRowId === row.id ? 'z-50' : 'z-10'}`}>
+    <tr
+      className={[
+        'border-b relative transition-all duration-300',
+        activeSearchRowId === row.id ? 'z-50' : 'z-10',
+        isMandatory ? 'bg-green-50/60' : '',
+      ].join(' ')}
+    >
 
-      {/* H — machine toggle */}
+      {/* H — checkbox: always checked & locked for mandatory row */}
       <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
-        <input
-          type="checkbox"
-          className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
-          checked={isMachineRow}
-          onChange={(e) => toggleMachine(row.id, e.target.checked)}
-          disabled={readOnly || !!row.autoAdded || modeStr === MODE.MONO || modeStr === MODE.COLOR}
-        />
+        {isMandatory ? (
+          <input
+            type="checkbox"
+            checked
+            disabled
+            onChange={() => {}}
+            title="This printer row is required"
+            className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-not-allowed"
+          />
+        ) : (
+          <input
+            type="checkbox"
+            className="w-4 h-4 border checkboxes border-darkgreen/35 accent-green-600 focus:ring-0 focus:outline-none cursor-pointer"
+            checked={isMachineRow}
+            onChange={(e) => toggleMachine(row.id, e.target.checked)}
+            disabled={readOnly || !!row.autoAdded || modeStr === MODE.MONO || modeStr === MODE.COLOR}
+          />
+        )}
       </td>
 
-      {/* T — mode select */}
+      {/* T — mode: locked badge for mandatory row, select for others */}
       <td className="border-r border-b border-darkgreen/15 px-1">
         <div className="flex items-center justify-center">
-          <select
-            value={isMachineRow && modeStr !== MODE.OTHERS ? '' : row.mode || ''}
-            onChange={(e) => setMode(row.id, e.target.value)}
-            disabled={readOnly || !!row.autoAdded}
-            className={[
-              'w-[90%] min-w-0 h-6 text-[10px] sm:text-[11px] pl-2 pr-5 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0',
-              isMachineRow && modeStr !== MODE.OTHERS ? 'border-darkgreen/20 cursor-not-allowed bg-slate-100'
-                : shouldHighlightModeError(row)       ? 'border-red-400 bg-red-50 text-red-700 cursor-pointer'
-                :                                       'border-darkgreen/20 focus:border-[#289800] cursor-pointer',
-              isAutoOrMonoColor ? 'cursor-not-allowed bg-slate-100 border-slate-200' : '',
-            ].join(' ')}
-          >
-            <option className="text-gray-400" value="">Select</option>
-            <option value={MODE.MONO}>Mono</option>
-            <option value={MODE.COLOR}>Color</option>
-            <option value={MODE.OTHERS}>Others</option>
-          </select>
+          {isMandatory ? (
+            <span className="w-[90%] h-6 text-[10px] sm:text-[11px] flex items-center justify-center rounded-sm border border-darkgreen/20 bg-slate-100 text-slate-500 select-none cursor-not-allowed">
+              Printer
+            </span>
+          ) : (
+            <select
+              value={isMachineRow && modeStr !== MODE.OTHERS ? '' : row.mode || ''}
+              onChange={(e) => setMode(row.id, e.target.value)}
+              disabled={readOnly || !!row.autoAdded}
+              className={[
+                'w-[90%] min-w-0 h-6 text-[10px] sm:text-[11px] pl-2 pr-5 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0',
+                isMachineRow && modeStr !== MODE.OTHERS ? 'border-darkgreen/20 cursor-not-allowed bg-slate-100'
+                  : shouldHighlightModeError(row)       ? 'border-red-400 bg-red-50 text-red-700 cursor-pointer'
+                  :                                       'border-darkgreen/20 focus:border-[#289800] cursor-pointer',
+                isAutoOrMonoColor ? 'cursor-not-allowed bg-slate-100 border-slate-200' : '',
+              ].join(' ')}
+            >
+              <option className="text-gray-400" value="">Select</option>
+              <option value={MODE.MONO}>Mono</option>
+              <option value={MODE.COLOR}>Color</option>
+              <option value={MODE.OTHERS}>Others</option>
+            </select>
+          )}
         </div>
       </td>
 
@@ -201,7 +226,24 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
 
       {/* Qty */}
       <td className="border-b border-r border-darkgreen/15 p-1">
-        <input type="text" value="1" disabled className={`${cls.input} ${cls.disabled}`} />
+        {(() => {
+          const isFixedMonthly = contractType.toLowerCase() === 'fixed monthly only';
+          const isMonoColor = modeStr === MODE.MONO || modeStr === MODE.COLOR;
+          const qtyEditable = isFixedMonthly && !isMachineRow && isMonoColor;
+          return (
+            <input
+              type="text"
+              inputMode="numeric"
+              value={isFocused('qty') ? row.qty || '' : row.qty || 1}
+              disabled={readOnly || !qtyEditable}
+              onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
+              onBlur={() => setFocusedField(null)}
+              onKeyDown={onlyNumericKeys(false)}
+              onChange={(e) => qtyEditable && handleInputChange(row.id, 'qty', sanitizeInt(e.target.value) || '1')}
+              className={`${cls.input} ${!qtyEditable ? cls.disabled : ''}`}
+            />
+          );
+        })()}
       </td>
 
       {/* Total cost */}
@@ -256,11 +298,27 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
         <div className={cls.readonly}>{formatNum(calcs.sellCpp)}</div>
       </td>
 
-      {/* +/- */}
+      {/* +/- — mandatory row: show + but no - */}
       <td className="border-b border-r border-darkgreen/15 p-1">
         <div className="flex gap-1 justify-center">
-          <button onClick={addRow} disabled={readOnly} className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${readOnly ? 'cursor-not-allowed' : ''}`}>+</button>
-          <button onClick={() => removeRow(row.id)} disabled={readOnly} className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly ? 'cursor-not-allowed' : ''}`}>-</button>
+          <button
+            onClick={addRow}
+            disabled={readOnly}
+            className={`w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100 ${readOnly ? 'cursor-not-allowed' : ''}`}
+          >
+            +
+          </button>
+          {!isMandatory && (
+            <button
+              onClick={() => removeRow(row.id)}
+              disabled={readOnly}
+              className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly ? 'cursor-not-allowed' : ''}`}
+            >
+              -
+            </button>
+          )}
+          {/* Keep column width consistent when minus is absent */}
+          {isMandatory && <span className="w-6 h-6 inline-block" />}
         </div>
       </td>
 
@@ -307,12 +365,13 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
   const { auth, entryProject, project: inertiaProject, machineCatalog = [], consumableCatalog = {}, errors } = usePage().props;
   const { projectData } = useProjectData();
 
-  const project      = entryProject ?? inertiaProject ?? null;
-  const currentUserId = auth?.user?.id ?? auth?.id ?? null;
-  const isEntryOwner = !project?.id || Number(project?.user_id) === Number(currentUserId);
+  const project        = entryProject ?? inertiaProject ?? null;
+  const currentUserId  = auth?.user?.id ?? auth?.id ?? null;
+  const isEntryOwner   = !project?.id || Number(project?.user_id) === Number(currentUserId);
   const canEditRemarks = !readOnly && isEntryOwner;
   const contractType   = projectData.companyInfo?.contractType || '';
 
+  // The hook now owns the mandatory row — no extra logic needed here
   const handlers = useMachineRows({ machineCatalog, consumableCatalog, canEditRemarks });
   const { rows, focusedField, activeSearchRowId } = handlers;
   const totals = projectData.machineConfiguration?.totals;

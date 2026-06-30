@@ -135,7 +135,7 @@ class RoiCalculator
             'inputtedCost'       => $rawCost,
             'computedCost'       => $finalComputedCost,
             'basePerYear'        => $basePerYear,
-            'totalCost'          => $finalComputedCost + $machineMarginTotal,
+            'totalCost' => $isMachine ? ($flags['isOutright'] ? $finalComputedCost : $finalComputedCost + $machineMarginTotal) : $rawCost * $qty,
             'yields'             => $yields,
             'costCpp'            => $safeYields > 0 ? $rawCost / $safeYields : 0.0,
             'price'              => $price,
@@ -178,9 +178,17 @@ class RoiCalculator
             $itemYields = $this->toFloat($c['yields'] ?? 0);
             $qty        = 0.0;
 
-            if ($flags['isMonthlyRental']) {
-                return array_merge($c, ['qty' => 0, 'yields' => 0, 'price' => 0, 'totalCost' => 0, 'totalSell' => 0]);
-            }
+        if ($flags['isMonthlyRental']) {
+            $unitCost = $this->toFloat($c['cost'] ?? 0);
+            $qty = $this->toFloat($c['qty'] ?? 0);
+            return array_merge($c, [
+                'qty'       => $qty,
+                'yields'    => 0,
+                'price'     => 0,
+                'totalCost' => $this->to2Decimals($qty * $unitCost),
+                'totalSell' => 0,
+            ]);
+        }
 
             if ($mode === 'others') {
                 $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
@@ -332,9 +340,17 @@ class RoiCalculator
             $itemYields = $this->toFloat($c['yields'] ?? 0);
             $qty        = 0.0;
 
-            if ($flags['isMonthlyRental']) {
-                return array_merge($c, ['qty' => 0, 'yields' => 0, 'price' => 0, 'totalCost' => 0, 'totalSell' => 0]);
-            }
+        if ($flags['isMonthlyRental']) {
+            $unitCost = $this->toFloat($c['cost'] ?? 0);
+            $qty = $this->toFloat($c['qty'] ?? 0);
+            return array_merge($c, [
+                'qty'       => $qty,
+                'yields'    => 0,
+                'price'     => 0,
+                'totalCost' => $this->to2Decimals($qty * $unitCost),
+                'totalSell' => 0,
+            ]);
+        }
 
             if ($mode === 'others') {
                 $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);

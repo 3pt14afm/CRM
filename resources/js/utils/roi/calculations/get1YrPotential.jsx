@@ -65,12 +65,14 @@ export const get1YrPotential = (projectData) => {
     let qty = getSafeNumber(c.qty, 0);
 
     if (isMonthlyRental) {
+      const unitCost = getSafeNumber(c.cost);
+      const qty = getSafeNumber(c.qty, 0);
       return {
         ...c,
-        qty: 0,
+        qty,
         yields: 0,
         price: 0,
-        totalCost: 0,
+        totalCost: to2Decimals(qty * unitCost),
         totalSell: 0,
       };
     }

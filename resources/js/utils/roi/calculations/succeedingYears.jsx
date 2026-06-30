@@ -112,9 +112,9 @@ const processedConsumables = rawConsumables.map(c => {
 
   let qty = 0;
 
-    if (isMonthlyRental) {
-    qty = 0;
-    const unitCost = 0;
+  if (isMonthlyRental) {
+    const unitCost = getSafeNumber(c.cost);
+    const qty = getSafeNumber(c.qty, 0);
     return {
       ...c,
       qty,
