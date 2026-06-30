@@ -19,8 +19,8 @@ const DEFAULT_FILTERS = {
     status:         '1',  
     delsan_company: '',
     per_page:       12,
-    sort_by:        'id',
-    sort_order:     'desc',
+    sort_by:        'company_name',
+    sort_order:     'asc',
 };
 
 function loadPersistedFilters() {
