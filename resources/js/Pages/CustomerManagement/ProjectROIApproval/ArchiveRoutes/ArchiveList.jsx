@@ -57,7 +57,7 @@ const LS = {
 
 
 
-function ActionsDropdown({ row, isAdmin }) {
+function ActionsDropdown({ row, isAdmin  }) {
       const [open, setOpen] = useState(false);
       const [coords, setCoords] = useState({ top: 0, left: 0 });
       const triggerRef = useRef(null);
@@ -87,8 +87,7 @@ function ActionsDropdown({ row, isAdmin }) {
 
     const isApproved  = String(row.status ?? "").toLowerCase() === "approved";
     const hasProposal = isAdmin || (isApproved && (row.is_owner || row.is_approver));
-    console.log({ rowId: row.id, status: row.status, isAdmin, isApproved, hasProposal });
-
+   
       // View only — no dropdown
       if (!hasProposal) {
         return (
@@ -466,7 +465,7 @@ const handleSort = (key) => {
     {
       key: "actions",
       header: <div className="text-center w-full">ACTIONS</div>,
-      cell: (r) => <ActionsDropdown row={r} isAdmin={isAdmin} />,
+      cell: (r) => <ActionsDropdown row={r} isAdmin={isAdmin}  />,
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sortBy, sortOrder]);

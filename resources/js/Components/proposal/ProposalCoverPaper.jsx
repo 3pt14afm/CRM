@@ -75,26 +75,19 @@ function ProposalCoverPaper({ proposal, items }) {
           {items?.find((i) => i.kind === "machine")?.sku || ""}
         </h3>
 
-        <div className="flex gap-12 items-start">
+<div className="flex gap-12 items-start">
           <div className="flex-1">
-            <table className="w-full text-[12px] border-collapse">
-              <tbody>
-                {(proposal.specs || []).length > 0 ? (
-                  (proposal.specs || []).map((spec, idx) => (
-                    <tr key={idx} className="border-b border-slate-50">
-                      <td className="py-2 text-slate-600">{spec.label}</td>
-                      <td className="py-2 text-right font-semibold text-[11px]">{spec.value}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr className="border-b border-slate-50">
-                    <td colSpan={2} className="py-4 text-center text-slate-300 text-[11px] italic">
-                      No specs added yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            {proposal.specs ? (
+              <img
+                src={proposal.specs}
+                alt="Machine specs"
+                className="w-full max-h-[500px] object-contain"
+              />
+            ) : (
+              <div className="py-4 text-center text-slate-300 text-[11px] italic border border-dashed border-slate-100 rounded-lg">
+                No specs image added yet.
+              </div>
+            )}
           </div>
 
           <div className="w-[200px]">

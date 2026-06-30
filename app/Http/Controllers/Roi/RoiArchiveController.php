@@ -23,7 +23,7 @@ public function index(Request $request)
     $perPage = $request->integer('per_page', 10);
     $userId = (int) ($user->id ?? 0);
     $isAdmin = $userId === 1;
-   
+
     // Build the query using Eloquent
     $query = RoiArchiveProject::query()
         ->with('user')
@@ -44,14 +44,13 @@ public function index(Request $request)
     }
 
     if ($request->filled('type')) {
-            $query->where('roi_archive_projects.type', $request->integer('type'));
-        }
+        $query->where('roi_archive_projects.type', $request->integer('type'));
+    }
 
     if ($request->filled('location_id')) {
         $query->where('roi_archive_projects.location_id', (int) $request->location_id);
     }
 
-    // REPLACE WITH:
     if ($request->filled('date_from')) {
         $query->whereRaw("COALESCE(rejected_at, approved_at, last_saved_at) >= ?", [$request->date_from . ' 00:00:00']);
     }
@@ -83,15 +82,14 @@ public function index(Request $request)
         });
     }
 
-            // Add this after the General Search block
-        if ($request->filled('prepared_by')) {
-            $preparedBy = $request->prepared_by;
-            $query->whereHas('user', function ($q) use ($preparedBy) {
-                $q->where('first_name', 'like', "%{$preparedBy}%")
-                ->orWhere('last_name', 'like', "%{$preparedBy}%")
-                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
-            });
-        }
+    if ($request->filled('prepared_by')) {
+        $preparedBy = $request->prepared_by;
+        $query->whereHas('user', function ($q) use ($preparedBy) {
+            $q->where('first_name', 'like', "%{$preparedBy}%")
+              ->orWhere('last_name', 'like', "%{$preparedBy}%")
+              ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+        });
+    }
 
     // Sorting and Pagination
     $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
@@ -105,8 +103,6 @@ public function index(Request $request)
         'contract_years'   => 'roi_archive_projects.contract_years',
         'contract_type'    => 'roi_archive_projects.contract_type',
         'type'             => 'roi_archive_projects.type',
-
-        // Sorts by the decider's name — mirrors the decided_by_name logic in ->through()
         'status' => "
             CASE LOWER(roi_archive_projects.status)
                 WHEN 'rejected'  THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
@@ -125,39 +121,49 @@ public function index(Request $request)
             fn($q) => $q->orderByRaw("{$sortCol} {$sortOrder}"),
             fn($q) => $q->orderByRaw("CASE WHEN roi_archive_projects.user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.last_saved_at) DESC", [$userId])
         )
-        ->paginate($perPage)    
+        ->paginate($perPage)
         ->withQueryString()
-        ->through(function ($p) use ($userId){
-            $status = strtolower((string)($p->status ?? ''));
+        ->through(function ($p) use ($userId) {
+            $status = strtolower((string) ($p->status ?? ''));
 
-            $p->decided_by_name = match($status) {
+            $p->decided_by_name = match ($status) {
                 'rejected'  => $p->rejected_by_name ?: '—',
                 'cancelled' => $p->prepared_by_name ?: '—',
                 default     => $p->approved_by_name ?: '—',
             };
 
-            $p->decided_at_display = match($status) {
+            $p->decided_at_display = match ($status) {
                 'rejected'  => $p->rejected_at,
                 'cancelled' => $p->last_saved_at,
                 default     => $p->approved_at,
             };
-             $p->is_owner = (int) $p->user_id === $userId; // ← add this
-             $p->is_approver = (int) $p->approved_by === $userId; // ← new
-   
+
+            $p->is_owner = (int) $p->user_id === $userId;
+
+            // Was this user assigned at ANY workflow level (2-6) on this specific project?
+            $p->is_approver = in_array($userId, array_filter([
+                (int) ($p->reviewed_by  ?? 0),
+                (int) ($p->checked_by   ?? 0),
+                (int) ($p->endorsed_by  ?? 0),
+                (int) ($p->confirmed_by ?? 0),
+                (int) ($p->approved_by  ?? 0),
+            ]), true);
+
             return $p;
         });
 
-        
-
-        if ($request->wantsJson()) {
-            return response()->json(['archiveProjects' => $archiveProjects, 'isAdmin' => $isAdmin]);
-        }
+    if ($request->wantsJson()) {
+        return response()->json([
+            'archiveProjects' => $archiveProjects,
+            'isAdmin' => $isAdmin,
+        ]);
+    }
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
         'filters' => $request->only(['search', 'status', 'type', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_by', 'sort_order']),
         'archiveProjects' => $archiveProjects,
         'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
-         'isAdmin' => $isAdmin, // ← add this
+        'isAdmin' => $isAdmin,
         'stats' => [
             'totalArchiveProjects' => RoiArchiveProject::count(),
             'recentlyArchivedToday' => RoiArchiveProject::whereDate('approved_at', now()->toDateString())

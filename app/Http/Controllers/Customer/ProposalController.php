@@ -69,30 +69,38 @@ public function proposalList(Request $request)
 
     // ─── Show Proposal Page ───────────────────────────────────────
 
-        public function show($id)
-        {
-            $project = RoiArchiveProject::with(['items', 'fees', 'user'])
-                ->findOrFail($id);
+public function show($id)
+{
+    $project = RoiArchiveProject::with(['items', 'fees', 'user'])
+        ->findOrFail($id);
 
-            $userId     = Auth::id();
-            $isOwner    = (int) $project->user_id === (int) $userId;
-            $isApprover = (int) $project->approved_by === (int) $userId;
-            $isAdmin    = (int) $userId === 1;
+    $userId  = (int) Auth::id();
+    $isOwner = (int) $project->user_id === $userId;
+    $isAdmin = $userId === 1;
 
-            abort_unless($isOwner || $isApprover || $isAdmin, 403, 'You are not authorized to view this proposal.');
+    // Was this user assigned at ANY workflow level (2-6) on this project?
+    $isApprover = in_array($userId, array_filter([
+        (int) ($project->reviewed_by  ?? 0),
+        (int) ($project->checked_by   ?? 0),
+        (int) ($project->endorsed_by  ?? 0),
+        (int) ($project->confirmed_by ?? 0),
+        (int) ($project->approved_by  ?? 0),
+    ]), true);
 
-            $document = Proposal::where('roi_archive_project_id', $id)
-                ->latest()
-                ->first();
+    abort_unless($isOwner || $isApprover || $isAdmin, 403, 'You are not authorized to view this proposal.');
 
-            return Inertia::render('CustomerManagement/Proposal/Proposal', [
-                'proposal'  => $this->buildProposal($project, $document),
-                'items'     => $project->items,
-                'fees'      => $project->fees,
-                'is_locked' => $document?->isGenerated() ?? false,
-                'is_owner'  => $isOwner, // ← new
-            ]);
-        }
+    $document = Proposal::where('roi_archive_project_id', $id)
+        ->latest()
+        ->first();
+
+    return Inertia::render('CustomerManagement/Proposal/Proposal', [
+        'proposal'  => $this->buildProposal($project, $document),
+        'items'     => $project->items,
+        'fees'      => $project->fees,
+        'is_locked' => $document?->isGenerated() ?? false,
+        'is_owner'  => $isOwner,
+    ]);
+}
     // ─── Save Draft ───────────────────────────────────────────────
 
     public function saveDraft(Request $request, $id)
@@ -257,11 +265,11 @@ private function transformProposal($p)
         return [
             'company_name'       => ['nullable', 'string', 'max:255'],
             'attention'          => ['nullable', 'string', 'max:255'],
-            'designation'       => ['nullable', 'string', 'max:255'],
+            'designation'        => ['nullable', 'string', 'max:255'],
             'email'              => ['nullable', 'email', 'max:255'],
             'mobile'             => ['nullable', 'string', 'max:50'],
             'message'            => ['nullable', 'string'],
-            'specs'              => ['nullable', 'array'],
+            'specs'              => ['nullable', 'string'],
             'specs.*.label'      => ['nullable', 'string', 'max:255'],
             'specs.*.value'      => ['nullable', 'string', 'max:255'],
             'printer_image'      => ['nullable', 'string'],

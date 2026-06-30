@@ -36,19 +36,17 @@ class Proposal extends Model
     ];
 
     protected $casts = [
-        'specs'      => 'array',
         'unit_price' => 'decimal:6',
+        // 'specs' => 'array' removed — specs now stores a base64 image string, like printer_image
     ];
 
     // ─── Relationships ────────────────────────────────────────────
 
-      public function roiArchiveProject(): BelongsTo
+    public function roiArchiveProject(): BelongsTo
     {
-        // Replace 'roi_archive_project_id' with your actual foreign key 
-        // if it differs from the Laravel naming convention.
         return $this->belongsTo(RoiArchiveProject::class, 'roi_archive_project_id');
     }
-    
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(RoiArchiveProject::class, 'roi_archive_project_id');
@@ -70,7 +68,4 @@ class Proposal extends Model
     {
         return $this->status === 'generated';
     }
-
-  
-    
 }

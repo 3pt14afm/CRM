@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/react';
 import ArchiveList from './ArchiveList';
 import { FaAngleLeft } from 'react-icons/fa';
 
-export default function Archive({ archiveProjects = null, stats = null, filters = null, locations={locations}, isAdmin  }) {
+export default function Archive({ archiveProjects = null, stats = null, filters = null, locations=[], isAdmin,   }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -45,6 +45,7 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
             stats={stats}
             filters={filters}
             isAdmin ={isAdmin }
+            
           />
         </div>
 

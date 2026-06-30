@@ -13,22 +13,9 @@ export default function ProposalSideBar({
     processing, 
     isLocked,
 }) {
-  const specs = proposal.specs || [];
   const terms = proposal.terms || [];
   const fileInputRef = useRef(null);
-
-  const addSpec = () => {
-    onUpdate('specs', [...specs, { label: '', value: '' }]);
-  };
-
-  const updateSpec = (idx, field, val) => {
-    const updated = specs.map((s, i) => i === idx ? { ...s, [field]: val } : s);
-    onUpdate('specs', updated);
-  };
-
-  const removeSpec = (idx) => {
-    onUpdate('specs', specs.filter((_, i) => i !== idx));
-  };
+  const specsFileInputRef = useRef(null); // ← new ref for specs image
 
   const addTerm = () => {
     onUpdate('terms', [...terms, '']);
@@ -55,6 +42,22 @@ export default function ProposalSideBar({
       ?.getAsFile();
     if (file) handleImageFile(file);
   };
+
+  // ── New: specs image handlers (mirrors printer image pattern) ──
+  const handleSpecsImageFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => onUpdate('specs', e.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSpecsImagePaste = (e) => {
+    const file = Array.from(e.clipboardData.items)
+      .find(item => item.type.startsWith('image/'))
+      ?.getAsFile();
+    if (file) handleSpecsImageFile(file);
+  };
+
 
   return (
     <>
@@ -232,51 +235,51 @@ export default function ProposalSideBar({
               </div>
             </div>
 
-            {/* Machine Specs Editor */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Machine Specs</label>
-                <button
-                  onClick={addSpec}
-                  className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 transition-all"
-                >
-                  <Plus size={12} />
-                  Add Spec
-                </button>
-              </div>
-
-              {specs.length === 0 && (
-                <p className="text-[11px] text-slate-400 italic text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                  No specs yet. Click "Add Spec" to begin.
-                </p>
-              )}
-
-              <div className="space-y-2">
-                {specs.map((spec, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <input
-                      type="text"
-                      value={spec.label}
-                      onChange={(e) => updateSpec(idx, 'label', e.target.value)}
-                      placeholder="Label (e.g. Speed)"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+{/* Machine Specs (Screenshot Upload) */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Machine Specs (Screenshot)</label>
+              <div
+                onPaste={handleSpecsImagePaste}
+                tabIndex={0}
+                className="relative w-full rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20"
+                onClick={() => specsFileInputRef.current?.click()}
+              >
+                {proposal.specs ? (
+                  <div className="relative group">
+                    <img
+                      src={proposal.specs}
+                      alt="Machine specs preview"
+                      className="w-full max-h-64 object-contain rounded-xl p-2"
                     />
-                    <input
-                      type="text"
-                      value={spec.value}
-                      onChange={(e) => updateSpec(idx, 'value', e.target.value)}
-                      placeholder="Value (e.g. 29 ppm)"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-semibold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                    />
-                    <button
-                      onClick={() => removeSpec(idx)}
-                      className="p-2 text-slate-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
+                      <p className="text-white text-[11px] font-bold">Click or paste to replace</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdate('specs', null);
+                        }}
+                        className="p-1.5 bg-white/20 hover:bg-white/30 rounded-lg"
+                      >
+                        <Trash2 size={14} className="text-white" />
+                      </button>
+                    </div>
                   </div>
-                ))}
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <ImagePlus size={24} className="text-slate-300" />
+                    <p className="text-[11px] font-semibold text-slate-400">Click to browse or paste a specs screenshot</p>
+                    <p className="text-[10px] text-slate-300">PNG, JPG, WEBP supported</p>
+                  </div>
+                )}
               </div>
+              <input
+                ref={specsFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleSpecsImageFile(e.target.files?.[0])}
+              />
             </div>
 
     
