@@ -1,4 +1,3 @@
-import { GoQuestion } from "react-icons/go";
 import SecurityIllustration from "@/assets/SecuritySystem.svg?react";
 
 export default function GuestLayout({ children }) {

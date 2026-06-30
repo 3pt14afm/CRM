@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ChevronLeft, ChevronRight, Building2, Plus, Trash2, ImagePlus, FileText, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Building2, Trash2, ImagePlus, FileText, } from 'lucide-react';
 import SidebarMessageEditor from './SidebarMessageEditor';
 import SidebarTermsEditor from './SidebarTermsEditor';
 import SignatureUpload from './SignatureUpload';
