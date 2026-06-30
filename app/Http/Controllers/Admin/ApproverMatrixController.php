@@ -186,16 +186,19 @@ class ApproverMatrixController extends Controller
     {
         $data = $this->validateSprfMatrixRequest($request);
 
-        // Block duplicate active matrix for this location + department
-        $alreadyActive = SprfApprovalMatrix::query()
+        // A new matrix may be created for this location + department only if
+        // no ACTIVE matrix already exists for that combo. If one exists but
+        // is inactive, admins are free to add a new one — they must
+        // deactivate the existing active matrix first if there is one.
+        $activeExists = SprfApprovalMatrix::query()
             ->where('location_id',   $data['location_id'])
             ->where('department_id', $data['department_id'])
             ->where('is_active', true)
             ->exists();
 
-        if ($alreadyActive && $data['is_active']) {
+        if ($activeExists) {
             throw ValidationException::withMessages([
-                'is_active' => 'An active SPRF matrix already exists for this location and department. Deactivate it first.',
+                'department_id' => 'An active SPRF approver matrix already exists for this location and department. Deactivate it before adding a new one for the same combination.',
             ]);
         }
 
@@ -221,14 +224,27 @@ class ApproverMatrixController extends Controller
 
     public function updateSprfMatrix(Request $request, SprfApprovalMatrix $sprfApprovalMatrix)
     {
-        $data = $this->validateSprfMatrixRequest($request);
+        // Once a matrix is saved, its location + department are permanent.
+        // Only the approvers, active flag, and remarks may be edited, so we
+        // validate just those fields here rather than reusing the "store"
+        // validation (which requires location_id/department_id).
+        $data = $request->validate([
+            'director_customer_engagement_user_id' => ['required', 'integer', 'exists:users,id'],
+            'esd_director_user_id'                 => ['required', 'integer', 'exists:users,id'],
+            'vp_ccto_user_id'                      => ['required', 'integer', 'exists:users,id'],
+            'president_ceo_user_id'                => ['required', 'integer', 'exists:users,id'],
+            'is_active'                            => ['required', 'boolean'],
+            'remarks'                              => ['nullable', 'string', 'max:1000'],
+        ]);
 
         // If activating this matrix, ensure no other active matrix exists for
-        // the same location + department (excluding self).
+        // the same location + department (excluding self). location_id and
+        // department_id are always read from the existing record, never the
+        // request, so they can't be changed via this endpoint.
         if ($data['is_active']) {
             $conflict = SprfApprovalMatrix::query()
-                ->where('location_id',   $data['location_id'])
-                ->where('department_id', $data['department_id'])
+                ->where('location_id',   $sprfApprovalMatrix->location_id)
+                ->where('department_id', $sprfApprovalMatrix->department_id)
                 ->where('is_active', true)
                 ->where('id', '!=', $sprfApprovalMatrix->id)
                 ->exists();
@@ -241,8 +257,6 @@ class ApproverMatrixController extends Controller
         }
 
         $sprfApprovalMatrix->update([
-            'location_id'                          => $data['location_id'],
-            'department_id'                        => $data['department_id'],
             'director_customer_engagement_user_id' => $data['director_customer_engagement_user_id'],
             'esd_director_user_id'                 => $data['esd_director_user_id'],
             'vp_ccto_user_id'                      => $data['vp_ccto_user_id'],
