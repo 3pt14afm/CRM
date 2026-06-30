@@ -58,7 +58,6 @@ function mapEntryProjectToContext(entryProject) {
       projectUid: entryProject.project_uid ?? "",
       companyName: entryProject.company_name ?? "",
       companySapCode: entryProject.company_sap_code ?? "",  // ← add
-      type: Number(entryProject.type ?? 0),  // ← must exist
       contractYears: Number(entryProject.contract_years ?? 0),
       contractType: entryProject.contract_type ?? "",
       reference: entryProject.reference ?? "",

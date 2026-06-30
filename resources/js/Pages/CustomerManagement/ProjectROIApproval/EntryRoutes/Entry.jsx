@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 import Summary1stYear from './Summary1stYear';
 import MachineConfigTab from './MachineConfigTab';
 import SucceedingYears from './SucceedingYears';
@@ -10,7 +10,6 @@ import { LuScanEye } from "react-icons/lu";
 import { MdDisabledByDefault, MdOutlineCancel  } from "react-icons/md";
 import { FaArrowLeft, FaArrowRight, FaAngleLeft, FaUndo   } from 'react-icons/fa';
 import { useProjectData } from '@/Context/ProjectContext';
-import { Toaster } from 'sonner';
 
 import { useEntryHydration } from '@/hooks/roi/useEntryHydration';
 import { useEntryValidation } from '@/hooks/roi/useEntryValidation ';
