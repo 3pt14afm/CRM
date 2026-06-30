@@ -134,7 +134,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
     setFocusedField, onBlurNormalize, setActiveSearchRowId, enforceRowQty,
   } = handlers;
 
-  const calcs  = getRowCalculations(enforceRowQty(row), projectData);
+  const calcs = getRowCalculations(enforceRowQty(row, contractType), projectData);
   const flags  = getRowDisplayFlags(row, contractType, errors, showOutrightErrors);
   const { isYieldDisabled, isPriceProhibited, isYieldError, isPriceError } = flags;
 

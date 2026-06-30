@@ -224,11 +224,26 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
+  // ── Reset consumable qty when contract type changes away from fixed monthly ─
+  useEffect(() => {
+    if (contractType.toLowerCase() !== 'fixed monthly only') {
+      setRows((prev) =>
+        prev.map((row) => {
+          if (row.type === ROW_TYPE.CONSUMABLE && (row.mode === MODE.MONO || row.mode === MODE.COLOR)) {
+            return { ...row, qty: 1 };
+          }
+          return row;
+        })
+      );
+    }
+  }, [contractType]);
+
   // ── Sync to ProjectContext ───────────────────────────────────────────────
   useEffect(() => {
     const isMonthlyRental = contractType.toLowerCase() === 'rental + supplies';
     const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
 
+    
     const rowsWithCalculations = rows.map((r) => {
       const normalized = enforceRowQty(r, contractType);
       const calcs      = getRowCalculations(normalized, projectData);
