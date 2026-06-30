@@ -2,8 +2,7 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
-import { FaRegUserCircle, FaUserCircle } from "react-icons/fa";
-import { IoMdArrowDropdown, IoIosArrowForward } from "react-icons/io";
+import { IoIosArrowForward } from "react-icons/io";
 import { route } from 'ziggy-js';
 import { UserPen, LogOut, ChevronDownIcon } from "lucide-react";
 
