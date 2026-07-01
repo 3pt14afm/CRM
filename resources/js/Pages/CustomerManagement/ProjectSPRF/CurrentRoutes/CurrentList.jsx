@@ -1,14 +1,13 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { router, Head } from '@inertiajs/react';
-import ProjectListSection from '@/Components/roi/ProjectListSection';
-import { FaFolderOpen } from 'react-icons/fa';
-import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import {
-  MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose, MdExpandMore,
-  MdPerson, MdVerifiedUser
-} from 'react-icons/md';
-import { TbLayoutRows } from 'react-icons/tb'; 
 import { route as ziggyRoute } from 'ziggy-js';
+import ProjectListSection from '@/Components/roi/ProjectListSection';
+import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
+import SearchControl from '@/Components/roi/filters/SearchControl';
+import SortHeader from '@/Components/roi/filters/SortHeader';
+import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
+import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 const formatDateTime = (value) => {
@@ -29,81 +28,36 @@ const approvalLevelLabel = (value) => {
   return 'Director - Enterprise Solutions';
 };
 
-// Helper to convert "YYYY-MM-DD" into "Month D, YYYY" (e.g., "June 6, 2026")
-function formatDateToLongStyle(dateStr) {
-  if (!dateStr) return '';
+function formatDateLabel(dateStr) {
+  if (!dateStr) return null;
   const [year, month, day] = dateStr.split('-');
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const monthName = months[parseInt(month, 10) - 1];
-  const dayNum = parseInt(day, 10);
-  return `${monthName} ${dayNum}, ${year}`;
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'long', day: '2-digit', year: 'numeric',
+  });
 }
 
-/* ─── FilterChip component from your ROI design ─── */
-function FilterChip({ active, icon, label, value, onClick, onClear, hideLabelOnActive = false }) {
-  return (
-    <div className={`h-9 flex items-center rounded-lg border text-[13px] transition-all duration-150 ${
-      active 
-        ? 'border-[#4FA34E] bg-[#4FA34E]/5 text-[#2E7D32] font-medium pl-2.5 pr-1.5 gap-1.5' 
-        : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50 pl-3 pr-2.5 gap-1.5'
-    }`}>
-      <button type="button" onClick={onClick} className="flex items-center gap-1.5 h-full focus:outline-none">
-        {icon}
-        {(!active || !hideLabelOnActive) && <span>{label}{active && ':'}</span>}
-        {active && <span className="font-semibold text-[#1B5E20] max-w-[220px] truncate">{value}</span>}
-        {!active && <MdExpandMore size={14} className="text-slate-400" />}
-      </button>
-      {active && (
-        <button type="button" onClick={onClear} className="w-4 h-4 rounded-full flex items-center justify-center text-[#2E7D32]/60 hover:text-[#2E7D32] hover:bg-[#4FA34E]/10 transition-colors focus:outline-none">
-          <MdClose size={12} />
-        </button>
-      )}
-    </div>
-  );
-}
+const LS = {
+  get: (key, fallback = "") => {
+    try { return localStorage.getItem(`sprf_current_filter_${key}`) ?? fallback; }
+    catch { return fallback; }
+  },
+  set: (key, value) => {
+    try { localStorage.setItem(`sprf_current_filter_${key}`, value); }
+    catch {}
+  },
+  clearAll: () => {
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('sprf_current_filter_'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+  },
+};
 
-/* ─── TextFilterPopup component from your ROI design ─── */
-function TextFilterPopup({ icon, label, placeholder, value, onChange, onApply, open, onClose }) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => { setDraft(value); }, [value, open]);
+function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters = {} }) {
+  const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
+  const [localStats, setLocalStats] = useState(initialStats);
 
-  const apply = () => { onApply(draft); onClose(); };
-  const clear  = () => { setDraft(""); onApply(""); onClose(); };
-
-  if (!open) return null;
-  return (
-    <div className="absolute left-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-      <div className="flex items-center gap-2 mb-3">
-        {icon}
-        <span className="text-[12px] font-semibold text-slate-700 tracking-wide">{label}</span>
-      </div>
-      <div className="relative">
-        <input
-          autoFocus
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={placeholder}
-          className="w-full h-9 px-3 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E] text-slate-700"
-          onKeyDown={(e) => e.key === 'Enter' && apply()}
-        />
-      </div>
-      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-        <button type="button" onClick={clear} className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50">
-          Clear
-        </button>
-        <button type="button" onClick={apply} className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">
-          Apply
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     day: '2-digit',
@@ -111,153 +65,325 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
     year: '2-digit',
   }).format(today);
 
-  const rows = currentProjects?.data ?? [];
+  const [search,         setSearch]         = useState(() => LS.get('search',         filters?.search         ?? ""));
+  const [statusFilter,   setStatusFilter]   = useState(() => LS.get('status',         filters?.status         ?? ""));
+  const [typeFilter,     setTypeFilter]     = useState(() => LS.get('type',           filters?.type           ?? ""));
+  const [dateFrom,       setDateFrom]       = useState(() => LS.get('date_from',      filters?.date_from      ?? ""));
+  const [dateTo,         setDateTo]         = useState(() => LS.get('date_to',        filters?.date_to        ?? ""));
+  const [preparedBy,     setPreparedBy]     = useState(() => LS.get('prepared_by',    filters?.prepared_by    ?? ""));
+  const [approvalLevel,  setApprovalLevel]  = useState(() => LS.get('approval_level', filters?.approval_level ?? ""));
 
-  // ROI Matching Filter States
-  const [search, setSearch] = useState(filters.search ?? '');
-  const [statusFilter, setStatusFilter] = useState(filters.status ?? '');
-  const [perPage, setPerPage] = useState(filters.per_page ?? 10);
-  const [perPageInput, setPerPageInput] = useState(filters.per_page ?? 10);
-  const [preparedBy, setPreparedBy] = useState(filters.prepared_by ?? '');
-  const [approvalLevel, setApprovalLevel] = useState(filters.approval_level ?? '');
-  
-  const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
-  const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+  const [perPage, setPerPage] = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : (filters?.per_page ?? 10);
+  });
+  const [currentPage, setCurrentPage] = useState(() => {
+    const stored = LS.get('page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 1;
+  });
+  const [perPageInput, setPerPageInput] = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : String(filters?.per_page ?? 10);
+  });
 
-  // Dropdown visibility references matching ROI pattern
-  const [showPerPagePicker, setShowPerPagePicker] = useState(false);
-  const [showPreparedBy, setShowPreparedBy] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? ""));
+  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ""));
 
-  const perPagePickerRef = useRef(null);
-  const preparedByRef = useRef(null);
-  const datePickerRef = useRef(null);
+  const [loading,      setLoading]      = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Persist filters
+  useEffect(() => {
+    LS.set('search',         search);
+    LS.set('status',         statusFilter);
+    LS.set('type',           String(typeFilter));
+    LS.set('date_from',      dateFrom);
+    LS.set('date_to',        dateTo);
+    LS.set('prepared_by',    preparedBy);
+    LS.set('approval_level', approvalLevel);
+    LS.set('per_page',       String(perPage));
+    LS.set('page',           String(currentPage));
+    LS.set('sort_by',        sortBy);
+    LS.set('sort_order',     sortOrder);
+  }, [search, statusFilter, typeFilter, dateFrom, dateTo, preparedBy, approvalLevel, perPage, currentPage, sortBy, sortOrder]);
 
   useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (perPagePickerRef.current && !perPagePickerRef.current.contains(e.target)) setShowPerPagePicker(false);
-      if (preparedByRef.current && !preparedByRef.current.contains(e.target)) setShowPreparedBy(false);
-      if (datePickerRef.current && !datePickerRef.current.contains(e.target)) setShowDatePicker(false);
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
+    setLocalCurrentProjects(initialCurrentProjects);
+    setLocalStats(initialStats);
+  }, [initialCurrentProjects, initialStats]);
 
-  // --- Auto-refresh every 60 seconds ---
+  // ── Fetch ──
+  const fetchCurrentData = async ({
+    silent               = false,
+    targetPage           = currentPage,
+    currentSearch        = search,
+    currentStatus        = statusFilter,
+    currentType          = typeFilter,
+    currentPerPage       = perPage,
+    currentDateFrom      = dateFrom,
+    currentDateTo        = dateTo,
+    currentPreparedBy    = preparedBy,
+    currentApprovalLevel = approvalLevel,
+    currentSortBy        = sortBy,
+    currentSortOrder     = sortOrder,
+  } = {}) => {
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+    try {
+      const response = await axios.get(ziggyRoute('sprf.current'), {
+        params: {
+          page:            targetPage,
+          search:          currentSearch        || undefined,
+          status:          currentStatus        || undefined,
+          per_page:        currentPerPage,
+          date_from:       currentDateFrom      || undefined,
+          date_to:         currentDateTo        || undefined,
+          prepared_by:     currentPreparedBy    || undefined,
+          approval_level:  currentApprovalLevel || undefined,
+          sort_by:         currentSortBy        || undefined,
+          sort_order:      currentSortOrder     || undefined,
+          type:            currentType !== "" ? currentType : undefined,
+        },
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+        },
+      });
+
+      const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
+      setLocalCurrentProjects(projectsPayload);
+      setCurrentPage(targetPage);
+
+      const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+      if (statsPayload) setLocalStats(statsPayload);
+    } catch (error) {
+      console.error('Failed to fetch SPRF current projects:', error);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const fetchCurrentDataRef = useRef(null);
   useEffect(() => {
-      const interval = setInterval(() => {
-          router.reload({
-              only: ['currentProjects', 'stats'],
-              preserveScroll: true,
-          });
-      }, 60_000);
+    fetchCurrentDataRef.current = fetchCurrentData;
+  });
 
-      return () => clearInterval(interval);
+  // Auto-refresh every 60 seconds (silent)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchCurrentDataRef.current?.({ silent: true });
+    }, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
-  const runQuery = (updatedParams) => {
-    const merged = {
-      search,
-      status: statusFilter,
-      per_page: perPage,
-      prepared_by: preparedBy,
-      approval_level: approvalLevel,
-      date_from: dateFrom,
-      date_to: dateTo,
-      page: 1,
-      ...updatedParams
-    };
+  // Debounced search
+  useEffect(() => {
+    const t = setTimeout(() => fetchCurrentData({ targetPage: 1 }), 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
-    Object.keys(merged).forEach(key => {
-      if (merged[key] === '' || merged[key] === null || merged[key] === undefined) {
-        delete merged[key];
-      }
-    });
-
-    router.get(ziggyRoute('sprf.current'), merged, { preserveScroll: true, preserveState: true });
+  // ── Sort handler ──
+  const handleSort = (key) => {
+    const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortBy(key);
+    setSortOrder(newOrder);
+    fetchCurrentData({ currentSortBy: key, currentSortOrder: newOrder, targetPage: 1 });
   };
 
   const handleStatusChange = (val) => {
     setStatusFilter(val);
-    runQuery({ status: val });
+    fetchCurrentData({ currentStatus: val, targetPage: 1 });
+  };
+
+  const handleTypeChange = (val) => {
+    setTypeFilter(val);
+    fetchCurrentData({ currentType: val, targetPage: 1 });
   };
 
   const handleApprovalLevelChange = (val) => {
     setApprovalLevel(val);
-    runQuery({ approval_level: val });
-  };
-
-  const handlePerPageInputApply = () => {
-    const val = parseInt(perPageInput, 10) || 10;
-    setPerPage(val);
-    setShowPerPagePicker(false);
-    runQuery({ per_page: val });
+    fetchCurrentData({ currentApprovalLevel: val, targetPage: 1 });
   };
 
   const handlePreparedByApply = (val) => {
     setPreparedBy(val);
-    runQuery({ prepared_by: val });
+    fetchCurrentData({ currentPreparedBy: val, targetPage: 1 });
   };
 
   const handleDateApply = () => {
-    setShowDatePicker(false);
-    runQuery();
+    fetchCurrentData({ targetPage: 1 });
   };
 
   const handleDateClear = () => {
     setDateFrom('');
     setDateTo('');
-    setShowDatePicker(false);
-    runQuery({ date_from: '', date_to: '' });
+    fetchCurrentData({ currentDateFrom: undefined, currentDateTo: undefined, targetPage: 1 });
   };
 
-  const hasDateFilter = !!(dateFrom || dateTo);
-  const dateLabel = useMemo(() => {
-    if (dateFrom && dateTo) return `${formatDateToLongStyle(dateFrom)} to ${formatDateToLongStyle(dateTo)}`;
-    if (dateFrom) return `From ${formatDateToLongStyle(dateFrom)}`;
-    if (dateTo) return `Until ${formatDateToLongStyle(dateTo)}`;
-    return '';
-  }, [dateFrom, dateTo]);
+  const handlePerPageInputApply = () => {
+    const raw = parseInt(perPageInput, 10);
+    const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 500) : perPage;
+    setPerPage(num);
+    setPerPageInput(String(num));
+    fetchCurrentData({ currentPerPage: num, targetPage: 1 });
+  };
+
+  const handleClearAllFilters = () => {
+    LS.clearAll();
+    LS.set('per_page', "10");
+
+    setSearch("");
+    setStatusFilter("");
+    setTypeFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setPreparedBy("");
+    setApprovalLevel("");
+    setPerPage(10);
+    setPerPageInput("10");
+    setSortBy("");
+    setSortOrder("");
+
+    axios.get(ziggyRoute('sprf.current'), {
+      params: { page: 1, per_page: 10 },
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    }).then((response) => {
+      const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
+      setLocalCurrentProjects(projectsPayload);
+      setCurrentPage(1);
+      const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+      if (statsPayload) setLocalStats(statsPayload);
+    }).catch((error) => {
+      console.error('Failed to fetch SPRF current projects:', error);
+    });
+  };
+
+  const goToPage = (p) => fetchCurrentData({ targetPage: p });
+
+  const hasActiveFilters = !!(
+    search || statusFilter || typeFilter !== "" || dateFrom || dateTo ||
+    preparedBy || approvalLevel || perPage !== 10 ||
+    sortBy !== "" || sortOrder !== ""
+  );
 
   const tiles = useMemo(() => {
-    const totalCurrentProjects = stats?.totalCurrentProjects ?? currentProjects?.total ?? 0;
-    const recentlyAddedToday = stats?.recentlyAddedToday ?? '0 Today';
+    const totalCurrentProjects = localStats?.totalCurrentProjects ?? localCurrentProjects?.total ?? 0;
+    const recentlyAddedToday = localStats?.recentlyAddedToday ?? '0 Today';
     return [
       { label: 'Total Currents', value: totalCurrentProjects, icon: <FaFolderOpen />, variant: 'normal' },
       { label: 'Recently Added', value: recentlyAddedToday, icon: <IoTimeOutline />, variant: 'normal' },
     ];
-  }, [stats, currentProjects]);
+  }, [localStats, localCurrentProjects]);
 
   const columns = useMemo(
     () => [
       {
         key: 'prepared_by',
-        header: 'PREPARED BY',
+        header: (
+          <SortHeader
+            label="PREPARED BY"
+            sortKey="prepared_by"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+          />
+        ),
         cell: (r) => <span className="text-[#195c00] font-semibold">{r.prepared_by ?? '—'}</span>,
       },
       {
         key: 'sprf_no',
-        header: <div className="text-center w-full">SPRF #</div>,
+        header: (
+          <SortHeader
+            label="SPRF #"
+            sortKey="sprf_no"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+            align="center"
+          />
+        ),
         cell: (r) => <div className="text-center"><span className="font-medium">{r.sprf_no ?? '—'}</span></div>,
       },
       {
         key: 'sub_category',
-        header: <div className="text-center w-full">SUB CATEGORY</div>,
+        header: (
+          <SortHeader
+            label="SUB CATEGORY"
+            sortKey="sub_category"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+            align="center"
+          />
+        ),
         cell: (r) => <span className="font-medium flex justify-center items-center text-center">{r.sub_category ?? '—'}</span>,
       },
       {
         key: 'company_name',
-        header: <div className="text-center w-full">ACCOUNT</div>,
+        header: (
+          <SortHeader
+            label="ACCOUNT"
+            sortKey="company_name"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+            align="center"
+          />
+        ),
         cell: (r) => <div className="w-full flex justify-center font-medium items-center text-center"><span>{r.company_name ?? '—'}</span></div>,
       },
       {
         key: 'account_manager',
-        header: <div className="text-center w-full">ACCOUNT MANAGER</div>,
+        header: (
+          <SortHeader
+            label="ACCOUNT MANAGER"
+            sortKey="account_manager"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+            align="center"
+          />
+        ),
         cell: (r) => <div className="w-full flex justify-center font-medium items-center text-center"><span>{r.account_manager ?? '—'}</span></div>,
       },
       {
+        key: 'type',
+        header: (
+          <SortHeader
+            label="TYPE"
+            sortKey="type"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+            align="center"
+          />
+        ),
+        cell: (r) => (
+          <span className={`font-medium flex justify-center items-center text-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+            {r.type === 1 ? "Existing" : r.type === 0 ? "Potential" : "—"}
+          </span>
+        ),
+      },
+      {
         key: 'approval_level',
-        header: <div className="text-center w-full">APPROVAL LEVEL</div>,
+        header: (
+          <SortHeader
+            label="APPROVAL LEVEL"
+            sortKey="approval_level"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+            align="center"
+          />
+        ),
         cell: (r) => (
           <span className="font-medium text-blue-700 flex justify-center items-center text-center text-[11px] xl:text-xs">
             {approvalLevelLabel(r.approval_level)}
@@ -266,7 +392,16 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
       },
       {
         key: 'status',
-        header: <div className="text-center w-full">STATUS</div>,
+        header: (
+          <SortHeader
+            label="STATUS"
+            sortKey="status"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+            align="center"
+          />
+        ),
         cell: (row) => {
           const isSentBack = Boolean(row.status_display_suffix);
           const mainLabel = row.status_display_main ?? row.status ?? '—';
@@ -296,7 +431,21 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
       },
       {
         key: 'submitted_at',
-        header: <div className="text-center w-full">DATE SUBMITTED</div>,
+        header: (
+          <button
+            type="button"
+            onClick={() => handleSort('submitted_at')}
+            className="flex justify-center items-center w-full text-slate-500 gap-1"
+          >
+            <FaRegClock className="text-sm" title="Date Submitted" />
+            <span className="text-[11px] leading-none">DATE SUBMITTED</span>
+            <span className={`text-[11px] leading-none ${
+              sortBy === 'submitted_at' ? 'text-[#289800]' : 'text-slate-400'
+            }`}>
+              {sortBy === 'submitted_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+            </span>
+          </button>
+        ),
         cell: (r) => (
           <div className="w-full text-slate-600 flex justify-center items-center text-center">
             <span className="text-[10px] xl:text-[11px]">{formatDateTime(r.submitted_at)}</span>
@@ -318,160 +467,69 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
         ),
       },
     ],
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sortBy, sortOrder]
   );
 
-  const pagination =
-    currentProjects && typeof currentProjects.current_page === 'number'
-      ? {
-          page: currentProjects.current_page,
-          perPage: currentProjects.per_page ?? 10,
-          total: currentProjects.total ?? rows.length,
-          onPageChange: (p) => runQuery({ page: p }),
-        }
-      : null;
+  const rows = localCurrentProjects?.data ?? [];
+  const pagination = localCurrentProjects && typeof localCurrentProjects.current_page === 'number'
+    ? {
+        page: localCurrentProjects.current_page,
+        perPage: localCurrentProjects.per_page ?? perPage,
+        total: localCurrentProjects.total ?? rows.length,
+        onPageChange: goToPage,
+      }
+    : null;
 
-  /* ─── Search Bar ─── */
   const searchControl = (
-    <div className="relative w-full max-w-md">
-      <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-      <input
-        type="text"
-        placeholder="Search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && runQuery({ search: e.target.value })}
-        className="w-full h-8 pl-9 pr-8 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-      />
-      {search && (
-        <button 
-          onClick={() => { setSearch(''); runQuery({ search: '' }); }} 
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-        >
-          <MdClose size={16} />
-        </button>
-      )}
-    </div>
+    <SearchControl
+      search={search}
+      onSearchChange={setSearch}
+      sortOrder={sortOrder}
+      onSortToggle={() => handleSort(sortBy || 'submitted_at')}
+      loading={loading}
+      isRefreshing={isRefreshing}
+      onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
+    />
   );
 
-  /* ─── Filter toolbar ─── */
   const filterToolbar = (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+    <ListFilterToolbar
+      hasActiveFilters={hasActiveFilters}
+      onClearAll={handleClearAllFilters}
 
-      {/* Status */}
-      <div className="relative h-9 flex items-center flex-shrink-0">
-        <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-        <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}
-          className="h-9 w-28 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none flex items-center focus:ring-0 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700">
-          <option value="">All Status</option>
-          <option value="for_review">For Review</option>
-          <option value="under_review">Under Review</option>
-          <option value="Sent Back">Sent Back</option>
-        </select>
-      </div>
+      statusOptions={[
+        { value: "",              label: "All Status" },
+        { value: "for_review",    label: "For Review" },
+        { value: "under_review",  label: "Under Review" },
+      ]}
+      statusFilter={statusFilter}
+      onStatusChange={handleStatusChange}
 
-      {/* Per Page */}
-      <div className="relative h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
-        <button type="button" onClick={() => setShowPerPagePicker(!showPerPagePicker)}
-          className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors ">
-          <TbLayoutRows size={15} className="text-slate-400" />
-          <span>Rows: {perPage}</span>
-          <MdExpandMore size={14} className="text-slate-400" />
-        </button>
-        {showPerPagePicker && (
-          <div className="absolute left-0 top-11 z-50 w-40 bg-white border border-gray-200 rounded-2xl shadow-lg p-3">
-            <span className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Rows per page</span>
-            <div className="flex items-center gap-1.5 ">
-              <input autoFocus type="number" value={perPageInput}
-                onChange={(e) => setPerPageInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handlePerPageInputApply()}
-                className="w-16 h-8 px-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]" />
-              <button type="button" onClick={handlePerPageInputApply}
-                className="h-8 flex-1 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">
-                Apply
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      typeOptions={[
+        { value: "", label: "All Types" },
+        { value: 1,  label: "Existing" },
+        { value: 0,  label: "Potential" },
+      ]}
+      typeFilter={typeFilter}
+      onTypeChange={handleTypeChange}
 
-      {/* Prepared By */}
-      <div className="relative flex-shrink-0" ref={preparedByRef}>
-        <FilterChip
-          active={!!preparedBy}
-          icon={<MdPerson size={15} />}
-          label="Prepared By"
-          value={preparedBy}
-          onClick={() => { setShowPreparedBy((p) => !p); setShowDatePicker(false); }}
-          onClear={() => handlePreparedByApply("")}
-        />
-        <TextFilterPopup
-          open={showPreparedBy}
-          label="Prepared By"
-          placeholder="e.g. Maria Santos"
-          icon={<MdPerson size={14} className="text-[#4FA34E]" />}
-          value={preparedBy}
-          onChange={setPreparedBy}
-          onApply={handlePreparedByApply}
-          onClose={() => setShowPreparedBy(false)}
-        />
-      </div>
+      perPage={perPage}
+      perPageInput={perPageInput}
+      onPerPageInputChange={setPerPageInput}
+      onPerPageApply={handlePerPageInputApply}
 
-      {/* Approval Level Dropdown */}
-      <div className="relative h-9 flex items-center flex-shrink-0">
-        <MdVerifiedUser className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-        <select value={approvalLevel} onChange={(e) => handleApprovalLevelChange(e.target.value)}
-          className="h-9 w-36 sm:w-44 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none flex items-center focus:ring-0 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700">
-          <option value="">All Levels</option>
-          <option value="DIRECTOR_CUSTOMER_ENGAGEMENT">Director - Customer Engagement</option>
-          <option value="ESD_DIRECTOR">ESD Director</option>
-          <option value="VP_AND_CCTO">VP & CCTO</option>
-          <option value="PRESIDENT_AND_CEO">President & CEO</option>
-        </select>
-      </div>
+      preparedBy={preparedBy}
+      onPreparedByChange={setPreparedBy}
+      onPreparedByApply={handlePreparedByApply}
 
-      {/* Date Range (Icon-only on active tracking) */}
-      <div className="relative flex-shrink-0" ref={datePickerRef}>
-        <FilterChip
-          active={!!hasDateFilter}
-          icon={<MdDateRange size={15} />}
-          label="Date Range"
-          value={dateLabel}
-          hideLabelOnActive={true} 
-          onClick={() => { setShowDatePicker((p) => !p); setShowPreparedBy(false); }}
-          onClear={handleDateClear}
-        />
-        {showDatePicker && (
-          <div className="absolute left-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <MdDateRange size={16} className="text-[#4FA34E]" />
-              <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
-            </div>
-            <div className="space-y-2">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]" />
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]" />
-            </div>
-            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-              <button type="button" onClick={handleDateClear}
-                className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50">
-                Clear
-              </button>
-              <button type="button" onClick={handleDateApply}
-                className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">
-                Apply
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-    </div>
+      dateFrom={dateFrom}
+      dateTo={dateTo}
+      onDateFromChange={setDateFrom}
+      onDateToChange={setDateTo}
+      onDateApply={handleDateApply}
+      onDateClear={handleDateClear}
+    />
   );
 
   return (
@@ -480,8 +538,7 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
-          
-          {/* Header Layout */}
+
           <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
             <div className="flex gap-1">
               <h1 className="font-semibold mt-3">Project SPRF Approval</h1>
@@ -502,6 +559,8 @@ function CurrentList({ currentProjects = null, stats = null, filters = {} }) {
             pagination={pagination}
             searchControl={searchControl}
             filterControl={filterToolbar}
+            loading={loading}
+            emptyText="No matching records found."
           />
         </div>
       </div>

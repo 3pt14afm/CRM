@@ -218,24 +218,26 @@ export default function ListFilterToolbar({
         />
       </div>
 
-      {/* Location */}
-      <div className="relative flex-shrink-0" ref={locationRef}>
-        <FilterChip
-          active={!!locationId}
-          icon={<MdLocationOn size={15} />}
-          label="Location"
-          value={selectedLocationName}
-          onClick={() => { setShowLocation((p) => !p); closeOthers({ keepLocation: true }); }}
-          onClear={() => onLocationApply("")}
-        />
-        <LocationFilterPopup
-          open={showLocation}
-          locations={locations}
-          selectedId={locationId}
-          onApply={onLocationApply}
-          onClose={() => setShowLocation(false)}
-        />
-      </div>
+  {/* Location */}
+  {locations?.length > 0 && (
+    <div className="relative flex-shrink-0" ref={locationRef}>
+      <FilterChip
+        active={!!locationId}
+        icon={<MdLocationOn size={15} />}
+        label="Location"
+        value={selectedLocationName}
+        onClick={() => { setShowLocation((p) => !p); closeOthers({ keepLocation: true }); }}
+        onClear={() => onLocationApply("")}
+      />
+      <LocationFilterPopup
+        open={showLocation}
+        locations={locations}
+        selectedId={locationId}
+        onApply={onLocationApply}
+        onClose={() => setShowLocation(false)}
+      />
+    </div>
+  )}
 
 {/* Type (Placed before Date Range) */}
 <div className="relative h-9 w-28 flex items-center flex-shrink-0">

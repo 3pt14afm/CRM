@@ -34,7 +34,7 @@ class SprfCurrentProjectController extends Controller
                 'preparer:id,first_name,last_name,position',
                 'currentApprover:id,first_name,last_name,position',
             ]);
-            
+
         // Apply visibility restriction only if the user is not ID 1
         if ($userId !== 1 && !$isPresidentCeo) {
             $query->where(function ($q) use ($userId) {
@@ -52,7 +52,7 @@ class SprfCurrentProjectController extends Controller
         $query->whereIn('status', ['for_review', 'under_review', 'Sent Back']);
 
         // ─── ALIGNED SPRF DYNAMIC FILTERS ────────────────────────────────────
-        
+
         $query->when(filled($request->input('search')), function ($q) use ($request) {
             $search = trim($request->input('search'));
             $q->where(function ($sub) use ($search) {
@@ -78,6 +78,10 @@ class SprfCurrentProjectController extends Controller
             $q->where('sub_category', 'like', '%' . trim($request->input('sub_category')) . '%');
         });
 
+        $query->when($request->filled('type'), function ($q) use ($request) {
+            $q->where('type', (int) $request->input('type'));
+        });
+
         $query->when(filled($request->input('prepared_by')), function ($q) use ($request) {
             $preparedBy = trim($request->input('prepared_by'));
             $q->whereHas('preparer', function ($sub) use ($preparedBy) {
@@ -89,8 +93,19 @@ class SprfCurrentProjectController extends Controller
             $q->where('approval_level', $request->input('approval_level'));
         });
 
-        $query->when(filled($request->input('status')), function ($q) use ($request) {
-            $q->where('status', $request->input('status'));
+        $query->when(filled($request->input('status')), function ($q) use ($request, $userId) {
+            $statusFilter = $request->input('status');
+
+            if ($statusFilter === 'for_review') {
+                // Rows where the logged-in user is the one it's currently sitting with
+                $q->where('current_approver_user_id', $userId);
+            } elseif ($statusFilter === 'under_review') {
+                // Rows in the pipeline but NOT with the logged-in user right now
+                $q->where(function ($sub) use ($userId) {
+                    $sub->where('current_approver_user_id', '!=', $userId)
+                        ->orWhereNull('current_approver_user_id');
+                });
+            }
         });
 
         $query->when(filled($request->input('date_from')), function ($q) use ($request) {
@@ -100,8 +115,36 @@ class SprfCurrentProjectController extends Controller
             $q->whereDate('updated_at', '<=', $request->input('date_to'));
         });
 
-        $query->orderByDesc('updated_at')
-            ->orderByDesc('updated_at');
+        // ─── SORTING ──────────────────────────────────────────────────────────
+        $sortBy    = $request->input('sort_by');
+        $sortOrder = in_array(strtolower($request->input('sort_order', 'desc')), ['asc', 'desc'])
+            ? strtolower($request->input('sort_order', 'desc'))
+            : 'desc';
+
+        $allowedSorts = [
+            'prepared_by'     => null,   // handled via join below
+            'sprf_no'         => 'sprf_no',
+            'sub_category'    => 'sub_category',
+            'company_name'    => 'account',
+            'account_manager' => 'account_manager',
+            'type'            => 'type',
+            'approval_level'  => 'approval_level',
+            'status'          => 'status',
+            'submitted_at'    => 'submitted_at',
+            'last_saved_at'   => 'updated_at',
+        ];
+
+        if ($sortBy && array_key_exists($sortBy, $allowedSorts)) {
+            if ($sortBy === 'prepared_by') {
+                $query->join('users', 'users.id', '=', 'sprf_current_projects.prepared_by_user_id')
+                    ->orderByRaw("CONCAT(users.first_name, ' ', users.last_name) {$sortOrder}")
+                    ->select('sprf_current_projects.*');
+            } else {
+                $query->orderBy($allowedSorts[$sortBy], $sortOrder);
+            }
+        } else {
+            $query->orderByDesc('updated_at');
+        }
 
         $currentProjects = (clone $query)
             ->paginate($perPage)
@@ -121,6 +164,7 @@ class SprfCurrentProjectController extends Controller
                     'company_name' => $project->account,
                     'sub_category' => $project->sub_category,
                     'account_manager' => $project->account_manager,
+                    'type' => $project->type,
                     'revenue' => $project->revenue,
                     'gp_percent' => $project->gp_percent,
                     'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
@@ -142,26 +186,40 @@ class SprfCurrentProjectController extends Controller
             ->whereIn('status', ['for_review', 'under_review', 'Sent Back'])
             ->count();
 
+        $stats = [
+            'totalCurrentProjects' => $totalCurrentProjects,
+            'recentlyAddedToday' => $recentlyAddedToday . ' Today',
+        ];
+
+        $responseFilters = $request->only([
+            'search',
+            'status',
+            'per_page',
+            'date_from',
+            'date_to',
+            'sprf_no',
+            'account',
+            'account_manager',
+            'sub_category',
+            'prepared_by',
+            'approval_level',
+            'type',
+            'sort_by',
+            'sort_order',
+        ]);
+
+        if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
+            return response()->json([
+                'currentProjects' => $currentProjects,
+                'stats' => $stats,
+            ]);
+        }
+
         return Inertia::render('CustomerManagement/ProjectSPRF/CurrentRoutes/CurrentList', [
             'currentProjects' => $currentProjects,
-            'stats' => [
-                'totalCurrentProjects' => $totalCurrentProjects,
-                'recentlyAddedToday' => $recentlyAddedToday . ' Today',
-            ],
+            'stats' => $stats,
             'viewerId' => $userId,
-            'filters' => $request->only([
-                'search', 
-                'status', 
-                'per_page', 
-                'date_from', 
-                'date_to', 
-                'sprf_no', 
-                'account', 
-                'account_manager', 
-                'sub_category',
-                'prepared_by',
-                'approval_level'
-            ]),
+            'filters' => $responseFilters,
         ]);
     }
         
