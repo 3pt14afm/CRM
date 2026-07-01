@@ -368,7 +368,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                 value={searchState.search}
                 onChange={(e) => updateFilters({ search: e.target.value })}
                 className="h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
-                    placeholder:text-slate-400 
+                    placeholder:text-slate-400 outline-none focus:ring-0 focus:border-[#289800]
                     transition-[border-color,box-shadow] duration-150"
             />
         </div>

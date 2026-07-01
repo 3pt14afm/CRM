@@ -247,13 +247,13 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
   ];
 
   return (
-    <div className="border-[#D6DDD0] bg-[#FBFFFA] px-5 xl:px-7 py-4 shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl">
+    <div className="border-[#D6DDD0] bg-[#FBFFFA] px-3 sm:px-5 xl:px-7 py-3 sm:py-4 shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl">
       <div className="space-y-2">
         {/* SUB CATEGORY */}
-        <div className="grid grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
-          <label className="text-[11px] xl:text-xs font-bold tracking-[0.01em]">SUB CATEGORY</label>
+        <div className="grid grid-cols-[100px_minmax(0,1fr)] md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
+          <label className="text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">SUB CATEGORY</label>
           {readOnly ? (
-            <div className="min-h-8 rounded-xl border px-3 py-1.5 text-xs border-gray-200 bg-white flex items-center">
+            <div className="h-7 sm:min-h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs border-gray-200 bg-white flex items-center">
               {value?.subCategory?.trim?.() ? value.subCategory : "—"}
             </div>
           ) : (
@@ -262,156 +262,156 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
               value={value?.subCategory ?? ""}
               onChange={(e) => handleFieldChange("subCategory", e.target.value)}
               placeholder="Enter Sub Category"
-              className="h-8 rounded-xl border px-3 text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
+              className="h-8 rounded-xl border px-3 text-[11px] sm:text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
             />
           )}
         </div>
 
-    {/* ACCOUNT — existing/potential company combobox */}
- <div className="grid grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center relative">
-  <label className="text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT</label>
-      <div className="relative w-full">
-        <div
-          className={`flex items-center rounded-xl border h-8 bg-white transition-all duration-200 overflow-hidden ${
-            accountWrapperInvalid ? "border-red-500 bg-red-50/30" : "border-gray-200 hover:border-[#28980080]"
-          } ${readOnly ? "opacity-70" : ""}`}
-        >
-          <select
-            className={`h-full text-xs ml-2 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 ${
-              isTypeInvalid ? "text-red-400" : typeNotSelected ? "text-slate-400" : "text-slate-600"
-            } ${readOnly ? "cursor-not-allowed" : "cursor-pointer"}`}
-            style={{ width: "15%", paddingLeft: "0px", paddingRight: "0px", textIndent: "0px" }}
-            value={type === null || type === undefined ? "" : String(type)}
-            onChange={handleTypeSelectChange}
-            disabled={readOnly}
-          >
-            <option value="" >Type</option>
-            <option value="1" >Existing</option>
-            <option value="0" >Potential</option>
-          </select>
+        {/* ACCOUNT — existing/potential company combobox */}
+        <div className="grid grid-cols-[100px_minmax(0,1fr)] md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center relative">
+            <label className="text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT</label>
+            <div className="relative w-full">
+              <div
+                className={`flex items-center rounded-md sm:rounded-xl border h-7 sm:h-8 bg-white transition-all duration-200 overflow-hidden ${
+                  accountWrapperInvalid ? "border-red-500 bg-red-50/30" : "border-gray-200 hover:border-[#28980080]"
+                } ${readOnly ? "opacity-70" : ""}`}
+              >
+                <select
+                  className={`h-full text-[11px] sm:text-xs ml-1 sm:ml-2 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 ${
+                    isTypeInvalid ? "text-red-400" : typeNotSelected ? "text-slate-400" : "text-slate-600"
+                  } ${readOnly ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  style={{ width: "15%", paddingLeft: "0px", paddingRight: "0px", textIndent: "0px" }}
+                  value={type === null || type === undefined ? "" : String(type)}
+                  onChange={handleTypeSelectChange}
+                  disabled={readOnly}
+                >
+                  <option value="" >Type</option>
+                  <option value="1" >Existing</option>
+                  <option value="0" >Potential</option>
+                </select>
 
-          <div className="w-[1px] h-5 bg-gray-200" aria-hidden="true" />
+              <div className="w-[1px] h-5 bg-gray-200" aria-hidden="true" />
 
-          {isExistingType ? (
-            <div className="relative flex items-center h-full flex-1">
-              <input
-                className={`h-full px-3 text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none w-full ${
-                  readOnly || typeNotSelected ? "opacity-70 cursor-not-allowed" : ""
-                }`}
-                type="text"
-                autoComplete="off"
-                placeholder={
-                  typeNotSelected && !readOnly
-                    ? "Select a type first..."
-                    : isCompanyLocked
-                    ? ""
-                    : "Search existing company..."
-                }
-                value={isCompanyLocked ? accountVal : existingInputValue}
-                onChange={handleExistingInputChange}
-                onFocus={handleExistingFocus}
-                onBlur={handleExistingBlur}
-                disabled={readOnly || typeNotSelected}
-                readOnly={isCompanyLocked || readOnly}
-              />
-              {isCompanyLocked && !readOnly && (
-                <button
-                  type="button"
-                  title="Click to change company"
-                  className="absolute right-2 text-gray-400 hover:text-gray-600 transition-colors"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    const currentName = accountVal;
-                    existingLockedRef.current = false;
-                    updateFields({
-                      account: "",
-                      companySapCode: null,
-                      potentialCompanyId: null,
-                    });
-                    setExistingInputValue(currentName);
-                    setSuggestions([]);
-                    setHasSearched(false);
-                    if (currentName.trim().length >= 1) {
+                {isExistingType ? (
+                  <div className="relative flex items-center h-full flex-1">
+                    <input
+                      className={`h-full px-3 text-[11px] sm:text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none w-full ${
+                        readOnly || typeNotSelected ? "opacity-70 cursor-not-allowed" : ""
+                      }`}
+                      type="text"
+                      autoComplete="off"
+                      placeholder={
+                        typeNotSelected && !readOnly
+                          ? "Select a type first..."
+                          : isCompanyLocked
+                          ? ""
+                          : "Search existing company..."
+                      }
+                      value={isCompanyLocked ? accountVal : existingInputValue}
+                      onChange={handleExistingInputChange}
+                      onFocus={handleExistingFocus}
+                      onBlur={handleExistingBlur}
+                      disabled={readOnly || typeNotSelected}
+                      readOnly={isCompanyLocked || readOnly}
+                    />
+                    {isCompanyLocked && !readOnly && (
+                      <button
+                        type="button"
+                        title="Click to change company"
+                        className="absolute right-2 text-gray-400 hover:text-gray-600 transition-colors"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const currentName = accountVal;
+                          existingLockedRef.current = false;
+                          updateFields({
+                            account: "",
+                            companySapCode: null,
+                            potentialCompanyId: null,
+                          });
+                          setExistingInputValue(currentName);
+                          setSuggestions([]);
+                          setHasSearched(false);
+                          if (currentName.trim().length >= 1) {
+                            setShowDropdown(true);
+                            fetchSuggestions(currentName.trim(), "existing");
+                          }
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                <input
+                  className={`h-full px-3 text-[11px] sm:text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none flex-1 ${
+                    readOnly ? "opacity-70 cursor-not-allowed" : ""
+                  }`}
+                  type="text"
+                  autoComplete="off"
+                  placeholder={
+                    typeNotSelected && !readOnly
+                      ? "Select a type first..."
+                      : isPotentialType
+                      ? "Search or enter company name..."
+                      : "Enter Complete Company Name"
+                  }
+                  value={accountVal}
+                  onChange={handlePotentialInputChange}
+                  onFocus={() => {
+                    if (!typeNotSelected && isPotentialType && accountVal.length >= 1) {
                       setShowDropdown(true);
-                      fetchSuggestions(currentName.trim(), "existing");
                     }
                   }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
+                  onBlur={handlePotentialBlur}
+                  disabled={readOnly || typeNotSelected}
+                  readOnly={readOnly}
+                />
               )}
             </div>
-          ) : (
-            <input
-              className={`h-full px-3 text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none flex-1 ${
-                readOnly ? "opacity-70 cursor-not-allowed" : ""
-              }`}
-              type="text"
-              autoComplete="off"
-              placeholder={
-                typeNotSelected && !readOnly
-                  ? "Select a type first..."
-                  : isPotentialType
-                  ? "Search or enter company name..."
-                  : "Enter Complete Company Name"
-              }
-              value={accountVal}
-              onChange={handlePotentialInputChange}
-              onFocus={() => {
-                if (!typeNotSelected && isPotentialType && accountVal.length >= 1) {
-                  setShowDropdown(true);
-                }
-              }}
-              onBlur={handlePotentialBlur}
-              disabled={readOnly || typeNotSelected}
-              readOnly={readOnly}
-            />
-          )}
+
+            {shouldShowDropdown && !readOnly && (
+              <ul className="absolute top-[36px] left-0 z-[100] [&::-webkit-scrollbar]:hidden w-full bg-[#ffffff01] backdrop-blur-lg border border-gray-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto py-1 border-t-0 rounded-t-none">
+                {isSearching && suggestions.length === 0 && (
+                  <li className="px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-[#289800] border-t-transparent rounded-full animate-spin"></div>
+                    Searching database...
+                  </li>
+                )}
+                {suggestions.length > 0 ? (
+                  suggestions.map((item, index) => (
+                    <li
+                      key={index}
+                      className="px-4 py-2 hover:bg-green-50 cursor-pointer text-sm text-gray-800 border-b border-gray-50 last:border-none transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectSuggestion(item);
+                      }}
+                    >
+                      {item.company_name}
+                    </li>
+                  ))
+                ) : (
+                  !isSearching &&
+                  hasSearched && (
+                    <li className="px-4 py-3 text-sm text-gray-500 italic">
+                      {isExistingType
+                        ? "Company not found."
+                        : "Company not found — will be saved as potential customer on submit."}
+                    </li>
+                  )
+                )}
+              </ul>
+            )}
+          </div>
         </div>
 
-        {shouldShowDropdown && !readOnly && (
-          <ul className="absolute top-[36px] left-0 z-[100] [&::-webkit-scrollbar]:hidden w-full bg-[#ffffff01] backdrop-blur-lg border border-gray-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto py-1 border-t-0 rounded-t-none">
-            {isSearching && suggestions.length === 0 && (
-              <li className="px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
-                <div className="w-3 h-3 border-2 border-[#289800] border-t-transparent rounded-full animate-spin"></div>
-                Searching database...
-              </li>
-            )}
-            {suggestions.length > 0 ? (
-              suggestions.map((item, index) => (
-                <li
-                  key={index}
-                  className="px-4 py-2 hover:bg-green-50 cursor-pointer text-sm text-gray-800 border-b border-gray-50 last:border-none transition-colors"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectSuggestion(item);
-                  }}
-                >
-                  {item.company_name}
-                </li>
-              ))
-            ) : (
-              !isSearching &&
-              hasSearched && (
-                <li className="px-4 py-3 text-sm text-gray-500 italic">
-                  {isExistingType
-                    ? "Company not found."
-                    : "Company not found — will be saved as potential customer on submit."}
-                </li>
-              )
-            )}
-          </ul>
-        )}
-      </div>
-    </div>
-
         {/* ACCOUNT MANAGER */}
-        <div className="grid grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
-          <label className="text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT MANAGER</label>
+        <div className="grid grid-cols-[100px_minmax(0,1fr)] sm:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
+          <label className="text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT MANAGER</label>
           {readOnly ? (
-            <div className="min-h-8 rounded-xl border px-3 py-1.5 text-xs border-gray-200 bg-white flex items-center">
+            <div className="h-7 sm:min-h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs border-gray-200 bg-white flex items-center">
               {value?.accountManager?.trim?.() ? value.accountManager : "—"}
             </div>
           ) : (
@@ -420,7 +420,7 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
               value={value?.accountManager ?? ""}
               onChange={(e) => handleFieldChange("accountManager", e.target.value)}
               placeholder="Enter Complete AM Name"
-              className="h-8 rounded-xl border px-3 text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
+              className="h-7 sm:h-8 rounded-md sm:rounded-xl border px-3 text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
             />
           )}
         </div>

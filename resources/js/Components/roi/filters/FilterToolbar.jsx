@@ -2,7 +2,7 @@ import { MdClose } from 'react-icons/md';
 
 export default function FilterToolbar({ children, hasActiveFilters, onClearAll }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm ">
       {children}
       {hasActiveFilters && (
         <>

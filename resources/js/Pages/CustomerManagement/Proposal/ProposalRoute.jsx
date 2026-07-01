@@ -15,9 +15,9 @@ export default function ProposalRoute({ proposals, stats, generatedproposals, ge
 
     return (
         <>
-             <Head title="ROI Entry" />
+            <Head title="Proposal Generation" />
             
-            <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
+            <div className="pt-8 pb-1 flex justify-between mx-10">
                 <div className="flex gap-1 items-baseline">
                     {/* <h1 className="font-semibold">Project Proposal</h1> */}
                     {/* <span className="mx-2">/</span> */}

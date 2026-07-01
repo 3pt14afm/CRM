@@ -449,7 +449,7 @@ function UserManagement({
 
             <div className="mt-4">
               <div className="-mx-4 md:-mx-6 lg:-mx-10">
-                <div className="-mb-2 mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-[#00000010] border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
+                <div className="-mb-2 mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-black/10 border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterPill
                       label="Status"
@@ -513,7 +513,7 @@ function UserManagement({
                         <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
 
                         <input
-                          className="w-64 rounded-full border border-black/10 bg-white px-3 py-1 pl-9 text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
+                          className="w-64 rounded-lg border border-black/10 bg-white px-3 py-1 pl-9 text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
                           value={searchQuery}
                           onChange={(e) => {
                             const value = e.target.value;
