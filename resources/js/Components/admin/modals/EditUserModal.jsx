@@ -114,15 +114,15 @@ useEffect(() => {
       forceFormData: true,
       preserveScroll: true,
       onSuccess: () => {
-        setAvatarVersion(Date.now()); // ← add this
+        setAvatarError(false);        // <-- add this
+        setAvatarVersion(Date.now());
         router.reload({ only: ['users'] });
         setPendingAvatar(null);
         setPendingAvatarPreview(null);
         setShowAvatarModal(false);
         setUploadingAvatar(false);
         toast.success('Profile picture updated successfully.');
-        setAvatarVersion(Date.now());
-        setAvatarLoading(true); // ← add after setAvatarVersion in onSuccess
+        setAvatarLoading(true);
       },
       onError: () => {
         setUploadingAvatar(false);
