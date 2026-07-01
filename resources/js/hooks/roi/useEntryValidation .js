@@ -12,6 +12,8 @@ const MACHINE_TAB = "Machine";
  * @returns {{
  *   showOutrightErrors: boolean,
  *   setShowOutrightErrors: Function,
+ *   showModeErrors: boolean,
+ *   setShowModeErrors: Function,
  *   isCompanyInfoValid: Function,
  *   validateBusinessLogic: Function,
  *   validateOutrightFields: Function,
@@ -22,6 +24,7 @@ export function useEntryValidation({ setTab }) {
   const { projectData } = useProjectData();
 
   const [showOutrightErrors, setShowOutrightErrors] = useState(false);
+  const [showModeErrors, setShowModeErrors] = useState(false);
 
   // -------------------------------------------------------------------------
   // CONTRACT TYPE FLAGS
@@ -103,28 +106,39 @@ export function useEntryValidation({ setTab }) {
       const isMachine   = item.type === "machine";
       const isMonoColor = item.mode === "mono" || item.mode === "color";
 
-      // 1. Unit Cost is always required
+      // 1. Type (Mono/Color/Others) is mandatory for every non-machine row.
+      //    Machine rows (H checkbox checked, including the mandatory printer)
+      //    identify themselves via the printer search box instead, so they're
+      //    exempt from this check.
+      if (!isMachine && !String(item.mode || "").trim()) {
+        toast.error(`Please select a Type (Mono/Color/Others)`);
+        setShowModeErrors(true);
+        setTab(MACHINE_TAB);
+        return false;
+      }
+
+      // 2. Unit Cost is always required
       if (costVal <= 0) {
         toast.error(`Unit Cost is mandatory for "${itemLabel}".`);
         setTab(MACHINE_TAB);
         return false;
       }
 
-      // 2. Machines may only have yields if mode is "others"
+      // 3. Machines may only have yields if mode is "others"
       if (isMachine && item.mode !== "others" && yieldVal > 0) {
         toast.error(`Yields cannot be set for machine "${itemLabel}" unless mode is 'Others'.`);
         setTab(MACHINE_TAB);
         return false;
       }
 
-      // 3. Mono/Color consumables require yields (except Fixed / Outright Only)
+      // 4. Mono/Color consumables require yields (except Fixed / Outright Only)
       if (!isMachine && isMonoColor && !isFixed && !isOutrightOnly && yieldVal <= 0) {
         toast.error(`Yields are mandatory for consumable "${itemLabel}".`);
         setTab(MACHINE_TAB);
         return false;
       }
 
-      // 4. Selling price checks — evaluated once per item to avoid duplicate toasts
+      // 5. Selling price checks — evaluated once per item to avoid duplicate toasts
 
       if (isMachine) {
         // Outright machines always need a sell price
@@ -208,6 +222,7 @@ export function useEntryValidation({ setTab }) {
     }
 
     setShowOutrightErrors(false);
+    setShowModeErrors(false);
     return true;
   };
 
@@ -281,6 +296,8 @@ export function useEntryValidation({ setTab }) {
   return {
     showOutrightErrors,
     setShowOutrightErrors,
+    showModeErrors,
+    setShowModeErrors,
     isCompanyInfoValid,
     validateBusinessLogic,
     validateOutrightFields,

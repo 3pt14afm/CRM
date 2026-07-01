@@ -61,9 +61,10 @@ export default function Entry({
     setShowCompanyInfoErrors,
   } = useEntryHydration(entryProject, activeTab);
 
-  const {
+const {
     showOutrightErrors,
     setShowOutrightErrors,
+    showModeErrors,
     isCompanyInfoValid,
     validateBusinessLogic,
     validateEntryRemarks,
@@ -259,6 +260,7 @@ const handleGoBack = () => {
             buttonClicked={buttonClicked}
             showCompanyInfoErrors={showCompanyInfoErrors}
             showOutrightErrors={showOutrightErrors}
+            showModeErrors={showModeErrors}
           />
         ) : tab === 'Summary' ? (
           <Summary1stYear

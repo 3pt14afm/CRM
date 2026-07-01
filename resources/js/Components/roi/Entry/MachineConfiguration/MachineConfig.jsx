@@ -28,11 +28,21 @@ const onlyNumericKeys = (allowDot) => (e) => {
   e.preventDefault();
 };
 
-const isRowStarted = (row) =>
-  ['sku', 'cost', 'yields', 'price', 'remarks'].some((f) => String(row?.[f] || '').trim());
+// A row "requires" a Type/mode choice unless it's:
+//   - the locked mandatory printer row (fixed "Printer" badge, no select), or
+//   - a row currently checked as a Machine (H checkbox on — user identifies
+//     it via the printer search box instead of the Type dropdown).
+// Every other row — including a completely blank freshly-added row — is
+// required to have a Type selected before submit.
+const rowRequiresMode = (row) =>
+  !row?.isMandatory && row?.type !== ROW_TYPE.MACHINE;
 
-const shouldHighlightModeError = (row) =>
-  row?.type === ROW_TYPE.CONSUMABLE && isRowStarted(row) && !String(row?.mode || '').trim();
+const isRowMissingMode = (row) => rowRequiresMode(row) && !String(row?.mode || '').trim();
+
+// Only flag rows once a submit/save-draft attempt has actually been made —
+// no live "while typing" highlighting.
+const shouldHighlightModeError = (row, showModeErrors) =>
+  showModeErrors && isRowMissingMode(row);
 
 // ── SKUCell ────────────────────────────────────────────────────────────────
 function SKUCell({ row, readOnly, activeSearchRowId, handlers }) {
@@ -127,7 +137,7 @@ function SKUCell({ row, readOnly, activeSearchRowId, handlers }) {
 }
 
 // ── MachineRow ─────────────────────────────────────────────────────────────
-function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedField, contractType, errors, showOutrightErrors, handlers }) {
+function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedField, contractType, errors, showOutrightErrors, showModeErrors, handlers }) {
   const { projectData } = useProjectData();
   const {
     handleInputChange, toggleMachine, setMode, addRow, removeRow,
@@ -144,6 +154,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
   const isMandatory       = !!row.isMandatory;
   const keyOf             = (field) => `${row.id}:${field}`;
   const isFocused         = (field) => focusedField === keyOf(field);
+  const modeError         = shouldHighlightModeError(row, showModeErrors);
 
   return (
     <tr
@@ -191,7 +202,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
               className={[
                 'w-[90%] min-w-0 h-6 text-[10px] sm:text-[11px] pl-2 pr-5 py-0 rounded-sm accent-green-600 border bg-white outline-none focus:outline-none focus:ring-0',
                 isMachineRow && modeStr !== MODE.OTHERS ? 'border-darkgreen/20 cursor-not-allowed bg-slate-100'
-                  : shouldHighlightModeError(row)       ? 'border-red-400 bg-red-50 text-red-700 cursor-pointer'
+                  : modeError                            ? 'border-red-400 bg-red-50 text-red-700 cursor-pointer'
                   :                                       'border-darkgreen/20 focus:border-[#289800] cursor-pointer',
                 isAutoOrMonoColor ? 'cursor-not-allowed bg-slate-100 border-slate-200' : '',
               ].join(' ')}
@@ -201,6 +212,9 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
               <option value={MODE.COLOR}>Color</option>
               <option value={MODE.OTHERS}>Others</option>
             </select>
+          )}
+          {modeError && (
+            <span className="sr-only">A type must be selected for this row</span>
           )}
         </div>
       </td>
@@ -366,7 +380,11 @@ function ConfigTableFooter({ totals }) {
 }
 
 // ── MachineConfig ──────────────────────────────────────────────────────────
-function MachineConfig({ readOnly, showOutrightErrors }) {
+// `showModeErrors` is driven from useEntryValidation's validateBusinessLogic
+// (same pattern as showOutrightErrors / showCompanyInfoErrors) — it flips to
+// true when a Save Draft / Submit attempt hits a row with no Type selected,
+// which is also what actually blocks that action from proceeding.
+function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
   const { auth, entryProject, project: inertiaProject, machineCatalog = [], consumableCatalog = {}, errors } = usePage().props;
   const { projectData } = useProjectData();
 
@@ -381,6 +399,8 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
   const { rows, focusedField, activeSearchRowId } = handlers;
   const totals = projectData.machineConfiguration?.totals;
 
+  const hasInvalidRows = showModeErrors && rows.some(isRowMissingMode);
+
   return (
     <div className="mx-10 mb-5">
       <div className="rounded-xl shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-lightgreen/5">
@@ -388,6 +408,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
         <div className="bg-[#D9F2D0] py-2 text-center rounded-t-xl border-b border-darkgreen/15">
           <h2 className="text-[14px] font-bold tracking-wider uppercase">Machine Configuration</h2>
         </div>
+
 
         <div className="w-full">
           <table className="w-full table-fixed border-separate border-spacing-0">
@@ -419,6 +440,7 @@ function MachineConfig({ readOnly, showOutrightErrors }) {
                   contractType={contractType}
                   errors={errors}
                   showOutrightErrors={showOutrightErrors}
+                  showModeErrors={showModeErrors}
                   handlers={handlers}
                 />
               ))}
