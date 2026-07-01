@@ -70,7 +70,7 @@ class RoiController extends Controller
                     } elseif ($diffHours >= 1) {
                         $display = $diffHours . 'hr ago';
                     } elseif ($diffMinutes >= 1) {
-                        $display = $diffMinutes . ' minute' . ($diffMinutes === 1 ? '' : 's') . ' ago';
+                        $display = $diffMinutes . 'm ago';
                     } else {
                         $display = 'Just now';
                     }

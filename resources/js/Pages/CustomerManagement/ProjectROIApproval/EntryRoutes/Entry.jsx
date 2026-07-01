@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
+import { route as ziggyRoute } from 'ziggy-js';
 import { useRef } from 'react';
 import Summary1stYear from './Summary1stYear';
 import MachineConfigTab from './MachineConfigTab';
@@ -101,14 +102,14 @@ export default function Entry({
     submitSendBack,
     handleAdvance,
     handleApprove,
-    showWithdrawModal,       // 👈 new
-    setShowWithdrawModal,    // 👈 new
-    handleWithdraw,          // 👈 new
-    submitWithdraw,          // 👈 new
-    showCancelModal,         // 👈 new
-    setShowCancelModal,      // 👈 new
-    handleCancel,            // 👈 new
-    submitCancel,            // 👈 new
+    showWithdrawModal,       
+    setShowWithdrawModal,    
+    handleWithdraw,         
+    submitWithdraw,          
+    showCancelModal,         
+    setShowCancelModal,     
+    handleCancel,           
+    submitCancel,            
   } = useApprovalActions({ entryProject, sendBackType });
 
   // --- Derived UI flags ---
@@ -174,7 +175,19 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
     return null;
   };
 
+const handleGoBack = () => {
+  const path = window.location.pathname;
 
+  if (path.includes('/roi/entry')) {
+    router.visit(ziggyRoute('roi.entry.list'));
+  } else if (path.includes('/roi/archive')) {
+    router.visit(ziggyRoute('roi.archive'));
+  } else if (path.includes('/roi/current')) {
+    router.visit(ziggyRoute('roi.current'));
+  } else {
+    window.history.back();
+  }
+};
 
 
   return (
@@ -193,7 +206,7 @@ const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showA
           <div className="flex gap-1  items-center">
             <button
               type="button"
-              onClick={() => window.history.back()}
+              onClick={handleGoBack}
               className="mr-2 mt-3 self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all"
             >
               <FaAngleLeft size={20} className="text-[#195C00]" />
