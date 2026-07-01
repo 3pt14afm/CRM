@@ -264,7 +264,7 @@ export function useEntryValidation({ setTab }) {
     if (!requiresEntryRemarks()) return true;
 
     if (!hasValidEntryRemarks()) {
-      toast.error("Remarks are required when Mono AMVP exceeds 5,000 or Color AMVP exceeds 2,500.");
+      toast.error("Remarks are required when Mono AMVP exceeds 4,000 or Color AMVP exceeds 2,000.");
       setTab(MACHINE_TAB);
       return false;
     }
