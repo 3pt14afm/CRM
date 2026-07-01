@@ -262,7 +262,7 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
               value={value?.subCategory ?? ""}
               onChange={(e) => handleFieldChange("subCategory", e.target.value)}
               placeholder="Enter Sub Category"
-              className="h-8 rounded-xl border px-3 text-[11px] sm:text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
+              className="h-7 sm:h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 text-[11px] sm:text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
             />
           )}
         </div>
@@ -277,7 +277,7 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
                 } ${readOnly ? "opacity-70" : ""}`}
               >
                 <select
-                  className={`h-full text-[11px] sm:text-xs ml-1 sm:ml-2 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 ${
+                  className={`truncate text-[11px] sm:text-xs ml-1 sm:ml-2 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 ${
                     isTypeInvalid ? "text-red-400" : typeNotSelected ? "text-slate-400" : "text-slate-600"
                   } ${readOnly ? "cursor-not-allowed" : "cursor-pointer"}`}
                   style={{ width: "15%", paddingLeft: "0px", paddingRight: "0px", textIndent: "0px" }}
@@ -295,7 +295,7 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
                 {isExistingType ? (
                   <div className="relative flex items-center h-full flex-1">
                     <input
-                      className={`h-full px-3 text-[11px] sm:text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none w-full ${
+                      className={`px-2 sm:px-3 text-[11px] sm:text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none w-full ${
                         readOnly || typeNotSelected ? "opacity-70 cursor-not-allowed" : ""
                       }`}
                       type="text"
@@ -345,7 +345,7 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
                   </div>
                 ) : (
                 <input
-                  className={`h-full px-3 text-[11px] sm:text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none flex-1 ${
+                  className={`px-3 text-[11px] sm:text-xs outline-none focus:ring-0 focus:border-none focus-visible:outline-none focus-visible:ring-0 bg-white transition-colors duration-200 border-none flex-1 ${
                     readOnly ? "opacity-70 cursor-not-allowed" : ""
                   }`}
                   type="text"
@@ -420,7 +420,7 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
               value={value?.accountManager ?? ""}
               onChange={(e) => handleFieldChange("accountManager", e.target.value)}
               placeholder="Enter Complete AM Name"
-              className="h-7 sm:h-8 rounded-md sm:rounded-xl border px-3 text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
+              className="h-7 sm:h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 text-[11px] sm:text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
             />
           )}
         </div>
