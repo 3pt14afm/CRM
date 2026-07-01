@@ -72,9 +72,9 @@ function GeneratedProposals({ proposals, stats }) {
   header: "ACTIONS",
   cell: (r) => (
     // Added 'justify-center' and 'w-full' to ensure it centers within the table cell
-    <div className="flex items-center justify-center w-full gap-2">
+
       <button
-        className="px-2 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+        className="px-2 py-1 flex flex-row ml-4 gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
         type="button"
         onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
       >
@@ -85,7 +85,7 @@ function GeneratedProposals({ proposals, stats }) {
         )}
         
       </button>
-    </div>
+
   ),
 },
   ], []);
