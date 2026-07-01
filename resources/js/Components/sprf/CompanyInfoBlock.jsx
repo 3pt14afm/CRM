@@ -250,8 +250,8 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
     <div className="border-[#D6DDD0] bg-[#FBFFFA] px-3 sm:px-5 xl:px-7 py-3 sm:py-4 shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl">
       <div className="space-y-2">
         {/* SUB CATEGORY */}
-        <div className="grid grid-cols-[100px_minmax(0,1fr)] md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
-          <label className="text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">SUB CATEGORY</label>
+        <div className="grid md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
+          <label className="pb-1 sm:pb-0 text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">SUB CATEGORY</label>
           {readOnly ? (
             <div className="h-7 sm:min-h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs border-gray-200 bg-white flex items-center">
               {value?.subCategory?.trim?.() ? value.subCategory : "—"}
@@ -268,8 +268,8 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
         </div>
 
         {/* ACCOUNT — existing/potential company combobox */}
-        <div className="grid grid-cols-[100px_minmax(0,1fr)] md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center relative">
-            <label className="text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT</label>
+        <div className="grid md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center relative">
+            <label className="pb-1 sm:pb-0 text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT</label>
             <div className="relative w-full">
               <div
                 className={`flex items-center rounded-md sm:rounded-xl border h-7 sm:h-8 bg-white transition-all duration-200 overflow-hidden ${
@@ -408,8 +408,8 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
         </div>
 
         {/* ACCOUNT MANAGER */}
-        <div className="grid grid-cols-[100px_minmax(0,1fr)] sm:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
-          <label className="text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT MANAGER</label>
+        <div className="grid md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
+          <label className="pb-1 sm:pb-0 text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">ACCOUNT MANAGER</label>
           {readOnly ? (
             <div className="h-7 sm:min-h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs border-gray-200 bg-white flex items-center">
               {value?.accountManager?.trim?.() ? value.accountManager : "—"}

@@ -16,7 +16,7 @@ function AutoResizeTextarea({ value, onChange, placeholder = '', readOnly = fals
 
   if (readOnly) {
     return (
-      <div className="w-full min-h-[32px] overflow-hidden rounded-xl border border-gray-200 px-3 py-1.5 text-xs bg-white whitespace-pre-wrap">
+      <div className="w-full min-h-[32px] overflow-hidden rounded-md md:rounded-xl border border-gray-200 px-2 md:px-3 py-1.5 text-xs bg-white whitespace-pre-wrap">
         {value?.trim?.() ? value : '—'}
       </div>
     );
@@ -29,7 +29,7 @@ function AutoResizeTextarea({ value, onChange, placeholder = '', readOnly = fals
       onChange={(e) => onChange(e.target.value)}
       rows={1}
       placeholder={placeholder}
-      className="w-full overflow-hidden rounded-xl border border-gray-200 px-3 py-1.5 text-xs outline-none placeholder:text-[#9AA08F] hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
+      className="w-full overflow-hidden rounded-md sm:rounded-xl border border-gray-200 px-2 md:px-3 py-1.5 text-xs outline-none placeholder:text-[#9AA08F] hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
     />
   );
 }
@@ -195,11 +195,11 @@ export default function RemarksBlock({
   };
 
 return (
-    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-5 xl:px-7 py-3 shadow-md">
-      <div className="grid grid-cols-[95px_minmax(0,1fr)] xl:grid-cols-[110px_minmax(0,1fr)] items-start gap-5">
-        <label className="text-[11px] xl:text-xs uppercase font-bold tracking-[0.01em]">
+    <div className="rounded-xl border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 bg-[#FBFFFA] px-3 sm:px-5 xl:px-7 py-2 sm:py-3 shadow-md">
+      <div className="grid md:grid-cols-[95px_minmax(0,1fr)] xl:grid-cols-[110px_minmax(0,1fr)] items-start gap-1 md:gap-5">
+        <label className="text-[10px] sm:text-[11px] xl:text-xs uppercase font-bold tracking-[0.01em]">
           Justification /
-          <br />
+          <br className="hidden md:inline"/>
           Remarks
         </label>
 
@@ -256,7 +256,7 @@ return (
 
                     {/* Newly uploaded previews and saved attachments, supporting multiple files per row */}
                     {(img.length > 0 || savedAttachments.length > 0) && (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap sm:gap-1.5">
                         {img.map((entry, subIndex) => (
                           <div
                             key={`pending-${index}-${subIndex}`}
@@ -323,7 +323,7 @@ return (
                   </div>
 
                   {!readOnly && (
-                    <div className="flex gap-1 pt-1.5">
+                    <div className="flex items-center gap-1 sm:pt-1.5">
                       <input
                         type="file"
                         multiple
@@ -336,16 +336,16 @@ return (
                       <button
                         type="button"
                         onClick={() => handleClipClick(index)}
-                        className="py-2 md:px-1 md:py-1 rounded-md border border-gray-300 bg-gray-50 text-gray-600 font-semibold hover:bg-gray-100"
+                        className="px-1 py-1 rounded-md border border-gray-300 bg-gray-50 text-gray-600 font-semibold hover:bg-gray-100"
                         title="Attach file (image, PDF, Word, or Excel)"
                       >
-                        <MdAttachFile className="text-[10px] md:text-[11px] lg:text-xs xl:text-[13px]" />
+                        <MdAttachFile className="text-xs xl:text-[13px]" />
                       </button>
 
                       <button
                         type="button"
                         onClick={() => addRemarkRow(index)}
-                        className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/15 text-[#289800] font-semibold"
+                        className="px-1 py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/15 text-[#289800] font-semibold"
                         title="Add remark row"
                       >
                         <MdAdd className="text-[10px] md:text-[11px] lg:text-xs xl:text-[13px]" />
@@ -354,7 +354,7 @@ return (
                       <button
                         type="button"
                         onClick={() => removeRemarkRow(index)}
-                        className="px-2 py-2 md:px-1 md:py-1 rounded-md border border-[#F27373] text-red-500 font-semibold hover:bg-[#F27373]/10"
+                        className="px-1 py-1 rounded-md border border-[#F27373] text-red-500 font-semibold hover:bg-[#F27373]/10"
                         title="Remove remark row"
                       >
                         <MdOutlineDelete className="text-[10px] md:text-[11px] lg:text-xs xl:text-[13px]" />
