@@ -70,7 +70,7 @@ export default function ProposalSideBar({
         fixed top-0 bottom-0 right-0 z-[70]
         w-[40%] min-w-[450px] bg-white 
         shadow-[-15px_0px_40px_rgba(0,0,0,0.08)]
-        border-l border-slate-200
+        border-l border-slate-300
         transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
@@ -78,16 +78,16 @@ export default function ProposalSideBar({
         {/* Toggle Handle */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="absolute top-1/2 -left-8 -translate-y-1/2 w-8 h-16 
-                     bg-white border-y border-l border-slate-200
+          className="absolute top-1/2 -left-10 -translate-y-1/2 w-10 h-16 
+                     bg-white border-y border-l border-slate-300
                      flex items-center justify-center rounded-l-md
                      shadow-[-4px_0px_10px_rgba(0,0,0,0.05)]
                      hover:bg-slate-50 group transition-all"
         >
           {isOpen ? (
-            <ChevronRight size={20} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
+            <ChevronRight size={25} className="text-emerald-400 group-hover:text-emerald-500 transition-colors" />
           ) : (
-            <ChevronLeft size={20} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
+            <ChevronLeft size={25} className="text-emerald-400 group-hover:text-emerald-500 transition-colors" />
           )}
         </button>
 

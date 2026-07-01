@@ -60,7 +60,7 @@ class StoreRoiDraftRequest extends FormRequest
         $monoMonthly = (float) $this->input('yield.monoAmvpYields.monthly', 0);
         $colorMonthly = (float) $this->input('yield.colorAmvpYields.monthly', 0);
 
-        if ($monoMonthly > 5000 || $colorMonthly > 2500) {
+        if ($monoMonthly > 4000 || $colorMonthly > 2000) {
             $remarks = trim((string) $this->input('entryRemarks.remarks', ''));
             $keptAttachmentsCount = collect($this->input('entryRemarks.attachments', []))
                 ->filter(fn ($item) => is_array($item) && !empty($item['id']))
@@ -70,10 +70,10 @@ class StoreRoiDraftRequest extends FormRequest
 
             $errors = [];
             if ($remarks === '') {
-                $errors['entryRemarks.remarks'] = 'Remarks are required when Mono AMVP is more than 5,000 or Color AMVP is more than 2,500.';
+                $errors['entryRemarks.remarks'] = 'Remarks are required when Mono AMVP is more than 4,000 or Color AMVP is more than 2,000.';
             }
             if ($totalAttachmentsCount < 1) {
-                $errors['entry_remarks_attachments'] = 'At least one attachment is required when Mono AMVP is more than 5,000 or Color AMVP is more than 2,500.';
+                $errors['entry_remarks_attachments'] = 'At least one attachment is required when Mono AMVP is more than 4,000 or Color AMVP is more than 2,000.';
             }
             if (!empty($errors)) {
                 throw ValidationException::withMessages($errors);

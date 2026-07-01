@@ -21,15 +21,12 @@ public function proposalList(Request $request)
 
     // 1. Get Approved Projects
     $archiveQuery = RoiArchiveProject::query()
-        // Prefix with table name to avoid "Column not found" or "Ambiguous" errors
         ->where('roi_archive_projects.user_id', $userId)
         ->where('roi_archive_projects.status', 'approved')
-        ->with(['user', 'approver']) // <--- BOTH MUST BE HERE
+        ->with(['user', 'approver'])
         ->whereDoesntHave('proposals', function ($query) {
-            $query->where('status', 'generated');
+            $query->whereIn('status', ['draft', 'generated']); // ← now excludes drafted too
         })
-        // Eager load relationships instead of using manual leftJoin
-        ->with(['user', 'approver']) 
         ->orderByDesc('roi_archive_projects.updated_at');
 
     // Clone for stats to avoid conflict with pagination/selects

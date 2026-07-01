@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import ProposalSideBar from '../../../Components/proposal/ProposalSideBar';
 import Paper from '../../../Components/proposal/Paper';
 
+
 export default function Proposal({ proposal, items, fees, is_owner = false }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(is_owner);
     const [processing, setProcessing] = useState(false);
@@ -76,6 +77,7 @@ export default function Proposal({ proposal, items, fees, is_owner = false }) {
                 proposal={pageData}
                 items={currentItems}
                 fees={currentFees}
+                isOwner={is_owner}
             />
         </>
     );

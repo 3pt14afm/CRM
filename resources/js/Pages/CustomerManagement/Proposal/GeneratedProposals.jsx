@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { router } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
-import { FaFileInvoice, FaFolderOpen, FaCheckCircle } from 'react-icons/fa';
+import { FaFileInvoice, FaFolderOpen, FaCheckCircle, FaPen } from 'react-icons/fa';
 import { IoTimeOutline } from 'react-icons/io5';
 import { route as ziggyRoute } from "ziggy-js";
 
@@ -67,24 +67,27 @@ function GeneratedProposals({ proposals, stats }) {
         </div>
       ),
     },
-    {
-      key: "actions",
-      header: "ACTIONS",
-      cell: (r) => (
-        <div className="flex items-center gap-2">
-            <button
-                className="px-4 py-2 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
-                type="button"
-                // Using r.id (which is the roi_archive_project_id) to open the editor
-               onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}            >
-                <FaFileInvoice className="text-[16px]" />
-                <span className="text-xs uppercase tracking-wide">
-                    {r.status === 'generated' ? 'View Proposal' : 'Continue Draft'}
-                </span>
-            </button>
-        </div>
-      ),
-    },
+{
+  key: "actions",
+  header: "ACTIONS",
+  cell: (r) => (
+    // Added 'justify-center' and 'w-full' to ensure it centers within the table cell
+    <div className="flex items-center justify-center w-full gap-2">
+      <button
+        className="px-2 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+        type="button"
+        onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
+      >
+        {r.status === 'generated' ? (
+          <FaFileInvoice className="text-[12px]" />
+        ) : (
+          <FaPen className="text-[12px]" />
+        )}
+        
+      </button>
+    </div>
+  ),
+},
   ], []);
 
   const goToPage = (p) => {
