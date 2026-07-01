@@ -4,7 +4,7 @@ export default function GuestLayout({ children }) {
     return (
         <div>
             {/* Main Content */}
-            <main className="mx-auto flex max-w-4xl min-h-[600px] rounded-3xl items-center justify-center bg-[#428f28] mt-32 shadow-md">
+            <main className="mx-auto flex max-w-4xl min-h-[600px] rounded-3xl items-center justify-center bg-[#428f28] mt-[172px] shadow-md">
 
                 {/* Left Animation */}
                 <div className="hidden lg:flex flex-1 items-center w-[55%] justify-center rounded-l-3xl">

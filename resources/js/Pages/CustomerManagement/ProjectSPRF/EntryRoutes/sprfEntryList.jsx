@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { route } from 'ziggy-js';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
+import { formatLastSaved } from '@/utils/dateUtils';
 
 import { FaFolderOpen } from 'react-icons/fa';
 import { IoTimeOutline, IoAddCircleOutline } from 'react-icons/io5';
@@ -10,18 +11,6 @@ import toast, { Toaster } from 'react-hot-toast';
 import { MdDelete, MdEdit } from 'react-icons/md';
 import FlashMessages from '@/Components/FlashMessages';
 
-const formatLastSaved = (value) => {
-  if (!value) return '—';
-
-  return new Intl.DateTimeFormat('en-US', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(new Date(value));
-};
 
 export default function SprfEntryList({
   drafts = null,

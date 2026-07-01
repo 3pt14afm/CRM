@@ -96,7 +96,7 @@ export const computeSummary = (computedItems, computedExpenses) => {
 
   const totalExpense = cogs + otherExpense;
   const gpValue = revenue - totalExpense;
-  const totalGpPercent = revenue > 0 ? (gpValue / revenue) * 100 : 0;
+  const totalGpPercent = revenue > 0 ? (gpValue / totalExpense) * 100 : 0;
 
   return { revenue, cogs, otherExpense, totalExpense, gpValue, totalGpPercent };
 };

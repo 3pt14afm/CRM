@@ -75,6 +75,20 @@ function Entry({
     hour12: false,
   })}`;
 
+  const handleGoBack = () => {
+    const path = window.location.pathname;
+
+    if (path.includes('/sprf/entry')) {
+      router.visit(ziggyRoute('sprf.entry.list'));
+    } else if (path.includes('/sprf/archive')) {
+      router.visit(ziggyRoute('sprf.archive'));
+    } else if (path.includes('/sprf/current')) {
+      router.visit(ziggyRoute('sprf.current'));
+    } else {
+      window.history.back();
+    }
+  };
+
   const pageLabel =
     pageRoute === 'current' ? 'Current' : pageRoute === 'archive' ? 'Archive' : 'Entry';
 
@@ -861,7 +875,7 @@ const [companyInfo, setCompanyInfo] = useState({
           <div className="flex items-baseline gap-1">
             <button
               type="button"
-              onClick={() => window.history.back()}
+              onClick={handleGoBack}
               className="mr-2 mt-3 self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all print:hidden"
             >
               <FaAngleLeft size={20} className="text-[#195C00]" />
