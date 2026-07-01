@@ -110,7 +110,7 @@ useEffect(() => {
     if (!pendingAvatar || !editingUser?.id) return;
     setUploadingAvatar(true);
 
-    router.post(route('profile.update-avatar', { user: editingUser.id }), { avatar: pendingAvatar }, {
+ router.post(route('admin.users.update-avatar', { id: editingUser.id }), { avatar: pendingAvatar }, {
       forceFormData: true,
       preserveScroll: true,
       onSuccess: () => {

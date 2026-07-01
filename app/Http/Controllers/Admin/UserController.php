@@ -744,5 +744,30 @@ public function updateSignatureForUser(Request $request, $id)
 
     return back()->with('success', 'Signature updated for ' . trim($user->first_name . ' ' . $user->last_name) . '.');
 }
+
+// Admin\UserController.php
+    public function updateAvatarForUser(Request $request, $id)
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+        ]);
+
+        $user = User::findOrFail($id);
+
+        $extension = $request->file('avatar')->getClientOriginalExtension();
+        $filename = $user->employee_id . '.' . $extension;
+
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
+            $oldPath = 'profileimg/' . $user->employee_id . '.' . $oldExt;
+            if (\Illuminate\Support\Facades\Storage::exists($oldPath)) {
+                \Illuminate\Support\Facades\Storage::delete($oldPath);
+            }
+        }
+
+        $request->file('avatar')->storeAs('profileimg', $filename);
+        $user->touch();
+
+        return back()->with('success', 'Profile picture updated for ' . trim($user->first_name . ' ' . $user->last_name) . '.');
+    }
            
 }
