@@ -871,37 +871,44 @@ const [companyInfo, setCompanyInfo] = useState({
 
       <div className="min-h-screen flex flex-col print:min-h-0 print:block">
       <div className="flex-1">
-        <div className="px-2 pt-8 pb-3 flex justify-between mx-10 print:mx-0 print:pt-0">
+        <div className="md:px-2 pt-3 md:pt-6 sm:pt-8 pb-2 md:pb-3 flex flex-wrap items-start justify-between gap-2 mx-4 sm:mx-6 md:mx-10 print:mx-0 print:pt-0">
           <div className="flex items-baseline gap-1">
             <button
               type="button"
               onClick={handleGoBack}
-              className="mr-2 mt-3 self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all print:hidden"
+              className="hidden md:flex mr-2 mt-3 self-center w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all print:hidden"
             >
               <FaAngleLeft size={20} className="text-[#195C00]" />
             </button>
-            <h1 className="font-semibold mt-3">{pageTitle}</h1>
+            <h1 className="font-semibold mt-3 text-xs sm:text-sm md:text-base">{pageTitle}</h1>
             <p className="mt-3">/</p>
-            <p className="text-3xl font-semibold">{pageLabel}</p>
+            <p className="text-lg sm:text-xl md:text-3xl font-semibold">{pageLabel}</p>
           </div>
 
-          <div className="flex flex-col gap-1 items-end">
-            <h1 className="text-xs text-right text-slate-500">{formattedHeaderDate}</h1>
-            <p className="text-xs text-right text-slate-500">
+          <div className="flex flex-col md:gap-1 items-end">
+            <h1 className="text-[10px] md:text-xs text-right text-slate-500">{formattedHeaderDate}</h1>
+            <p className="text-[10px] md:text-xs text-right text-slate-500">
               Last Saved: {lastSavedDisplay}
             </p>
           </div>
         </div>
 
-        <div className="mx-10 pb-28 print:mx-0 print:pb-0">
+        <div className="mx-4 sm:mx-6 md:mx-10 pb-28 print:mx-0 print:pb-0">
           <div className="print-avoid-break overflow-hidden rounded-2xl border border-[#2c2c2e]/20 bg-[#f8f8f8] shadow-md print:shadow-none print:border-none print:bg-transparent print:justify-center">
-            <div className="bg-[#B5EBA2]/50 px-6 py-2 border border-b-[#2c2c2e]/10 text-center text-[15px] font-bold uppercase tracking-wide">
+            <div className="bg-[#B5EBA2]/50 px-3 sm:px-6 py-1 sm:py-2 border border-b-[#2c2c2e]/10 text-center text-[11px] sm:text-[13px] md:text-[15px] font-bold uppercase tracking-wide">
               IT Solutions Special Price Request Form
             </div>
 
-            <div className="p-6 print:p-0">
-              <div className="grid grid-cols-12 gap-6 print:grid-cols-[50%_50%] print:gap-2">
-                <div className="col-span-8 space-y-3 print:space-y-1">
+            <div className="p-3 sm:p-4 md:p-6 print:p-0">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 print:grid-cols-[50%_50%] print:gap-2">
+                <div className="md:col-span-8 space-y-3 print:space-y-1">
+                  <div className="md:hidden print:hidden">
+                    <SprfMetaBlock
+                      dateTime={displayDateTime}
+                      sprfNo={sprfNo}
+                    />
+                  </div>
+
                   <CompanyInfoBlock
                     value={companyInfo}
                     onChange={setCompanyInfo}
@@ -920,11 +927,13 @@ const [companyInfo, setCompanyInfo] = useState({
                   />
                 </div>
 
-                <div className="col-span-12 lg:col-span-4 space-y-1.5 xl:space-y-2 print:col-auto print:space-y-1">
-                  <SprfMetaBlock
-                    dateTime={displayDateTime}
-                    sprfNo={sprfNo}
-                  />
+                <div className="md:col-span-12 lg:col-span-4 space-y-1.5 xl:space-y-2 print:col-auto print:space-y-1">
+                  <div className="hidden md:block">
+                    <SprfMetaBlock
+                      dateTime={displayDateTime}
+                      sprfNo={sprfNo}
+                    />
+                  </div>
 
                   <SummaryBlock
                     summary={summary}
@@ -959,18 +968,18 @@ const [companyInfo, setCompanyInfo] = useState({
               </div>
 
               <div className="mt-10 w-full flex flex-col items-center justify-center print:mt-4 print:gap-2 print:items-start">
-                <div className="flex gap-3">
-                  <div className="w-[40%]">
+                <div className="flex flex-col md:flex-row gap-3 w-full">
+                  <div className="w-full md:w-[40%]">
                     <Conditions />
                   </div>
 
-                  <div className="flex w-[60%] gap-2">
+                  <div className="flex flex-col sm:flex-row w-full md:w-[60%] gap-2">
                     <SprfAddNotes scopeKey="sprf-main" />
                     <SprfAddComments comments={initialProject?.comments} scopeKey="entry" />
                   </div>
                 </div>
                 
-                <div className="mt-6 w-[95%] lg:w-[85%] xl:w-[75%]">
+                <div className="mt-6 w-full lg:w-[85%] xl:w-[75%]">
                   <NamesBlock
                     signatories={signatories}
                     timestamps={{
@@ -1008,17 +1017,17 @@ const [companyInfo, setCompanyInfo] = useState({
 
         <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
           {isEntryRoute && !readOnly ? (
-            <div className="px-10 py-2 flex items-center justify-between relative">
+            <div className="px-3 sm:px-10 py-2 flex flex-col sm:flex-row items-center sm:justify-between gap-2 relative">
               <button
                 type="button"
                 onClick={handleClearAll}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
               >
                 Clear All
               </button>
 
-              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+              <div className="static sm:absolute sm:left-1/2 sm:-translate-x-1/2 flex items-center justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => openPrintPage(false)}
@@ -1046,12 +1055,12 @@ const [companyInfo, setCompanyInfo] = useState({
                 </button>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="w-full sm:w-auto flex items-center justify-center sm:justify-end gap-3">
                 <button
                   type="button"
                   onClick={handleSaveDraft}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
                 >
                   Save Draft
                 </button>
@@ -1060,15 +1069,15 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
                 >
                   Submit
                 </button>
               </div>
             </div>
           ) : isCurrentRoute && readOnly ? (
-            <div className="px-10 py-2 grid grid-cols-3 items-center">
-              <div className="flex items-center justify-start gap-2">
+            <div className="px-3 sm:px-10 py-2 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-0 items-center">
+              <div className="flex items-center justify-center sm:justify-start flex-wrap gap-2">
                 {canActOnCurrentProject && (
                   <>
                     <button
@@ -1106,7 +1115,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 )}
               </div>
 
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => openPrintPage(false)}
@@ -1134,7 +1143,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 </button>
               </div>
 
-              <div className="flex items-center justify-end gap-3">
+              <div className="flex items-center justify-center sm:justify-end flex-wrap gap-3">
                 {canCancel && (
                   <button
                     type="button"
@@ -1176,7 +1185,7 @@ const [companyInfo, setCompanyInfo] = useState({
               </div>
             </div>
           ) : isArchiveRoute && readOnly ? (
-            <div className="px-10 py-2 flex items-center justify-center gap-2">
+            <div className="px-3 sm:px-10 py-2 flex items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => openPrintPage(false)}
@@ -1204,7 +1213,7 @@ const [companyInfo, setCompanyInfo] = useState({
               </button>
             </div>
           ) : (
-            <div className="px-10 py-3 flex items-center justify-end" />
+            <div className="px-3 sm:px-10 py-3 flex items-center justify-end" />
           )}
         </div>
       </div>

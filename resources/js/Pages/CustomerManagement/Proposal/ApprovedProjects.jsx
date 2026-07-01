@@ -54,7 +54,8 @@ function ApproveProjects({ proposals, stats }) {
     {
       key: "contract_years",
       header: "CONTRACT TERM",
-      cell: (r) => (r.contract_years != null ? `${r.contract_years} Years` : "—"),
+      cell: (r) => 
+        (r.contract_years != null ? `${r.contract_years} Years` : "—"),
     },
     {
       header: "STATUS",

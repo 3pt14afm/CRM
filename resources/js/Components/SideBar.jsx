@@ -241,7 +241,7 @@ export default function Sidebar() {
       ref={sidebarRef}
       onMouseEnter={() => setIsSidebarHovered(true)}
       onMouseLeave={() => setIsSidebarHovered(false)}
-      className={`relative h-[96.5%] rounded-2xl my-4 bg-white flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isOpen
+      className={`relative h-[96.5%] rounded-2xl my-4 bg-white hidden md:flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isOpen
           ? 'w-[290px] shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3),inset_-10px_-12px_10px_rgba(255,255,255,0.2),-1px_1px_1px_rgba(0,0,0,0.2)] border-r'
           : 'w-16 lg:w-[65px] shadow-[0px_0px_0px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_3px_5px_rgba(0,0,0,0.3)]'
       }`}

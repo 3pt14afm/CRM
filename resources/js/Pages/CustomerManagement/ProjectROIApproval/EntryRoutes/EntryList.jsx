@@ -369,7 +369,7 @@
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 w-full sm:w-52 min-w-0 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black placeholder:text-slate-400
-              focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+              outline-none focus:ring-0 focus:border-[#289800]
               transition-[border-color,box-shadow] duration-150"
           />
         </div>
@@ -380,7 +380,7 @@
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-8 w-28 sm:w-32 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white text-black appearance-none cursor-pointer
-              focus:outline-none flex items-center focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+              flex items-center outline-none focus:ring-0 focus:border-[#289800]
               transition-[border-color,box-shadow] duration-150"
           >
             <option value="all">All Status</option>
@@ -394,7 +394,7 @@
           <button
             type="button"
             onClick={() => setShowDatePicker((p) => !p)}
-            className={`h-8 flex items-center gap-1.5 px-2.5 text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap
+            className={`h-8 flex items-center gap-1.5 px-2.5 text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap outline-none focus:ring-0 focus:border-[#289800]
               ${hasDateFilter
                 ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
                 : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"
@@ -489,11 +489,6 @@
             />
           </div>
           <FlashMessages />
-          
-          <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-            <div className="px-4 sm:px-10 py-3 flex items-center justify-end">
-            </div>
-          </div>
         </div>
       </>
     );

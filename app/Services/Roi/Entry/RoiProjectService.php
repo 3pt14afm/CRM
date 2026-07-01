@@ -248,7 +248,7 @@ class RoiProjectService
                         ->where('sap_code', $project->company_sap_code)
                         ->value('id')
                     : null,
-                'type' => $type, // <--- Set dynamically using validated type
+                'type' => $type, 
                 'contract_years' => $project->contract_years,
                 'contract_type' => $project->contract_type,
                 'purpose' => $project->purpose,

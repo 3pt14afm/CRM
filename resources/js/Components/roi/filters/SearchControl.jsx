@@ -35,7 +35,7 @@ export default function SearchControl({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className={`h-8 w-full sm:w-52 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
-            placeholder:text-slate-400 focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            placeholder:text-slate-400 outline-none focus:ring-0 focus:border-[#289800]
             transition-[border-color,box-shadow] duration-150
             ${loading ? "opacity-60 pointer-events-none" : ""}`}
         />

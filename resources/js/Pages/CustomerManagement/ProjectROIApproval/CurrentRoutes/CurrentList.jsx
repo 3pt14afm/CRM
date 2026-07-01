@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import FilterChip from '@/Components/roi/filters/FilterChip';
 import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
@@ -619,6 +619,8 @@ const handleClearAllFilters = () => {
   );
 
   return (
+    <>
+    <Head title="ROI Current" />
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 pb-24">
         <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
@@ -643,11 +645,8 @@ const handleClearAllFilters = () => {
           emptyText="No matching records found."
         />
       </div>
-
-      <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-        <div className="px-4 sm:px-10 py-3 flex items-center justify-end" />
-      </div>
     </div>
+    </>
   );
 }
 

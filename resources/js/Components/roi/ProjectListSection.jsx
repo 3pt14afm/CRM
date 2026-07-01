@@ -110,8 +110,8 @@ export default function ProjectListSection({
     return rows.map((r) => (
       <tr
         key={rowKey(r)}
-        onClick={() => onRowClick && onRowClick(r)} // ADDED: Trigger the click event
-        className={`border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] border-black/5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`} // ADDED: Pointer cursor
+        onClick={() => onRowClick && onRowClick(r)}
+        className={`border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] hover:bg-slate-50/95 border-black/5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`} // ADDED: Pointer cursor
       >
         {columns.map((c, index) => (
           <td 
@@ -144,7 +144,7 @@ export default function ProjectListSection({
       )}
 
       {/* Table Container */}
-      <div className="mt-4 bg-white rounded-xl border border-[#00000012] border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
+      <div className="mt-4 bg-white rounded-xl border border-black/10 border-b-black/20 border-r-black/20 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
 
         {/* Table Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-3 border-b border-black/10 md:px-3 lg:px-4 xl:px-6 min-w-0">

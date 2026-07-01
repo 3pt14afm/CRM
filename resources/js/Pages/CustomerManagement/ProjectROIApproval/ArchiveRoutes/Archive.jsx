@@ -48,10 +48,6 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
             
           />
         </div>
-
-        <div className="sticky bottom-0 z-40 bg-[#FBFFFA] backdrop-blur shadow-[5px_0px_4px_0px_rgba(181,235,162,100)] border-t border-black/10">
-          <div className="px-4 sm:px-10 py-3 flex items-center justify-end" />
-        </div>
       </div>
     </>
   );
