@@ -38,6 +38,10 @@ class SprfArchiveProject extends Model
         'account',
         'account_manager',
 
+        'type',
+        'company_id',
+        'company_sap_code',
+
         'remarks',
         'remarks_attachments', // <--- ADD THIS
         'rebate_justification',

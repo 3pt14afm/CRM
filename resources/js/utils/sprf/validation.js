@@ -1,9 +1,25 @@
 export const hasValidCompanyInfo = (companyInfo) => {
-  return Boolean(
+  const hasBaseFields = Boolean(
     companyInfo?.subCategory?.trim() &&
       companyInfo?.account?.trim() &&
       companyInfo?.accountManager?.trim()
   );
+
+  if (!hasBaseFields) return false;
+
+  const type = companyInfo?.type;
+
+  // Type must be explicitly chosen (0 = Potential, 1 = Existing)
+  if (type === null || type === undefined || type === '') return false;
+
+  // Existing (type 1) must have been selected from the dropdown — enforced by
+  // requiring a company_sap_code, same as the backend's validateCompanyIntegrity.
+  if (Number(type) === 1 && !companyInfo?.companySapCode) return false;
+
+  // Potential (type 0) must NOT carry a stale SAP code
+  if (Number(type) === 0 && companyInfo?.companySapCode) return false;
+
+  return true;
 };
 
 export const hasValidItems = (items) => {

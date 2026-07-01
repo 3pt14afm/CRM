@@ -333,9 +333,12 @@ class SprfController extends Controller
             'comments' => $project->comments ?? [],
 
             'company_info' => [
-                'subCategory'    => $project->sub_category,
-                'account'        => $project->account,
-                'accountManager' => $project->account_manager,
+                'subCategory'        => $project->sub_category,
+                'account'            => $project->account,
+                'accountManager'     => $project->account_manager,
+                'type'               => $project->type,
+                'companySapCode'     => $project->company_sap_code,
+                'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
             ],
 
             'remarks'               => $project->remarks,
@@ -401,11 +404,14 @@ class SprfController extends Controller
             'esd_acted_at'           => optional($project->esd_acted_at)?->toISOString(),
             'vp_ccto_acted_at'       => optional($project->vp_ccto_acted_at)?->toISOString(),
             'president_ceo_acted_at' => optional($project->president_ceo_acted_at)?->toISOString(),
-
+            
             'company_info' => [
-                'subCategory'    => $project->sub_category,
-                'account'        => $project->account,
-                'accountManager' => $project->account_manager,
+                'subCategory'        => $project->sub_category,
+                'account'            => $project->account,
+                'accountManager'     => $project->account_manager,
+                'type'               => $project->type,
+                'companySapCode'     => $project->company_sap_code,
+                'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
             ],
            
          

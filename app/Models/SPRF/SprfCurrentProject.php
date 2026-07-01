@@ -35,6 +35,10 @@ class SprfCurrentProject extends Model
         'account',
         'account_manager',
 
+        'type',
+        'company_id',
+        'company_sap_code',
+        
         'remarks',
         'remarks_attachments',
         'rebate_justification',

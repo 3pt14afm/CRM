@@ -124,11 +124,14 @@ function Entry({
 
   const [sprfNo, setSprfNo] = useState(sourceProject?.sprf_no ?? DEFAULT_SPRF_NO);
 
-  const [companyInfo, setCompanyInfo] = useState({
-    subCategory: '',
-    account: '',
-    accountManager: '',
-  });
+const [companyInfo, setCompanyInfo] = useState({
+  subCategory: '',
+  account: '',
+  accountManager: '',
+  type: null,              // NEW
+  companySapCode: null,    // NEW
+  potentialCompanyId: null,// NEW
+});
 
   const [remarks, setRemarks] = useState(['']);
   const [rebateJustification, setRebateJustification] = useState('');
@@ -206,6 +209,9 @@ function Entry({
         subCategory: '',
         account: '',
         accountManager: '',
+        type: null,               // NEW
+        companySapCode: null,     // NEW
+        potentialCompanyId: null, // NEW
       });
       setRemarks(['']);
       setRebateJustification('');
@@ -221,6 +227,9 @@ function Entry({
       subCategory: sourceProject?.company_info?.subCategory ?? '',
       account: sourceProject?.company_info?.account ?? '',
       accountManager: sourceProject?.company_info?.accountManager ?? '',
+      type: sourceProject?.company_info?.type ?? null,                           // NEW
+      companySapCode: sourceProject?.company_info?.companySapCode ?? null,       // NEW
+      potentialCompanyId: sourceProject?.company_info?.potentialCompanyId ?? null, // NEW
     });
     setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
     setRebateJustification(sourceProject?.rebate_justification ?? '');
@@ -665,6 +674,9 @@ function Entry({
                 subCategory: '',
                 account: '',
                 accountManager: '',
+                type: null,               // NEW
+                companySapCode: null,     // NEW
+                potentialCompanyId: null, // NEW
               });
               setRemarks(['']);
               setRebateJustification('');

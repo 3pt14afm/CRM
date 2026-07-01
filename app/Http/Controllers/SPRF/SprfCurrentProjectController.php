@@ -758,11 +758,13 @@ class SprfCurrentProjectController extends Controller
             'current_approver_user_id' => $project->current_approver_user_id,
 
             'company_info' => [
-                'subCategory' => $project->sub_category,
-                'account' => $project->account,
-                'accountManager' => $project->account_manager,
+                'subCategory'        => $project->sub_category,
+                'account'            => $project->account,
+                'accountManager'     => $project->account_manager,
+                'type'               => $project->type,
+                'companySapCode'     => $project->company_sap_code,
+                'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
             ],
-
             'remarks' => $project->remarks,
             'remarks_attachments' => $this->normalizeAttachmentsArray($project->remarks_attachments),
             'attachments' => $this->mapRemarksAttachmentsForFrontend($project->remarks_attachments),
@@ -833,11 +835,13 @@ class SprfCurrentProjectController extends Controller
             'vp_ccto_acted_at' => $project->vp_ccto_acted_at ? $project->vp_ccto_acted_at->toISOString() : null,
             'president_ceo_acted_at' => $project->president_ceo_acted_at ? $project->president_ceo_acted_at->toISOString() : null,
 
-
             'company_info' => [
-                'subCategory' => $project->sub_category,
-                'account' => $project->account,
-                'accountManager' => $project->account_manager,
+                'subCategory'        => $project->sub_category,
+                'account'            => $project->account,
+                'accountManager'     => $project->account_manager,
+                'type'               => $project->type,
+                'companySapCode'     => $project->company_sap_code,
+                'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
             ],
 
             'items' => $project->items

@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use App\Models\CustomerInfo\Company;
+use App\Models\CustomerInfo\PotentialCustomer;
 
 class SprfEntryProjectController extends Controller
 {
@@ -65,6 +67,9 @@ class SprfEntryProjectController extends Controller
     public function saveDraft(Request $request, SprfNumberGenerator $sprfNumberGenerator)
     {
         $payload = $this->validatePayload($request);
+
+        $companyInfo = (array) data_get($payload, 'company_info', []);
+        $this->validateCompanyIntegrity($companyInfo);
 
         $projectId = data_get($payload, 'project_id');
 
@@ -143,7 +148,11 @@ class SprfEntryProjectController extends Controller
                 'sub_category'    => data_get($companyInfo, 'subCategory'),
                 'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
-
+                'type'            => (int) data_get($companyInfo, 'type', $existingProject->type ?? 0),   // NEW
+                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                            // NEW
+                'company_id'      => (int) data_get($companyInfo, 'type', 0) === 1
+                    ? $this->resolveCompanyIdFromSapCode(data_get($companyInfo, 'companySapCode'))
+                    : $existingProject->company_id ?? null,     
                'remarks'              => data_get($payload, 'remarks'),
                 'remarks_attachments'  => $this->resolveRemarksAttachments($payload, $existingProject),
                 'rebate_justification' => data_get($payload, 'rebate_justification'),
@@ -183,6 +192,13 @@ class SprfEntryProjectController extends Controller
 
             return $project;
         });
+        // Auto-create/link potential company for type = 0
+        if ((int) data_get($companyInfo, 'type', 0) === 0) {
+            $potentialId = $this->resolvePotentialCompanyId((string) data_get($companyInfo, 'account', ''));
+            if ($potentialId) {
+                $project->update(['company_id' => $potentialId]);
+            }
+        }
 
         SprfActivityLogger::log(
             activityType: $existingProject ? 'update_draft' : 'create_draft',
@@ -214,6 +230,9 @@ class SprfEntryProjectController extends Controller
         $oldValues = $project->toArray();
 
         $payload = $this->validatePayload($request);
+
+        $companyInfo = (array) data_get($payload, 'company_info', []);
+        $this->validateCompanyIntegrity($companyInfo);
 
         $revenue           = (float) data_get($payload, 'summary.revenue', $project->revenue);
         $cogs              = (float) data_get($payload, 'summary.cogs', $project->cogs);
@@ -293,6 +312,12 @@ class SprfEntryProjectController extends Controller
                 'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
 
+                 'type'            => (int) data_get($companyInfo, 'type', $project->type ?? 0),           // NEW
+                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                             // NEW
+                'company_id'      => (int) data_get($companyInfo, 'type', 0) === 1
+                    ? $this->resolveCompanyIdFromSapCode(data_get($companyInfo, 'companySapCode'))
+                    : null,       
+
                 'remarks'              => data_get($payload, 'remarks', $project->remarks),
                 'remarks_attachments'  => $this->resolveRemarksAttachments($payload, $project),
                 'rebate_justification' => $rebateJustification,
@@ -311,6 +336,14 @@ class SprfEntryProjectController extends Controller
                 'requires_president_ceo'        => $flags['requires_president_ceo'],
                 'requires_rebate_justification' => $flags['requires_rebate_justification'],
             ]);
+
+            // Auto-create/link potential company for type = 0
+            if ((int) data_get($companyInfo, 'type', 0) === 0) {
+                $potentialId = $this->resolvePotentialCompanyId((string) data_get($companyInfo, 'account', ''));
+                if ($potentialId) {
+                    $currentProject->update(['company_id' => $potentialId]);
+                }
+            }
 
             if (! empty($items['parentRows'])) {
                 $createdItems = $currentProject->items()->createMany($items['parentRows']);
@@ -483,6 +516,8 @@ class SprfEntryProjectController extends Controller
             'company_info.subCategory'    => ['nullable', 'string', 'max:255'],
             'company_info.account'        => ['nullable', 'string', 'max:255'],
             'company_info.accountManager' => ['nullable', 'string', 'max:255'],
+            'company_info.type'           => ['nullable', 'integer', 'in:0,1'],          // NEW
+            'company_info.companySapCode' => ['nullable', 'string', 'max:255'],         
             'remarks'              => ['nullable', 'string'],
 
             // Attachments are keyed by remark row index, each holding multiple files,
@@ -590,6 +625,91 @@ class SprfEntryProjectController extends Controller
         ksort($existing);
 
         return $existing;
+    }
+
+
+        /**
+     * Validates the type/account/SAP-code integrity of a company_info payload.
+     * Mirrors RoiProjectService's company validation exactly.
+     */
+    private function validateCompanyIntegrity(array $companyInfo): void
+    {
+        $type        = isset($companyInfo['type']) ? (int) $companyInfo['type'] : null;
+        $companyName = trim($companyInfo['account'] ?? '');
+        $sapCode     = $companyInfo['companySapCode'] ?? null;
+
+        if ($type === null) {
+            throw ValidationException::withMessages([
+                'company_info.type' => 'Please select whether the account is Existing or Potential.',
+            ]);
+        }
+
+        if ($companyName === '') {
+            throw ValidationException::withMessages([
+                'company_info.account' => 'Account (company name) is required.',
+            ]);
+        }
+
+        if ($type === 1) {
+            if (empty($sapCode)) {
+                throw ValidationException::withMessages([
+                    'company_info.account' =>
+                        "\"{$companyName}\" was not selected from the list. Please search and select a valid existing company.",
+                ]);
+            }
+
+            $existsByCode = Company::query()->where('sap_code', $sapCode)->exists();
+
+            if (! $existsByCode) {
+                throw ValidationException::withMessages([
+                    'company_info.companySapCode' =>
+                        'The selected company could not be verified. Please re-select a valid company.',
+                ]);
+            }
+        }
+
+        if ($type === 0 && ! empty($sapCode)) {
+            throw ValidationException::withMessages([
+                'company_info.companySapCode' =>
+                    'A potential company should not have an SAP code. Please clear the selection and try again.',
+            ]);
+        }
+    }
+
+    /**
+     * Resolves company_id from sap_code for an existing (type=1) company.
+     */
+    private function resolveCompanyIdFromSapCode(?string $sapCode): ?int
+    {
+        if (empty($sapCode)) {
+            return null;
+        }
+
+        return Company::query()->where('sap_code', $sapCode)->value('id');
+    }
+
+    /**
+     * firstOrCreate a PotentialCustomer for type=0 accounts and return its id.
+     */
+    private function resolvePotentialCompanyId(string $companyName): ?int
+    {
+        $companyName = trim($companyName);
+
+        if ($companyName === '') {
+            return null;
+        }
+
+        $potential = PotentialCustomer::firstOrCreate(
+            ['company_name' => $companyName],
+            [
+                'id_client_mngr' => Auth::user()->employee_id ?? null,
+                'status'         => 1,
+                'address'        => '',
+                'contact_no'     => '',
+            ]
+        );
+
+        return $potential->id;
     }
 
     /**
@@ -946,9 +1066,12 @@ class SprfEntryProjectController extends Controller
             'comments'            => $project->comments ?? [],
 
             'company_info' => [
-                'subCategory'    => $project->sub_category,
-                'account'        => $project->account,
-                'accountManager' => $project->account_manager,
+                'subCategory'        => $project->sub_category,
+                'account'            => $project->account,
+                'accountManager'     => $project->account_manager,
+                'type'               => $project->type,
+                'companySapCode'     => $project->company_sap_code,
+                'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
             ],
 
             'remarks'              => $project->remarks,
@@ -1017,9 +1140,12 @@ class SprfEntryProjectController extends Controller
             'comments'             => $project->comments ?? [],
 
             'company_info' => [
-                'subCategory'    => $project->sub_category,
-                'account'        => $project->account,
-                'accountManager' => $project->account_manager,
+                'subCategory'        => $project->sub_category,
+                'account'            => $project->account,
+                'accountManager'     => $project->account_manager,
+                'type'               => $project->type,
+                'companySapCode'     => $project->company_sap_code,
+                'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
             ],
 
             'items' => $project->items
