@@ -101,16 +101,12 @@ export default function ProposalSideBar({
 
           <div className="space-y-6">
             {/* Company Name */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Company Name</label>
-              <input 
-                type="text"
-                value={proposal.company_name || ''}
-                onChange={(e) => onUpdate('company_name', e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                placeholder="Enter company name..."
-              />
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Company Name</label>
+            <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700">
+              {proposal.company_name || <span className="text-slate-300 font-normal">No company name set</span>}
             </div>
+          </div>
 
             {/* Reference & Attention */}
            {/* Contact Person */}
