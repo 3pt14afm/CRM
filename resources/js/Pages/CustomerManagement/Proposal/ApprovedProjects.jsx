@@ -1,118 +1,476 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { router } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
-import { FaFileInvoice, FaFolderOpen } from 'react-icons/fa';
-import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import { route as ziggyRoute } from "ziggy-js";
+import FilterChip from '@/Components/roi/filters/FilterChip';
+import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
+import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
+import { FaFileInvoice, FaFolderOpen, FaRegClock } from 'react-icons/fa';
+import { IoTimeOutline } from 'react-icons/io5';
+import { MdVerifiedUser } from 'react-icons/md';
+import { route as ziggyRoute } from 'ziggy-js';
+import SearchControl from '@/Components/roi/filters/SearchControl';
+import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
+import SortHeader from '@/Components/roi/filters/SortHeader';
 
-function ApproveProjects({ proposals, stats }) {
-  // 1. Extract the data array from the paginated object
-  const rows = proposals?.data ?? [];
+function formatDateLabel(dateStr) {
+  try {
+    if (!dateStr) return "—";
+    const datePart = dateStr.split(' ')[0];
+    const [year, month, day] = datePart.split('-');
+    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
+    if (isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString('en-US', {
+      month: '2-digit', day: '2-digit', year: '2-digit', timeZone: 'UTC',
+    });
+  } catch {
+    return "—";
+  }
+}
 
-  // 2. Stats Tiles
+const LS = {
+  get: (key, fallback = "") => {
+    try { return localStorage.getItem(`approve_filter_${key}`) ?? fallback; }
+    catch { return fallback; }
+  },
+  set: (key, value) => {
+    try { localStorage.setItem(`approve_filter_${key}`, value); }
+    catch {}
+  },
+  clearAll: () => {
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('approve_filter_'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+  },
+};
+
+function ApproveProjects({ proposals: initialProposals, stats: initialStats, filters, locations = [] }) {
+  const [localProposals, setLocalProposals] = useState(initialProposals);
+  const [localStats,     setLocalStats]     = useState(initialStats);
+
+  const [search,     setSearch]     = useState(() => LS.get('search',      filters?.search      ?? ""));
+  const [typeFilter,  setTypeFilter] = useState(() => LS.get('type',       filters?.type        ?? ""));
+  const [perPage,     setPerPage]    = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : (filters?.per_page ?? 10);
+  });
+  const [dateFrom,    setDateFrom]    = useState(() => LS.get('date_from',   filters?.date_from   ?? ""));
+  const [dateTo,      setDateTo]      = useState(() => LS.get('date_to',     filters?.date_to     ?? ""));
+  const [decidedBy,   setDecidedBy]   = useState(() => LS.get('decided_by',  filters?.decided_by  ?? ""));
+  const [locationId,  setLocationId]  = useState(() => LS.get('location_id', filters?.location_id ?? ""));
+  const [currentPage, setCurrentPage] = useState(() => {
+    const stored = LS.get('page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 1;
+  });
+
+  const [showDatePicker,    setShowDatePicker]    = useState(false);
+  const [showPerPagePicker, setShowPerPagePicker] = useState(false);
+  const [showDecidedBy,     setShowDecidedBy]     = useState(false);
+  const [showLocation,      setShowLocation]      = useState(false);
+
+  const [perPageInput, setPerPageInput] = useState(() => {
+    const stored = LS.get('per_page', "");
+    const parsed = parseInt(stored, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : String(filters?.per_page ?? 10);
+  });
+  const [loading,      setLoading]      = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const datePickerRef    = useRef(null);
+  const perPagePickerRef = useRef(null);
+  const decidedByRef     = useRef(null);
+  const locationRef      = useRef(null);
+
+  const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? ""));
+  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ""));
+
+  // Persist filters to localStorage whenever they change
+  useEffect(() => {
+    LS.set('search',      search);
+    LS.set('type',        String(typeFilter));
+    LS.set('date_from',   dateFrom);
+    LS.set('date_to',     dateTo);
+    LS.set('decided_by',  decidedBy);
+    LS.set('location_id', String(locationId));
+    LS.set('per_page',    String(perPage));
+    LS.set('page',        String(currentPage));
+    LS.set('sort_by',     sortBy);
+    LS.set('sort_order',  sortOrder);
+  }, [search, typeFilter, dateFrom, dateTo, decidedBy, locationId, perPage, currentPage, sortBy, sortOrder]);
+
+  useEffect(() => {
+    setLocalProposals(initialProposals);
+    setLocalStats(initialStats);
+  }, [initialProposals, initialStats]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (datePickerRef.current    && !datePickerRef.current.contains(e.target))    setShowDatePicker(false);
+      if (perPagePickerRef.current && !perPagePickerRef.current.contains(e.target)) setShowPerPagePicker(false);
+      if (decidedByRef.current     && !decidedByRef.current.contains(e.target))     setShowDecidedBy(false);
+      if (locationRef.current      && !locationRef.current.contains(e.target))      setShowLocation(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const fetchApproveDataRef = useRef(null);
+  useEffect(() => {
+    fetchApproveDataRef.current = fetchApproveData;
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchApproveDataRef.current?.({ silent: true });
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSort = (key) => {
+    const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortBy(key);
+    setSortOrder(newOrder);
+    LS.set('sort_by',    key);
+    LS.set('sort_order', newOrder);
+    fetchApproveData({ currentSortBy: key, currentSortOrder: newOrder });
+  };
+
+  const selectedLocationName = useMemo(() =>
+    locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
+  , [locationId, locations]);
+
+  const hasActiveFilters = !!(search || typeFilter !== "" || dateFrom || dateTo || decidedBy || locationId || perPage !== 10 || sortBy !== "" || sortOrder !== "");
+
   const tiles = useMemo(() => {
-    const totalArchiveProjects = stats?.totalArchiveProjects ?? proposals?.total ?? 0;
-    const recentlyArchivedToday = stats?.recentlyArchivedToday ?? "—";
-
+    const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localProposals?.total ?? 0;
+    const recentlyArchivedToday = localStats?.recentlyArchivedToday ?? "—";
     return [
-      {
-        label: "Total Archives",
-        value: totalArchiveProjects,
-        icon: <FaFolderOpen />,
-        variant: "normal",
-      },
-      {
-        label: "Recently Archived",
-        value: recentlyArchivedToday,
-        icon: <IoTimeOutline />,
-        variant: "normal",
-      },
+      { label: "Total Archives",    value: totalArchiveProjects,  icon: <FaFolderOpen />,  variant: "normal" },
+      { label: "Recently Archived", value: recentlyArchivedToday, icon: <IoTimeOutline />, variant: "normal" },
     ];
-  }, [stats, proposals]);
+  }, [localStats, localProposals]);
 
-  // 3. Table Column Definitions
   const columns = useMemo(() => [
     {
       key: "user_name",
-      header: "PREPARED BY",
-      cell: (r) => (
-        <span className="text-[#289800] font-semibold">{r.user?.name ?? "—"}</span>
+      header: (
+        <SortHeader
+          label="PREPARED BY"
+          sortKey="prepared_by_name"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+        />
       ),
+      cell: (r) => <span className="text-[#289800] font-semibold">{r.user?.name ?? "—"}</span>,
     },
     {
       key: "reference",
-      header: "REFERENCE",
-      cell: (r) => (
-        <span className="font-semibold">{r.reference ?? "—"}</span>
+      header: (
+        <SortHeader
+          label="REFERENCE"
+          sortKey="reference"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
       ),
+      cell: (r) => <span className="font-semibold flex justify-center items-center">{r.reference ?? "—"}</span>,
     },
     {
       key: "company_name",
-      header: "COMPANY NAME",
-      cell: (r) => r.company_name ?? "—",
+      header: (
+        <SortHeader
+          label="COMPANY NAME"
+          sortKey="company_name"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
+      cell: (r) => (
+        <div className="flex justify-center items-center w-full h-full">
+          <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+            {r.company_name ?? "—"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "contract_years",
-      header: "CONTRACT TERM",
-      cell: (r) => 
-        (r.contract_years != null ? `${r.contract_years} Years` : "—"),
+      header: (
+        <SortHeader
+          label="CONTRACT TERM"
+          sortKey="contract_years"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
+      cell: (r) => (
+        <span className="font-medium flex justify-center items-center">
+          {r.contract_years != null ? `${r.contract_years} Years` : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "type",
+      header: (
+        <SortHeader
+          label="TYPE"
+          sortKey="type"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="center"
+        />
+      ),
+      cell: (r) => (
+        <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+          {r.type === 1 ? "Existing" : "Potential"}
+        </span>
+      ),
     },
     {
       header: "STATUS",
       key: "status",
       cell: (row) => (
-        <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
-          {row.status ?? "APPROVED"}
-        </span>
-      )
+        <div className="flex justify-center items-center">
+          <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
+            {row.status ?? "APPROVED"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "approved_by_name",
-      header: "APPROVED BY",
+      header: (
+        <button
+          type="button"
+          onClick={() => handleSort('decided_at')}
+          className="flex justify-center items-center w-full text-slate-500 gap-1"
+        >
+          <span>APPROVED BY</span>
+          <span className={`text-[11px] leading-none ${
+            sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'
+          }`}>
+            {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+          </span>
+        </button>
+      ),
       cell: (r) => (
-        <span className="text-slate-800">{r.decided_by_name ?? "—"}</span>
+        <span className="text-slate-800 flex justify-center items-center">{r.decided_by_name ?? "—"}</span>
       ),
     },
     {
       key: "actions",
-      header: "ACTIONS",
+      header: <div className="text-center w-full">ACTIONS</div>,
       cell: (r) => (
-
-        <button
+        <div className="flex justify-center items-center">
+          <button
             className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
             type="button"
-            // Change "proposals.show" to just "show" to match your web.php name('show')
             onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
-        >
+          >
             <FaFileInvoice className="text-[15px]" />
-           
-        </button>
-   
+          </button>
+        </div>
       ),
     },
-  ], []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sortBy, sortOrder]);
 
-  // 4. Corrected Pagination Logic
-  const goToPage = (p) => {
-    // We use the route name "proposal" defined in your web.php for the proposals prefix
-    router.get(ziggyRoute("proposal"), { page: p }, { 
-        preserveScroll: true, 
-        preserveState: true 
+  /* ── Fetch ── */
+  const fetchApproveData = async ({
+    silent            = false,
+    targetPage        = currentPage,
+    currentSearch     = search,
+    currentType       = typeFilter,
+    currentPerPage    = perPage,
+    currentDateFrom   = dateFrom,
+    currentDateTo     = dateTo,
+    currentDecidedBy  = decidedBy,
+    currentLocationId = locationId,
+    currentSortBy     = sortBy,
+    currentSortOrder  = sortOrder,
+  } = {}) => {
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+    try {
+      const response = await axios.get(ziggyRoute("proposals.index"), {
+        params: {
+          page:        targetPage,
+          search:      currentSearch     || undefined,
+          per_page:    currentPerPage,
+          date_from:   currentDateFrom   || undefined,
+          date_to:     currentDateTo     || undefined,
+          decided_by:  currentDecidedBy  || undefined,
+          location_id: currentLocationId || undefined,
+          sort_by:     currentSortBy     || undefined,
+          sort_order:  currentSortOrder  || undefined,
+          type:        currentType !== "" ? currentType : undefined,
+        },
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      });
+
+      const proposalsPayload = response.data?.props?.proposals ?? response.data?.proposals ?? response.data;
+      setLocalProposals(proposalsPayload);
+      setCurrentPage(targetPage);
+
+      const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+      if (statsPayload) setLocalStats(statsPayload);
+    } catch (error) {
+      console.error("Failed to query approved records:", error);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchApproveData({ targetPage: 1 }), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const handleTypeChange       = (val) => { setTypeFilter(val);   fetchApproveData({ currentType: val,       targetPage: 1 }); };
+  const handleDecidedByApply   = (val) => { setDecidedBy(val);    fetchApproveData({ currentDecidedBy: val,  targetPage: 1 }); };
+  const handleLocationApply    = (val) => { setLocationId(val);   fetchApproveData({ currentLocationId: val, targetPage: 1 }); };
+  const handleDateApply        = ()    => { setShowDatePicker(false); fetchApproveData({ targetPage: 1 }); };
+  const handleDateClear        = ()    => {
+    setDateFrom("");
+    setDateTo("");
+    setShowDatePicker(false);
+    fetchApproveData({ currentDateFrom: undefined, currentDateTo: undefined, targetPage: 1 });
+  };
+  const handlePerPageInputApply = () => {
+    const raw = parseInt(perPageInput, 10);
+    const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 500) : perPage;
+    setPerPage(num); setPerPageInput(String(num)); setShowPerPagePicker(false);
+    fetchApproveData({ currentPerPage: num, targetPage: 1 });
+  };
+
+  const handleClearAllFilters = () => {
+    setSearch("");
+    setTypeFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setDecidedBy("");
+    setLocationId("");
+    setPerPage(10);
+    setPerPageInput("10");
+    setSortBy("");
+    setSortOrder("");
+    setShowDatePicker(false);
+    setShowDecidedBy(false);
+    setShowLocation(false);
+    LS.clearAll();
+    LS.set('per_page',   "10");
+    LS.set('sort_by',    "");
+    LS.set('sort_order', "");
+
+    fetchApproveData({
+      currentSearch:     "",
+      currentType:       "",
+      currentDateFrom:   undefined,
+      currentDateTo:     undefined,
+      currentDecidedBy:  "",
+      currentLocationId: "",
+      currentSortBy:     "",
+      currentSortOrder:  "",
+      targetPage:        1,
     });
   };
 
-  const pagination = proposals && typeof proposals.current_page === "number"
+  const goToPage = (p) => fetchApproveData({ targetPage: p });
+
+  const dateLabel = (() => {
+    if (dateFrom && dateTo) return `${formatDateLabel(dateFrom)} – ${formatDateLabel(dateTo)}`;
+    if (dateFrom) return `From ${formatDateLabel(dateFrom)}`;
+    if (dateTo)   return `Until ${formatDateLabel(dateTo)}`;
+    return null;
+  })();
+
+  const rows = localProposals?.data ?? [];
+  const pagination = localProposals && typeof localProposals.current_page === "number"
     ? {
-        page: proposals.current_page,
-        perPage: proposals.per_page ?? 10,
-        total: proposals.total ?? 0,
+        page:         localProposals.current_page,
+        perPage:      localProposals.per_page ?? perPage,
+        total:        localProposals.total ?? rows.length,
         onPageChange: goToPage,
       }
     : null;
 
-  return (
-    
+  const searchControl = (
+    <SearchControl
+      search={search}
+      onSearchChange={setSearch}
+      sortOrder={sortOrder}
+      onSortToggle={() => handleSort(sortBy || 'decided_at')}
+      loading={loading || isRefreshing}
+      onRefresh={() => fetchApproveData({ targetPage: localProposals?.current_page ?? 1 })}
+    />
+  );
 
+  const decidedBySlot = (
+    <div className="relative flex-shrink-0" ref={decidedByRef}>
+      <FilterChip
+        active={!!decidedBy}
+        icon={<MdVerifiedUser size={15} />}
+        label="Decided By"
+        value={decidedBy}
+        onClick={() => setShowDecidedBy((p) => !p)}
+        onClear={() => handleDecidedByApply("")}
+      />
+      <TextFilterPopup
+        open={showDecidedBy}
+        label="Decided By"
+        placeholder="e.g. Juan dela Cruz"
+        icon={<MdVerifiedUser size={14} className="text-[#4FA34E]" />}
+        value={decidedBy}
+        onChange={setDecidedBy}
+        onApply={handleDecidedByApply}
+        onClose={() => setShowDecidedBy(false)}
+      />
+    </div>
+  );
+
+  const filterToolbar = (
+    <ListFilterToolbar
+      hasActiveFilters={hasActiveFilters}
+      onClearAll={handleClearAllFilters}
+      typeOptions={[
+        { value: "", label: "All Types" },
+        { value: 1,  label: "Existing" },
+        { value: 0,  label: "Potential" },
+      ]}
+      typeFilter={typeFilter}
+      onTypeChange={handleTypeChange}
+      perPage={perPage}
+      perPageInput={perPageInput}
+      onPerPageInputChange={setPerPageInput}
+      onPerPageApply={handlePerPageInputApply}
+      extraFilters={decidedBySlot}
+      locationId={locationId}
+      selectedLocationName={selectedLocationName}
+      locations={locations}
+      onLocationApply={handleLocationApply}
+      dateFrom={dateFrom}
+      dateTo={dateTo}
+      onDateFromChange={setDateFrom}
+      onDateToChange={setDateTo}
+      onDateApply={handleDateApply}
+      onDateClear={handleDateClear}
+    />
+  );
+
+  return (
     <ProjectListSection
       tiles={tiles}
       tableTitle="Approved Projects"
@@ -120,8 +478,11 @@ function ApproveProjects({ proposals, stats }) {
       rows={rows}
       rowKey={(r) => String(r.id)}
       pagination={pagination}
+      searchControl={searchControl}
+      filterControl={filterToolbar}
+      loading={loading || isRefreshing}
+      emptyText="No matching records found."
     />
-
   );
 }
 

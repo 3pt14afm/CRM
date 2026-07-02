@@ -33,20 +33,20 @@ export default function ProposalRoute({ proposals, stats, generatedproposals, ge
             {/* 2. Use Link instead of button for routing */}
          <div className="flex gap-6 mt-5 mx-10 mb-6 border-b border-gray-200">
     <p onClick={()=>setActiveTab('archive')}
-        className={`pb-2 font-semibold text-sm ${activeTab === 'archive' ? 'border-b-2 border-[#289800] text-[#289800]' : 'text-gray-500'}`}
+        className={`pb-2 font-semibold cursor-pointer text-sm ${activeTab === 'archive' ? 'border-b-2 border-[#289800] text-[#289800]' : 'text-gray-500'}`}
     >
         Approved Projects
     </p>
     <p onClick={()=>setActiveTab('generated')}
        
-        className={`pb-2 font-semibold text-sm ${activeTab === 'generated' ? 'border-b-2 border-[#289800] text-[#289800]' : 'text-gray-500'}`}
+        className={`pb-2 font-semibold cursor-pointer text-sm ${activeTab === 'generated' ? 'border-b-2 border-[#289800] text-[#289800]' : 'text-gray-500'}`}
     >
         Generated Proposals
     </p>
 </div>
 
             {/* 3. Render based on what the controller sent back */}
-            <div className="">
+            <div className="pb-10">
                 {activeTab === 'archive' && (
                     <ApproveProjects
                         proposals={proposals ?? { data: [] }} 

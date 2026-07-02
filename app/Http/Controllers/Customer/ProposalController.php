@@ -14,53 +14,164 @@ class ProposalController extends Controller
 {
     // ─── Proposal List ────────────────────────────────────────────
 
-public function proposalList(Request $request)
-{
-    $perPage = (int) $request->input('per_page', 10);
-    $userId  = Auth::id();
+    public function proposalList(Request $request)
+    {
+        $perPage = (int) $request->input('per_page', 10);
+        $userId  = Auth::id();
 
-    // 1. Get Approved Projects
-    $archiveQuery = RoiArchiveProject::query()
-        ->where('roi_archive_projects.user_id', $userId)
-        ->where('roi_archive_projects.status', 'approved')
-        ->with(['user', 'approver'])
-        ->whereDoesntHave('proposals', function ($query) {
-            $query->whereIn('status', ['draft', 'generated']); // ← now excludes drafted too
-        })
-        ->orderByDesc('roi_archive_projects.updated_at');
+        // ── Incoming filter/sort params ──
+        $search     = trim((string) $request->input('search', ''));
+        $type       = $request->input('type', '');
+        $dateFrom   = $request->input('date_from');
+        $dateTo     = $request->input('date_to');
+        $decidedBy  = trim((string) $request->input('decided_by', ''));
+        $locationId = $request->input('location_id');
+        $sortBy     = (string) $request->input('sort_by', '');
+        $sortOrder  = strtolower((string) $request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
 
-    // Clone for stats to avoid conflict with pagination/selects
-    $statsQuery = $archiveQuery->clone();
+        // 1. Get Approved Projects
+        $archiveQuery = RoiArchiveProject::query()
+            ->select('roi_archive_projects.*')
+            ->where('roi_archive_projects.user_id', $userId)
+            ->where('roi_archive_projects.status', 'approved')
+            ->with(['user', 'approver'])
+            ->whereDoesntHave('proposals', function ($query) {
+                $query->whereIn('status', ['draft', 'generated']); // ← now excludes drafted too
+            });
 
-    return Inertia::render('CustomerManagement/Proposal/ProposalRoute', [
-        'proposals' => $archiveQuery->paginate($perPage)->through(fn($p) => $this->transformProposal($p)),
-        'stats'     => [
-            'totalArchiveProjects' => $statsQuery->count(),
-            'recentlyArchivedToday' => $statsQuery->clone()
+        // ── Search (reference / company name / sap code) ──
+        if ($search !== '') {
+            $archiveQuery->where(function ($q) use ($search) {
+                $q->where('roi_archive_projects.reference', 'like', "%{$search}%")
+                  ->orWhere('roi_archive_projects.company_name', 'like', "%{$search}%")
+                  ->orWhere('roi_archive_projects.company_sap_code', 'like', "%{$search}%");
+            });
+        }
+
+        // ── Type filter (1 = Existing, 0 = Potential) ──
+        if ($type !== '' && $type !== null) {
+            $archiveQuery->where('roi_archive_projects.type', (int) $type);
+        }
+
+        // ── Date range, based on approval date ──
+        if ($dateFrom) {
+            $archiveQuery->whereDate('roi_archive_projects.approved_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $archiveQuery->whereDate('roi_archive_projects.approved_at', '<=', $dateTo);
+        }
+
+        // ── Decided By (approver name) ──
+        // NOTE: `name` on the User model is a computed accessor (first_name + last_name),
+        // not a real column — so we match against the underlying columns instead,
+        // plus a concatenated version so full-name searches like "Kim Santos" still work.
+        if ($decidedBy !== '') {
+            $archiveQuery->whereHas('approver', function ($q) use ($decidedBy) {
+                $q->where(function ($sub) use ($decidedBy) {
+                    $sub->where('first_name', 'like', "%{$decidedBy}%")
+                        ->orWhere('last_name', 'like', "%{$decidedBy}%")
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$decidedBy}%"]);
+                });
+            });
+        }
+
+        // ── Location ──
+        if ($locationId) {
+            $archiveQuery->where('roi_archive_projects.location_id', $locationId);
+        }
+
+        // ── Sorting ──
+        $sortableColumns = [
+            'reference'        => 'roi_archive_projects.reference',
+            'company_sap_code' => 'roi_archive_projects.company_sap_code',
+            'company_name'     => 'roi_archive_projects.company_name',
+            'contract_years'   => 'roi_archive_projects.contract_years',
+            'contract_type'    => 'roi_archive_projects.contract_type',
+            'type'             => 'roi_archive_projects.type',
+            'decided_at'       => 'roi_archive_projects.approved_at',
+        ];
+
+        if ($sortBy === 'prepared_by_name') {
+            $archiveQuery->leftJoin('users as prepared_user', 'roi_archive_projects.user_id', '=', 'prepared_user.id')
+                ->orderBy('prepared_user.first_name', $sortOrder)
+                ->orderBy('prepared_user.last_name', $sortOrder);
+        } elseif ($sortBy === 'decided_by_name') {
+            $archiveQuery->leftJoin('users as approver_user', 'roi_archive_projects.approved_by', '=', 'approver_user.id')
+                ->orderBy('approver_user.first_name', $sortOrder)
+                ->orderBy('approver_user.last_name', $sortOrder);
+        } elseif (isset($sortableColumns[$sortBy])) {
+            $archiveQuery->orderBy($sortableColumns[$sortBy], $sortOrder);
+        } else {
+            $archiveQuery->orderByDesc('roi_archive_projects.updated_at');
+        }
+
+        // Clone for stats to avoid conflict with pagination/selects/order
+        $statsQuery = (clone $archiveQuery)->reorder();
+
+        $proposals = $archiveQuery->paginate($perPage)
+            ->withQueryString()
+            ->through(fn ($p) => $this->transformProposal($p));
+
+        $stats = [
+            'totalArchiveProjects'  => $statsQuery->count('roi_archive_projects.id'),
+            'recentlyArchivedToday' => (clone $statsQuery)
                 ->whereDate('roi_archive_projects.updated_at', now()->toDateString())
-                ->count() . ' Today',
-        ],
-        'generatedproposals' => Proposal::query()
-            ->where('user_id', $userId)
-            ->with(['roiArchiveProject'])
-            ->orderByDesc('updated_at')
-            ->paginate($perPage)
-            ->through(fn($p) => [
-                'id'             => $p->roi_archive_project_id,
-                'proposal_id'    => $p->id,
-                'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
-                'company_name'   => $p->company_name,
-                'status'         => $p->status,
-                'updated_at'     => $p->updated_at->diffForHumans(),
-                'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
-                'project_ref'    => $p->roiArchiveProject->reference ?? '—',
-            ]),
-        'generatedstats' => [
-            'totalProposals' => Proposal::where('user_id', $userId)->count(),
-            'generatedCount' => Proposal::where('user_id', $userId)->where('status', 'generated')->count(),
-        ],
-    ]);
-}
+                ->count('roi_archive_projects.id') . ' Today',
+        ];
+
+        // ── AJAX/XHR request (from the filter toolbar's axios calls) → plain JSON ──
+        // Explicit header check instead of relying solely on wantsJson()/ajax(),
+        // which can behave inconsistently depending on middleware/content negotiation.
+          if ($request->wantsJson()) {
+            return response()->json([
+                'proposals' => $proposals,
+                'stats'     => $stats,
+            ]);
+        }
+
+        // Resolve locations defensively — never let a missing/renamed model 500 the page.
+        $locations = [];
+        if (class_exists(\App\Models\Location::class)) {
+            $locations = \App\Models\Location::orderBy('name')->get(['id', 'name']);
+        }
+
+        return Inertia::render('CustomerManagement/Proposal/ProposalRoute', [
+            'proposals' => $proposals,
+            'stats'     => $stats,
+            'filters'   => [
+                'search'      => $search,
+                'type'        => $type,
+                'date_from'   => $dateFrom,
+                'date_to'     => $dateTo,
+                'decided_by'  => $decidedBy,
+                'location_id' => $locationId,
+                'sort_by'     => $sortBy,
+                'sort_order'  => $sortOrder,
+                'per_page'    => $perPage,
+            ],
+            'locations' => $locations,
+
+            'generatedproposals' => Proposal::query()
+                ->where('user_id', $userId)
+                ->with(['roiArchiveProject'])
+                ->orderByDesc('updated_at')
+                ->paginate($perPage)
+                ->through(fn ($p) => [
+                    'id'             => $p->roi_archive_project_id,
+                    'proposal_id'    => $p->id,
+                    'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
+                    'company_name'   => $p->company_name,
+                    'status'         => $p->status,
+                    'updated_at'     => $p->updated_at->diffForHumans(),
+                    'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
+                    'project_ref'    => $p->roiArchiveProject->reference ?? '—',
+                ]),
+            'generatedstats' => [
+                'totalProposals' => Proposal::where('user_id', $userId)->count(),
+                'generatedCount' => Proposal::where('user_id', $userId)->where('status', 'generated')->count(),
+            ],
+        ]);
+    }
 
 
 
