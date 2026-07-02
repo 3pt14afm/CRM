@@ -3,16 +3,20 @@ import { Head } from '@inertiajs/react';
 import PrintLayout from '@/Layouts/PrintLayout';
 import Conditions from '@/Components/sprf/Conditions';
 
-const APPROVAL_LEVEL = {
-  ESD_ONLY: 'ESD_ONLY',
-  VP_AND_CCTO: 'VP_AND_CCTO',
-  PRESIDENT_AND_CEO: 'PRESIDENT_AND_CEO',
-};
-
-const isBlank = (value) =>
-  value === '' || value === null || value === undefined;
-
-const toNumber = (value) => Number(value || 0);
+// Single source of truth for SPRF calculations — same module sprfEntry.jsx
+// uses. Do not redefine computeGroup/computeExpense/computeSummary/etc.
+// here; fix formulas in calculations.js so entry and print always match.
+import {
+  isBlank,
+  toNumber,
+  APPROVAL_LEVEL,
+  computeGroup,
+  computeExpense,
+  computeSummary as computeSummaryShared,
+  computeItemTotals,
+  computeRebateTotal,
+  resolveApprovalLevelMatrix,
+} from '@/utils/sprf/calculations';
 
 const displayText = (value) => {
   if (isBlank(value)) return '';
@@ -96,87 +100,6 @@ const hasExpenseValue = (row) => {
   );
 };
 
-const computeSubitemPrint = (row) => {
-  const qty = toNumber(row.qty);
-  const costPerUnit = toNumber(row.costPerUnit); // blank defaults to 0
-  const markupPercent = toNumber(row.markupPercent);
-
-  const qtyBlank = isBlank(row.qty);
-  const markupBlank = isBlank(row.markupPercent);
-
-  const markupPerUnit = markupBlank ? '' : costPerUnit * (markupPercent / 100);
-  const totalCost = qtyBlank ? '' : qty * costPerUnit;
-  const totalMarkup = qtyBlank || markupPerUnit === '' ? '' : qty * markupPerUnit;
-
-  return { ...row, markupPerUnit, totalCost, totalMarkup };
-};
-
-const computeGroupPrint = (group) => {
-  const computedSubitems = (group.subitems || []).map(computeSubitemPrint);
-
-  let sumCostPerUnit = 0;
-  let sumMarkupPerUnit = 0;
-  let grandTotalCost = 0;
-  let grandTotalMarkup = 0;
-  let hasIncompleteMarkup = false;
-
-  computedSubitems.forEach((row) => {
-    if (!isBlank(row.costPerUnit)) sumCostPerUnit += toNumber(row.costPerUnit);
-    if (row.totalCost !== '') grandTotalCost += toNumber(row.totalCost);
-
-    if (isBlank(row.markupPercent)) {
-      hasIncompleteMarkup = true;
-    } else {
-      sumMarkupPerUnit += toNumber(row.markupPerUnit);
-      grandTotalMarkup += toNumber(row.totalMarkup);
-    }
-  });
-
-  return {
-    ...group,
-    computedSubitems,
-    totalCost: grandTotalCost,
-    sellingPricePerUnitVatInc: hasIncompleteMarkup ? '' : sumCostPerUnit + sumMarkupPerUnit,
-    totalSellingPriceVatInc: hasIncompleteMarkup ? '' : grandTotalCost + grandTotalMarkup,
-    markupValue: hasIncompleteMarkup ? '' : grandTotalMarkup,
-  };
-};
-
-function computeSummary(items = [], otherExpenses = []) {
-  const computedGroups = items.map(computeGroupPrint);
-
-  const computedExpenses = otherExpenses.map((row) => {
-    const qtyBlank = isBlank(row.qty);
-    const unitPriceBlank = isBlank(row.unitPrice);
-    const qty = toNumber(row.qty);
-    const unitPrice = toNumber(row.unitPrice);
-
-    return { ...row, total: qtyBlank || unitPriceBlank ? '' : qty * unitPrice };
-  });
-
-  const revenue = computedGroups.reduce((sum, g) => sum + toNumber(g.totalSellingPriceVatInc), 0);
-  const cogs = computedGroups.reduce((sum, g) => sum + toNumber(g.totalCost), 0);
-  const otherExpense = computedExpenses.reduce((sum, row) => sum + toNumber(row.total), 0);
-
-  const totalExpense = cogs + otherExpense;
-  const gpValue = revenue - totalExpense;
-  const totalGpPercent = revenue > 0 ? (gpValue / revenue) * 100 : 0;
-
-  return {
-    computedGroups,
-    computedExpenses,
-    summary: { revenue, cogs, otherExpense, totalExpense, gpValue, totalGpPercent },
-  };
-}
-
-function resolveApprovalLevel({ revenue, totalGpPercent, hasRebate }) {
-  if (hasRebate) return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  if (revenue <= 0) return APPROVAL_LEVEL.ESD_ONLY;
-  if (totalGpPercent < 16) return APPROVAL_LEVEL.PRESIDENT_AND_CEO;
-  if (totalGpPercent >= 16 || revenue > 1000000) return APPROVAL_LEVEL.VP_AND_CCTO;
-  return APPROVAL_LEVEL.ESD_ONLY;
-}
-
 const flattenPrintItems = (items = []) => {
   const flat = [];
 
@@ -234,6 +157,11 @@ function mapProjectToPrintData(project) {
     otherExpenses,
     notes: Array.isArray(project?.notes) ? project.notes : [],
     comments: Array.isArray(project?.comments) ? project.comments : [],
+    approvalLevel: project?.approval_level ?? null,
+    approvalConditionCode: project?.approval_condition_code ?? null,
+    requiresVpCcto: project?.requires_vp_ccto ?? null,
+    requiresPresidentCeo: project?.requires_president_ceo ?? null,
+    requiresRebateJustification: project?.requires_rebate_justification ?? null,
     signatories: {
       preparer: {
         name: project?.preparer?.name ?? '',
@@ -327,35 +255,65 @@ export default function SprfEntryPrint({
   const resolved = useMemo(() => {
     if (!printData) return null;
 
-    const { computedGroups, computedExpenses, summary } = computeSummary(
-      printData.items,
-      printData.otherExpenses
-    );
-
-    const rebateTotal = computedExpenses
-      .filter((row) =>
-        row?.expenseKey === 'rebate' ||
-        String(row?.productCode || '').trim().toLowerCase() === 'rebate'
-      )
-      .reduce((sum, row) => sum + toNumber(row.total), 0);
-
+    // Same pipeline as sprfEntry.jsx: computeGroup -> computeExpense ->
+    // computeSummaryShared -> computeItemTotals, all from calculations.js.
+    const computedGroups = (printData.items ?? []).map(computeGroup);
+    const computedExpenses = (printData.otherExpenses ?? []).map(computeExpense);
+    const summary = computeSummaryShared(computedGroups, computedExpenses);
+    const itemTotals = computeItemTotals(computedGroups);
+    const rebateTotal = computeRebateTotal(computedExpenses);
     const hasRebate = rebateTotal > 0;
 
-    const approvalLevel = resolveApprovalLevel({
+    // Fallback derivation when the backend hasn't supplied approval_level
+    // yet (mirrors sprfEntry.jsx's computedApprovalLevel).
+    const computedApprovalLevel = resolveApprovalLevelMatrix({
+      hasRebate,
       revenue: summary.revenue,
       totalGpPercent: summary.totalGpPercent,
-      hasRebate,
     });
+
+    const approvalLevel = printData.approvalLevel ?? computedApprovalLevel;
+
+    // Trust backend flags when present (saved projects); fall back to the
+    // local matrix derivation otherwise — identical logic to sprfEntry.jsx
+    // so print never shows a different set of signatories than entry.
+    const showPresidentCeo =
+      printData.requiresPresidentCeo != null
+        ? Boolean(printData.requiresPresidentCeo)
+        : (
+            approvalLevel === APPROVAL_LEVEL.REBATE_REQUEST ||
+            approvalLevel === APPROVAL_LEVEL.GP_LTE_15 ||
+            approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO
+          );
+
+    const showVpCcto =
+      printData.requiresVpCcto != null
+        ? Boolean(printData.requiresVpCcto)
+        : (
+            showPresidentCeo ||
+            approvalLevel === APPROVAL_LEVEL.VALUE_GT_1M ||
+            approvalLevel === APPROVAL_LEVEL.GP_GT_15 ||
+            approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO
+          );
+
+    const showDirectorCustomerEngagement =
+      printData.requiresRebateJustification != null
+        ? Boolean(printData.requiresRebateJustification)
+        : printData.approvalConditionCode
+          ? printData.approvalConditionCode === 'REBATE_REQUEST'
+          : approvalLevel === APPROVAL_LEVEL.REBATE_REQUEST;
 
     return {
       ...printData,
       computedGroups,
       computedExpenses,
       summary,
+      itemTotals,
       hasRebate,
       showRejectNote: String(printData.status ?? '').toLowerCase() === 'rejected' && displayText(printData.lastRejectNote),
-      showVpCcto: approvalLevel !== APPROVAL_LEVEL.ESD_ONLY,
-      showPresidentCeo: approvalLevel === APPROVAL_LEVEL.PRESIDENT_AND_CEO,
+      showDirectorCustomerEngagement,
+      showVpCcto,
+      showPresidentCeo,
     };
   }, [printData]);
 
@@ -444,11 +402,7 @@ export default function SprfEntryPrint({
 
                 <PrintItemsTable
                   groups={resolved.computedGroups}
-                  totals={{
-                    ttlCost: resolved.summary.cogs,
-                    ttlRev: resolved.summary.revenue,
-                    gpValue: resolved.summary.gpValue,
-                  }}
+                  totals={resolved.itemTotals}
                 />
 
                 <PrintOtherExpenseTable
@@ -475,6 +429,7 @@ export default function SprfEntryPrint({
                   <div className="w-[95%]">
                     <PrintNamesBlock
                       signatories={resolved.signatories}
+                      showDirectorCustomerEngagement={resolved.showDirectorCustomerEngagement}
                       showVpCcto={resolved.showVpCcto}
                       showPresidentCeo={resolved.showPresidentCeo}
                       showRebateJustification={true}
@@ -622,8 +577,8 @@ function PrintItemsTable({ groups, totals }) {
       <table className="w-full table-fixed border-separate border-spacing-0 text-[10px]">
         <colgroup>
           <col className="w-[2.5%]" />
-          <col className="w-[8.4%]" />
-          <col className="w-[21.1%]" />
+          <col className="w-[9.5%]" />
+          <col className="w-[20%]" />
           <col className="w-[4.5%]" />
           <col className="w-[5.6%]" />
           <col className="w-[9.4%]" />
@@ -710,7 +665,7 @@ function PrintItemsTable({ groups, totals }) {
             <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{displayPeso(totals?.ttlCost)}</td>
             <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
             <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{displayPeso(totals?.ttlRev)}</td>
-            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{displayPeso(totals?.gpValue)}</td>
+            <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{displayPeso(totals?.ttlMarkupValue)}</td>
             <td className={`${footerCellClass} rounded-br-xl`}></td>
           </tr>
         </tfoot>
@@ -809,6 +764,7 @@ function PrintOtherExpenseTable({ rows, totalOtherExpense }) {
 
 function PrintNamesBlock({
   signatories,
+  showDirectorCustomerEngagement,
   showVpCcto,
   showPresidentCeo,
   showRebateJustification,
@@ -829,7 +785,9 @@ function PrintNamesBlock({
           <div className="mt-10 space-y-12">
             <PrintSignatory {...(signatories?.preparer ?? {})} />
 
-            <PrintSignatory {...(signatories?.directorCustomerEngagement ?? {})} />
+            {showDirectorCustomerEngagement && (
+              <PrintSignatory {...(signatories?.directorCustomerEngagement ?? {})} />
+            )}
           </div>
 
           {showRebateJustification && displayText(rebateJustification) && (

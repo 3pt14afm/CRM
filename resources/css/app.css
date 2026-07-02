@@ -16,7 +16,7 @@ body{
   scrollbar-width: none;     /* Firefox */
 }
 
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { border-radius: 9999px; background: #195c0059; }
 

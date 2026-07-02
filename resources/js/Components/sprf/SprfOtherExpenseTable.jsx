@@ -60,7 +60,7 @@ export default function SprfOtherExpenseTable({
     'w-full min-w-0 h-5 xl:h-6 text-[11px] xl:text-xs text-center rounded-sm border border-slate-200/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyCellClass =
-    'w-full h-6 text-[11px] xl:text-xs px-2 flex items-center rounded-sm';
+    'w-full h-6 text-[11px] xl:text-xs md:px-2 flex items-center rounded-sm';
 
   const readonlyAmountClass =
     'w-full h-6 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end';
@@ -69,13 +69,14 @@ export default function SprfOtherExpenseTable({
     'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
 
   return (
-    <div className="w-[80%] xl:w-[65%]">
+    <div className="w-full md:w-[80%] xl:w-[65%]">
       <div className="mb-1 text-[11px] xl:text-xs ml-3 font-bold uppercase text-[#111]">
         Other Expense
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-white shadow-md">
-        <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
+      <div className="rounded-xl border border-[#CAD6C2] bg-white shadow-md overflow-hidden">
+        <div className="overflow-x-auto touch-pan-x">
+        <table className="w-full min-w-[560px] xl:min-w-0 table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
             <col className="w-[5.5%]" />
             <col className="w-[15%]" />
@@ -88,7 +89,7 @@ export default function SprfOtherExpenseTable({
           </colgroup>
 
           <thead>
-            <tr className="bg-lightgreen/30 text-[10px] uppercase">
+            <tr className="bg-lightgreen/30 text-[9px] sm:text-[10px] uppercase">
               <th className="border-b border-r border-darkgreen/15 py-2 text-center">
                 Item No.
               </th>
@@ -98,7 +99,7 @@ export default function SprfOtherExpenseTable({
               <th className="border-b border-r border-darkgreen/15 p-2">
                 Item Description
               </th>
-              <th className="border-b border-r border-darkgreen/15 p-2">
+              <th className="border-b border-r border-darkgreen/15 sm:p-2">
                 Qty
               </th>
               <th className="border-b border-r border-darkgreen/15 p-2">
@@ -229,7 +230,7 @@ export default function SprfOtherExpenseTable({
                         <button
                           type="button"
                           onClick={() => onAddExpenseRow(index)}
-                          className="w-6 h-6 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                          className="w-6 h-6 px-1 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
                           title="Add row"
                         >
                           +
@@ -239,7 +240,7 @@ export default function SprfOtherExpenseTable({
                           type="button"
                           onClick={() => onRemoveExpenseRow(index)}
                           disabled={isFixed}
-                          className={`w-6 h-6 rounded border ${
+                          className={`w-6 h-6 px-1 rounded border ${
                             isFixed
                               ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
                               : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
@@ -258,7 +259,7 @@ export default function SprfOtherExpenseTable({
 
           <tfoot>
             <tr>
-              <td className={`${footerCellClass} rounded-bl-xl`}></td>
+              <td className={`${footerCellClass} rounded-none sm:rounded-bl-xl`}></td>
               <td className={footerCellClass}></td>
               <td className={`${footerCellClass} text-center`}>TOTAL</td>
               <td className={footerCellClass}></td>
@@ -275,11 +276,12 @@ export default function SprfOtherExpenseTable({
               </td>
 
               {showActionColumn && (
-                <td className={`${footerCellClass} rounded-br-xl`}></td>
+                <td className={`${footerCellClass} rounded-none sm:rounded-br-xl`}></td>
               )}
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
     </div>
   );
