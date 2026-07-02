@@ -53,25 +53,26 @@ export default function SprfItemsTable({
   }));
 
   const inputClass =
-    'w-full min-w-0 min-h-5 text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-0 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+    'w-full min-w-0 min-h-5 text-[10px] sm:text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-0 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
   const readonlyClass =
-    'w-full h-5 text-[11px] xl:text-xs text-center px-1 flex items-center justify-end font-medium';
+    'w-full h-5 text-[10px] sm:text-[11px] xl:text-xs text-center px-1 flex items-center justify-end font-medium';
 
   const readonlyTextClass =
-    'w-full min-w-0 text-xs rounded-sm px-1 flex items-center leading-snug';
+    'w-full min-w-0 text-[11px] sm:text-xs rounded-sm px-1 flex items-center leading-snug';
 
   const footerCellClass =
-    'bg-[#D9F2D0] p-2 text-[11px] xl:text-xs font-semibold xl:font-bold';
+    'bg-[#D9F2D0] p-2 text-[10px] sm:text-[11px] xl:text-xs font-semibold xl:font-bold';
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md">
-        <table className="w-full table-fixed border-separate border-spacing-0 text-[11px]">
+      <div className="rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md overflow-hidden">
+        <div className="overflow-x-auto touch-pan-x">
+        <table className="w-full min-w-[880px] xl:min-w-0 table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
             <col className="w-[3.5%]" />
-            <col className="w-[8%]" />
-            <col className="w-[19%]" />
+            <col className="w-[9%]" />
+            <col className="w-[18%]" />
             <col className="w-[3.7%] xl:w-[5%]" />
             <col className="w-[5%]" />
             <col className="w-[8.5%] xl:w-[9%]" />
@@ -433,7 +434,7 @@ export default function SprfItemsTable({
 
           <tfoot>
             <tr>
-              <td className={`${footerCellClass} rounded-bl-xl`}></td>
+              <td className={`${footerCellClass} rounded-none sm:rounded-bl-xl`}></td>
               <td className={footerCellClass}></td>
               <td className={`${footerCellClass} text-center`}>TOTAL</td>
               <td className={footerCellClass}></td>
@@ -444,10 +445,11 @@ export default function SprfItemsTable({
               <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlRev)}</td>
               <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlMarkupValue ?? totals.totalMarkupValue)}</td>
               <td className={`${footerCellClass} ${showActionColumn ? 'border-r border-darkgreen/15' : 'rounded-br-xl'}`}></td>
-              {showActionColumn && <td className={`${footerCellClass} rounded-br-xl`}></td>}
+              {showActionColumn && <td className={`${footerCellClass} rounded-none sm:rounded-br-xl`}></td>}
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
     </div>
   );

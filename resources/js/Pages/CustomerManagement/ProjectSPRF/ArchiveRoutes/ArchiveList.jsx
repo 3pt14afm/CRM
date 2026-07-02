@@ -3,7 +3,7 @@ import { router, Head } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import { MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose, MdExpandMore, MdPerson, MdVerifiedUser, MdCheckCircle, MdCancel, MdOutlineClose, MdCheck } from 'react-icons/md';
+import { MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose, MdExpandMore, MdPerson, MdVerifiedUser, MdCheckCircle, MdCancel, MdOutlineClose, MdCheck, MdBlock, MdOutlineCancel } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { route as ziggyRoute } from 'ziggy-js';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -25,6 +25,11 @@ const approvalLevelLabel = (value) => {
   if (value === 'VP_AND_CCTO') return 'VP & CCTO';
   if (value === 'ESD_DIRECTOR') return 'ESD Director';
   return 'Director - Customer Engagement';
+};
+
+const companyTypeLabel = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  return Number(value) === 0 ? 'New' : 'Existing';
 };
 
 /* ─── FilterChip ─── */
@@ -262,6 +267,14 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       cell: (r) => <div className="w-full flex justify-center font-medium items-center"><span>{r.account_manager ?? '—'}</span></div>,
     },
     {
+      key: 'type',
+      header: (
+        <SortHeader label="TYPE" sortKey="type" align="center"
+          sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
+      ),
+      cell: (r) => <div className="w-full flex justify-center font-medium items-center"><span>{companyTypeLabel(r.type)}</span></div>,
+    },
+    {
       key: 'approval_level',
       header: (
         <SortHeader label="APPROVAL LEVEL" sortKey="approval_level" align="center"
@@ -281,16 +294,19 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       ),
       cell: (row) => {
         const s          = String(row.status ?? '').toLowerCase();
-        const isRejected = s === 'rejected';
-        const isApproved = s === 'approved';
+        const isRejected  = s === 'rejected';
+        const isApproved  = s === 'approved';
+        const isCancelled = s === 'cancelled';
         return (
           <div className="flex justify-center items-center">
             <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
               ${isRejected ? 'bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20'
                 : isApproved ? 'bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20'
+                : isCancelled ? 'bg-red-600/10 text-red-600 border border-red-300'
                 : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
               {isRejected ? <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
                 : isApproved ? <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
+                : isCancelled ? <MdOutlineCancel className="text-[11px] xl:text-[13px] flex-shrink-0" />
                 : <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />}
               <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">{row.decided_by_name ?? '—'}</span>
             </div>
@@ -363,6 +379,8 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
           ? <MdCheckCircle className="absolute left-2.5 text-[#4FA34E] text-sm pointer-events-none z-10" />
           : statusFilter === 'rejected'
           ? <MdCancel className="absolute left-2.5 text-red-500 text-sm pointer-events-none z-10" />
+          : statusFilter === 'cancelled'
+          ? <MdBlock className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
           : <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
         }
         <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}
@@ -372,6 +390,7 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
           <option value="">All Status</option>
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
 
