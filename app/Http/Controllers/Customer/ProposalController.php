@@ -218,7 +218,7 @@ private function transformProposal($p)
         'proposal_ref'       => null,
         'status'             => 'draft',
         'message'            => null,
-        'specs'              => [],
+        'specs'              => null,
         'printer_image'      => null,
         'unit_price'         => 0,
         'terms_text'         => null,
