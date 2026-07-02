@@ -21,7 +21,7 @@ function formatDateTime(date) {
   const timePart = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hour12: true,
   }).format(d);
 
   return `${datePart} ${timePart}`;
@@ -209,13 +209,13 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
         {/* Trigger bar */}
         <div
           onClick={!isLocked ? openModal : undefined}
-          className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-4 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
+          className={`flex items-center print:hidden border border-gray-200 rounded-xl py-2 sm:py-3 pl-2.5 pr-2 sm:px-4 shadow-[0px_1px_10px_rgba(0,0,0,0.05)] sm:shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
             !isLocked
               ? "bg-white hover:cursor-pointer"
               : "bg-gray-50 cursor-not-allowed opacity-70"
           }`}
         >
-          <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
+          <div className="flex-grow text-gray-400 text-[10px] sm:text-xs print:text-[10px]">
             Write your notes here...
           </div>
 
@@ -225,12 +225,12 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
             disabled={isLocked}
             className={`flex items-center rounded-full font-semibold text-xs transition-all shrink-0 ${
               !isLocked
-                ? "text-[#2DA300] hover:text-[#268a00]  shadow-[0px_4px_10px_rgba(45,163,0,0.3)]"
+                ? "text-[#2DA300] hover:text-[#268a00]  sm:shadow-[0px_4px_10px_rgba(45,163,0,0.3)]"
                 : "text-gray-500 cursor-not-allowed"
             }`}
           >
             <span className="flex items-center h-5 w-5 justify-center">
-              <IoIosAddCircle size={22} />
+              <IoIosAddCircle className="!size-4 sm:!size-12 md:!size-16" />
             </span>
           </button>
         </div>
@@ -245,27 +245,27 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
         {/* Existing notes list */}
         {serverNotes.length > 0 && (
           <div className="mt-2 print:mt-1">
-            <span className="text-[11px] text-gray-400 pl-2">NOTES</span>
+            <span className="font-medium text-[10px] sm:text-[11px] text-gray-400 pl-2">NOTES</span>
 
             {serverNotes.map((n, idx) => (
               <div
                 key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
-                className="bg-white border border-gray-200 rounded-xl px-4 py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
+                className="bg-white border border-gray-200 rounded-xl px-3 md:px-4 py-2 md:py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
               >
-                <div className="flex h-4 items-center justify-between w-full">
-                  <div className="items-start flex gap-1 xl:gap-2">
+                <div className="sm:flex h-4 items-center justify-between w-full">
+                  <div className="items-start flex md:gap-2">
                     <div className="flex items-center">
-                      <FaRegUserCircle className="text-gray-400 text-sm shrink-0" />
+                      <FaRegUserCircle className="text-gray-400 hidden md:block text-sm shrink-0" />
                     </div>
                     <span className="block text-[11px] font-medium text-gray-900">
                       {n.author?.name ?? "Unknown"}
                     </span>
                   </div>
-                  <div className="text-[10px] text-gray-500 italic whitespace-nowrap">
+                  <div className="text-[9px] sm:text-[10px] text-gray-500 italic whitespace-nowrap">
                     {formatDateTime(n.created_at)}
                   </div>
                 </div>
-                <p className="mt-2 print:mt-1 text-gray-900 text-xs leading-relaxed">
+                <p className="mt-5 sm:mt-2 print:mt-1 text-gray-900 text-[11px] sm:text-xs leading-snug sm:leading-relaxed">
                   {n.body}
                 </p>
               </div>
@@ -281,24 +281,24 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
 
           <div
             ref={modalRef}
-            className="relative w-[50%] xl:w-[40%] max-w-xl bg-white rounded-xl shadow-xl border border-black/10 overflow-hidden"
+            className="relative w-[80%] sm:w-[50%] xl:w-[40%] max-w-xl bg-white rounded-xl shadow-xl border border-black/10 overflow-hidden"
           >
-            <div className="px-6 lg:px-8 xl:px-10 pt-6 lg:pt-8 xl:pt-10 pb-4">
-              <h2 className="text-2xl font-extrabold tracking-wide text-black">
+            <div className="px-3 sm:px-6 lg:px-8 xl:px-10 pt-3 sm:pt-6 lg:pt-8 xl:pt-10 pb-2 sm:pb-4">
+              <h2 className="text-md sm:text-2xl font-extrabold tracking-wide text-black">
                 ADD NOTE
               </h2>
             </div>
 
-            <div className="px-6 lg:px-8 xl:px-10 pb-8">
+            <div className="px-3 sm:px-6 lg:px-8 xl:px-10 pb-3 sm:pb-8">
               <div className="relative bg-white rounded-xl border border-black/10 shadow-sm overflow-hidden">
-                <div className="relative p-4">
-                  <FaRegUserCircle className="absolute left-6 top-6 text-2xl text-gray-400" />
+                <div className="relative p-1 sm:p-4">
+                  <FaRegUserCircle className="absolute left-3 top-3 sm:left-6 sm:top-6 text-lg sm:text-2xl text-gray-400" />
                   <textarea
                     ref={textareaRef}
                     value={noteDraft}
                     onChange={(e) => setNoteDraft(e.target.value)}
                     placeholder="Write note here..."
-                    className="w-full min-h-[330px] pl-12 pr-4 text-gray-700 placeholder-gray-400 text-base resize-none border-none focus:outline-none focus:ring-0"
+                    className="w-full min-h-[330px] pl-9 sm:pl-12 sm:pr-4 text-gray-700 placeholder-gray-400 text-sm sm:text-base resize-none border-none focus:outline-none focus:ring-0"
                   />
                 </div>
 
@@ -306,7 +306,7 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-3 py-2 rounded-lg text-sm bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
+                    className="px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold"
                   >
                     Cancel
                   </button>
@@ -315,7 +315,7 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
                     type="button"
                     onClick={handleAddNote}
                     disabled={!canSubmit}
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+                    className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold ${
                       canSubmit
                         ? "bg-[#A7E86B] hover:bg-[#93db57] text-gray-900"
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"

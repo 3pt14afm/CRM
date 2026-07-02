@@ -900,7 +900,7 @@ const [companyInfo, setCompanyInfo] = useState({
             </div>
 
             <div className="p-3 sm:p-4 md:p-6 print:p-0">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 print:grid-cols-[50%_50%] print:gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-6 print:grid-cols-[50%_50%] print:gap-2">
                 <div className="md:col-span-8 space-y-3 print:space-y-1">
                   <div className="md:hidden print:hidden">
                     <SprfMetaBlock
@@ -967,13 +967,13 @@ const [companyInfo, setCompanyInfo] = useState({
                 />
               </div>
 
-              <div className="mt-10 w-full flex flex-col items-center justify-center print:mt-4 print:gap-2 print:items-start">
+              <div className="mt-4 sm:mt-10 w-full flex flex-col items-center justify-center print:mt-4 print:gap-2 print:items-start">
                 <div className="flex flex-col md:flex-row gap-3 w-full">
                   <div className="w-full md:w-[40%]">
                     <Conditions />
                   </div>
 
-                  <div className="flex flex-col sm:flex-row w-full md:w-[60%] gap-2">
+                  <div className="flex w-full md:w-[60%] gap-2">
                     <SprfAddNotes scopeKey="sprf-main" />
                     <SprfAddComments comments={initialProject?.comments} scopeKey="entry" />
                   </div>
@@ -1017,12 +1017,12 @@ const [companyInfo, setCompanyInfo] = useState({
 
         <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
           {isEntryRoute && !readOnly ? (
-            <div className="px-3 sm:px-10 py-2 flex flex-col sm:flex-row items-center sm:justify-between gap-2 relative">
+            <div className="px-3 sm:px-10 py-2 flex items-center justify-between gap-2 relative">
               <button
                 type="button"
                 onClick={handleClearAll}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                className="w-auto flex items-center justify-center text-xs md:text-base gap-2 px-3 md:px-5 py-1 rounded-lg md:rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
               >
                 Clear All
               </button>
@@ -1032,11 +1032,11 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(false)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
                 >
-                  <LuScanEye className="text-xl" />
+                  <LuScanEye className="text-[15px] sm:text-xl" />
                         
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 sm:text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print Preview
                   </span>
                 </button>
@@ -1045,22 +1045,22 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(true)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  <IoPrintSharp className="text-xl" />
+                  <IoPrintSharp className="text-[15px] sm:text-xl" />
 
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 sm:text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print
                   </span>
                 </button>
               </div>
 
-              <div className="w-full sm:w-auto flex items-center justify-center sm:justify-end gap-3">
+              <div className="flex items-center justify-center sm:justify-end gap-3">
                 <button
                   type="button"
                   onClick={handleSaveDraft}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center whitespace-nowrap justify-center text-xs md:text-base gap-2 px-3 md:px-4 py-1 rounded-lg md:rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
                 >
                   Save Draft
                 </button>
@@ -1069,14 +1069,14 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center justify-center text-xs md:text-base gap-2 px-3 md:px-5 py-1 rounded-lg md:rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
                 >
                   Submit
                 </button>
               </div>
             </div>
           ) : isCurrentRoute && readOnly ? (
-            <div className="px-3 sm:px-10 py-2 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-0 items-center">
+            <div className="px-3 sm:px-10 py-2 flex justify-between gap-2 sm:gap-0 items-center">
               <div className="flex items-center justify-center sm:justify-start flex-wrap gap-2">
                 {canActOnCurrentProject && (
                   <>
@@ -1084,7 +1084,7 @@ const [companyInfo, setCompanyInfo] = useState({
                       type="button"
                       onClick={() => setShowRejectModal(true)}
                       disabled={isSubmitting}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                      className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-3 sm:px-4 md:px-5 py-1 rounded-lg md:rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
                     >
                       Reject
                     </button>
@@ -1093,7 +1093,7 @@ const [companyInfo, setCompanyInfo] = useState({
                       type="button"
                       onClick={() => setShowSendBackModal(true)}
                       disabled={isSubmitting}
-                      className="flex items-center gap-2 px-5 py-1 rounded-xl border border-amber-400 hover:bg-amber-50 text-amber-600 font-semibold disabled:opacity-50"
+                      className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-3 sm:px-4 md:px-5 py-1 rounded-lg md:rounded-xl border border-amber-400 hover:bg-amber-50 text-amber-600 font-semibold disabled:opacity-50"
                     >
                       Send Back
                     </button>
@@ -1105,7 +1105,7 @@ const [companyInfo, setCompanyInfo] = useState({
                     type="button"
                     onClick={() => setShowWithdrawModal(true)}
                     disabled={isSubmitting}
-                    className="group relative flex items-center gap-1 px-4 py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs xl:text-sm hover:shadow-innerSkyBlue font-semibold bg-blue-400/10 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] hover:bg-blue-400/20 hover:border-[#0565D2]/70 transition-all duration-200"
+                    className="group relative flex items-center gap-1 px-4 py-1 rounded-lg md:rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs xl:text-sm hover:shadow-innerSkyBlue font-semibold bg-blue-400/10 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] hover:bg-blue-400/20 hover:border-[#0565D2]/70 transition-all duration-200"
                         >
                       <FaUndo size={12}/> Withdraw
                     <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-[#0a4e9c] px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
@@ -1120,9 +1120,9 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(false)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  <LuScanEye className="text-xl" />
+                  <LuScanEye className="text-[15px] md:text-xl" />
 
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print Preview
@@ -1133,9 +1133,9 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(true)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  <IoPrintSharp className="text-xl" />
+                  <IoPrintSharp className="text-[15px] md:text-xl" />
 
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print
@@ -1149,7 +1149,7 @@ const [companyInfo, setCompanyInfo] = useState({
                     type="button"
                     onClick={() => setShowCancelModal(true)}
                     disabled={isSubmitting}
-                    className="group relative flex items-center gap-1 px-2 xl:px-3 py-1 rounded-xl border border-[#F27373] text-red-600 text-xs xl:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold disabled:opacity-50 transition-all"
+                    className="group relative flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg md:rounded-xl border border-[#F27373] text-red-600 text-xs xl:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold disabled:opacity-50 transition-all"
                   >
                     <MdOutlineCancel size={16}/> Cancel
 
@@ -1175,7 +1175,7 @@ const [companyInfo, setCompanyInfo] = useState({
                         type="button"
                         onClick={handleAdvanceCurrent}
                         disabled={isSubmitting}
-                        className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                        className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-3 sm:px-4 md:px-5 py-1 rounded-lg md:rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-medium sm:font-semibold shadow disabled:opacity-50"
                       >
                         Submit to Next Level
                       </button>
@@ -1190,9 +1190,9 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={() => openPrintPage(false)}
                 disabled={isSubmitting}
-                className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
               >
-                <LuScanEye className="text-xl" />
+                <LuScanEye className="text-[15px] md:text-xl" />
                         
                 <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                   Print Preview
@@ -1203,9 +1203,9 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={() => openPrintPage(true)}
                 disabled={isSubmitting}
-                className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
               >
-                <IoPrintSharp className="text-xl" />
+                <IoPrintSharp className="text-[15px] md:text-xl" />
 
                 <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                   Print
@@ -1221,8 +1221,8 @@ const [companyInfo, setCompanyInfo] = useState({
       {showRejectModal && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
-            <h2 className="text-lg font-bold text-[#111111]">Reject SPRF</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <h2 className="text-base sm:text-md md:text-lg font-bold text-[#111111]">Reject SPRF</h2>
+            <p className="text-[13px] md:text-sm text-slate-500 md:mt-1">
               Add an optional note for the rejection.
             </p>
 
@@ -1230,7 +1230,7 @@ const [companyInfo, setCompanyInfo] = useState({
               value={rejectNote}
               onChange={(e) => setRejectNote(e.target.value)}
               rows={5}
-              className="mt-4 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
+              className="mt-3 md:mt-4 w-full rounded-xl border border-gray-200 px-3 py-3 text-xs md:text-sm outline-none hover:border-[#28980080] focus:border-[#289800] focus:outline-none focus:ring-0 resize-none"
               placeholder="Enter rejection note"
             />
 
@@ -1241,7 +1241,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   setShowRejectModal(false);
                   setRejectNote('');
                 }}
-                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-slate-300 text-xs md:text-sm font-semibold text-slate-700"
               >
                 Cancel
               </button>
@@ -1250,7 +1250,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={handleRejectCurrent}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl bg-red-500 text-white text-xs md:text-sm font-medium md:font-semibold disabled:opacity-50"
               >
                 Confirm Reject
               </button>
@@ -1262,8 +1262,8 @@ const [companyInfo, setCompanyInfo] = useState({
       {showSendBackModal && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
-            <h2 className="text-lg font-bold text-[#111111]">Send Back SPRF</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <h2 className="text-base sm:text-md md:text-lg font-bold text-[#111111]">Send Back SPRF</h2>
+            <p className="text-[13px] md:text-sm text-slate-500 md:mt-1 leading-snug md:leading-normal">
               This will return the project to the previous approver.{' '}
               {Number(sourceProject?.current_level) === 2
                 ? 'Since this is at the first approval step, it will be returned to the Preparer as a draft.'
@@ -1274,12 +1274,12 @@ const [companyInfo, setCompanyInfo] = useState({
               value={sendBackMessage}
               onChange={(e) => setSendBackMessage(e.target.value)}
               rows={5}
-              className="mt-4 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none hover:border-amber-400 focus:border-amber-500 focus:outline-none focus:ring-0 resize-none"
+              className="mt-3 md:mt-4 w-full rounded-xl border border-gray-200 px-3 py-3 text-xs md:text-sm outline-none hover:border-amber-400 focus:border-amber-500 focus:outline-none focus:ring-0 resize-none"
               placeholder="Required — explain why this is being sent back"
             />
 
             {sendBackMessage.trim() === '' && (
-              <p className="mt-1 text-xs text-red-500 pl-1">A message is required.</p>
+              <p className="md:mt-1 text-[11px] md:text-xs text-red-500 pl-1">A message is required.</p>
             )}
 
             <div className="mt-4 flex justify-end gap-2">
@@ -1289,7 +1289,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   setShowSendBackModal(false);
                   setSendBackMessage('');
                 }}
-                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-slate-300 text-xs md:text-sm font-semibold text-slate-700"
               >
                 Cancel
               </button>
@@ -1298,7 +1298,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={handleSendBack}
                 disabled={isSubmitting || sendBackMessage.trim() === ''}
-                className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold disabled:opacity-50"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl bg-amber-500 text-white text-xs md:text-sm font-medium md:font-semibold disabled:opacity-50"
               >
                 Confirm Send Back
               </button>
@@ -1311,13 +1311,13 @@ const [companyInfo, setCompanyInfo] = useState({
       {showWithdrawModal && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
-            <h2 className="text-lg font-bold text-[#0565D2]">Withdraw SPRF</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <h2 className="text-base sm:text-md md:text-lg font-bold text-[#0565D2]">Withdraw SPRF</h2>
+            <p className="text-[13px] md:text-sm text-slate-500 md:mt-1">
               This will pull the project out of the approval pipeline and return it
               to your entry list. You can resubmit it after making changes.
             </p>
 
-            <div className="mt-4 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+            <div className="mt-3 md:mt-4 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-xs md:text-sm text-blue-800">
               <span className="font-semibold">SPRF No.:</span> {sprfNo}
             </div>
 
@@ -1326,7 +1326,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={() => setShowWithdrawModal(false)}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-slate-300 text-xs md:text-sm font-semibold text-slate-700 disabled:opacity-50"
               >
                 Go Back
               </button>
@@ -1335,7 +1335,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={handleWithdraw}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl bg-[#0565D2] hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-50"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl bg-[#0565D2] hover:bg-blue-700 text-white text-xs md:text-sm font-semibold disabled:opacity-50"
               >
                 Yes, Withdraw
               </button>
@@ -1348,14 +1348,14 @@ const [companyInfo, setCompanyInfo] = useState({
       {showCancelModal && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
-            <h2 className="text-lg font-bold text-red-600">Cancel SPRF</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <h2 className="text-base sm:text-md md:text-lg font-bold text-red-600">Cancel SPRF</h2>
+            <p className="text-[13px] md:text-sm text-slate-500 md:mt-1">
               This will permanently archive the project with a{' '}
               <span className="font-semibold text-slate-700">Cancelled</span> status.
               This action cannot be undone.
             </p>
 
-            <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+            <div className="mt-3 md:mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs md:text-sm text-red-800">
               <span className="font-semibold">SPRF No.:</span> {sprfNo}
             </div>
 
@@ -1364,7 +1364,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={() => setShowCancelModal(false)}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-slate-300 text-xs md:text-sm font-semibold text-slate-700 disabled:opacity-50"
               >
                 Go Back
               </button>
@@ -1373,7 +1373,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={handleCancel}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold disabled:opacity-50"
+                className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm font-semibold disabled:opacity-50"
               >
                 Yes, Cancel Project
               </button>

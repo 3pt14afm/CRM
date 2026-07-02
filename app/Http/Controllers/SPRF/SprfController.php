@@ -13,100 +13,100 @@ use Inertia\Inertia;
 
 class SprfController extends Controller
 {
+    public function entryList(Request $request)
+    {
+        $userId = Auth::id();
+        $perPage = (int) $request->input('per_page', 10);
 
-public function entryList(Request $request)
-{
-    $userId = Auth::id();
-    $perPage = (int) $request->input('per_page', 10);
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', 'in:draft,returned,withdrawn'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
 
-    $validated = $request->validate([
-        'search' => ['nullable', 'string', 'max:255'],
-        'status' => ['nullable', 'string', 'in:draft,returned,withdrawn'],
-        'date_from' => ['nullable', 'date'],
-        'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
-    ]);
+        $search = trim((string) ($validated['search'] ?? ''));
+        $status = $validated['status'] ?? null;
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
 
-    $search = trim((string) ($validated['search'] ?? ''));
-    $status = $validated['status'] ?? null;
-    $dateFrom = $validated['date_from'] ?? null;
-    $dateTo = $validated['date_to'] ?? null;
+        $allowedStatuses = ['draft', 'returned', 'withdrawn'];
 
-    $allowedStatuses = ['draft', 'returned', 'withdrawn'];
+        $draftsQuery = SprfEntryProject::query()
+            ->where('prepared_by_user_id', $userId)
+            ->whereIn('status', $allowedStatuses);
 
-    $draftsQuery = SprfEntryProject::query()
-        ->where('prepared_by_user_id', $userId)
-        ->whereIn('status', $allowedStatuses);
+        // --- Status filter ---
+        if (filled($status)) {
+            $draftsQuery->where('status', $status);
+        }
 
-    // --- Status filter ---
-    if (filled($status)) {
-        $draftsQuery->where('status', $status);
-    }
+        // --- Search filter ---
+        if ($search !== '') {
+            $draftsQuery->where(function ($query) use ($search) {
+                $query->where('sprf_no', 'like', "%{$search}%")
+                    ->orWhere('account', 'like', "%{$search}%")
+                    ->orWhere('account_manager', 'like', "%{$search}%")
+                    ->orWhere('sub_category', 'like', "%{$search}%");
+            });
+        }
 
-    // --- Search filter ---
-    if ($search !== '') {
-        $draftsQuery->where(function ($query) use ($search) {
-            $query->where('sprf_no', 'like', "%{$search}%")
-                ->orWhere('account', 'like', "%{$search}%")
-                ->orWhere('account_manager', 'like', "%{$search}%")
-                ->orWhere('sub_category', 'like', "%{$search}%");
-        });
-    }
+        // --- Date range filter (index-friendly, timezone-aware boundaries) ---
+        if (filled($dateFrom)) {
+            $draftsQuery->where('updated_at', '>=', Carbon::parse($dateFrom, config('app.timezone'))->startOfDay());
+        }
 
-    // --- Date range filter (index-friendly, timezone-aware boundaries) ---
-    if (filled($dateFrom)) {
-        $draftsQuery->where('updated_at', '>=', Carbon::parse($dateFrom, config('app.timezone'))->startOfDay());
-    }
+        if (filled($dateTo)) {
+            $draftsQuery->where('updated_at', '<=', Carbon::parse($dateTo, config('app.timezone'))->endOfDay());
+        }
 
-    if (filled($dateTo)) {
-        $draftsQuery->where('updated_at', '<=', Carbon::parse($dateTo, config('app.timezone'))->endOfDay());
-    }
+        $draftsQuery->orderByDesc('updated_at');
+        
+        $drafts = (clone $draftsQuery)
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(function (SprfEntryProject $project) {
+                return [
+                    'id' => $project->id,
+                    'sprf_no' => $project->sprf_no,
+                    'status' => $project->status,
+                    'company_name' => $project->account,
+                    'sub_category' => $project->sub_category,
+                    'account_manager' => $project->account_manager,
+                    'revenue' => $project->revenue,
+                    'gp_percent' => $project->gp_percent,
+                    'approval_level' => $project->approval_level,
+                    'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+                    'approval_condition_code' => $project->approval_condition_code,
+                    'last_saved_at' => optional($project->updated_at)?->toISOString(),
+                    'updated_at' => optional($project->updated_at)?->format('m/d/y H:i'),
+                ];
+            });
 
-    $draftsQuery->orderByDesc('updated_at');
-    $drafts = (clone $draftsQuery)
-        ->paginate($perPage)
-        ->withQueryString()
-        ->through(function (SprfEntryProject $project) {
-            return [
-                'id' => $project->id,
-                'sprf_no' => $project->sprf_no,
-                'status' => $project->status,
-                'company_name' => $project->account,
-                'sub_category' => $project->sub_category,
-                'account_manager' => $project->account_manager,
-                'revenue' => $project->revenue,
-                'gp_percent' => $project->gp_percent,
-                'approval_level' => $project->approval_level,
-                'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
-                'approval_condition_code' => $project->approval_condition_code,
-                'last_saved_at' => optional($project->updated_at)?->toISOString(),
-                'updated_at' => optional($project->updated_at)?->format('m/d/y H:i'),
-            ];
-        });
+        $totalDrafts = (clone $draftsQuery)->count();
 
-    $totalDrafts = (clone $draftsQuery)->count();
+        $recentlyModifiedToday = SprfEntryProject::query()
+            ->where('prepared_by_user_id', $userId)
+            ->whereIn('status', $allowedStatuses)
+            ->whereDate('updated_at', now()->toDateString())
+            ->count();
 
-    $recentlyModifiedToday = SprfEntryProject::query()
-        ->where('prepared_by_user_id', $userId)
-        ->whereIn('status', $allowedStatuses)
-        ->whereDate('updated_at', now()->toDateString())
-        ->count();
+        $payload = [
+            'drafts' => $drafts,
+            'stats' => [
+                'totalDrafts' => $totalDrafts,
+                'recentlyModifiedText' => $recentlyModifiedToday . ' Today',
+            ],
+        ];
 
-    $payload = [
-        'drafts' => $drafts,
-        'stats' => [
-            'totalDrafts' => $totalDrafts,
-            'recentlyModifiedText' => $recentlyModifiedToday . ' Today',
-        ],
-    ];
-
-    // Serve JSON for the client-side filter/search fetches (axios XHR calls),
-    // and a full Inertia page render on normal navigation.
+        // Serve JSON for the client-side filter/search fetches (axios XHR calls),
+        // and a full Inertia page render on normal navigation.
         if (($request->ajax() || $request->wantsJson()) && !$request->header('X-Inertia')) {
             return response()->json($payload);
         }
 
-    return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntryList', $payload);
-}
+        return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntryList', $payload);
+    }
 
     public function entryCreate()
     {
@@ -130,7 +130,7 @@ public function entryList(Request $request)
                 'approvedBy:id,first_name,last_name',
                 'rejectedBy:id,first_name,last_name',
             ])
-            ->whereIn('status', ['approved', 'rejected']);
+            ->whereIn('status', ['approved', 'rejected', 'cancelled']);
 
         // 1. Search
         if ($request->filled('search')) {
@@ -163,16 +163,16 @@ public function entryList(Request $request)
 
         // 5. Date Range
         if ($request->filled('date_from')) {
-            $archiveQuery->where(function ($q) use ($request) {
-                $q->whereDate('approved_at', '>=', $request->input('date_from'))
-                  ->orWhereDate('rejected_at', '>=', $request->input('date_from'));
-            });
+            $archiveQuery->whereRaw(
+                'COALESCE(approved_at, rejected_at, created_at) >= ?',
+                [$request->input('date_from') . ' 00:00:00']
+            );
         }
         if ($request->filled('date_to')) {
-            $archiveQuery->where(function ($q) use ($request) {
-                $q->whereDate('approved_at', '<=', $request->input('date_to'))
-                  ->orWhereDate('rejected_at', '<=', $request->input('date_to'));
-            });
+            $archiveQuery->whereRaw(
+                'COALESCE(approved_at, rejected_at, created_at) <= ?',
+                [$request->input('date_to') . ' 23:59:59']
+            );
         }
 
         // 6. Sorting
@@ -182,54 +182,69 @@ public function entryList(Request $request)
             : 'desc';
 
         $allowedSorts = [
-            'prepared_by'    => null,   // handled via join below
+            'prepared_by'    => null,   
             'sprf_no'        => 'sprf_no',
             'sub_category'   => 'sub_category',
             'company_name'   => 'account',
             'account_manager'=> 'account_manager',
+            'type'           => 'type',
             'approval_level' => 'approval_level',
             'status'         => 'status',
-            'decided_at'     => null,   // handled as raw expression below
+            'decided_at'     => null,  
         ];
 
         if ($sortBy && array_key_exists($sortBy, $allowedSorts)) {
             if ($sortBy === 'prepared_by') {
-                // Join users table to sort by preparer full name
                 $archiveQuery
                     ->join('users', 'users.id', '=', 'sprf_archive_projects.prepared_by_user_id')
                     ->orderByRaw("CONCAT(users.first_name, ' ', users.last_name) {$sortOrder}")
                     ->select('sprf_archive_projects.*');
             } elseif ($sortBy === 'decided_at') {
-                // Sort by whichever decision date is set (approved_at or rejected_at)
+                // Sort by whichever decision date is set (approved_at, rejected_at,
+                // or — for cancelled projects, which have neither — created_at,
+                // i.e. the moment this archive row was written)
                 $archiveQuery->orderByRaw(
-                    "COALESCE(approved_at, rejected_at) {$sortOrder}"
+                    "COALESCE(approved_at, rejected_at, created_at) {$sortOrder}"
                 );
             } else {
                 $archiveQuery->orderBy($allowedSorts[$sortBy], $sortOrder);
             }
         } else {
             // Default: newest decision first
-            $archiveQuery->orderByRaw("COALESCE(approved_at, rejected_at) DESC");
+            $archiveQuery->orderByRaw("COALESCE(approved_at, rejected_at, created_at) DESC");
         }
 
         $archiveProjects = (clone $archiveQuery)
             ->paginate($perPage)
             ->withQueryString()
             ->through(function (SprfArchiveProject $project) {
-                $isRejected = strtolower((string) ($project->status ?? '')) === 'rejected';
+                $status = strtolower((string) ($project->status ?? ''));
+                $preparedByName = trim(($project->preparer?->first_name ?? '') . ' ' . ($project->preparer?->last_name ?? ''));
+
+                $decidedByName = match ($status) {
+                    'rejected'  => trim(($project->rejectedBy?->first_name ?? '') . ' ' . ($project->rejectedBy?->last_name ?? '')) ?: '—',
+                    'cancelled' => $preparedByName ?: '—',
+                    default     => trim(($project->approvedBy?->first_name ?? '') . ' ' . ($project->approvedBy?->last_name ?? '')) ?: '—',
+                };
+
+                $decidedAt = match ($status) {
+                    'rejected'  => $project->rejected_at,
+                    'cancelled' => $project->created_at,
+                    default     => $project->approved_at,
+                };
+
                 return [
                     'id'              => $project->id,
                     'sprf_no'         => $project->sprf_no,
                     'status'          => $project->status,
                     'approval_level'  => $project->approval_level,
+                    'type'            => $project->type,
                     'company_name'    => $project->account,
                     'sub_category'    => $project->sub_category,
                     'account_manager' => $project->account_manager,
-                    'prepared_by'     => $project->preparer?->first_name . ' ' . $project->preparer?->last_name,
-                    'decided_by_name' => $isRejected
-                        ? ($project->rejectedBy?->first_name . ' ' . $project->rejectedBy?->last_name ?? '—')
-                        : ($project->approvedBy?->first_name . ' ' . $project->approvedBy?->last_name ?? '—'),
-                    'decided_at_display' => ($isRejected ? $project->rejected_at : $project->approved_at)?->format('M d, Y') ?? '—',
+                    'prepared_by'     => $preparedByName,
+                    'decided_by_name' => $decidedByName,
+                    'decided_at_display' => optional($decidedAt)->format('M d, Y') ?? '—',
                 ];
             });
 
@@ -238,10 +253,11 @@ public function entryList(Request $request)
             'filters'         => $filters,
             'stats'           => [
                 'totalArchiveProjects'  => (clone $archiveQuery)->count(),
-                'recentlyArchivedToday' => SprfArchiveProject::whereIn('status', ['approved', 'rejected'])
+                'recentlyArchivedToday' => SprfArchiveProject::whereIn('status', ['approved', 'rejected', 'cancelled'])
                     ->where(fn($q) => $q
                         ->whereDate('approved_at', now()->toDateString())
                         ->orWhereDate('rejected_at', now()->toDateString())
+                        ->orWhereDate('created_at', now()->toDateString()) 
                     )
                     ->count() . ' Today',
             ],
@@ -428,7 +444,8 @@ public function entryList(Request $request)
     }
 
     private function transformArchiveProjectForPrint(SprfArchiveProject $project): array
-    {        return [
+    {
+        return [
             'id'                      => $project->id,
             'sprf_no'                 => $project->sprf_no,
             'status'                  => $project->status,
@@ -461,9 +478,7 @@ public function entryList(Request $request)
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
             ],
-           
-         
-            
+
             'items' => $project->items->map(function ($item) {
                 return [
                     'rowKey'                    => $item->row_key,
@@ -519,13 +534,6 @@ public function entryList(Request $request)
         return is_array($attachments) ? $attachments : [];
     }
 
-    /**
-     * Shapes a saved remarks_attachments map into the { index: {name, url} }
-     * structure the RemarksBlock frontend component expects.
-     *
-     * Accepts array|string|null because the underlying model attribute may not
-     * be cast to 'array', in which case Eloquent returns the raw JSON string.
-     */
     /**
      * Shapes a saved remarks_attachments map into the { index: [{name, url}, ...] }
      * structure the RemarksBlock frontend component expects. Each row can hold

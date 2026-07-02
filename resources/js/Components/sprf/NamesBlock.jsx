@@ -55,7 +55,7 @@ export default function NamesBlock({
                 isRejector={isRejectorAtLevel(2)}
               />
             )}
-            {showRebateJustification && (
+            {showRebateJustification && showDirectorCustomerEngagement && (
               <JustificationField
                 value={rebateJustification}
                 onChange={onChangeRebateJustification}
