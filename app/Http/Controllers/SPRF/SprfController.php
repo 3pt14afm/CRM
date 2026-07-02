@@ -6,59 +6,107 @@ use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class SprfController extends Controller
 {
-    public function entryList(Request $request)
-    {
-        $userId = Auth::id();
-        $perPage = (int) $request->input('per_page', 10);
 
-        $draftsQuery = SprfEntryProject::query()
-            ->where('prepared_by_user_id', $userId)
-            ->whereIn('status', ['draft', 'returned', 'withdrawn'])
-            ->orderByDesc('updated_at');
+public function entryList(Request $request)
+{
+    $userId = Auth::id();
+    $perPage = (int) $request->input('per_page', 10);
 
-        $drafts = (clone $draftsQuery)
-            ->paginate($perPage)
-            ->withQueryString()
-            ->through(function (SprfEntryProject $project) {
-                return [
-                    'id' => $project->id,
-                    'sprf_no' => $project->sprf_no,
-                    'status' => $project->status,
-                    'company_name' => $project->account,
-                    'sub_category' => $project->sub_category,
-                    'account_manager' => $project->account_manager,
-                    'revenue' => $project->revenue,
-                    'gp_percent' => $project->gp_percent,
-                    'approval_level' => $project->approval_level,
-                    'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
-                    'approval_condition_code' => $project->approval_condition_code,
-                    'last_saved_at' => optional($project->updated_at)?->toISOString(),
-                    'updated_at' => optional($project->updated_at)?->format('m/d/y H:i'),
-                ];
-            });
+    $validated = $request->validate([
+        'search' => ['nullable', 'string', 'max:255'],
+        'status' => ['nullable', 'string', 'in:draft,returned,withdrawn'],
+        'date_from' => ['nullable', 'date'],
+        'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+    ]);
 
-        $totalDrafts = (clone $draftsQuery)->count();
+    $search = trim((string) ($validated['search'] ?? ''));
+    $status = $validated['status'] ?? null;
+    $dateFrom = $validated['date_from'] ?? null;
+    $dateTo = $validated['date_to'] ?? null;
 
-        $recentlyModifiedToday = SprfEntryProject::query()
-            ->where('prepared_by_user_id', $userId)
-            ->whereIn('status', ['draft', 'returned', 'withdrawn'])
-            ->whereDate('updated_at', now()->toDateString())
-            ->count();
+    $allowedStatuses = ['draft', 'returned', 'withdrawn'];
 
-        return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntryList', [
-            'drafts' => $drafts,
-            'stats' => [
-                'totalDrafts' => $totalDrafts,
-                'recentlyModifiedText' => $recentlyModifiedToday . ' Today',
-            ],
-        ]);
+    $draftsQuery = SprfEntryProject::query()
+        ->where('prepared_by_user_id', $userId)
+        ->whereIn('status', $allowedStatuses);
+
+    // --- Status filter ---
+    if (filled($status)) {
+        $draftsQuery->where('status', $status);
     }
+
+    // --- Search filter ---
+    if ($search !== '') {
+        $draftsQuery->where(function ($query) use ($search) {
+            $query->where('sprf_no', 'like', "%{$search}%")
+                ->orWhere('account', 'like', "%{$search}%")
+                ->orWhere('account_manager', 'like', "%{$search}%")
+                ->orWhere('sub_category', 'like', "%{$search}%");
+        });
+    }
+
+    // --- Date range filter (index-friendly, timezone-aware boundaries) ---
+    if (filled($dateFrom)) {
+        $draftsQuery->where('updated_at', '>=', Carbon::parse($dateFrom, config('app.timezone'))->startOfDay());
+    }
+
+    if (filled($dateTo)) {
+        $draftsQuery->where('updated_at', '<=', Carbon::parse($dateTo, config('app.timezone'))->endOfDay());
+    }
+
+    $draftsQuery->orderByDesc('updated_at');
+    $drafts = (clone $draftsQuery)
+        ->paginate($perPage)
+        ->withQueryString()
+        ->through(function (SprfEntryProject $project) {
+            return [
+                'id' => $project->id,
+                'sprf_no' => $project->sprf_no,
+                'status' => $project->status,
+                'company_name' => $project->account,
+                'sub_category' => $project->sub_category,
+                'account_manager' => $project->account_manager,
+                'revenue' => $project->revenue,
+                'gp_percent' => $project->gp_percent,
+                'approval_level' => $project->approval_level,
+                'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
+                'approval_condition_code' => $project->approval_condition_code,
+                'last_saved_at' => optional($project->updated_at)?->toISOString(),
+                'updated_at' => optional($project->updated_at)?->format('m/d/y H:i'),
+            ];
+        });
+
+    $totalDrafts = (clone $draftsQuery)->count();
+
+    $recentlyModifiedToday = SprfEntryProject::query()
+        ->where('prepared_by_user_id', $userId)
+        ->whereIn('status', $allowedStatuses)
+        ->whereDate('updated_at', now()->toDateString())
+        ->count();
+
+    $payload = [
+        'drafts' => $drafts,
+        'stats' => [
+            'totalDrafts' => $totalDrafts,
+            'recentlyModifiedText' => $recentlyModifiedToday . ' Today',
+        ],
+    ];
+
+    // Serve JSON for the client-side filter/search fetches (axios XHR calls),
+    // and a full Inertia page render on normal navigation.
+        if (($request->ajax() || $request->wantsJson()) && !$request->header('X-Inertia')) {
+            return response()->json($payload);
+        }
+
+    return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntryList', $payload);
+}
 
     public function entryCreate()
     {
