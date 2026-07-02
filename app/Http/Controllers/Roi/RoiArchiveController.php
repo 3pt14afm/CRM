@@ -26,7 +26,7 @@ public function index(Request $request)
 
     // Build the query using Eloquent
     $query = RoiArchiveProject::query()
-        ->with('user')
+        ->with(['user', 'proposals'])
         ->leftJoin('users as creator_user', 'roi_archive_projects.user_id', '=', 'creator_user.id')
         ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
         ->leftJoin('users as rejected_user', 'roi_archive_projects.rejected_by', '=', 'rejected_user.id')
@@ -125,7 +125,7 @@ public function index(Request $request)
         ->withQueryString()
         ->through(function ($p) use ($userId) {
             $status = strtolower((string) ($p->status ?? ''));
-
+            $p->has_proposal = $p->proposals->isNotEmpty();
             $p->decided_by_name = match ($status) {
                 'rejected'  => $p->rejected_by_name ?: '—',
                 'cancelled' => $p->prepared_by_name ?: '—',
@@ -137,7 +137,7 @@ public function index(Request $request)
                 'cancelled' => $p->last_saved_at,
                 default     => $p->approved_at,
             };
-
+ 
             $p->is_owner = (int) $p->user_id === $userId;
 
             // Was this user assigned at ANY workflow level (2-6) on this specific project?

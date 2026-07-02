@@ -21,21 +21,34 @@ export default function Proposal({ proposal, items, fees, is_owner = false }) {
         setPageData({ ...proposal });
     }, [proposal]);
 
-    const saveDraft = () => {
-        const projectId = pageData.id || proposal.id;
+const saveDraft = () => {
+    const projectId = pageData.id || proposal.id;
 
-        if (!projectId) {
-            console.error("ID not found in proposal data:", pageData);
-            alert("Error: Missing ID. Check console for details.");
-            return;
-        }
+    if (!projectId) {
+        console.error("ID not found in proposal data:", pageData);
+        alert("Error: Missing ID.");
+        return;
+    }
 
-        setProcessing(true);
-        router.post(route('proposals.draft', { id: projectId }), pageData, {
-            preserveScroll: true,
-            onFinish: () => setProcessing(false),
-        });
-    };
+    setProcessing(true);
+
+    router.post(route('proposals.draft', { id: projectId }), pageData, {
+        preserveScroll: true,
+
+        onSuccess: () => {
+            console.log("Draft saved successfully.");
+        },
+
+        onError: (errors) => {
+            console.error("Save draft failed:", errors);
+            alert("Failed to save draft. Check the console for details.");
+        },
+
+        onFinish: () => {
+            setProcessing(false);
+        },
+    });
+};
 
     const generateProposal = () => {
         const projectId = pageData.id || proposal.id;

@@ -57,109 +57,118 @@ const LS = {
 
 
 
-function ActionsDropdown({ row, isAdmin  }) {
-      const [open, setOpen] = useState(false);
-      const [coords, setCoords] = useState({ top: 0, left: 0 });
-      const triggerRef = useRef(null);
-      const dropdownRef = useRef(null);
+function ActionsDropdown({ row, isAdmin }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
 
-      useEffect(() => {
-        const handler = (e) => {
-          if (
-            triggerRef.current && !triggerRef.current.contains(e.target) &&
-            dropdownRef.current && !dropdownRef.current.contains(e.target)
-          ) setOpen(false);
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-      }, []);
+  useEffect(() => {
+    const handler = (e) => {
+      if (triggerRef.current && !triggerRef.current.contains(e.target) &&
+          dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-      const handleTriggerClick = () => {
-        if (!open && triggerRef.current) {
-          const rect = triggerRef.current.getBoundingClientRect();
-          setCoords({
-            top:  rect.bottom + window.scrollY + 4,
-            left: rect.right  + window.scrollX,
-          });
-        }
-        setOpen((p) => !p);
-      };
+  const handleTriggerClick = () => {
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.right + window.scrollX,
+      });
+    }
+    setOpen((p) => !p);
+  };
+const isApproved = String(row.status ?? "").toLowerCase() === "approved";
+  const hasProposal = !!row.has_proposal;
+  const isOwner = !!row.is_owner;
+  const isApprover = !!row.is_approver;
 
-    const isApproved  = String(row.status ?? "").toLowerCase() === "approved";
-    const hasProposal = isApproved && (isAdmin || row.is_owner || row.is_approver);
-   
-      // View only — no dropdown
-      if (!hasProposal) {
-        return (
-          <div className="flex justify-center items-center">
-            <button
-              type="button"
-              className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
-              onClick={() => router.visit(ziggyRoute("roi.archive.show", row.id))}
-            >
-              <IoEyeOutline className="text-[17px]" />
-            </button>
-          </div>
-        );
-      }
+  // Define who is a "Privileged" user
+  const isPrivileged = isAdmin || isOwner || isApprover;
 
-      // Both actions — three-dot horizontal dropdown via portal
-      return (
-        <div className="flex justify-center items-center">
+  // 1. RULE: If NOT approved, show ONLY the Eye icon.
+  // 2. RULE: If NOT a privileged user, show ONLY the Eye icon (even if drafted).
+  // 3. RULE: If Approved AND Privileged:
+  //    - If No Draft: Show Dropdown (Generate) if Owner.
+  //    - If Draft: Show Dropdown (Proposal) for all Privileged users.
+
+  const showDropdown = isApproved && isPrivileged && (hasProposal || isOwner);
+
+  if (!showDropdown) {
+    return (
+      <div className="flex justify-center items-center">
+        <button
+          type="button"
+          className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+          onClick={() => router.visit(ziggyRoute("roi.archive.show", row.id))}
+        >
+          <IoEyeOutline className="text-[17px]" />
+        </button>
+      </div>
+    );
+  }
+
+  // Render 3-dot Dropdown (Only for Privileged users)
+  return (
+    <div className="flex justify-center items-center">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleTriggerClick}
+        className="px-1.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+      >
+        <span className="flex flex-col gap-[3px] items-center justify-center">
+          <span className="w-[3px] h-[3px] rounded-full bg-current" />
+          <span className="w-[3px] h-[3px] rounded-full bg-current" />
+          <span className="w-[3px] h-[3px] rounded-full bg-current" />
+        </span>
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{ position: 'absolute', top: coords.top, left: coords.left, transform: 'translateX(-100%)', zIndex: 9999 }}
+          className="flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[120px]"
+        >
           <button
-            ref={triggerRef}
             type="button"
-            onClick={handleTriggerClick}
-            className="px-1.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold"
+            onClick={() => { setOpen(false); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
           >
-            <span className="flex flex-col gap-[3px] items-center justify-center">
-              <span className="w-[3px] h-[3px] rounded-full bg-current" />
-              <span className="w-[3px] h-[3px] rounded-full bg-current" />
-              <span className="w-[3px] h-[3px] rounded-full bg-current" />
-            </span>
+            <IoEyeOutline className="text-[15px]" />
+            <span>View</span>
           </button>
 
-          {open && createPortal(
-            <div
-              ref={dropdownRef}
-              style={{
-                position: 'absolute',
-                top:  coords.top,
-                left: coords.left,
-                transform: 'translateX(-100%)',
-                zIndex: 9999,
-              }}
-              className="flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[130px]"
+          {!hasProposal ? (
+            <button
+              type="button"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 text-xs font-semibold"
+              onClick={() => { setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
             >
-              <button
-                type="button"
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold transition-colors"
-                onClick={() => {
-                  setOpen(false);
-                  router.visit(ziggyRoute("roi.archive.show", row.id));
-                }}
-              >
-                <IoEyeOutline className="text-[15px] flex-shrink-0" />
-                <span>View</span>
-              </button>
-
-              <button
-                type="button"
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-semibold transition-colors"
-                onClick={() => {
-                  setOpen(false);
-                  router.visit(ziggyRoute("proposals.show", row.id));
-                }}
-              >
-                <MdOutlineDescription className="text-[15px] flex-shrink-0" />
-                <span>Proposal</span>
-              </button>
-            </div>,
-            document.body
+              <MdOutlineDescription className="text-[15px]" />
+              <span>Generate</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-semibold"
+              onClick={() => { setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
+            >
+              <MdOutlineDescription className="text-[15px]" />
+              <span>Proposal</span>
+            </button>
           )}
-        </div>
-      );
-    }
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [], isAdmin = false }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
   const [localStats, setLocalStats] = useState(initialStats);
