@@ -62,7 +62,7 @@ function ProposalCoverPaper({ proposal, items }) {
       <div className="mb-14 text-[13px] leading-snug text-slate-800">
         <p className="italic mb-3">Dear {proposal.attention || "Ms. Marge"},</p>
         <p className="font-bold italic mb-3 text-[#1f550b]">
-          Greetings from Delsan Business Innovations Corporation!
+          Greetings from Delsan Group of Companies!
         </p>
         <div className="whitespace-pre-line">
           {proposal.message ||
