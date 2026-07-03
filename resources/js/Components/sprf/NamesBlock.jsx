@@ -150,7 +150,7 @@ function Signatory({ name, title, timestamp = null, isRejector = false, signatur
             <img
               src={signatureUrl}
               alt=""
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 max-h-[70px] max-w-[170px] object-contain pointer-events-none print:max-h-[36px] mix-blend-multiply"
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 max-h-[70px] max-w-[160px] object-contain pointer-events-none print:max-h-[36px] mix-blend-multiply"
             />
           )}
           <span className="relative text-xs xl:text-sm font-semibold text-gray-900 print:font-medium print:text-xs">

@@ -116,7 +116,7 @@ const flattenPrintItems = (items = []) => {
   return flat;
 };
 
-function mapProjectToPrintData(project) {
+function mapProjectToPrintData(project, signatures = {}) {
   if (!project) return null;
 
   const companyInfo = project?.company_info ?? {};
@@ -146,6 +146,11 @@ function mapProjectToPrintData(project) {
     );
   };
 
+  // Only surface a signature image when that level actually has a timestamp —
+  // mirrors NamesBlock.jsx so print never shows a signature nobody has acted on yet.
+  const signatureForLevel = (level, key) =>
+    timestampForLevel(level) ? (signatures?.[key] ?? null) : null;
+
   return {
     sprfNo: project?.sprf_no ?? 'SPRFIT-0000',
     status: project?.status ?? 'draft',
@@ -168,30 +173,35 @@ function mapProjectToPrintData(project) {
         title: 'PM INCHARGE',
         timestamp: timestampForLevel(1),
         isRejector: isRejectorAtLevel(1),
+        signatureUrl: signatureForLevel(1, 'preparer'),
       },
       directorCustomerEngagement: {
         name: approverUsers?.directorCustomerEngagement?.name ?? '',
         title: 'DIRECTOR - CUSTOMER ENGAGEMENT',
         timestamp: timestampForLevel(2),
         isRejector: isRejectorAtLevel(2),
+        signatureUrl: signatureForLevel(2, 'directorCustomerEngagement'),
       },
       esdDirector: {
         name: approverUsers?.esdDirector?.name ?? '',
         title: 'DIRECTOR - ENTERPRISE SOLUTIONS',
         timestamp: timestampForLevel(3),
         isRejector: isRejectorAtLevel(3),
+        signatureUrl: signatureForLevel(3, 'esdDirector'),
       },
       vpCcto: {
         name: approverUsers?.vpCcto?.name ?? '',
         title: 'VP & CCTO',
         timestamp: timestampForLevel(4),
         isRejector: isRejectorAtLevel(4),
+        signatureUrl: signatureForLevel(4, 'vpCcto'),
       },
       presidentCeo: {
         name: approverUsers?.presidentCeo?.name ?? '',
         title: 'President & CEO',
         timestamp: timestampForLevel(5),
         isRejector: isRejectorAtLevel(5),
+        signatureUrl: signatureForLevel(5, 'presidentCeo'),
       },
     },
   };
@@ -203,6 +213,7 @@ export default function SprfEntryPrint({
   entryProject = null,
   notes = null,
   comments = null,
+  signatures = {},
 }) {
   const [loaded, setLoaded] = useState(false);
   const [printData, setPrintData] = useState(null);
@@ -210,7 +221,7 @@ export default function SprfEntryPrint({
   useEffect(() => {
     try {
       if (entryProject) {
-        const mappedData = mapProjectToPrintData(entryProject);
+        const mappedData = mapProjectToPrintData(entryProject, signatures);
 
         if (Array.isArray(notes) && notes.length > 0) {
           mappedData.notes = notes;
@@ -242,7 +253,7 @@ export default function SprfEntryPrint({
       console.error('SPRF print page failed to load data:', error);
       setLoaded(true);
     }
-  }, [entryProject, storageKey, notes, comments]);
+  }, [entryProject, storageKey, notes, comments, signatures]);
 
   useEffect(() => {
     if (!autoprint || !loaded) return;
@@ -886,7 +897,7 @@ function SectionLabel({ label }) {
   );
 }
 
-function PrintSignatory({ name, title, timestamp = null, isRejector = false }) {
+function PrintSignatory({ name, title, timestamp = null, isRejector = false, signatureUrl = null }) {
   const formatTimestamp = (ts) => {
     if (!ts) return null;
     try {
@@ -915,8 +926,15 @@ function PrintSignatory({ name, title, timestamp = null, isRejector = false }) {
         )}
       </div>
 
-      <div className="border-b border-gray-400 min-h-[24px] flex items-end justify-center pb-0.5">
-        <span className="text-[12px] font-semibold text-gray-900 text-center">
+      <div className="relative border-b border-gray-400 min-h-[24px] flex items-end justify-center pb-0.5">
+        {signatureUrl && (
+          <img
+            src={signatureUrl}
+            alt=""
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 max-h-[38px] max-w-[140px] object-contain pointer-events-none mix-blend-multiply print:max-h-[34px]"
+          />
+        )}
+        <span className="relative text-[12px] font-semibold text-gray-900 text-center">
           {displayText(name) || '—'}
         </span>
       </div>

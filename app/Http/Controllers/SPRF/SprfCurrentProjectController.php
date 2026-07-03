@@ -283,11 +283,20 @@ public function show(SprfCurrentProject $project)
             'currentApprover:id,first_name,last_name,position,email',
         ]);
 
+        $signatures = [
+            'preparer'                    => $this->signatureFor($project->prepared_by_user_id),
+            'directorCustomerEngagement'  => $this->signatureFor($project->director_customer_engagement_user_id),
+            'esdDirector'                 => $this->signatureFor($project->esd_director_user_id),
+            'vpCcto'                      => $this->signatureFor($project->vp_ccto_user_id),
+            'presidentCeo'                => $this->signatureFor($project->president_ceo_user_id),
+        ];
+
         return Inertia::render('CustomerManagement/ProjectSPRF/sprfEntryPrint', [
             'entryProject' => $this->transformProjectForPrint($project),
             'storageKey' => request('storageKey'),
             'autoprint' => (bool) request('autoprint', false),
             'showDraftWatermark' => false,
+            'signatures' => $signatures, // NEW
         ]);
     }
 
