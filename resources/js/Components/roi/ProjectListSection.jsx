@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 
 function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
@@ -79,6 +79,31 @@ function SkeletonCard() {
   );
 }
 
+// ADDED: helper to compute up to `maxVisible` page numbers centered
+// around the current page, clamped to the valid [1, totalPages] range.
+function getPageNumbers(currentPage, totalPages, maxVisible = 5) {
+  if (totalPages <= 0) return [];
+  if (totalPages <= maxVisible) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const half = Math.floor(maxVisible / 2);
+  let start = currentPage - half;
+  let end = currentPage + (maxVisible - half - 1);
+
+  if (start < 1) {
+    end += 1 - start;
+    start = 1;
+  }
+  if (end > totalPages) {
+    start -= end - totalPages;
+    end = totalPages;
+  }
+  start = Math.max(start, 1);
+
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
 export default function ProjectListSection({
   tiles = [],
   tableTitle = "",
@@ -103,6 +128,38 @@ export default function ProjectListSection({
     const end = Math.min(page * perPage, total);
     return `Showing ${start}-${end} of ${total}`;
   })();
+
+  // ADDED: total page count + windowed list of page numbers (max 5) for pagination
+  const totalPages = pagination
+    ? Math.max(1, Math.ceil(pagination.total / pagination.perPage))
+    : 0;
+  // ADDED: fewer visible page numbers on small screens so the bar doesn't overflow
+  const [maxVisiblePages, setMaxVisiblePages] = useState(5);
+  useEffect(() => {
+    const updateMaxVisible = () => {
+      setMaxVisiblePages(window.innerWidth < 640 ? 3 : 5);
+    };
+    updateMaxVisible();
+    window.addEventListener("resize", updateMaxVisible);
+    return () => window.removeEventListener("resize", updateMaxVisible);
+  }, []);
+
+  const pageNumbers = pagination
+    ? getPageNumbers(pagination.page, totalPages, maxVisiblePages)
+    : [];
+
+  // ADDED: local state for the "go to page" input on the right side of pagination
+  const [pageInput, setPageInput] = useState("");
+
+  const submitPageInput = () => {
+    if (!pagination) return;
+    const n = parseInt(pageInput, 10);
+    if (!Number.isNaN(n)) {
+      const clamped = Math.min(Math.max(n, 1), totalPages);
+      pagination.onPageChange(clamped);
+    }
+    setPageInput("");
+  };
 
   const renderBody = () => {
     if (loading) {
@@ -225,10 +282,13 @@ export default function ProjectListSection({
         </div>
 
         {pagination && !loading && (
-          <div className="flex items-center justify-between px-6 border-t border-black/15 md:px-3 py-1 md:py-1.5 text-[11px] lg:text-xs lg:px-4 xl:px-6">
-            <div className="text-slate-500">{rangeText}</div>
+          <div className="flex flex-col md:flex-row items-center md:justify-between gap-2 px-3 border-t border-black/15 md:px-3 py-2 md:py-1.5 text-[11px] lg:text-xs lg:px-4 xl:px-6">
+            <div className="text-slate-500 order-2 md:order-1">{rangeText}</div>
 
-            <div className="flex items-center gap-2 md:gap-0">
+            {/* MODIFIED: pagination now renders up to 5 clickable page numbers
+                instead of just the current page, while keeping the same
+                button styling/sizing as before. Wraps and shrinks on mobile. */}
+            <div className="flex items-center flex-wrap justify-center gap-1 order-1 md:order-2">
               <button
                 className="px-1 py-1 rounded-md border border-black/20 disabled:opacity-50"
                 disabled={pagination.page <= 1}
@@ -237,7 +297,48 @@ export default function ProjectListSection({
                 <MdKeyboardArrowLeft className="text-[15px] md:text-xs lg:text-sm xl:text-base" />
               </button>
 
-              <div className="px-2 py-1">{pagination.page}</div>
+              {pageNumbers[0] > 1 && (
+                <>
+                  <button
+                    className="px-2 py-1 rounded-md text-slate-600 hover:bg-gray-100"
+                    onClick={() => pagination.onPageChange(1)}
+                  >
+                    1
+                  </button>
+                  {pageNumbers[0] > 2 && (
+                    <span className="px-1 text-slate-400 select-none">…</span>
+                  )}
+                </>
+              )}
+
+              {pageNumbers.map((p) => (
+                <button
+                  key={p}
+                  className={`px-2 py-1 rounded-md ${
+                    p === pagination.page
+                      ? "border border-[#4FA34E] bg-[#4FA34E] text-white font-semibold"
+                      : "text-slate-600 hover:bg-gray-100"
+                  }`}
+                  onClick={() => pagination.onPageChange(p)}
+                  disabled={p === pagination.page}
+                >
+                  {p}
+                </button>
+              ))}
+
+              {pageNumbers[pageNumbers.length - 1] < totalPages && (
+                <>
+                  {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
+                    <span className="px-1 text-slate-400 select-none">…</span>
+                  )}
+                  <button
+                    className="px-2 py-1 rounded-md text-slate-600 hover:bg-gray-100"
+                    onClick={() => pagination.onPageChange(totalPages)}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
 
               <button
                 className="px-1 py-1 rounded-md border border-black/20 disabled:opacity-50"
@@ -246,6 +347,25 @@ export default function ProjectListSection({
               >
                 <MdKeyboardArrowRight className="text-[15px] md:text-xs lg:text-sm xl:text-base" />
               </button>
+
+              {/* ADDED: input for jumping directly to a page number */}
+              <div className="flex items-center gap-1 ml-1 md:ml-2 pl-1 md:pl-2 border-l border-black/10">
+                <span className="text-slate-500 hidden md:inline">Go to</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={pageInput}
+                  placeholder={String(pagination.page)}
+                  onChange={(e) => setPageInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitPageInput();
+                  }}
+                  onBlur={submitPageInput}
+                  className="w-9 md:w-12 h-6 px-1 text-xs py-0 leading-none rounded-md border border-black/20 text-center focus:outline-none focus:ring-1 focus:ring-[#4FA34E] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-slate-500 hidden md:inline">page</span>
+              </div>
             </div>
           </div>
         )}
