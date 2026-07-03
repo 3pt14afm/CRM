@@ -556,6 +556,41 @@ const handleClearAllFilters = () => {
     fetchCurrentData({ currentSortBy: "last_saved_at", currentSortOrder: "desc" });
   };
 
+  // --- Mobile card layout (below md) ---
+  const renderCurrentCard = (r) => (
+    <div
+      onClick={() => router.visit(route("roi.current.show", r.id))}
+      className="cursor-pointer px-2 py-3"
+    >
+      <div className="gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-xs text-slate-500">{r.type === 1 ? 'Existing' : 'Potential'}</p>
+          <div className="shrink-0 flex flex-col items-end gap-1 justify-end">
+            <span className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">
+              {r.status_display_main ?? r.status}
+            </span>
+            <span className="text-[10px] text-blue-700 italic">by: {r.status_assignee_name ?? '—'}</span>
+          </div>
+        </div>
+
+        <div className="min-w-0 leading-relaxed pt-1">     
+            <p className="text-xs font-medium">{r.reference ?? '—'}</p>
+            <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
+            <p className="text-[11px] text-slate-800 font-semibold font-mono">{r.company_sap_code ?? '—'}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
+        <span>{r.contract_type ?? '—'}</span>
+      </div>
+      
+      <p className="flex items-center justify-between text-[11px] text-slate-500">
+        <span>Prepared by <span className="text-[#195c00] font-semibold">{r.user?.name ?? '—'}</span></span>
+        <span>{r.last_saved_display ?? '—'}</span>
+      </p>
+    </div>
+  );
+
   const searchControl = (
     <div className="flex items-center gap-2">
       <SearchControl
@@ -625,11 +660,11 @@ const handleClearAllFilters = () => {
       <div className="flex-1 pb-24">
         <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
           <div className="flex items-baseline gap-1">
-            <h1 className="font-semibold text-sm text-slate-500 hidden sm:block">Project ROI Approval</h1>
+            <h1 className="font-semibold text-xs md:text-sm text-slate-500 hidden sm:block">Project ROI Approval</h1>
             <span className="text-slate-400 hidden sm:block">/</span>
             <p className="text-2xl sm:text-3xl font-semibold text-slate-900">Current</p>
           </div>
-          <span className="text-xs text-slate-500">{formattedDate}</span>
+          <span className="text-[11px] md:text-xs text-slate-500">{formattedDate}</span>
         </div>
 
         <ProjectListSection
@@ -643,6 +678,7 @@ const handleClearAllFilters = () => {
           filterControl={filterToolbar}
           loading={loading}
           emptyText="No matching records found."
+          renderCard={renderCurrentCard}
         />
       </div>
     </div>

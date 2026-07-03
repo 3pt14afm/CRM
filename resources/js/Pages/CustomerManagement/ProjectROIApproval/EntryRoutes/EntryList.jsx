@@ -1,4 +1,4 @@
-  import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
   import React, { useMemo, useState, useEffect, useRef } from "react";
   import { Head, router } from "@inertiajs/react";
   import { route } from "ziggy-js";
@@ -8,10 +8,12 @@
   import axios from 'axios';
 
   // Icons matched perfectly
-  import { FaFolderOpen } from "react-icons/fa";
+  import { FaFolderOpen, FaPlus } from "react-icons/fa";
   import { IoTimeOutline, IoAddCircleOutline } from "react-icons/io5";
   import { MdDelete, MdEdit, MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose } from 'react-icons/md';
   import FlashMessages from '@/Components/FlashMessages';
+import { FiPlus } from 'react-icons/fi';
+import { IoMdMore } from 'react-icons/io';
 
   // Matching Date Utility Engine
   function formatDateLabel(dateStr) {
@@ -93,6 +95,44 @@
       }
     };
 
+    const MoreActionsMenu = ({ r, router, handleDelete }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <div className="relative">
+        {/* The "More" Trigger Button */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+          className="rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+        >
+          <IoMdMore className="text-xl" />
+        </button>
+
+        {isOpen && ( <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} /> )}
+
+        {isOpen && (
+          <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-xl z-50 p-1 flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); router.visit(route("roi.entry.projects.show", r.id)); }}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-[#289800] hover:bg-[#B5EBA2]/20"
+            >
+              <MdEdit className="text-sm" /> Edit
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); handleDelete(r); }}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-red-500 hover:bg-red-50"
+            >
+              <MdDelete className="text-sm" /> Delete
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
     // Debounced listener engine parsing state parameters
     useEffect(() => {
       const delayDebounceFn = setTimeout(() => {
@@ -113,31 +153,38 @@
 
     // --- Tiles Setup ---
     const tiles = useMemo(() => {
-      const totalDrafts = serverStats?.totalDrafts ?? serverDrafts?.total ?? 0;
-      const recentlyModified = serverStats?.recentlyModifiedText ?? "—";
+    const totalDrafts = serverStats?.totalDrafts ?? serverDrafts?.total ?? 0;
+    const recentlyModified = serverStats?.recentlyModifiedText ?? "—";
 
-      return [
-        {
-          label: "Total Drafts",
-          value: totalDrafts,
-          icon: <FaFolderOpen />,
-          variant: "normal",
-        },
-        {
-          label: "Recently Modified",
-          value: recentlyModified,
-          icon: <IoTimeOutline />,
-          variant: "normal",
-        },
-        {
-          label: "Create New Draft",
-          value: null,
-          icon: <IoAddCircleOutline />,
-          variant: "action",
-          onClick: () => router.visit(route("roi.entry.create")),
-        },
-      ];
-    }, [serverStats, serverDrafts]);
+    return [
+      {
+        label: "Total Drafts",
+        value: totalDrafts,
+        icon: <FaFolderOpen />,
+        variant: "normal",
+      },
+      {
+        label: "Recently Modified",
+        value: recentlyModified,
+        icon: <IoTimeOutline />,
+        variant: "normal",
+      },
+      {
+        // The Magic Happens Here: 
+        // md:hidden shows on mobile, hidden md:inline shows on desktop
+        label: (
+          <>
+            <span className="sm:hidden">Create Draft</span>
+            <span className="hidden sm:inline">Create New Draft</span>
+          </>
+        ),
+        value: null,
+        icon: <IoAddCircleOutline />,
+        variant: "action",
+        onClick: () => router.visit(route("roi.entry.create")),
+      },
+    ];
+  }, [serverStats, serverDrafts]);
 
     const handleDelete = (row) => {
       const ref = row.reference ?? row.id;
@@ -322,6 +369,72 @@
       []
     );
 
+    // --- Mobile card layout (below md) ---
+    const renderEntryCard = (r) => {
+    // 1. Preserve your skeleton loader
+    if (r.isSkeleton) {
+      return (
+        <div className="flex items-center gap-3 animate-pulse px-2 py-3">
+          <div className="h-10 w-10 rounded-lg bg-slate-200/80 shrink-0" />
+          <div className="flex-1 space-y-2 min-w-0">
+            <div className="h-3 w-2/3 rounded-full bg-slate-200/80" />
+            <div className="h-2.5 w-1/2 rounded-full bg-slate-200/80" />
+          </div>
+        </div>
+      );
+    }
+
+    // 2. Preserve your status color logic
+    const statusLower = r.status?.toLowerCase() ?? '';
+    const isDraft = statusLower === 'draft';
+    const isSentBack = statusLower === 'returned' || statusLower === 'sent back';
+    const isWithdrawn = statusLower === 'widthrawn' || statusLower === 'withdrawn';
+
+    return (
+      <div
+        onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
+        className="cursor-pointer px-2 py-3 hover:bg-slate-50 transition-colors rounded-xl"
+      >
+        <div className="gap-2">
+          {/* Top Row: Type & Status Badge */}
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-slate-500">{r.type === 1 ? 'Existing' : 'Potential'}</p>
+            <div className="flex items-start justify-end gap-1">
+              <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap
+                ${isSentBack
+                  ? "bg-red-100 text-red-700 border border-red-200"
+                  : isDraft
+                  ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                  : isWithdrawn
+                  ? "bg-[#0565D2]/15 border-[#0565D2]/50 text-[#0565D2]"
+                  : "bg-gray-100 text-gray-700 border border-gray-200"
+                }`}>
+                {r.status_display_main ?? r.status}
+              </span>
+           
+              <div className="flex items-center justify-end">
+                <MoreActionsMenu  r={r} router={router} handleDelete={handleDelete} />
+              </div>
+            </div>
+          </div>
+
+          {/* Middle Row: Company Details */}
+          <div className="min-w-0 leading-relaxed pt-2">     
+            <p className="text-xs font-medium">{r.reference ?? '—'}</p>
+            <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
+            <p className="text-[11px] text-slate-800 font-semibold font-mono">{r.company_sap_code ?? ''}</p>
+          </div>
+        </div>
+
+        {/* Bottom-Mid Row: Contract Info */}
+        <div className="flex items-center justify-between mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
+          <span>{r.contract_type ?? '—'} {r.contract_years != null ? `· ${r.contract_years} yrs` : ''}</span>
+          <span className="normal-case text-slate-500">{r.last_saved_display ?? '—'}</span>
+        </div>
+      </div>
+    );
+  };
+
     // Intercepting data array mapping logic to display inline loader skeletons beautifully
     const rows = useMemo(() => {
       if (isLoading) {
@@ -360,33 +473,51 @@
 
     // --- Search Control Bar Markup Segment Layout ---
     const searchControl = (
-      <div className="flex flex-row items-center gap-1.5 min-w-0 w-full sm:w-auto">
-        <div className="relative h-6 flex items-center min-w-0 flex-1 sm:flex-none">
-          <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
+      <div className="flex flex-row items-center gap-1 md:gap-1.5 min-w-0 w-full sm:w-auto">
+        <div className="relative h-7 md:h-8 flex items-center min-w-0 flex-shrink-0">
           <input
             type="text"
             placeholder="Search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 w-full sm:w-52 min-w-0 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black placeholder:text-slate-400
-              outline-none focus:ring-0 focus:border-[#289800]
-              transition-[border-color,box-shadow] duration-150"
+            className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
+              outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
+              
+              /* Desktop styling: Always expanded */
+              md:w-52 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
+              
+              /* Mobile styling: Conditional based on whether text has been entered */
+              ${search 
+                ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" 
+                : "w-7 px-0 text-transparent placeholder:text-transparent cursor-pointer focus:w-40 focus:pl-8 focus:pr-3 focus:text-black focus:placeholder:text-slate-400 focus:cursor-text"
+              }
+            `}
           />
+
+          <MdSearch 
+            className={`absolute text-slate-400 text-base pointer-events-none z-10 transition-all duration-300 
+              /* Centers the icon when collapsed, moves it to the left when focused, typed in, or on desktop */
+              ${search ? "left-2.5 translate-x-0" : "left-1/2 -translate-x-1/2 peer-focus:left-2.5 peer-focus:translate-x-0 md:left-2.5 md:translate-x-0"}`} 
+          />
+
         </div>
 
-        <div className="relative h-6 flex items-center flex-shrink-0">
-          <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+        
+        <div className="relative h-7 md:h-8 flex items-center flex-shrink-0">
+          <MdOutlineFilterAlt className="absolute left-1/2 -translate-x-1/2 md:translate-x-0 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10 transition-all duration-150" />
+          
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-8 w-28 sm:w-32 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white text-black appearance-none cursor-pointer
+            className="h-7 md:h-8 w-7 md:w-32 px-0 md:pl-8 md:pr-6 py-0 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white 
+              text-transparent md:text-black appearance-none cursor-pointer !bg-none [&::-ms-expand]:hidden
               flex items-center outline-none focus:ring-0 focus:border-[#289800]
-              transition-[border-color,box-shadow] duration-150"
+              transition-all duration-150"
           >
-            <option value="all">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="returned">Returned</option>
-            <option value="withdrawn">Withdrawn</option>
+            <option className="text-black" value="all">&nbsp;&nbsp;All Status&nbsp;&nbsp;</option>
+            <option className="text-black" value="draft">&nbsp;&nbsp;Draft&nbsp;&nbsp;</option>
+            <option className="text-black" value="returned">&nbsp;&nbsp;Returned&nbsp;&nbsp;</option>
+            <option className="text-black" value="withdrawn">&nbsp;&nbsp;Withdrawn&nbsp;&nbsp;</option>
           </select>
         </div>
 
@@ -394,7 +525,7 @@
           <button
             type="button"
             onClick={() => setShowDatePicker((p) => !p)}
-            className={`h-8 flex items-center gap-1.5 px-2.5 text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap outline-none focus:ring-0 focus:border-[#289800]
+            className={`h-7 md:h-8 flex items-center gap-1.5 px-1.5 md:px-2.5 text-xs md:text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap outline-none focus:ring-0 focus:border-[#289800]
               ${hasDateFilter
                 ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
                 : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"
@@ -414,45 +545,45 @@
             )}
           </button>
 
-{showDatePicker && (
-  <div className="absolute right-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-    <div className="flex items-center gap-2 mb-3">
-      <MdDateRange size={16} className="text-[#4FA34E]" />
-      <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
-    </div>
-    <div className="space-y-2">
-      <input
-        type="date"
-        value={dateFrom}
-        onChange={(e) => setDateFrom(e.target.value)}
-        className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-      />
-      <input
-        type="date"
-        value={dateTo}
-        min={dateFrom || undefined}
-        onChange={(e) => setDateTo(e.target.value)}
-        className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-      />
-    </div>
-    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-      <button
-        type="button"
-        onClick={handleDateClear}
-        className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50"
-      >
-        Clear
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowDatePicker(false)}
-        className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
-      >
-        Apply
-      </button>
-    </div>
-  </div>
-)}
+          {showDatePicker && (
+            <div className="absolute right-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <MdDateRange size={16} className="text-[#4FA34E]" />
+                <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
+              </div>
+              <div className="space-y-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
+                />
+                <input
+                  type="date"
+                  value={dateTo}
+                  min={dateFrom || undefined}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
+                />
+              </div>
+              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={handleDateClear}
+                  className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(false)}
+                  className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -466,13 +597,13 @@
             {/* HEADER */}
             <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
               <div className="flex items-baseline gap-1">
-                <h1 className="font-semibold text-sm text-slate-500 hidden sm:block">Project ROI Approval</h1>
-                <span className="text-slate-400 hidden sm:block">/</span>
+                <h1 className="font-semibold text-xs md:text-sm text-slate-500">Project ROI Approval</h1>
+                <span className="text-slate-400">/</span>
                 <p className="text-2xl sm:text-3xl font-semibold text-slate-900">Entry</p>
               </div>
 
               <div className="flex flex-col gap-1 items-end">
-                <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
+                <h1 className="text-[11px] md:text-xs text-right text-slate-500">{formattedDate}</h1>
               </div>
             </div>
 
@@ -486,6 +617,7 @@
               searchControl={searchControl}
               loading={false} // Prevents the main component section from dimming down or locking interaction layouts
               emptyText={isLoading ? "Loading records..." : "No matching records found."}
+              renderCard={renderEntryCard}
             />
           </div>
           <FlashMessages />

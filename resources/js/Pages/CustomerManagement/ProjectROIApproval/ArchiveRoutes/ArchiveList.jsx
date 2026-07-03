@@ -695,6 +695,47 @@ const handleSort = (key) => {
     />
   );
 
+  // --- Mobile card layout (below md) ---
+  const renderArchiveCard = (r) => {
+    const s = String(r.status ?? "").toLowerCase();
+    const isRejected = s === "rejected";
+    const isApproved = s === "approved";
+    const isCancelled = s === "cancelled";
+
+    return (
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold">{r.reference ?? '—'}</p>
+            <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-medium px-1.5 py-0.5 rounded-xl
+              ${isRejected
+                ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
+                : isApproved
+                ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
+                : isCancelled
+                ? "bg-red-600/10 text-red-600 border border-red-300"
+                : "bg-blue-100 text-blue-700 border border-blue-200"
+              }`}>
+              {r.status ?? '—'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
+          <p className="text-[11px] text-slate-400 font-mono">{r.company_sap_code ?? '—'}</p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            {r.contract_type ?? '—'} · {r.type === 1 ? 'Existing' : 'Potential'}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Decided by <span className="font-medium text-slate-700">{r.decided_by_name ?? '—'}</span>
+            {r.decided_at_display ? ` · ${formatDateLabel(r.decided_at_display)}` : ''}
+          </p>
+        </div>
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <ActionsDropdown row={r} isAdmin={isAdmin} />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ProjectListSection
       tiles={tiles}
@@ -707,6 +748,7 @@ const handleSort = (key) => {
       filterControl={filterToolbar}
       loading={loading || isRefreshing}
       emptyText="No matching records found."
+      renderCard={renderArchiveCard}
     />
   );
 }

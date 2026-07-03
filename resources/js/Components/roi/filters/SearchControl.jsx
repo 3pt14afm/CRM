@@ -25,7 +25,7 @@ export default function SearchControl({
   const spinning = loading || isRefreshing;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 md:gap-2">
       {/* Search input */}
       <div className="relative h-6 flex items-center">
         <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
@@ -34,7 +34,7 @@ export default function SearchControl({
           placeholder="Search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className={`h-8 w-full sm:w-52 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
+          className={`h-7 md:h-8 w-40 md:w-52 pl-8 pr-3 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white text-black
             placeholder:text-slate-400 outline-none focus:ring-0 focus:border-[#289800]
             transition-[border-color,box-shadow] duration-150
             ${loading ? "opacity-60 pointer-events-none" : ""}`}
@@ -50,7 +50,7 @@ export default function SearchControl({
           : sortOrder === "asc" ? "Oldest first"
           : "Sort by date"
         }
-        className={`h-8 w-8 flex items-center justify-center rounded-lg border bg-white transition-colors duration-150
+        className={`h-7 w-7 md:h-8 md:w-8 flex items-center justify-center rounded-lg border bg-white transition-colors duration-150
           ${sortOrder
             ? "border-[#4FA34E]/50 text-[#4FA34E] bg-[#4FA34E]/5"
             : "border-gray-200 text-slate-400 hover:text-[#4FA34E] hover:border-[#4FA34E]/40 hover:bg-[#4FA34E]/5"
@@ -89,7 +89,7 @@ export default function SearchControl({
         onClick={onRefresh}
         disabled={spinning}
         title="Refresh"
-        className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white text-slate-400
+        className="h-8 w-8 items-center justify-center hidden md:flex rounded-lg border border-gray-200 bg-white text-slate-400
           hover:text-[#4FA34E] hover:border-[#4FA34E]/40 hover:bg-[#4FA34E]/5
           disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
       >
