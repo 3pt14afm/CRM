@@ -190,6 +190,63 @@ function Index({ companies, potentials, filters, categories = [] }) {
         );
     };
 
+    /* ── Mobile card layout (below md) ── */
+    const getInitials = (name) => (name || '?')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase();
+
+    const StatusBadgePill = ({ isActive }) => (
+        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border
+            ${isActive
+                ? 'bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20'
+                : 'bg-[#FDECEC] text-[#C40000] border-[#C40000]/20'
+            }`}>
+            {isActive ? 'Active' : 'Inactive'}
+        </span>
+    );
+
+    const renderExistingCard = (r) => {
+        const isActive = r.status == 1;
+        return (
+            <div className="flex items-center gap-3">
+                    <FaBuildingUser className="text-darkgreen w-5 h-5 flex-shrink-0" />
+                
+                <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold leading-snug truncate ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
+                        {r.company_name ?? '—'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate uppercase">
+                        {[r.client_category, r.delsan_company, r.sap_code].filter(Boolean).join(' · ') || '—'}
+                    </p>
+                </div>
+                <StatusBadgePill isActive={isActive} />
+            </div>
+        );
+    };
+
+    const renderPotentialCard = (r) => {
+        const isActive = r.status == 1;
+        return (
+            <div className="flex items-center gap-3">
+                <FaBuildingUser className="text-darkgreen w-5 h-5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold leading-snug truncate text-[#0f3800]">
+                        {r.company_name ?? '—'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                        {[r.client_manager, r.address].filter(Boolean).join(' · ') || '—'}
+                    </p>
+                </div>
+                <StatusBadgePill isActive={isActive} />
+            </div>
+        );
+    };
+
+
     /* ── Existing Columns (all columns + client_manager after delsan_company) ── */
     const existingColumns = useMemo(() => [
         {
@@ -360,32 +417,50 @@ function Index({ companies, potentials, filters, categories = [] }) {
 
     /* ── Search control ── */
     const searchControl = (
-        <div className="relative h-6 flex items-center">
-            <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
-            <input
-                type="text"
-                placeholder="Search"
-                value={searchState.search}
-                onChange={(e) => updateFilters({ search: e.target.value })}
-                className="h-8 w-64 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black
-                    placeholder:text-slate-400 outline-none focus:ring-0 focus:border-[#289800]
-                    transition-[border-color,box-shadow] duration-150"
-            />
-        </div>
+    <div className="relative h-7 md:h-8 flex items-center min-w-0 flex-shrink-0">        
+        <input
+        type="text"
+        placeholder="Search"
+        value={searchState.search}
+        onChange={(e) => updateFilters({ search: e.target.value })}
+        className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
+            outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
+            
+            /* Desktop styling: Always expanded */
+            md:w-64 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
+            
+            /* Mobile styling: Conditional based on whether text has been entered */
+            ${searchState.search 
+            ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" 
+            : "w-7 px-0 text-transparent placeholder:text-transparent cursor-pointer focus:w-40 focus:pl-8 focus:pr-3 focus:text-black focus:placeholder:text-slate-400 focus:cursor-text"
+            }
+        `}
+        />
+
+        <MdSearch 
+        className={`absolute text-slate-400 text-base pointer-events-none z-10 transition-all duration-300 
+            /* Centers the icon when collapsed, moves it to the left when focused, typed in, or on desktop */
+            ${searchState.search 
+            ? "left-2.5 translate-x-0" 
+            : "left-1/2 -translate-x-1/2 peer-focus:left-2.5 peer-focus:translate-x-0 md:left-2.5 md:translate-x-0"
+            }`} 
+        />
+        
+    </div>
     );
 
     /* ── Filter toolbar ── */
     const filterToolbar = (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+        <div className="flex flex-wrap items-center gap-1 md:gap-2 rounded-xl border border-gray-200 bg-white p-1 md:p-2 shadow-sm">
 
             {/* Delsan Company — only relevant for Existing */}
             {activeTab === 'Existing' && (
-                <div className="relative h-9 flex items-center flex-shrink-0">
-                    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+                <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
                     <select
                         value={searchState.delsan_company}
                         onChange={(e) => updateFilters({ delsan_company: e.target.value })}
-                        className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+                        className="h-7 md:h-9 w-[94px] md:w-36 pl-[21px] md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer truncate
                             focus:outline-none focus:ring-0 focus:border-[#4FA34E]
                             transition-[border-color,box-shadow] duration-150 text-slate-700"
                     >
@@ -399,12 +474,12 @@ function Index({ companies, potentials, filters, categories = [] }) {
 
             {/* Category — only relevant for Existing */}
             {activeTab === 'Existing' && (
-                <div className="relative h-9 flex items-center flex-shrink-0">
-                    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+                <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
                     <select
                         value={searchState.category}
                         onChange={(e) => updateFilters({ category: e.target.value })}
-                        className="h-9 w-32 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+                        className="h-7 md:h-9 w-[100px] md:w-36 pl-[21px] truncate md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
                             focus:outline-none focus:ring-0 focus:border-[#4FA34E]
                             transition-[border-color,box-shadow] duration-150 text-slate-700"
                     >
@@ -417,20 +492,20 @@ function Index({ companies, potentials, filters, categories = [] }) {
             )}
 
             {/* Status — multi-select dropdown */}
-            <div className="relative h-9 flex items-center flex-shrink-0" ref={statusPickerRef}>
+            <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={statusPickerRef}>
                 <button
                     type="button"
                     onClick={() => setShowStatusPicker((p) => !p)}
-                    className="h-9 px-3 pl-8 border border-gray-200 rounded-lg text-[13px] text-slate-700 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-32 sm:w-36"
+                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[77px] md:w-36"
                 >
-                    <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none" />
-                    <span className="flex-1 text-left truncate">{statusLabel}</span>
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
+                    <span className="flex-1 text-left pt-0.5 pl-[1px] truncate">{statusLabel}</span>
                     <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
                 </button>
 
                 {showStatusPicker && (
-                    <div className="absolute left-0 top-11 z-50 w-40 bg-white border border-gray-200 rounded-2xl shadow-lg p-3 flex flex-col gap-1.5">
-                        <span className="block text-[11px] font-semibold text-slate-500 mb-0.5 uppercase tracking-wider">
+                    <div className="absolute left-0 top-11 z-50 w-28 md:w-40 bg-white border border-gray-300 rounded-2xl shadow-lg p-3 flex flex-col gap-1.5">
+                        <span className="block text-[9px] md:text-[11px] font-semibold text-slate-500 mb-0.5 uppercase tracking-wider">
                             Status
                         </span>
                         {[
@@ -445,7 +520,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                                     className="w-3.5 h-3.5 rounded border-gray-300 accent-[#4FA34E] cursor-pointer"
                                 />
                                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                                <span className="text-[13px] text-slate-700 group-hover:text-slate-900">{label}</span>
+                                <span className="text-[11px] md:text-[13px] text-slate-700 group-hover:text-slate-900">{label}</span>
                             </label>
                         ))}
                     </div>
@@ -453,11 +528,11 @@ function Index({ companies, potentials, filters, categories = [] }) {
             </div>
 
             {/* Per Page */}
-            <div className="relative h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
+            <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
                 <button
                     type="button"
                     onClick={() => setShowPerPagePicker((p) => !p)}
-                    className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors"
+                    className="h-7 md:h-9 px-1 md:px-3 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-600 flex items-center gap-0.5 md:gap-1.5 bg-white hover:bg-slate-50 transition-colors"
                 >
                     <TbLayoutRows size={15} className="text-slate-400" />
                     <span>Rows: {searchState.per_page}</span>
@@ -465,8 +540,8 @@ function Index({ companies, potentials, filters, categories = [] }) {
                 </button>
 
                 {showPerPagePicker && (
-                    <div className="absolute left-0 top-11 z-50 w-36 bg-white border border-gray-200 rounded-2xl shadow-lg p-3">
-                        <span className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                    <div className="absolute -left-8 top-9 md:top-12 md:-left-2 z-50 w-36 bg-white border border-gray-300 rounded-2xl shadow-lg p-2 md:p-3">
+                        <span className="block text-[9px] md:text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
                             Rows per page
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -478,12 +553,12 @@ function Index({ companies, potentials, filters, categories = [] }) {
                                 value={perPageInput}
                                 onChange={(e) => setPerPageInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handlePerPageInputApply()}
-                                className="w-16 h-7 px-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0"
+                                className="w-16 h-6 md:h-7 px-2 text-[11px] sm:text-xs md:text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0"
                             />
                             <button
                                 type="button"
                                 onClick={handlePerPageInputApply}
-                                className="h-7 min-w-11 flex-1 text-[10px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
+                                className="h-6 md:h-7 min-w-11 flex-1 text-[10px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
                             >
                                 Apply
                             </button>
@@ -497,7 +572,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                 <button
                     type="button"
                     onClick={clearAllFilters}
-                    className="h-9 flex items-center gap-1 px-1 text-[13px] text-[#4FA34E] hover:text-slate-600 transition-colors flex-shrink-0"
+                    className="h-7 md:h-9 flex items-center gap-1 px-1 text-[13px] text-[#4FA34E] hover:text-slate-600 transition-colors flex-shrink-0"
                 >
                     <MdClose size={14} />
                     <span>Clear all</span>
@@ -516,8 +591,8 @@ function Index({ companies, potentials, filters, categories = [] }) {
 
                     {/* HEADER */}
                     <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-0 flex justify-between items-end">
-                        <div className="flex flex-col gap-1">
-                            <p className="text-2xl sm:text-3xl font-semibold text-slate-900">
+                        <div className="flex flex-col md:gap-1">
+                            <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900">
                                 Customer Information Details
                             </p>
                             <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
@@ -526,18 +601,18 @@ function Index({ companies, potentials, filters, categories = [] }) {
                                     : 'View and manage potential customer companies.'}
                             </p>
                         </div>
-                        <h1 className="text-xs text-slate-500">{formattedDate}</h1>
+                        <h1 className="text-[11px] md:text-xs text-slate-500">{formattedDate}</h1>
                     </div>
 
                     {/* TABS */}
-                    <div className="px-4 sm:px-6 lg:px-10 mt-6">
-                        <div className="flex rounded-full bg-[#f8f8f8] w-fit border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+                    <div className="px-4 sm:px-6 lg:px-10 mt-4 md:mt-6">
+                        <div className="flex rounded-full bg-[#f8f8f8] w-full md:w-fit border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
                             <button
                                 type="button"
                                 onClick={() => setActiveTab('Existing')}
-                                className={`px-8 text-sm m-0.5 mr-0 py-1 ${
+                                className={`flex-1 md:flex-none text-center px-8 text-sm m-0.5 mr-0 py-1 ${
                                     activeTab === 'Existing'
-                                        ? 'bg-[#B5EBA2]/50 font-extrabold rounded-full text-[#289800]'
+                                        ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800] border border-[#B5EBA2]/60'
                                         : 'rounded-t-xl text-slate-500'
                                 }`}
                             >
@@ -546,9 +621,9 @@ function Index({ companies, potentials, filters, categories = [] }) {
                             <button
                                 type="button"
                                 onClick={() => setActiveTab('Potentials')}
-                                className={`px-8 text-sm m-0.5 ml-0 py-1 ${
+                                className={`flex-1 md:flex-none text-center px-8 text-sm m-0.5 ml-0 py-1 ${
                                     activeTab === 'Potentials'
-                                        ? 'bg-[#B5EBA2]/50 font-extrabold rounded-full text-[#289800]'
+                                        ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800] border border-[#B5EBA2]/60'
                                         : 'rounded-t-xl text-slate-500'
                                 }`}
                             >
@@ -572,6 +647,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                                 setIsSidebarOpen(true);
                             }}
                             emptyText="No company records found."
+                            renderCard={renderExistingCard}
                         />
                     )}
 
@@ -603,6 +679,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                                 setIsSidebarOpen(true);
                             }}
                             emptyText="No potential company records found."
+                            renderCard={renderPotentialCard}
                         />
                     )}
 
