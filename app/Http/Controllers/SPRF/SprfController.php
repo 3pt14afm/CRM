@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class SprfController extends Controller
 {
@@ -274,6 +275,14 @@ class SprfController extends Controller
             'rejectedBy:id,first_name,last_name,position,email',
         ]);
 
+        $signatures = [
+            'preparer'                    => $this->signatureFor($project->prepared_by_user_id),
+            'directorCustomerEngagement'  => $this->signatureFor($project->director_customer_engagement_user_id),
+            'esdDirector'                 => $this->signatureFor($project->esd_director_user_id),
+            'vpCcto'                      => $this->signatureFor($project->vp_ccto_user_id),
+            'presidentCeo'                => $this->signatureFor($project->president_ceo_user_id),
+        ];
+
         return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
             'project'        => $this->transformArchiveProjectForFrontend($project),
             'initialProject' => $this->transformArchiveProjectForFrontend($project),
@@ -290,6 +299,7 @@ class SprfController extends Controller
                 'rejectedAt'           => $project->rejected_at?->toIso8601String(),
                 'rejectedByLevel'      => $project->status === 'rejected' ? $project->current_level : null,
             ],
+            'signatures'     => $signatures, // NEW
         ]);
     }
 
@@ -566,4 +576,31 @@ class SprfController extends Controller
             })
             ->all();
     }
+
+    /**
+ * Resolves a signature image URL for a given user ID by employee_id.
+ * Mirrors SprfCurrentProjectController::signatureFor() / ROI's signatureFor().
+ */
+private function signatureFor(?int $userId): ?string
+{
+    if (! $userId) {
+        return null;
+    }
+
+    $employeeId = User::query()->whereKey($userId)->value('employee_id');
+
+    if (! $employeeId) {
+        return null;
+    }
+
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+        $path = 'signatures/' . $employeeId . '.' . $ext;
+
+        if (Storage::disk('public')->exists($path)) {
+            return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+        }
+    }
+
+    return null;
+}
 }

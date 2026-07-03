@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use App\Services\SprfActivityLogger;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class SprfCurrentProjectController extends Controller
 {
@@ -223,41 +224,53 @@ class SprfCurrentProjectController extends Controller
         ]);
     }
         
-    public function show(SprfCurrentProject $project)
-    {
-        $this->ensureCanView($project);
+public function show(SprfCurrentProject $project)
+{
+    $this->ensureCanView($project);
 
-        $project->load([
-            'items.subitems',
-            'fees',
-            'preparer:id,first_name,last_name,position,email',
-            'currentApprover:id,first_name,last_name,position,email',
-        ]);
+    $project->load([
+        'items.subitems',
+        'fees',
+        'preparer:id,first_name,last_name,position,email',
+        'currentApprover:id,first_name,last_name,position,email',
+    ]);
 
-        $transformedProject = $this->transformProjectForFrontend($project, (int) Auth::id());
+    $transformedProject = $this->transformProjectForFrontend($project, (int) Auth::id());
 
-        return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
-            'project' => $transformedProject,
-            'initialProject' => $transformedProject,
-            'approverUsers' => $this->mapApproverUsersFromProject($project),
-            'readOnly' => true,
-            'route' => 'current',
-            'createdBy' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : '—',
-            'canActOnCurrentProject' => $this->canActOnCurrentProject($project),
-            'canWithdraw' => $this->canWithdraw($project),
-            'canCancel' => $this->canCancel($project),
-            'timestamps' => [
-                'submitted_at' => $project->submitted_at?->toIso8601String(),
-                'dce_acted_at' => $project->dce_acted_at?->toIso8601String(),
-                'esd_acted_at' => $project->esd_acted_at?->toIso8601String(),
-                'vp_ccto_acted_at' => $project->vp_ccto_acted_at?->toIso8601String(),
-                'president_ceo_acted_at' => $project->president_ceo_acted_at?->toIso8601String(),
-            ],
-            'rejectedAt' => $project->rejected_at?->toIso8601String(),
-            // Determine which level rejected it (optional, for styling)
-            'rejectedByLevel' => $project->status === 'rejected' ? $project->current_level : null,
-        ]);
-    }
+    $isSentBack  = strtolower((string) $project->status) === 'sent back';
+    $currentLevel = (int) $project->current_level;
+
+    // Level map: 1=Preparer, 2=DCE, 3=ESD Director, 4=VP&CCTO, 5=President&CEO
+    $signatures = [
+        'preparer'                    => $this->signatureFor($project->prepared_by_user_id),
+        'directorCustomerEngagement'  => (! $isSentBack || $currentLevel > 2) ? $this->signatureFor($project->director_customer_engagement_user_id) : null,
+        'esdDirector'                 => (! $isSentBack || $currentLevel > 3) ? $this->signatureFor($project->esd_director_user_id) : null,
+        'vpCcto'                      => (! $isSentBack || $currentLevel > 4) ? $this->signatureFor($project->vp_ccto_user_id) : null,
+        'presidentCeo'                => (! $isSentBack || $currentLevel > 5) ? $this->signatureFor($project->president_ceo_user_id) : null,
+    ];
+
+    return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
+        'project' => $transformedProject,
+        'initialProject' => $transformedProject,
+        'approverUsers' => $this->mapApproverUsersFromProject($project),
+        'readOnly' => true,
+        'route' => 'current',
+        'createdBy' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : '—',
+        'canActOnCurrentProject' => $this->canActOnCurrentProject($project),
+        'canWithdraw' => $this->canWithdraw($project),
+        'canCancel' => $this->canCancel($project),
+        'timestamps' => [
+            'submitted_at' => $project->submitted_at?->toIso8601String(),
+            'dce_acted_at' => $project->dce_acted_at?->toIso8601String(),
+            'esd_acted_at' => $project->esd_acted_at?->toIso8601String(),
+            'vp_ccto_acted_at' => $project->vp_ccto_acted_at?->toIso8601String(),
+            'president_ceo_acted_at' => $project->president_ceo_acted_at?->toIso8601String(),
+        ],
+        'rejectedAt' => $project->rejected_at?->toIso8601String(),
+        'rejectedByLevel' => $project->status === 'rejected' ? $project->current_level : null,
+        'signatures' => $signatures,   // NEW
+    ]);
+}
 
     public function print(SprfCurrentProject $project)
     {
@@ -952,4 +965,27 @@ class SprfCurrentProjectController extends Controller
             ],
         ];
     }
+
+    private function signatureFor(?int $userId): ?string
+{
+    if (! $userId) {
+        return null;
+    }
+
+    $employeeId = User::query()->whereKey($userId)->value('employee_id');
+
+    if (! $employeeId) {
+        return null;
+    }
+
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+        $path = 'signatures/' . $employeeId . '.' . $ext;
+
+        if (Storage::disk('public')->exists($path)) {
+            return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+        }
+    }
+
+    return null;
+}
 }

@@ -9,6 +9,7 @@ use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfCurrentProject;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -291,14 +292,23 @@ class SprfCurrentWorkflowService
 
     public function notifySubmit(SprfCurrentProject $project): void
     {
-        $preparer = $this->userById((int) $project->prepared_by_user_id);
+        $preparerId = (int) $project->prepared_by_user_id;
+        $dceId      = (int) ($project->director_customer_engagement_user_id ?? 0);
+        $approverId = (int) ($project->current_approver_user_id ?? 0);
+
+        // Single batched lookup — $approverId is looked up once and reused
+        // below for both "first approver" and "current approver" (they are
+        // always the same id; the original code queried it twice).
+        $users = $this->usersByIds([$preparerId, $dceId, $approverId]);
+
+        $preparer = $users->get($preparerId);
         if (!$preparer?->email) return;
 
-        $dce     = $this->userById((int) ($project->director_customer_engagement_user_id ?? 0));
+        $dce     = $users->get($dceId);
         $dceRole = 'Director – Customer Engagement';
         $projectUrl = $this->buildProjectUrl('current', $project->id);
 
-        $firstApprover = $this->userById((int) ($project->current_approver_user_id ?? 0));
+        $firstApprover = $users->get($approverId);
         $firstApproverRole = $project->requires_rebate_justification ? $dceRole : 'ESD Director';
 
         // Template 1 — PM
@@ -317,7 +327,7 @@ class SprfCurrentWorkflowService
 
         // Template 2 — DCE (first approver in queue)
         // Only send if the DCE is still the current_approver (auto-advance may have moved it)
-        $currentApprover = $this->userById((int) ($project->current_approver_user_id ?? 0));
+        $currentApprover = $firstApprover;
         if ($currentApprover?->email && $currentApprover->id !== $preparer->id) {
             $isTerminal = (int) $project->current_level === $this->getTerminalLevel($project);
             $this->dispatchMail(
@@ -360,9 +370,12 @@ class SprfCurrentWorkflowService
 
     public function notifyWithdrawInterruptedApprover(SprfCurrentProject $projectBeforeDeletion, int $actorId): void
     {
-        $actor   = $this->userById($actorId);
-        $holder  = $this->userById((int) ($projectBeforeDeletion->current_approver_user_id ?? 0));
-        $pmName  = $actor?->name ?? '—';
+        $holderId = (int) ($projectBeforeDeletion->current_approver_user_id ?? 0);
+
+        $users  = $this->usersByIds([$actorId, $holderId]);
+        $actor  = $users->get($actorId);
+        $holder = $users->get($holderId);
+        $pmName = $actor?->name ?? '—';
 
         // Template 12 (withdrawn) — interrupted approver; no link
         if ($holder?->email && $holder->id !== $actorId) {
@@ -380,9 +393,12 @@ class SprfCurrentWorkflowService
 
     public function notifyCancel(SprfArchiveProject $archiveProject, int $actorId, int $interruptedApproverId): void
     {
-        $actor    = $this->userById($actorId);
-        $preparer = $this->userById((int) $archiveProject->prepared_by_user_id);
-        $holder   = $this->userById($interruptedApproverId);
+        $preparerId = (int) $archiveProject->prepared_by_user_id;
+
+        $users    = $this->usersByIds([$actorId, $preparerId, $interruptedApproverId]);
+        $actor    = $users->get($actorId);
+        $preparer = $users->get($preparerId);
+        $holder   = $users->get($interruptedApproverId);
         $pmName   = $actor?->name ?? '—';
         $archiveUrl = $this->buildProjectUrl('archive', $archiveProject->id);
 
@@ -425,9 +441,14 @@ class SprfCurrentWorkflowService
      */
     private function notifyAdvanced(SprfCurrentProject $project, int $actorId, int $fromLevel, int $toLevel): void
     {
-        $actor      = $this->userById($actorId);
-        $preparer   = $this->userById((int) $project->prepared_by_user_id);
-        $nextUser   = $this->userById($this->approverUserIdForLevel($project, $toLevel));
+        $preparerId = (int) $project->prepared_by_user_id;
+        $nextUserId = $this->approverUserIdForLevel($project, $toLevel);
+
+        $users = $this->usersByIds([$actorId, $preparerId, $nextUserId ?? 0]);
+
+        $actor      = $users->get($actorId);
+        $preparer   = $users->get($preparerId);
+        $nextUser   = $nextUserId ? $users->get($nextUserId) : null;
         $projectUrl = $this->buildProjectUrl('current', $project->id);
 
         $isTerminal  = $toLevel === $this->getTerminalLevel($project);
@@ -493,8 +514,11 @@ class SprfCurrentWorkflowService
      */
     private function notifyApproved(SprfArchiveProject $archiveProject, int $actorId): void
     {
-        $actor      = $this->userById($actorId);
-        $preparer   = $this->userById((int) $archiveProject->prepared_by_user_id);
+        $preparerId = (int) $archiveProject->prepared_by_user_id;
+
+        $users    = $this->usersByIds([$actorId, $preparerId]);
+        $actor    = $users->get($actorId);
+        $preparer = $users->get($preparerId);
         $archiveUrl = $this->buildProjectUrl('archive', $archiveProject->id);
 
         // Template 3 — PM
@@ -538,8 +562,11 @@ class SprfCurrentWorkflowService
      */
     private function notifyRejected(SprfArchiveProject $archiveProject, int $actorId): void
     {
-        $actor      = $this->userById($actorId);
-        $preparer   = $this->userById((int) $archiveProject->prepared_by_user_id);
+        $preparerId = (int) $archiveProject->prepared_by_user_id;
+
+        $users    = $this->usersByIds([$actorId, $preparerId]);
+        $actor    = $users->get($actorId);
+        $preparer = $users->get($preparerId);
         $archiveUrl = $this->buildProjectUrl('archive', $archiveProject->id);
 
         // Template 5 — PM
@@ -576,8 +603,11 @@ class SprfCurrentWorkflowService
      */
     private function notifyReturnedToPreparer(SprfCurrentProject $project, int $actorId, SprfEntryProject $entryProject): void
     {
-        $actor    = $this->userById($actorId);
-        $preparer = $this->userById((int) $project->prepared_by_user_id);
+        $preparerId = (int) $project->prepared_by_user_id;
+
+        $users    = $this->usersByIds([$actorId, $preparerId]);
+        $actor    = $users->get($actorId);
+        $preparer = $users->get($preparerId);
         $entryUrl = $this->buildProjectUrl('entry', $entryProject->id);
 
         // Template 7 — PM
@@ -615,9 +645,13 @@ class SprfCurrentWorkflowService
      */
     private function notifyPipelineSendBack(SprfCurrentProject $project, int $actorId, int $receiverLevel, string $message = ''): void
     {
-        $actor      = $this->userById($actorId);
-        $preparer   = $this->userById((int) $project->prepared_by_user_id);
-        $receiver   = $this->userById($this->approverUserIdForLevel($project, $receiverLevel));
+        $preparerId = (int) $project->prepared_by_user_id;
+        $receiverId = $this->approverUserIdForLevel($project, $receiverLevel);
+
+        $users      = $this->usersByIds([$actorId, $preparerId, $receiverId ?? 0]);
+        $actor      = $users->get($actorId);
+        $preparer   = $users->get($preparerId);
+        $receiver   = $receiverId ? $users->get($receiverId) : null;
         $projectUrl = $this->buildProjectUrl('current', $project->id);
 
         // Template 9 — previous approver / receiver
@@ -704,6 +738,22 @@ class SprfCurrentWorkflowService
     public function userById(?int $userId): ?User
     {
         return $userId ? User::find($userId) : null;
+    }
+
+    /**
+     * Batched version of userById — fetches all given ids in a single query
+     * instead of one query per id. Falsy ids (0/null) are dropped before the
+     * query, matching userById's "no id → no lookup" behavior. Returns a
+     * Collection keyed by id; ->get($id) on a missing/falsy id yields null,
+     * same as userById would.
+     */
+    private function usersByIds(array $ids): Collection
+    {
+        $ids = array_values(array_unique(array_filter($ids)));
+
+        if (empty($ids)) return collect();
+
+        return User::query()->whereIn('id', $ids)->get()->keyBy('id');
     }
 
     // -------------------------------------------------------------------------

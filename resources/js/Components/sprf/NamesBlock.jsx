@@ -13,9 +13,9 @@ export default function NamesBlock({
   canEditRebateJustification = false,
   isRebateJustificationRequired = false,
   readOnly = false,
+  signatures = {}, // NEW
 }) {
   const isRejected = status === 'rejected';
-
   const isRejectorAtLevel = (level) => isRejected && Number(currentLevel) === level;
 
   const timestampForLevel = (level) => {
@@ -46,13 +46,16 @@ export default function NamesBlock({
               title={leftPreparer.title}
               timestamp={timestampForLevel(1)}
               isRejector={isRejectorAtLevel(1)}
+              signatureUrl={timestampForLevel(1) ? signatures?.preparer : null}
             />
+
             {showDirectorCustomerEngagement && (
-              <Signatory
+            <Signatory
                 name={leftDce.name}
                 title={leftDce.title}
                 timestamp={timestampForLevel(2)}
                 isRejector={isRejectorAtLevel(2)}
+                signatureUrl={timestampForLevel(2) ? signatures?.directorCustomerEngagement : null}
               />
             )}
             {showRebateJustification && showDirectorCustomerEngagement && (
@@ -72,6 +75,7 @@ export default function NamesBlock({
               title={signatories?.esdDirector?.title}
               timestamp={timestampForLevel(3)}
               isRejector={isRejectorAtLevel(3)}
+              signatureUrl={timestampForLevel(3) ? signatures?.esdDirector : null}
             />
             {showVpCcto && (
               <Signatory
@@ -79,6 +83,7 @@ export default function NamesBlock({
                 title={signatories?.vpCcto?.title}
                 timestamp={timestampForLevel(4)}
                 isRejector={isRejectorAtLevel(4)}
+                signatureUrl={timestampForLevel(4) ? signatures?.vpCcto : null}
               />
             )}
             {showPresidentCeo && (
@@ -87,6 +92,7 @@ export default function NamesBlock({
                 title={signatories?.presidentCeo?.title}
                 timestamp={timestampForLevel(5)}
                 isRejector={isRejectorAtLevel(5)}
+                signatureUrl={timestampForLevel(5) ? signatures?.presidentCeo : null}
               />
             )}
           </div>
@@ -104,26 +110,24 @@ function SectionLabel({ label }) {
   );
 }
 
-function Signatory({ name, title, timestamp = null, isRejector = false }) {
-  // --- UPDATED FORMATTER ---
+function Signatory({ name, title, timestamp = null, isRejector = false, signatureUrl = null }) {
   const formatTimestamp = (ts) => {
     if (!ts) return null;
     try {
       const date = new Date(ts);
       if (Number.isNaN(date.getTime())) return null;
-      
+
       const datePart = date.toLocaleDateString('en-US', {
         month: '2-digit',
         day: '2-digit',
         year: '2-digit',
       });
-      // Replace(' ', '') removes the space before AM/PM to match your design
-      const timePart = date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true 
-      }).replace(' ', ''); 
-      
+      const timePart = date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }).replace(' ', '');
+
       return `${datePart} ${timePart}`;
     } catch {
       return null;
@@ -141,8 +145,15 @@ function Signatory({ name, title, timestamp = null, isRejector = false }) {
             {formatted}
           </p>
         </div>
-        <div className="border-b border-gray-400 min-h-[25px] flex items-center justify-center xl:pb-0.5">
-          <span className="text-xs xl:text-sm font-semibold text-gray-900 print:font-medium print:text-xs">
+        <div className="relative border-b border-gray-400 min-h-[25px] flex items-end justify-center xl:pb-0.5">
+          {signatureUrl && (
+            <img
+              src={signatureUrl}
+              alt=""
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 max-h-[70px] max-w-[170px] object-contain pointer-events-none print:max-h-[36px] mix-blend-multiply"
+            />
+          )}
+          <span className="relative text-xs xl:text-sm font-semibold text-gray-900 print:font-medium print:text-xs">
             {name?.trim() || '—'}
           </span>
         </div>

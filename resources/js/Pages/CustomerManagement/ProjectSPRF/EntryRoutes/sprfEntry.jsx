@@ -58,6 +58,7 @@ function Entry({
   canActOnCurrentProject = false,
   canWithdraw: canWithdrawProp = false,
   canCancel: canCancelProp = false,
+  signatures = {},
 }) {
   const { auth } = usePage().props;
 
@@ -1001,6 +1002,8 @@ const [companyInfo, setCompanyInfo] = useState({
                     canEditRebateJustification={canEditRebateJustification}
                     isRebateJustificationRequired={isRebateJustificationRequired}
                     readOnly={readOnly}
+                    signatures={signatures}  
+
                   />
               </div>
 
