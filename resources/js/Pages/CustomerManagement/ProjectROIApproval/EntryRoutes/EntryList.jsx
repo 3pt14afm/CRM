@@ -40,13 +40,22 @@ import { IoMdMore } from 'react-icons/io';
     const [serverStats, setServerStats] = useState(stats);
     const [isLoading, setIsLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-
+    const [isMobile, setIsMobile] = useState(false);
+    
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
     const [showDatePicker, setShowDatePicker] = useState(false);
     const datePickerRef = useRef(null);
+
+    useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)"); // matches your sm: breakpoint
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
     // Sync server props context to local component lifecycle hooks state initially
     useEffect(() => {
@@ -152,11 +161,11 @@ import { IoMdMore } from 'react-icons/io';
     }, [search, statusFilter, dateFrom, dateTo, serverDrafts?.current_page]);
 
     // --- Tiles Setup ---
-    const tiles = useMemo(() => {
+  const tiles = useMemo(() => {
     const totalDrafts = serverStats?.totalDrafts ?? serverDrafts?.total ?? 0;
     const recentlyModified = serverStats?.recentlyModifiedText ?? "—";
 
-    return [
+    const baseTiles = [
       {
         label: "Total Drafts",
         value: totalDrafts,
@@ -169,12 +178,13 @@ import { IoMdMore } from 'react-icons/io';
         icon: <IoTimeOutline />,
         variant: "normal",
       },
-      {
-        // The Magic Happens Here: 
-        // md:hidden shows on mobile, hidden md:inline shows on desktop
+    ];
+
+    if (!isMobile) {
+      baseTiles.push({
         label: (
           <>
-            <span className="sm:hidden">Create Draft</span>
+            <span className="sm:hidden">Create</span>
             <span className="hidden sm:inline">Create New Draft</span>
           </>
         ),
@@ -182,9 +192,11 @@ import { IoMdMore } from 'react-icons/io';
         icon: <IoAddCircleOutline />,
         variant: "action",
         onClick: () => router.visit(route("roi.entry.create")),
-      },
-    ];
-  }, [serverStats, serverDrafts]);
+      });
+    }
+
+    return baseTiles;
+  }, [serverStats, serverDrafts, isMobile]);
 
     const handleDelete = (row) => {
       const ref = row.reference ?? row.id;
@@ -290,6 +302,15 @@ import { IoMdMore } from 'react-icons/io';
             </span>
           ),
         },
+            {
+              key: "type",
+              header: <div className="text-center w-full">TYPE</div>,
+              cell: (r) => (
+                <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+                  {r.type === 1 ? "Existing" : "Potential"}
+                </span>
+              ),
+            },
         {
           key: "last_saved_at",
           header: <div className="text-center w-full">LAST SAVED</div>,
@@ -620,6 +641,16 @@ import { IoMdMore } from 'react-icons/io';
               renderCard={renderEntryCard}
             />
           </div>
+                {/* Floating "Create New Draft" button — mobile only */}
+      <button
+        type="button"
+        onClick={() => router.visit(route("roi.entry.create"))}
+        aria-label="Create New Draft"
+        className="sm:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center h-14 w-14 rounded-full bg-[#289800]/80 text-white shadow-lg active:scale-95 transition-transform"
+      >
+        <FaPlus className="text-xl" />
+      </button>
+
           <FlashMessages />
         </div>
       </>

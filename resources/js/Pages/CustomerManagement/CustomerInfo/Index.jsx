@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import axios from 'axios';
 import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
@@ -84,6 +85,12 @@ function Index({ companies, potentials, filters, categories = [] }) {
     const [showStatusPicker, setShowStatusPicker] = useState(false);
     const statusPickerRef = useRef(null);
 
+    // ── Axios-based search state ──
+    const [searchResults, setSearchResults] = useState(null); // { companies, potentials } | null, overrides Inertia props when set
+    const [isSearching,   setIsSearching]   = useState(false);
+    const searchDebounceRef = useRef(null);
+    const searchAbortRef    = useRef(null);
+
     // Persist filters to localStorage whenever they change
     useEffect(() => {
         try {
@@ -103,6 +110,14 @@ function Index({ companies, potentials, filters, categories = [] }) {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
+    // Clean up any pending debounce/in-flight request on unmount
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+            if (searchAbortRef.current) searchAbortRef.current.abort();
+        };
+    }, []);
+
     const updateFilters = (newFilters) => {
         const updated = { ...searchState, ...newFilters };
         setSearchState(updated);
@@ -112,6 +127,48 @@ function Index({ companies, potentials, filters, categories = [] }) {
         });
     };
 
+    // ── Axios search: fetches results without a full Inertia page visit ──
+    const runSearch = (value, currentFilters) => {
+        // Cancel any in-flight request before starting a new one
+        if (searchAbortRef.current) searchAbortRef.current.abort();
+        const controller = new AbortController();
+        searchAbortRef.current = controller;
+
+        setIsSearching(true);
+
+        axios.get(route('customerinfo.companies.index'), {
+            params: { ...currentFilters, search: value },
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            signal: controller.signal,
+        })
+            .then((res) => {
+                // Expecting { companies: {...paginator}, potentials: {...paginator} } from the backend
+                setSearchResults(res.data);
+            })
+            .catch((err) => {
+                if (axios.isCancel?.(err) || err.name === 'CanceledError') return;
+                console.error('Search request failed:', err);
+            })
+            .finally(() => setIsSearching(false));
+    };
+
+const handleSearchChange = (value) => {
+    const updated = { ...searchState, search: value };
+    setSearchState(updated); // keep input responsive immediately
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+        // Sync the URL/history WITHOUT a server round-trip or Inertia visit
+        const params = new URLSearchParams(updated).toString();
+        window.history.replaceState(
+            window.history.state,
+            '',
+            `${route('customerinfo.companies.index')}?${params}`
+        );
+
+        runSearch(value, updated);
+    }, 350);
+};
     const handleSort = (key) => {
         const newOrder = searchState.sort_by === key && searchState.sort_order === 'asc'
             ? 'desc' : 'asc';
@@ -152,6 +209,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
         };
         setSearchState(reset);
         setPerPageInput(String(reset.per_page));
+        setSearchResults(null); // drop any axios-search override so Inertia props take over again
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
         router.get(route('customerinfo.companies.index'), reset, {
             preserveState: true,
@@ -405,12 +463,16 @@ function Index({ companies, potentials, filters, categories = [] }) {
         );
     };
 
-    const rows       = companies?.data ?? [];
-    const pagination = companies && typeof companies.current_page === 'number'
+    // Use axios search results when available (search term active), otherwise fall back to Inertia props
+    const effectiveCompanies  = searchResults?.companies  ?? companies;
+    const effectivePotentials = searchResults?.potentials ?? potentials;
+
+    const rows       = effectiveCompanies?.data ?? [];
+    const pagination = effectiveCompanies && typeof effectiveCompanies.current_page === 'number'
         ? {
-            page:         companies.current_page,
-            perPage:      companies.per_page ?? 12,
-            total:        companies.total ?? rows.length,
+            page:         effectiveCompanies.current_page,
+            perPage:      effectiveCompanies.per_page ?? 12,
+            total:        effectiveCompanies.total ?? rows.length,
             onPageChange: goToPage,
           }
         : null;
@@ -422,7 +484,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
         type="text"
         placeholder="Search"
         value={searchState.search}
-        onChange={(e) => updateFilters({ search: e.target.value })}
+        onChange={(e) => handleSearchChange(e.target.value)}
         className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
             outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
             
@@ -642,6 +704,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
                             pagination={pagination}
                             searchControl={searchControl}
                             filterControl={filterToolbar}
+                             loading={isSearching}
                             onRowClick={(r) => {
                                 setSelectedCompany(r);
                                 setIsSidebarOpen(true);
@@ -656,14 +719,15 @@ function Index({ companies, potentials, filters, categories = [] }) {
                         <ProjectListSection
                             tableTitle="Potential Customers"
                             columns={potentialsColumns}
-                            rows={potentials?.data ?? []}
+                            rows={effectivePotentials?.data ?? []}
                             rowKey={(r) => String(r.id)}
+                             loading={isSearching}
                             pagination={
-                                potentials && typeof potentials.current_page === 'number'
+                                effectivePotentials && typeof effectivePotentials.current_page === 'number'
                                     ? {
-                                        page:         potentials.current_page,
-                                        perPage:      potentials.per_page ?? 12,
-                                        total:        potentials.total ?? 0,
+                                        page:         effectivePotentials.current_page,
+                                        perPage:      effectivePotentials.per_page ?? 12,
+                                        total:        effectivePotentials.total ?? 0,
                                         onPageChange: (p) => router.get(
                                             route('customerinfo.companies.index'),
                                             { ...searchState, page: p },
