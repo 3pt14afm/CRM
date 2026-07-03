@@ -419,7 +419,7 @@ import { IoMdMore } from 'react-icons/io';
         <div className="gap-2">
           {/* Top Row: Type & Status Badge */}
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs text-slate-500">{r.type === 1 ? 'Existing' : 'Potential'}</p>
+            <p className={`text-xs ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
             <div className="flex items-start justify-end gap-1">
               <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap
                 ${isSentBack
@@ -642,14 +642,14 @@ import { IoMdMore } from 'react-icons/io';
             />
           </div>
                 {/* Floating "Create New Draft" button — mobile only */}
-      <button
-        type="button"
-        onClick={() => router.visit(route("roi.entry.create"))}
-        aria-label="Create New Draft"
-        className="sm:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center h-14 w-14 rounded-full bg-[#289800]/80 text-white shadow-lg active:scale-95 transition-transform"
-      >
-        <FaPlus className="text-xl" />
-      </button>
+            <button
+              type="button"
+              onClick={() => router.visit(route("roi.entry.create"))}
+              aria-label="Create New Draft"
+              className="sm:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center h-14 w-14 rounded-full bg-[#289800]/80 text-white shadow-lg active:scale-95 transition-transform"
+            >
+              <FaPlus className="text-xl" />
+            </button>
 
           <FlashMessages />
         </div>

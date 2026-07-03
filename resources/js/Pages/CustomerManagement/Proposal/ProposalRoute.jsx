@@ -34,12 +34,12 @@ export default function ProposalRoute({ proposals, stats, generatedproposals, ge
             {/* Header ... */}
 
             {/* 2. Use Link instead of button for routing */}
-         <div className="px-4 sm:px-6 lg:px-10 mt-6 mb-3">
+         <div className="px-4 sm:px-4 lg:px-10 mt-6 mb-3">
                 <div className="flex rounded-full bg-[#f8f8f8] w-fit border-2 border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
                     <button
                         type="button"
                         onClick={() => setActiveTab('archive')}
-                        className={`px-4 text-sm m-0.5 mr-0 py-1.5 ${
+                        className={`px-2 lg:px-4 text-xs lg:text-sm m-0.5 mr-0 py-1.5 ${
                             activeTab === 'archive'
                                 ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800]'
                                 : 'rounded-t-xl text-slate-500'
@@ -50,7 +50,7 @@ export default function ProposalRoute({ proposals, stats, generatedproposals, ge
                     <button
                         type="button"
                         onClick={() => setActiveTab('generated')}
-                        className={`px-4 text-sm m-0.5 ml-0 py-1.5 ${
+                        className={`px-2 lg:px-4 text-xs lg:text-sm m-0.5 ml-0 py-1.5 ${
                             activeTab === 'generated'
                                 ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800]'
                                 : 'rounded-t-xl text-slate-500'

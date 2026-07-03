@@ -83,6 +83,7 @@ class RoiController extends Controller
                     'company_sap_code' => $p->company_sap_code, 
                     'contract_years' => $p->contract_years,
                     'contract_type' => $p->contract_type,
+                     'type' => $p->type, // ✅ add this
                     'last_saved_display' => $display,
                     'status' => $p->status,
                 ];

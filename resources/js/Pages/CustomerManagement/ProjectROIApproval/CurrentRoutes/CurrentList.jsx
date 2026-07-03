@@ -564,7 +564,7 @@ const handleClearAllFilters = () => {
     >
       <div className="gap-2">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-xs text-slate-500">{r.type === 1 ? 'Existing' : 'Potential'}</p>
+          <p className={`text-xs ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
           <div className="shrink-0 flex flex-col items-end gap-1 justify-end">
             <span className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">
               {r.status_display_main ?? r.status}
