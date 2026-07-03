@@ -6,22 +6,22 @@ import { SignatureIcon, CloseIcon } from './ProfileIcons';
 
  function SignatureRow({ icon, title, subtitle, action, onAction, onView, signatureUrl = null }) {
     return (
-        <div className="flex items-center justify-between gap-4 rounded-xl pb-3">
-            <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-gray-300">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 rounded-xl pb-3">
+            <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-gray-300">
                     {icon}
                 </div>
-                <div>
-                    <p className="text-[13px] font-medium text-gray-900">{title}</p>
-                    <p className="text-[11px] text-gray-400">{subtitle}</p>
+                <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-gray-900 truncate">{title}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{subtitle}</p>
                 </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 ml-auto sm:ml-0">
                 {signatureUrl ? (
                     <button
                         type="button"
                         onClick={onView}
-                        className="h-10 w-32 rounded-lg border border-gray-200 bg-white overflow-hidden flex items-center justify-center hover:border-gray-400 hover:shadow-sm transition"
+                        className="h-10 w-24 sm:w-32 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden flex items-center justify-center hover:border-gray-400 hover:shadow-sm transition"
                         title="Click to view"
                     >
                         <img
@@ -31,14 +31,14 @@ import { SignatureIcon, CloseIcon } from './ProfileIcons';
                         />
                     </button>
                 ) : (
-                    <div className="h-10 w-32 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
+                    <div className="h-10 w-24 sm:w-32 shrink-0 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
                         <p className="text-[10px] text-gray-300">No signature</p>
                     </div>
                 )}
                 <button
                     type="button"
                     onClick={onAction}
-                    className="text-xs font-medium text-darkgreen transition hover:text-[#2a9e00]"
+                    className="shrink-0 text-xs font-medium text-darkgreen transition hover:text-[#2a9e00]"
                 >
                     {action} <span aria-hidden="true">›</span>
                 </button>
@@ -150,7 +150,7 @@ export default function SignatureSection({ profile }) {
                     onClick={handleCloseSignatureModal}
                 >
                     <div
-                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+                        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl sm:p-7"
                         onClick={(e) => e.stopPropagation()}
                         role="dialog"
                         aria-modal="true"
@@ -205,7 +205,7 @@ export default function SignatureSection({ profile }) {
                                     className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-500 hover:border-[#289800] hover:bg-green-50 hover:text-[#289800] transition text-left"
                                 >
                                     {pendingFile ? (
-                                        <span className="text-gray-700 font-medium">{pendingFile.name}</span>
+                                        <span className="text-gray-700 font-medium truncate block">{pendingFile.name}</span>
                                     ) : (
                                         <span>Click to browse — PNG, JPG, JPEG, WEBP up to 3MB</span>
                                     )}
@@ -241,7 +241,7 @@ export default function SignatureSection({ profile }) {
                     onClick={() => setShowSignatureViewer(false)}
                 >
                     <div
-                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+                        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl sm:p-7"
                         onClick={(e) => e.stopPropagation()}
                         role="dialog"
                         aria-modal="true"

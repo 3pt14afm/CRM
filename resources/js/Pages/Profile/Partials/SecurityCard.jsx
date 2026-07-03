@@ -3,14 +3,14 @@ import { LockIcon, ShieldIcon } from './ProfileIcons';
 
 function SecurityRow({ icon, title, subtitle, action, onAction, disabled = false }) {
     return (
-        <div className="flex items-center justify-between gap-4 rounded-xl pb-3">
-            <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-gray-300">
+        <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-xl pb-3">
+            <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-gray-300">
                     {icon}
                 </div>
-                <div>
-                    <p className="text-[13px] font-medium text-gray-900">{title}</p>
-                    <p className="text-[11px] text-gray-400">{subtitle}</p>
+                <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-gray-900 truncate">{title}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{subtitle}</p>
                 </div>
             </div>
             <button
@@ -19,8 +19,8 @@ function SecurityRow({ icon, title, subtitle, action, onAction, disabled = false
                 disabled={disabled}
                 className={
                     disabled
-                        ? 'cursor-not-allowed text-xs font-medium text-gray-300'
-                        : 'text-xs font-medium text-darkgreen transition hover:text-[#2a9e00]'
+                        ? 'shrink-0 cursor-not-allowed text-xs font-medium text-gray-300'
+                        : 'shrink-0 text-xs font-medium text-darkgreen transition hover:text-[#2a9e00]'
                 }
             >
                 {action} <span aria-hidden="true">›</span>

@@ -83,17 +83,17 @@ export default function ProfileBanner({ profile }) {
         <>
             <div className="mb-8">
                 {/* Banner */}
-                <div className="h-32 w-full rounded-2xl bg-gradient-to-br from-darkgreen/50 to-green/50 shadow-sm" />
+                <div className="h-24 sm:h-32 w-full rounded-2xl bg-gradient-to-br from-darkgreen/50 to-green/50 shadow-sm" />
 
                 {/* Avatar + Name Row */}
-                <div className="px-8 -mt-9 flex flex-row items-end gap-4">
+                <div className="px-4 sm:px-8 -mt-7 sm:-mt-9 flex flex-row items-end gap-3 sm:gap-4">
 
                     {/* Avatar */}
-                    <div className="relative group">
+                    <div className="relative group shrink-0">
                         <button
                             type="button"
                             onClick={() => avatarUrl ? setShowAvatarViewer(true) : avatarInputRef.current?.click()}
-                            className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-darkgreen to-green text-xl font-semibold text-white shadow-sm"
+                            className="flex h-16 w-16 sm:h-24 sm:w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-darkgreen to-green text-base sm:text-xl font-semibold text-white shadow-sm"
                             title={avatarUrl ? 'View profile picture' : 'Upload profile picture'}
                         >
                         {avatarUrl ? (
@@ -101,7 +101,7 @@ export default function ProfileBanner({ profile }) {
                                 {avatarLoading && (
                                     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-darkgreen to-green">
                                         <svg
-                                            className="animate-spin h-6 w-6 text-white/70"
+                                            className="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-white/70"
                                             xmlns="http://www.w3.org/2000/svg"
                                             fill="none"
                                             viewBox="0 0 24 24"
@@ -135,7 +135,7 @@ export default function ProfileBanner({ profile }) {
                         <button
                             type="button"
                             onClick={() => avatarInputRef.current?.click()}
-                            className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
+                            className="absolute bottom-0 right-0 flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
                             title="Change Profile Picture"
                         >
                             <EditPenIcon />
@@ -143,9 +143,9 @@ export default function ProfileBanner({ profile }) {
                     </div>
 
                     {/* Name + Subtitle */}
-                    <div className="mb-1">
-                        <h3 className="text-lg font-semibold text-slate-900">{profile.name}</h3>
-                        {subtitle && <p className="text-[13px] text-slate-500">{subtitle}</p>}
+                    <div className="mb-1 min-w-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-slate-900 truncate">{profile.name}</h3>
+                        {subtitle && <p className="text-xs sm:text-[13px] text-slate-500 truncate">{subtitle}</p>}
                     </div>
                 </div>
             </div>
@@ -157,7 +157,7 @@ export default function ProfileBanner({ profile }) {
                     onClick={() => setShowAvatarViewer(false)}
                 >
                     <div
-                        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+                        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl sm:p-7"
                         onClick={(e) => e.stopPropagation()}
                         role="dialog"
                         aria-modal="true"
@@ -178,11 +178,11 @@ export default function ProfileBanner({ profile }) {
                         </div>
 
                         <div className="mt-6">
-                            <div className="w-full rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden p-6">
+                            <div className="w-full rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden p-4 sm:p-6">
                                 <img
                                     src={avatarUrl}
                                     alt={profile.name}
-                                    className="h-48 w-48 rounded-full object-cover border-4 border-white shadow-md"
+                                    className="h-36 w-36 sm:h-48 sm:w-48 rounded-full object-cover border-4 border-white shadow-md"
                                 />
                             </div>
                             <p className="mt-3 text-center text-sm font-semibold text-gray-800">{profile.name}</p>
@@ -221,7 +221,7 @@ export default function ProfileBanner({ profile }) {
                     onClick={handleCancelAvatarModal}
                 >
                     <div
-                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl sm:p-7"
+                        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl sm:p-7"
                         onClick={(e) => e.stopPropagation()}
                         role="dialog"
                         aria-modal="true"
@@ -246,7 +246,7 @@ export default function ProfileBanner({ profile }) {
                                 <p className="block text-[13px] font-bold text-slate-600 mb-1.5">
                                     Preview
                                 </p>
-                                <div className="w-full h-48 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden p-3">
+                                <div className="w-full h-40 sm:h-48 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden p-3">
                                     {pendingAvatarPreview ? (
                                         <img
                                             src={pendingAvatarPreview}
