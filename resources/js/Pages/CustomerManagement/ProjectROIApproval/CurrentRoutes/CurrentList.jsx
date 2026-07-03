@@ -564,7 +564,7 @@ const handleClearAllFilters = () => {
     >
       <div className="gap-2">
         <div className="flex items-start justify-between gap-2">
-          <p className={`text-xs ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
+          <p className={`text-[11px] font-medium ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
           <div className="shrink-0 flex flex-col items-end gap-1 justify-end">
             <span className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">
               {r.status_display_main ?? r.status}
@@ -585,8 +585,8 @@ const handleClearAllFilters = () => {
       </div>
       
       <p className="flex items-center justify-between text-[11px] text-slate-500">
-        <span>Prepared by <span className="text-[#195c00] font-semibold">{r.user?.name ?? '—'}</span></span>
-        <span>{r.last_saved_display ?? '—'}</span>
+        <span className="normal-case text-[10px] text-slate-500 italic">prepared by <span className="text-[#195c00] font-semibold">{r.user?.name ?? '—'}</span></span>
+        <span className="normal-case text-[10px] text-slate-500">{r.last_saved_display ?? '—'}</span>
       </p>
     </div>
   );
@@ -655,16 +655,44 @@ const handleClearAllFilters = () => {
 
   return (
     <>
+    {/* PAGE NAVIGATION TABS (Mobile Only) */}
+    <div className="sticky top-0 z-40 px-4 py-1.5 pb-2 sm:hidden">
+      <div className="flex rounded-full bg-[#f8f8f8] w-full border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+        <button
+          type="button"
+          onClick={() => router.visit(route('roi.entry.list'))}
+          className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+        >
+          Drafts
+        </button>
+              
+        <button
+          type="button"
+          className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800] border border-[#B5EBA2]/60"
+        >
+          Current
+        </button>
+                
+        <button
+          type="button"
+          onClick={() => router.visit(route('roi.archive'))}
+          className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+        >
+          Archive
+        </button>              
+      </div>
+    </div>   
+
     <Head title="ROI Current" />
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 pb-24">
-        <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
+        <div className="px-4 sm:px-6 lg:px-10 pt-2 md:pt-8 pb-3 flex justify-between items-end">
           <div className="flex items-baseline gap-1">
-            <h1 className="font-semibold text-xs md:text-sm text-slate-500 hidden sm:block">Project ROI Approval</h1>
+            <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project ROI Approval</h1>
             <span className="text-slate-400 hidden sm:block">/</span>
-            <p className="text-2xl sm:text-3xl font-semibold text-slate-900">Current</p>
+            <p className="text-2xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Current</p>
           </div>
-          <span className="text-[11px] md:text-xs text-slate-500">{formattedDate}</span>
+          <span className="text-[10px] md:text-xs text-slate-500">{formattedDate}</span>
         </div>
 
         <ProjectListSection

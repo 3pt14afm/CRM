@@ -51,8 +51,8 @@ export function useApprovalActions({ entryProject, sendBackType }) {
                 const processId = 'reject-process';
                 router.post(ziggyRoute('roi.current.reject', entryProject.id), {}, {
                   onStart:   () => toast.loading('Rejecting...', { id: processId }),
-                  onSuccess: () => toast.success('Project rejected.', { id: processId }),
-                  onError:   () => toast.error('Failed to reject.', { id: processId }),
+                  onSuccess: () => toast.success('Project disapproved.', { id: processId }),
+                  onError:   () => toast.error('Failed to disapprove project.', { id: processId }),
                 });
               }, 50);
             }}

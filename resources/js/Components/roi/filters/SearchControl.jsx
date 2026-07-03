@@ -27,18 +27,38 @@ export default function SearchControl({
   return (
     <div className="flex items-center gap-1 md:gap-2">
       {/* Search input */}
-      <div className="relative h-6 flex items-center">
-        <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
+      <div className="relative h-7 md:h-8 flex items-center min-w-0 flex-shrink-0">        
         <input
           type="text"
           placeholder="Search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className={`h-7 md:h-8 w-40 md:w-52 pl-8 pr-3 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white text-black
-            placeholder:text-slate-400 outline-none focus:ring-0 focus:border-[#289800]
-            transition-[border-color,box-shadow] duration-150
-            ${loading ? "opacity-60 pointer-events-none" : ""}`}
+          className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
+            outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
+            
+            /* Preserving your loading state logic */
+            ${loading ? "opacity-60 pointer-events-none" : ""}
+            
+            /* Desktop styling: Always expanded (using your w-52) */
+            md:w-52 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
+            
+            /* Mobile styling: Conditional based on whether text has been entered */
+            ${search 
+              ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" 
+              : "w-7 px-0 text-transparent placeholder:text-transparent cursor-pointer focus:w-40 focus:pl-8 focus:pr-3 focus:text-black focus:placeholder:text-slate-400 focus:cursor-text"
+            }
+          `}
         />
+
+        <MdSearch 
+          className={`absolute text-slate-400 text-base pointer-events-none z-10 transition-all duration-300 
+            /* Centers the icon when collapsed, moves it to the left when focused, typed in, or on desktop */
+            ${search 
+              ? "left-2.5 translate-x-0" 
+              : "left-1/2 -translate-x-1/2 peer-focus:left-2.5 peer-focus:translate-x-0 md:left-2.5 md:translate-x-0"
+            }`} 
+        />
+        
       </div>
 
       {/* Sort button */}

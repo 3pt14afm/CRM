@@ -484,7 +484,7 @@ class RoiCurrentProjectController extends Controller
 
         $this->workflowService->handleReject($project, $user);
 
-        return to_route('roi.current')->with('success', 'Project rejected and archived.');
+        return to_route('roi.current')->with('success', 'Project disapproved and archived.');
     }
 
     public function approve($id)

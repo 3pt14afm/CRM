@@ -522,7 +522,7 @@ const handleSearchChange = (value) => {
                     <select
                         value={searchState.delsan_company}
                         onChange={(e) => updateFilters({ delsan_company: e.target.value })}
-                        className="h-7 md:h-9 w-[94px] md:w-36 pl-[21px] md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer truncate
+                        className="h-7 md:h-9 w-[90px] md:w-36 pl-[21px] md:pl-8 pr-4 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer truncate
                             focus:outline-none focus:ring-0 focus:border-[#4FA34E]
                             transition-[border-color,box-shadow] duration-150 text-slate-700"
                     >
@@ -541,7 +541,7 @@ const handleSearchChange = (value) => {
                     <select
                         value={searchState.category}
                         onChange={(e) => updateFilters({ category: e.target.value })}
-                        className="h-7 md:h-9 w-[100px] md:w-36 pl-[21px] truncate md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+                        className="h-7 md:h-9 w-[90px] md:w-36 pl-[21px] truncate md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
                             focus:outline-none focus:ring-0 focus:border-[#4FA34E]
                             transition-[border-color,box-shadow] duration-150 text-slate-700"
                     >
@@ -594,20 +594,20 @@ const handleSearchChange = (value) => {
                 <button
                     type="button"
                     onClick={() => setShowPerPagePicker((p) => !p)}
-                    className="h-7 md:h-9 px-1 md:px-3 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-600 flex items-center gap-0.5 md:gap-1.5 bg-white hover:bg-slate-50 transition-colors"
+                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[60px] sm:w-24 md:w-36"
                 >
-                    <TbLayoutRows size={15} className="text-slate-400" />
-                    <span>Rows: {searchState.per_page}</span>
-                    <MdExpandMore size={14} className="text-slate-400" />
+                    <TbLayoutRows className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
+                    <span className="flex-1 text-left pt-0.5 truncate"><span className="hidden sm:inline">Rows: </span>{searchState.per_page}</span>
+                    <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
                 </button>
 
                 {showPerPagePicker && (
-                    <div className="absolute -left-8 top-9 md:top-12 md:-left-2 z-50 w-36 bg-white border border-gray-300 rounded-2xl shadow-lg p-2 md:p-3">
+                    <div className="absolute -left-20 sm:-left-10 top-9 md:top-12 md:-left-2 z-50 w-36 bg-white border border-gray-300 rounded-2xl shadow-lg p-3">
                         <span className="block text-[9px] md:text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
                             Rows per page
                         </span>
                         <div className="flex items-center gap-1.5">
-                            <input
+                            <input  
                                 autoFocus
                                 type="number"
                                 min="1"

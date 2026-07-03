@@ -1,8 +1,7 @@
 import React from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import ArchiveList from './ArchiveList';
-import { FaAngleLeft } from 'react-icons/fa';
 
 export default function Archive({ archiveProjects = null, stats = null, filters = null, locations=[], isAdmin,   }) {
   const today = new Date();
@@ -14,13 +13,40 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
 
   return (
     <>
+      {/* PAGE NAVIGATION TABS (Mobile Only) */}
+      <div className="sticky top-0 z-40 px-4 py-1.5 pb-2 bg-[#f5f5f7] sm:hidden">
+        <div className="flex rounded-full bg-[#f8f8f8] w-full border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+          <button
+            type="button"
+            onClick={() => router.visit(route('roi.entry.list'))}
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+          >
+            Drafts
+          </button>
+                  
+          <button
+            type="button"
+            onClick={() => router.visit(route('roi.current'))}
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+          >
+            Current
+          </button>
+                    
+          <button
+            type="button"
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800] border border-[#B5EBA2]/60"
+          >
+            Archive
+          </button>              
+        </div>
+      </div>    
       <Head title="ROI Archive" />
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
 
           {/* HEADER */}
-          <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
+          <div className="px-4 sm:px-6 lg:px-10 pt-2 sm:pt-8 pb-3 flex justify-between items-end">
             <div className="flex items-baseline gap-1">
               {/* <button
                 type="button"
@@ -29,14 +55,12 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
               >
                 <FaAngleLeft size={20} className="text-[#195C00]" />
               </button> */}
-              <h1 className="font-semibold text-sm text-slate-500 hidden sm:block">
-                Project ROI Approval
-              </h1>
-              <span className="text-slate-400 hidden sm:block">/</span>
-              <p className="text-2xl sm:text-3xl font-semibold text-slate-900">Archive</p>
+              <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project ROI Approval</h1>
+              <span className="text-xs sm:text-base text-slate-400 hidden sm:block">/</span>
+              <p className="text-xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Archive</p>
             </div>
 
-            <h1 className="text-xs text-slate-500">{formattedDate}</h1>
+            <h1 className="text-[10px] md:text-xs text-slate-500">{formattedDate}</h1>
           </div>
 
           <ArchiveList
@@ -45,7 +69,6 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
             stats={stats}
             filters={filters}
             isAdmin ={isAdmin }
-            
           />
         </div>
       </div>
