@@ -104,6 +104,46 @@ function GeneratedProposals({ proposals, stats }) {
     onPageChange: goToPage,
   } : null;
 
+  // --- Mobile card layout (below md) ---
+  const renderProposalCard = (r) => {
+    const isGenerated = r.status === 'generated';
+    return (
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold">{r.proposal_ref}</p>
+            <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${
+              isGenerated
+                ? "bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20"
+                : "bg-amber-50 text-amber-600 border-amber-200"
+            }`}>
+              {r.status}
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
+          <p className="text-[11px] text-slate-400 font-mono">{r.project_ref}</p>
+          <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-500">
+            <IoTimeOutline />
+            <span>{r.updated_at}</span>
+          </p>
+        </div>
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="px-2 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/10 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+            onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
+          >
+            {isGenerated ? (
+              <FaFileInvoice className="text-[12px]" />
+            ) : (
+              <FaPen className="text-[11px]" />
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ProjectListSection
       tiles={tiles}
@@ -112,6 +152,7 @@ function GeneratedProposals({ proposals, stats }) {
       rows={rows}
       rowKey={(r) => String(r.proposal_id)}
       pagination={pagination}
+      renderCard={renderProposalCard}
     />
   );
 }

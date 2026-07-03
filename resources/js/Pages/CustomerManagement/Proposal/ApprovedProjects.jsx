@@ -470,6 +470,39 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     />
   );
 
+  // --- Mobile card layout (below md) ---
+  const renderApprovedCard = (r) => (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-semibold">{r.reference ?? '—'}</p>
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
+            {r.status ?? 'APPROVED'}
+          </span>
+        </div>
+        <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
+        <p className="mt-1 text-[11px] text-slate-500">
+          {r.contract_years != null ? `${r.contract_years} Years` : '—'} · {r.type === 1 ? 'Existing' : 'Potential'}
+        </p>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Prepared by <span className="font-medium text-slate-700">{r.user?.name ?? '—'}</span>
+        </p>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Approved by <span className="font-medium text-slate-700">{r.decided_by_name ?? '—'}</span>
+        </p>
+      </div>
+      <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
+        >
+          <FaFileInvoice className="text-[15px]" />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <ProjectListSection
       tiles={tiles}
@@ -482,6 +515,7 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
       filterControl={filterToolbar}
       loading={loading || isRefreshing}
       emptyText="No matching records found."
+      renderCard={renderApprovedCard}
     />
   );
 }
