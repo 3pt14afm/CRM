@@ -392,7 +392,6 @@ import { IoMdMore } from 'react-icons/io';
 
     // --- Mobile card layout (below md) ---
     const renderEntryCard = (r) => {
-    // 1. Preserve your skeleton loader
     if (r.isSkeleton) {
       return (
         <div className="flex items-center gap-3 animate-pulse px-2 py-3">
@@ -405,7 +404,6 @@ import { IoMdMore } from 'react-icons/io';
       );
     }
 
-    // 2. Preserve your status color logic
     const statusLower = r.status?.toLowerCase() ?? '';
     const isDraft = statusLower === 'draft';
     const isSentBack = statusLower === 'returned' || statusLower === 'sent back';
@@ -419,7 +417,7 @@ import { IoMdMore } from 'react-icons/io';
         <div className="gap-2">
           {/* Top Row: Type & Status Badge */}
           <div className="flex items-start justify-between gap-2">
-            <p className={`text-xs ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
+            <p className={`text-[11px] font-medium ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
             <div className="flex items-start justify-end gap-1">
               <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap
                 ${isSentBack
@@ -440,7 +438,7 @@ import { IoMdMore } from 'react-icons/io';
           </div>
 
           {/* Middle Row: Company Details */}
-          <div className="min-w-0 leading-relaxed pt-2">     
+          <div className="min-w-0 leading-relaxed pt-2.5">     
             <p className="text-xs font-medium">{r.reference ?? '—'}</p>
             <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
             <p className="text-[11px] text-slate-800 font-semibold font-mono">{r.company_sap_code ?? ''}</p>
@@ -611,20 +609,49 @@ import { IoMdMore } from 'react-icons/io';
 
     return (
       <>
+        {/* PAGE NAVIGATION TABS (Mobile Only) */}
+        <div className="sticky top-0 z-40 px-4 py-1.5 pb-2 sm:hidden">
+            <div className="flex rounded-full bg-[#f8f8f8] border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+                <button
+                    type="button"
+                    className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800] border border-[#B5EBA2]/60"
+                >
+                    Drafts
+                </button>
+                
+                <button
+                    type="button"
+                    onClick={() => router.visit(route('roi.current'))}
+                    className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+                >
+                    Current
+                </button>
+                
+                <button
+                    type="button"
+                    onClick={() => router.visit(route('roi.archive'))}
+                    className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+                >
+                    Archive
+                </button>
+                
+            </div>
+        </div>
+
         <Head title="ROI Entry" />
 
         <div className="min-h-screen flex flex-col">
           <div className="flex-1 pb-24">
             {/* HEADER */}
-            <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-3 flex justify-between items-end">
+            <div className="px-4 sm:px-6 lg:px-10 pt-2 sm:pt-8 pb-3 flex justify-between items-end">
               <div className="flex items-baseline gap-1">
-                <h1 className="font-semibold text-xs md:text-sm text-slate-500">Project ROI Approval</h1>
-                <span className="text-slate-400">/</span>
-                <p className="text-2xl sm:text-3xl font-semibold text-slate-900">Entry</p>
+                <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project ROI Approval</h1>
+                <span className="text-slate-400 hidden sm:block">/</span>
+                <p className="text-2xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Entry</p>
               </div>
 
               <div className="flex flex-col gap-1 items-end">
-                <h1 className="text-[11px] md:text-xs text-right text-slate-500">{formattedDate}</h1>
+                <h1 className="text-[10px] md:text-xs text-right text-slate-500">{formattedDate}</h1>
               </div>
             </div>
 

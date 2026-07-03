@@ -28,13 +28,13 @@ const SubAccordion = ({ id, label, openId, onToggle, children }) => {
         <button
           type="button"
           onClick={() => onToggle(id)}
-          className={`flex-1 text-left pl-8 py-2 text-[11px] tracking-tight font-medium ${
+          className={`flex-1 text-left pl-5 py-2 text-[11px] tracking-tight font-medium ${
             open ? 'text-darkgreen font-semibold opacity-100' : 'text-darkgreen/70 opacity-80'
           }`}
         >
           {label}
         </button>
-        <button onClick={() => onToggle(id)} className="px-6 py-2" type="button" aria-label={`Toggle ${label}`}>
+        <button onClick={() => onToggle(id)} className="px-4 py-1.5" type="button" aria-label={`Toggle ${label}`}>
           <span className={`inline-block transition-transform duration-300 ${open ? 'rotate-90' : 'opacity-80'}`}>
             <IoIosArrowForward size={12} color={open ? 'rgba(19, 51, 7, 0.85)' : 'rgba(19, 51, 7, 0.7)'} />
           </span>
@@ -74,26 +74,26 @@ const ModuleSection = ({
           }}
           className={`flex items-center flex-1 min-w-0 ${isActive ? 'text-black' : 'text-darkgreen'}`}
         >
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0">
+          <div className="flex items-center justify-center w-5 h-5 rounded-lg shrink-0">
             <img src={icon} alt={label} />
           </div>
-          <span className="ml-3 text-xs tracking-wide font-semibold">{label}</span>
+          <span className="ml-2 text-[11px] font-medium">{label}</span>
         </Link>
 
         <button
           onClick={() => onToggle(id)}
-          className="p-2"
+          className=""
           aria-label={`Toggle ${label}`}
           type="button"
         >
           <span className={`inline-block transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`}>
-            <IoIosArrowForward color="black" size={14} />
+            <IoIosArrowForward color="black" size={12} />
           </span>
         </button>
       </div>
 
       {expanded && (
-        <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-[0px_0px_0px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_2px_5px_rgba(0,0,0,0.3)] mb-3">
+        <div className="bg-lightgreen/50 rounded-b-lg py-2 pl-4 shadow-[0px_0px_0px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_2px_5px_rgba(0,0,0,0.3)] mb-3">
           {children}
         </div>
       )}
@@ -105,7 +105,7 @@ const PlainLink = ({ href, onNavigate, children }) => (
   <Link
     href={href}
     onClick={onNavigate}
-    className="block px-8 py-2 text-[11px] font-medium text-darkgreen/70 opacity-80"
+    className="block px-5 py-2 text-[11px] font-medium text-darkgreen/70 opacity-80"
   >
     {children}
   </Link>
@@ -200,10 +200,10 @@ export default function MobileTopNav() {
           aria-label="Open menu"
           type="button"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-4 h-4" />
         </button>
 
-        <img src="/images/logoSmall.webp" alt="CRM Logo" className="h-8 w-auto" />
+        <img src="/images/logoSmall.webp" alt="CRM Logo" className="h-7 w-auto" />
 
         <div className="relative" ref={profileRef}>
           <button
@@ -260,14 +260,14 @@ export default function MobileTopNav() {
           />
 
           <div
-            className={`relative h-full w-[82%] max-w-[300px] bg-white flex flex-col shadow-xl transition-transform duration-300 ease-out ${
+            className={`relative h-full w-[82%] max-w-[255px] bg-white flex flex-col shadow-xl transition-transform duration-300 ease-out ${
               drawerEntered ? 'translate-x-0' : '-translate-x-full'
             }`}
           >
-            <div className="flex items-center justify-between p-4 border-b border-black/5">
+            <div className="flex items-center justify-between p-1.5 pl-3 border-b border-black/5">
               <img src="/images/logo.webp" alt="CRM Logo" className="h-10 w-auto" />
               <button onClick={closeDrawer} className="p-2 text-darkgreen" aria-label="Close menu" type="button">
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 

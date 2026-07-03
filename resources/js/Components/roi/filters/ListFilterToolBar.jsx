@@ -139,16 +139,16 @@ export default function ListFilterToolbar({
 
     {/* status */}
     {statusOptions?.length > 0 && (
-          <div className="relative h-9 flex items-center flex-shrink-0">
+          <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
             {statusIcon
-              ? <span className="absolute left-2.5 text-sm pointer-events-none z-10">{statusIcon}</span>
-              : <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+              ? <span className="absolute left-1.5 md:left-2.5 text-sm pointer-events-none z-10">{statusIcon}</span>
+              : <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
             }
             <select
               value={statusFilter}
               onChange={(e) => onStatusChange(e.target.value)}
-              className="h-9 w-28 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-                focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+              className="h-7 md:h-9 w-[100px] md:w-36 pl-5 md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+                focus:outline-none focus:ring-0 focus:border-[#4FA34E]
                 transition-[border-color,box-shadow] duration-150 text-slate-700"
             >
               {statusOptions.map(({ value, label }) => (
@@ -158,15 +158,15 @@ export default function ListFilterToolbar({
           </div>
     )}
       {/* Per Page */}
-      <div className="relative h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
+      <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
         <button
           type="button"
           onClick={() => setShowPerPagePicker((p) => !p)}
-          className="h-9 px-3 border border-gray-200 rounded-lg text-[13px] text-slate-600 flex items-center gap-1.5 bg-white hover:bg-slate-50 transition-colors"
+          className="h-7 md:h-9 px-1 md:px-3 pl-[21px] md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-600 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors"
         >
-          <TbLayoutRows size={15} className="text-slate-400" />
-          <span>Rows: {perPage}</span>
-          <MdExpandMore size={14} className="text-slate-400" />
+          <TbLayoutRows className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
+          <span className="flex-1 text-left pt-0.5 truncate"><span className="hidden sm:inline">Rows: </span>{perPage}</span>
+          <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
         </button>
         {showPerPagePicker && (
           <div className="absolute left-0 top-11 z-50 w-40 bg-white border border-gray-200 rounded-2xl shadow-lg p-3">
@@ -198,71 +198,65 @@ export default function ListFilterToolbar({
       {extraFilters}
 
       {/* Prepared By */}
-  {preparedBy?.length > 0 && (
-      <div className="relative flex-shrink-0" ref={preparedByRef}>
+      {preparedBy?.length > 0 && (
+        <div className="relative flex-shrink-0" ref={preparedByRef}>
+          <FilterChip
+            active={!!preparedBy}
+            icon={<MdPerson size={15} />}
+            label="Prepared By"
+            value={preparedBy}
+            onClick={() => { setShowPreparedBy((p) => !p); closeOthers({ keepPreparedBy: true }); }}
+            onClear={() => onPreparedByApply("")}
+          />
+          <TextFilterPopup
+            open={showPreparedBy}
+            label="Prepared By"
+            placeholder="e.g. Maria Santos"
+            icon={<MdPerson size={14} className="text-[#4FA34E]" />}
+            value={preparedBy}
+            onChange={onPreparedByChange}
+            onApply={onPreparedByApply}
+            onClose={() => setShowPreparedBy(false)}
+          />
+        </div>
+      )}
+      {/* Location */}
+      {locations?.length > 0 && (
+      <div className="relative flex-shrink-0" ref={locationRef}>
         <FilterChip
-          active={!!preparedBy}
-          icon={<MdPerson size={15} />}
-          label="Prepared By"
-          value={preparedBy}
-          onClick={() => { setShowPreparedBy((p) => !p); closeOthers({ keepPreparedBy: true }); }}
-          onClear={() => onPreparedByApply("")}
+          active={!!locationId}
+          icon={<MdLocationOn size={15} />}
+          label="Location"
+          value={selectedLocationName}
+          onClick={() => { setShowLocation((p) => !p); closeOthers({ keepLocation: true }); }}
+          onClear={() => onLocationApply("")}
         />
-        <TextFilterPopup
-          open={showPreparedBy}
-          label="Prepared By"
-          placeholder="e.g. Maria Santos"
-          icon={<MdPerson size={14} className="text-[#4FA34E]" />}
-          value={preparedBy}
-          onChange={onPreparedByChange}
-          onApply={onPreparedByApply}
-          onClose={() => setShowPreparedBy(false)}
+        <LocationFilterPopup
+          open={showLocation}
+          locations={locations}
+          selectedId={locationId}
+          onApply={onLocationApply}
+          onClose={() => setShowLocation(false)}
         />
       </div>
-  )}
-  {/* Location */}
-  {locations?.length > 0 && (
-    <div className="relative flex-shrink-0" ref={locationRef}>
-      <FilterChip
-        active={!!locationId}
-        icon={<MdLocationOn size={15} />}
-        label="Location"
-        value={selectedLocationName}
-        onClick={() => { setShowLocation((p) => !p); closeOthers({ keepLocation: true }); }}
-        onClear={() => onLocationApply("")}
-      />
-      <LocationFilterPopup
-        open={showLocation}
-        locations={locations}
-        selectedId={locationId}
-        onApply={onLocationApply}
-        onClose={() => setShowLocation(false)}
-      />
-    </div>
-  )}
+    )}
 
-{/* Type (Placed before Date Range) */}
-<div className="relative h-9 w-28 flex items-center flex-shrink-0">
-  <MdBusiness className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-  <select
-    value={typeFilter ?? ''}
-    onChange={(e) => onTypeChange(e.target.value)}
-    className="h-9 w-full pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-      focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-      transition-[border-color,box-shadow] duration-150 text-slate-700"
-  >
-    <option value="" disabled>Type</option>
-    {typeOptions.map(({ value, label }) => (
-      <option key={value} value={value}>{label}</option>
-    ))}
-  </select>
-  {/* Optional: Clean SVG Chevron to guarantee arrow visibility across all browsers */}
-  <div className="absolute right-2.5 pointer-events-none flex items-center text-slate-400">
-   <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="fill-rule" fillRule="evenodd"></path>
-    </svg>
-  </div>
-</div>
+      {/* Type (Placed before Date Range) */}
+      <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
+        <MdBusiness className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+        <select
+          value={typeFilter ?? ''}
+          onChange={(e) => onTypeChange(e.target.value)}
+          className="h-7 md:h-9 w-[76px] md:w-36 pl-[22px] md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
+            transition-[border-color,box-shadow] duration-150 text-slate-700"
+        >
+          <option value="" disabled>Type</option>
+          {typeOptions.map(({ value, label }) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Date Range */}
       <div className="relative flex-shrink-0" ref={datePickerRef}>

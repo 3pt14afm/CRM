@@ -3,18 +3,10 @@ import axios from 'axios';
 import { router } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import FilterChip from '@/Components/roi/filters/FilterChip';
-import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
 import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
-import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import {
-  MdSearch, MdCheck, MdExpandMore,
-  MdOutlineFilterAlt, MdDateRange, MdClose,
-  MdCheckCircle, MdCancel, MdPerson, MdLocationOn, MdVerifiedUser,
-  MdOutlineClose, MdOutlineCancel, MdOutlineDescription
-} from 'react-icons/md';
-import { TbLayoutRows } from 'react-icons/tb';
+import { MdCheck, MdCheckCircle, MdCancel, MdVerifiedUser, MdOutlineClose, MdOutlineCancel, MdOutlineDescription } from 'react-icons/md';
 import { route as ziggyRoute } from 'ziggy-js';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
@@ -57,54 +49,26 @@ const LS = {
 
 
 
-function ActionsDropdown({ row, isAdmin }) {
+function ActionsDropdown({ row, isAdmin, hideView = false }) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef(null);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (triggerRef.current && !triggerRef.current.contains(e.target) &&
-          dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const handleTriggerClick = () => {
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setCoords({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.right + window.scrollX,
-      });
-    }
-    setOpen((p) => !p);
-  };
-const isApproved = String(row.status ?? "").toLowerCase() === "approved";
+  
+  const isApproved = String(row.status ?? "").toLowerCase() === "approved";
   const hasProposal = !!row.has_proposal;
   const isOwner = !!row.is_owner;
   const isApprover = !!row.is_approver;
-
-  // Define who is a "Privileged" user
   const isPrivileged = isAdmin || isOwner || isApprover;
-
-  // 1. RULE: If NOT approved, show ONLY the Eye icon.
-  // 2. RULE: If NOT a privileged user, show ONLY the Eye icon (even if drafted).
-  // 3. RULE: If Approved AND Privileged:
-  //    - If No Draft: Show Dropdown (Generate) if Owner.
-  //    - If Draft: Show Dropdown (Proposal) for all Privileged users.
 
   const showDropdown = isApproved && isPrivileged && (hasProposal || isOwner);
 
   if (!showDropdown) {
+    if (hideView) return null; 
+
     return (
       <div className="flex justify-center items-center">
         <button
           type="button"
           className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
-          onClick={() => router.visit(ziggyRoute("roi.archive.show", row.id))}
+          onClick={(e) => { e.stopPropagation(); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
         >
           <IoEyeOutline className="text-[17px]" />
         </button>
@@ -112,13 +76,16 @@ const isApproved = String(row.status ?? "").toLowerCase() === "approved";
     );
   }
 
-  // Render 3-dot Dropdown (Only for Privileged users)
+  // Render 3-dot Dropdown 
   return (
-    <div className="flex justify-center items-center">
+    // 1. Added 'relative' to this wrapper so the absolute dropdown anchors to it
+    <div className="relative flex justify-center items-center">
       <button
-        ref={triggerRef}
         type="button"
-        onClick={handleTriggerClick}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((p) => !p);
+        }}
         className="px-1.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
       >
         <span className="flex flex-col gap-[3px] items-center justify-center">
@@ -128,26 +95,35 @@ const isApproved = String(row.status ?? "").toLowerCase() === "approved";
         </span>
       </button>
 
-      {open && createPortal(
+      {/* 2. Invisible full-screen overlay to close the menu when clicking outside */}
+      {open && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={(e) => { e.stopPropagation(); setOpen(false); }} 
+        />
+      )}
+
+      {/* 3. The Dropdown Menu (Standard relative/absolute positioning instead of createPortal) */}
+      {open && (
         <div
-          ref={dropdownRef}
-          style={{ position: 'absolute', top: coords.top, left: coords.left, transform: 'translateX(-100%)', zIndex: 9999 }}
-          className="flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[120px]"
+          className="absolute right-0 top-full mt-1 z-50 flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[120px]"
         >
-          <button
-            type="button"
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold"
-            onClick={() => { setOpen(false); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
-          >
-            <IoEyeOutline className="text-[15px]" />
-            <span>View</span>
-          </button>
+          {!hideView && (
+            <button
+              type="button"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold"
+              onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
+            >
+              <IoEyeOutline className="text-[15px]" />
+              <span>View</span>
+            </button>
+          )}
 
           {!hasProposal ? (
             <button
               type="button"
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 text-xs font-semibold"
-              onClick={() => { setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
+              onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
             >
               <MdOutlineDescription className="text-[15px]" />
               <span>Generate</span>
@@ -156,14 +132,13 @@ const isApproved = String(row.status ?? "").toLowerCase() === "approved";
             <button
               type="button"
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-semibold"
-              onClick={() => { setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
+              onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
             >
               <MdOutlineDescription className="text-[15px]" />
               <span>Proposal</span>
             </button>
           )}
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );
@@ -629,7 +604,7 @@ const handleSort = (key) => {
     <div className="relative flex-shrink-0" ref={decidedByRef}>
       <FilterChip
         active={!!decidedBy}
-        icon={<MdVerifiedUser size={15} />}
+        icon={<MdVerifiedUser />}
         label="Decided By"
         value={decidedBy}
         onClick={() => setShowDecidedBy((p) => !p)}
@@ -639,7 +614,7 @@ const handleSort = (key) => {
         open={showDecidedBy}
         label="Decided By"
         placeholder="e.g. Juan dela Cruz"
-        icon={<MdVerifiedUser size={14} className="text-[#4FA34E]" />}
+        icon={<MdVerifiedUser className="text-[#4FA34E]" />}
         value={decidedBy}
         onChange={setDecidedBy}
         onApply={handleDecidedByApply}
@@ -661,7 +636,7 @@ const handleSort = (key) => {
       statusOptions={[
         { value: "",          label: "All Status" },
         { value: "approved",  label: "Approved" },
-        { value: "rejected",  label: "Rejected" },
+        { value: "rejected",  label: "Disapproved" },
         { value: "cancelled", label: "Cancelled" },
       ]}
       typeOptions={[
@@ -696,6 +671,7 @@ const handleSort = (key) => {
   );
 
   // --- Mobile card layout (below md) ---
+  // --- Mobile card layout (below md) ---
   const renderArchiveCard = (r) => {
     const s = String(r.status ?? "").toLowerCase();
     const isRejected = s === "rejected";
@@ -703,34 +679,66 @@ const handleSort = (key) => {
     const isCancelled = s === "cancelled";
 
     return (
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold">{r.reference ?? '—'}</p>
-            <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-medium px-1.5 py-0.5 rounded-xl
-              ${isRejected
-                ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
-                : isApproved
-                ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
-                : isCancelled
-                ? "bg-red-600/10 text-red-600 border border-red-300"
-                : "bg-blue-100 text-blue-700 border border-blue-200"
-              }`}>
-              {r.status ?? '—'}
+      <div
+        onClick={() => router.visit(ziggyRoute("roi.archive.show", r.id))}
+        className="cursor-pointer px-2 py-3 hover:bg-slate-50 transition-colors rounded-xl"
+      >
+        <div className="gap-2">
+          {/* Top Row: Type & Status Badge */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-medium text-slate-500">{r.type === 1 ? 'Existing' : 'Potential'}</p>
+            <div className="flex items-center justify-end gap-1">
+              <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap
+                ${isRejected
+                  ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
+                  : isApproved
+                  ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
+                  : isCancelled
+                  ? "bg-red-600/10 text-red-600 border border-red-300"
+                  : "bg-blue-100 text-blue-700 border border-blue-200"
+                }`}>
+                {isRejected ? 'Disapproved' : (r.status ?? '—')}
+              </span>
+           
+              <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                <ActionsDropdown row={r} isAdmin={isAdmin} hideView={true}/>
+              </div>
+            </div>
+          </div>
+
+          {/* Middle Row: Company Details */}
+          <div className="min-w-0 leading-relaxed pt-4">     
+            <p className="text-xs font-medium">{r.reference ?? '—'}</p>
+            <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
+            <p className="text-[11px] text-slate-800 font-semibold font-mono">{r.company_sap_code ?? ''}</p>
+          </div>
+        </div>
+
+        {/* Bottom-Mid Row: Contract Info */}
+        <div className="flex items-end justify-between mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
+          <div className="flex flex-col">
+            <span className="pb-2">{r.contract_type ?? '—'} {r.contract_years != null ? `· ${r.contract_years} yrs` : ''}</span>
+            <span className="normal-case text-[10px] text-slate-500 italic">prepared by <span className="text-[#195c00] font-semibold">{r.user?.name ?? '—'}</span></span>
+            <span className="normal-case text-[10px] text-slate-500 italic">
+              decided by: <span className={`font-semibold
+                ${isRejected
+                  ? "text-[#C40000]"
+                  : isApproved
+                  ? "text-[#2DA300]"
+                  : isCancelled
+                  ? "text-red-600"
+                  : "text-blue-700"
+                }`}>{r.decided_by_name ?? '—'}</span>
             </span>
           </div>
-          <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
-          <p className="text-[11px] text-slate-400 font-mono">{r.company_sap_code ?? '—'}</p>
-          <p className="mt-1 text-[11px] text-slate-500">
-            {r.contract_type ?? '—'} · {r.type === 1 ? 'Existing' : 'Potential'}
-          </p>
-          <p className="mt-1 text-[11px] text-slate-500">
-            Decided by <span className="font-medium text-slate-700">{r.decided_by_name ?? '—'}</span>
-            {r.decided_at_display ? ` · ${formatDateLabel(r.decided_at_display)}` : ''}
-          </p>
-        </div>
-        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-          <ActionsDropdown row={r} isAdmin={isAdmin} />
+          
+          
+          {/* Bottom Right Details: Decided by & Date */}
+          <div className="flex flex-col items-end gap-0.5">
+             <span className="normal-case text-[10px] text-slate-500">
+               {r.decided_at_display ? formatDateLabel(r.decided_at_display) : '—'}
+             </span>
+          </div>
         </div>
       </div>
     );
