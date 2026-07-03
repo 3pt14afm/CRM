@@ -18,10 +18,13 @@ export default function ProposalRoute({ proposals, stats, generatedproposals, ge
             <Head title="Proposal Generation" />
             
             <div className="pt-8 pb-1 flex justify-between mx-10">
-                <div className="flex gap-1 items-baseline">
+                <div className="flex flex-col gap-1 items-baseline">
                     {/* <h1 className="font-semibold">Project Proposal</h1> */}
                     {/* <span className="mx-2">/</span> */}
-                    <p className="text-4xl font-semibold">PROJECT PROPOSAL</p>
+                    <p className="text-4xl font-semibold">Project Proposal</p>
+                             <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
+                                Create and draft proposals from approved projects.
+                            </p>
                 </div>
                 <div className="flex flex-col gap-1 items-end">
                     <h1 className="text-xs text-right text-slate-500"></h1>
@@ -31,22 +34,35 @@ export default function ProposalRoute({ proposals, stats, generatedproposals, ge
             {/* Header ... */}
 
             {/* 2. Use Link instead of button for routing */}
-         <div className="flex gap-6 mt-5 mx-10 mb-6 border-b border-gray-200">
-    <p onClick={()=>setActiveTab('archive')}
-        className={`pb-2 font-semibold text-sm ${activeTab === 'archive' ? 'border-b-2 border-[#289800] text-[#289800]' : 'text-gray-500'}`}
-    >
-        Approved Projects
-    </p>
-    <p onClick={()=>setActiveTab('generated')}
-       
-        className={`pb-2 font-semibold text-sm ${activeTab === 'generated' ? 'border-b-2 border-[#289800] text-[#289800]' : 'text-gray-500'}`}
-    >
-        Generated Proposals
-    </p>
-</div>
+         <div className="px-4 sm:px-6 lg:px-10 mt-6 mb-3">
+                <div className="flex rounded-full bg-[#f8f8f8] w-fit border-2 border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('archive')}
+                        className={`px-4 text-sm m-0.5 mr-0 py-1.5 ${
+                            activeTab === 'archive'
+                                ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800]'
+                                : 'rounded-t-xl text-slate-500'
+                        }`}
+                    >
+                        Approved Projects
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('generated')}
+                        className={`px-4 text-sm m-0.5 ml-0 py-1.5 ${
+                            activeTab === 'generated'
+                                ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800]'
+                                : 'rounded-t-xl text-slate-500'
+                        }`}
+                    >
+                        Generated Proposals
+                    </button>
+                </div>
+         </div>
 
             {/* 3. Render based on what the controller sent back */}
-            <div className="">
+            <div className="pb-10">
                 {activeTab === 'archive' && (
                     <ApproveProjects
                         proposals={proposals ?? { data: [] }} 

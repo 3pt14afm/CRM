@@ -137,25 +137,26 @@ export default function ListFilterToolbar({
   return (
     <FilterToolbar hasActiveFilters={hasActiveFilters} onClearAll={onClearAll}>
 
-      {/* Status */}
-      <div className="relative h-9 flex items-center flex-shrink-0">
-        {statusIcon
-          ? <span className="absolute left-2.5 text-sm pointer-events-none z-10">{statusIcon}</span>
-          : <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-        }
-        <select
-          value={statusFilter}
-          onChange={(e) => onStatusChange(e.target.value)}
-          className="h-9 w-28 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700"
-        >
-          {statusOptions.map(({ value, label }) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </div>
-
+    {/* status */}
+    {statusOptions?.length > 0 && (
+          <div className="relative h-9 flex items-center flex-shrink-0">
+            {statusIcon
+              ? <span className="absolute left-2.5 text-sm pointer-events-none z-10">{statusIcon}</span>
+              : <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+            }
+            <select
+              value={statusFilter}
+              onChange={(e) => onStatusChange(e.target.value)}
+              className="h-9 w-28 sm:w-36 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+                focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+                transition-[border-color,box-shadow] duration-150 text-slate-700"
+            >
+              {statusOptions.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+    )}
       {/* Per Page */}
       <div className="relative h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
         <button
@@ -197,6 +198,7 @@ export default function ListFilterToolbar({
       {extraFilters}
 
       {/* Prepared By */}
+  {preparedBy?.length > 0 && (
       <div className="relative flex-shrink-0" ref={preparedByRef}>
         <FilterChip
           active={!!preparedBy}
@@ -217,7 +219,7 @@ export default function ListFilterToolbar({
           onClose={() => setShowPreparedBy(false)}
         />
       </div>
-
+  )}
   {/* Location */}
   {locations?.length > 0 && (
     <div className="relative flex-shrink-0" ref={locationRef}>
