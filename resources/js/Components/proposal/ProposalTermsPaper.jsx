@@ -14,7 +14,7 @@ function ProposalTermsPaper({ proposal, items }) {
   return (
     <PrintablePaper>
       <div className="mb-10 rounded-lg overflow-hidden border border-slate-200">
-        <div className="bg-[#F8FAFC] px-4 py-2 border-b border-slate-200">
+        <div className="bg-[#F8FAFC] px-4  border-b border-slate-200">
        {String(proposal.contract_type || proposal.project?.contract_type || "")
             .trim()
             .toLowerCase() === "free use" && (

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ChevronLeft, ChevronRight, Building2, Trash2, ImagePlus, FileText, } from 'lucide-react';
+import { ChevronLeft, Building2, Trash2, ImagePlus, FileText, X, } from 'lucide-react';
 import SidebarMessageEditor from './SidebarMessageEditor';
 import SidebarTermsEditor from './SidebarTermsEditor';
 import SignatureUpload from './SignatureUpload';
@@ -66,40 +66,52 @@ export default function ProposalSideBar({
         onClick={() => setIsOpen(false)}
       />
 
+      {/* Toggle Handle - fixed to the screen edge (not inside aside) so it stays
+          visible and tappable at all times when the sidebar is closed, on every
+          screen size. It sits behind the panel (lower z-index) so it's naturally
+          covered once the panel slides open. */}
+      <button
+        onClick={() => setIsOpen(true)}
+        aria-label="Open panel"
+        className={`fixed top-1/2 -translate-y-1/2 right-0 z-[65] w-9 sm:w-10 h-16 
+                   bg-white border-y border-l border-slate-300
+                   flex items-center justify-center rounded-l-md
+                   shadow-[-4px_0px_10px_rgba(0,0,0,0.08)]
+                   hover:bg-slate-50 group transition-opacity
+                   ${isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      >
+        <ChevronLeft size={24} className="text-emerald-400 group-hover:text-emerald-500 transition-colors" />
+      </button>
+
       <aside className={`
         fixed top-0 bottom-0 right-0 z-[70]
-        w-[40%] min-w-[450px] bg-white 
+        w-full sm:w-[85%] md:w-[55%] lg:w-[40%]
+        sm:min-w-[420px] md:min-w-[450px]
+        max-w-full bg-white 
         shadow-[-15px_0px_40px_rgba(0,0,0,0.08)]
         border-l border-slate-300
         transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
-        
-        {/* Toggle Handle */}
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="absolute top-1/2 -left-10 -translate-y-1/2 w-10 h-16 
-                     bg-white border-y border-l border-slate-300
-                     flex items-center justify-center rounded-l-md
-                     shadow-[-4px_0px_10px_rgba(0,0,0,0.05)]
-                     hover:bg-slate-50 group transition-all"
-        >
-          {isOpen ? (
-            <ChevronRight size={25} className="text-emerald-400 group-hover:text-emerald-500 transition-colors" />
-          ) : (
-            <ChevronLeft size={25} className="text-emerald-400 group-hover:text-emerald-500 transition-colors" />
-          )}
-        </button>
 
-        <div className="h-full overflow-y-auto px-10 py-12">
-          <div className="flex items-center gap-2 mb-8">
-            <Building2 className="text-emerald-500" size={20} />
-            <h3 className="text-sm font-black uppercase tracking-[0.15em] text-slate-800">
-              Company & Client Info
-            </h3>
+        <div className="h-full overflow-y-auto px-5 sm:px-8 md:px-10 py-8 sm:py-10 md:py-12">
+          <div className="flex items-center justify-between gap-2 mb-6 sm:mb-8">
+            <div className="flex items-center gap-2">
+              <Building2 className="text-emerald-500" size={20} />
+              <h3 className="text-sm font-black uppercase tracking-[0.15em] text-slate-800">
+                Company & Client Info
+              </h3>
+            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              aria-label="Close panel"
+              className="fixed top-4 right-4 sm:right-6 md:right-8 z-[80] shrink-0 p-2 rounded-full bg-[#4FA34E] text-white hover:bg-green-200 hover:text-emerald-700 transition-colors shadow-sm"
+            >
+              <X size={20} />
+            </button>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6">
             {/* Company Name */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Company Name</label>
@@ -134,7 +146,7 @@ export default function ProposalSideBar({
               </div>
 
               {/* Email & Mobile */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email</label>
                   <input
@@ -167,7 +179,7 @@ export default function ProposalSideBar({
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-emerald-600/60 uppercase">Type</label>
-                  <p className="text-sm font-bold text-emerald-900">{proposal.contract_type}</p>
+                  <p className="text-sm font-bold text-emerald-900 break-words">{proposal.contract_type}</p>
                 </div>
               </div>
             </div>
@@ -193,16 +205,16 @@ export default function ProposalSideBar({
                     <img
                       src={proposal.printer_image}
                       alt="Printer preview"
-                      className="w-full h-40 object-contain rounded-xl p-2"
+                      className="w-full h-32 sm:h-40 object-contain rounded-xl p-2"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
-                      <p className="text-white text-[11px] font-bold">Click or paste to replace</p>
+                      <p className="text-white text-[11px] font-bold text-center px-2">Click or paste to replace</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <div className="flex flex-col items-center justify-center py-6 sm:py-8 gap-2">
                     <ImagePlus size={24} className="text-slate-300" />
-                    <p className="text-[11px] font-semibold text-slate-400">Click to browse or paste image</p>
+                    <p className="text-[11px] font-semibold text-slate-400 text-center px-4">Click to browse or paste image</p>
                     <p className="text-[10px] text-slate-300">PNG, JPG, WEBP supported</p>
                   </div>
                 )}
@@ -245,10 +257,10 @@ export default function ProposalSideBar({
                     <img
                       src={proposal.specs}
                       alt="Machine specs preview"
-                      className="w-full max-h-64 object-contain rounded-xl p-2"
+                      className="w-full max-h-56 sm:max-h-64 object-contain rounded-xl p-2"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
-                      <p className="text-white text-[11px] font-bold">Click or paste to replace</p>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 px-2">
+                      <p className="text-white text-[11px] font-bold text-center">Click or paste to replace</p>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -262,9 +274,9 @@ export default function ProposalSideBar({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <div className="flex flex-col items-center justify-center py-6 sm:py-8 gap-2">
                     <ImagePlus size={24} className="text-slate-300" />
-                    <p className="text-[11px] font-semibold text-slate-400">Click to browse or paste a specs screenshot</p>
+                    <p className="text-[11px] font-semibold text-slate-400 text-center px-4">Click to browse or paste a specs screenshot</p>
                     <p className="text-[10px] text-slate-300">PNG, JPG, WEBP supported</p>
                   </div>
                 )}
@@ -341,11 +353,11 @@ export default function ProposalSideBar({
       </div>
 
        {/* --- ACTION BUTTONS --- */}
-       <div className="grid grid-cols-2 gap-3 mt-5 p-4 border-t">
+       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 p-4 border-t">
                 <button
                     onClick={onSaveDraft}
                     disabled={processing || isLocked}
-                    className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-gray-600 rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-all"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-white bg-gray-600 rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-all text-sm sm:text-base"
                 >
                     {processing ? 'Saving...' : 'Save as Draft'}
                 </button>
@@ -354,7 +366,7 @@ export default function ProposalSideBar({
             onClick={onGenerate}
             disabled={processing || isLocked}
             // Changed bg-blue-600 to bg-emerald-500 and hover:bg-blue-700 to hover:bg-emerald-600
-            className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 disabled:opacity-50 transition-all"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 disabled:opacity-50 transition-all text-sm sm:text-base"
         >
             {processing ? 'Generating...' : 'Generate Proposal'}
         </button>
