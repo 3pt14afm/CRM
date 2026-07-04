@@ -263,7 +263,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
   const displayValue = isExistingType ? existingInputValue : companyNameVal;
 
   return (
-    <div className="flex flex-col bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl p-6 xl:p-8 gap-1 w-full lg:w-[60%] min-w-96">
+    <div className="flex flex-col bg-[#FBFFFA] shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl p-6 xl:p-8 gap-1 w-full lg:w-[60%] min-w-72 lg:min-w-96">
       <div className="flex justify-between items-end">
         <div className="flex flex-col gap-1 w-full relative">
           <p className="font-bold text-[10px] xl:text-[11px] uppercase">Company Name</p>
@@ -274,14 +274,14 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             }`}
           >
             <select
-              className={`h-full text-[12px] xl:text-[14px] ml-2 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 text-left ${
+              className={`h-full text-[12px] w-[30%] lg:w-[15%] xl:text-[14px] ml-2 font-medium bg-transparent outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 border-none appearance-none transition-colors duration-200 text-left ${
                 isTypeInvalid
                   ? "text-red-400"
                   : typeNotSelected
                   ? "text-slate-400"
                   : "text-slate-600"
               } ${readOnly ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
-              style={{ width: "20%", paddingLeft: "0px", paddingRight: "0px", textIndent: "0px" }}
+              style={{ paddingLeft: "0px", paddingRight: "0px", textIndent: "0px" }}
               value={currentType === null || currentType === undefined ? "" : String(currentType)}
               onChange={handleTypeSelectChange}
               disabled={readOnly}
@@ -411,8 +411,8 @@ function CompanyInfo({ readOnly, showErrors = false }) {
       </div>
 
       <div className="flex flex-col gap-2 mt-4">
-        <div className="flex items-end justify-between">
-          <div className="flex flex-col gap-1 w-[60%]">
+        <div className="flex items-end lg:gap-0 gap-1 justify-between">
+          <div className="flex flex-col gap-1 w-full lg:w-[60%]">
             <p className="font-bold text-[10px] xl:text-[11px] uppercase">Contract Type</p>
             <select
               className={`w-full ${baseInput} bg-white text-xs xl:text-sm ${

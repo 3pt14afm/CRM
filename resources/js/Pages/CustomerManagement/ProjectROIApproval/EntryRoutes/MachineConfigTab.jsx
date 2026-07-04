@@ -17,15 +17,15 @@ function MachineConfigTab({
 }) {
   return (
     <div className='mx-5 bg-[#f8f8f8] border rounded-r-lg rounded-b-xl border-b-[#2c2c2e]/30 border-t-[#2c2c2e]/10 border-[#2c2c2e]/20 shadow-md print:shadow-none print:border-0'>
-      <div className='flex items-center w-full px-10 pt-5 gap-5 mb-5 md:flex-col lg:flex-row'>
+      <div className='flex flex-col   items-center w-full lg:px-10 px-5 pt-5 gap-5 mb-5 md:flex-col lg:flex-row'>
         <CompanyInfo
           buttonClicked={buttonClicked}
           readOnly={readOnly}
           showErrors={showCompanyInfoErrors}
-          className="w-[60%]"
+          className="lg:-w[60%]"
         />
 
-        <div className='w-[40%] flex flex-col mt-3 gap-5 items-start justify-start md:mt-0 md:flex-row lg:flex-col'>
+        <div className='lg:w-[40%] flex flex-col mt-3 gap-5 items-start justify-start md:mt-0 md:flex-row lg:flex-col'>
           <InterestCalculator buttonClicked={buttonClicked} readOnly={readOnly} />
           <Yields buttonClicked={buttonClicked} readOnly={readOnly} />
         </div>
@@ -38,7 +38,7 @@ function MachineConfigTab({
         showModeErrors={showModeErrors}
       />
 
-      <div className='grid grid-cols-[70%_1fr] w-full gap-3 xl:gap-5 px-10 items-start pt-5 mb-9'>
+      <div className='grid lg:grid-cols-[70%_1fr] w-full gap-3 xl:gap-5 px-2 lg:px-10 items-start pt-5 mb-9'>
         <Fees buttonClicked={buttonClicked} readOnly={readOnly}/>
         <EntryRemarks readOnly={readOnly}/>
       </div>
