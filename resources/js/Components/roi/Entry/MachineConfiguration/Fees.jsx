@@ -512,7 +512,13 @@ const Fees = ({ readOnly }) => {
       </div>
 
       {/* Mobile: stacked cards + single sticky totals footer */}
-      <div className="md:hidden px-3 flex flex-col gap-3">
+      {/* --- Added Header Once Here --- */}
+  <div className="bg-[#D9F2D0] md:hidden lg:hidden px-4 py-3 rounded-t-xl border border-darkgreen/20 flex items-center justify-between shadow-sm">
+    <span className="text-[15px] font-bold uppercase tracking-wider text-darkgreen">
+      Other Fees
+    </span>
+  </div>
+      <div className="md:hidden px-3 pt-2 flex flex-col gap-3">
         {rows.map(row => {
           const fixedQty  = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
           const qtyLocked = fixedQty != null;
