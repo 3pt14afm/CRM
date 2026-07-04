@@ -71,6 +71,7 @@ class SprfController extends Controller
                     'id' => $project->id,
                     'sprf_no' => $project->sprf_no,
                     'status' => $project->status,
+                    'type' => $project->type,
                     'company_name' => $project->account,
                     'sub_category' => $project->sub_category,
                     'account_manager' => $project->account_manager,
@@ -121,7 +122,7 @@ class SprfController extends Controller
         $perPage = (int) $request->input('per_page', 10);
 
         $filters = $request->only([
-            'search', 'status', 'per_page', 'approval_level',
+            'search', 'status', 'type', 'per_page', 'approval_level',
             'prepared_by', 'date_from', 'date_to', 'sort_by', 'sort_order',
         ]);
 
@@ -149,12 +150,17 @@ class SprfController extends Controller
             $archiveQuery->where('status', $request->input('status'));
         }
 
-        // 3. Approval Level
+        // 3. Type
+        if ($request->filled('type')) {
+            $archiveQuery->where('type', (int) $request->input('type'));
+        }
+
+        // 4. Approval Level
         if ($request->filled('approval_level')) {
             $archiveQuery->where('approval_level', $request->input('approval_level'));
         }
 
-        // 4. Prepared By
+        // 5. Prepared By
         if ($request->filled('prepared_by')) {
             $preparedBy = $request->input('prepared_by');
             $archiveQuery->whereHas('preparer', function ($q) use ($preparedBy) {
@@ -162,7 +168,7 @@ class SprfController extends Controller
             });
         }
 
-        // 5. Date Range
+        // 6. Date Range
         if ($request->filled('date_from')) {
             $archiveQuery->whereRaw(
                 'COALESCE(approved_at, rejected_at, created_at) >= ?',
@@ -176,7 +182,7 @@ class SprfController extends Controller
             );
         }
 
-        // 6. Sorting
+        // 7. Sorting
         $sortBy    = $request->input('sort_by');
         $sortOrder = in_array(strtolower($request->input('sort_order', 'desc')), ['asc', 'desc'])
             ? strtolower($request->input('sort_order', 'desc'))

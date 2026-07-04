@@ -256,7 +256,7 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
   )?.label || "Type";
 
   return (
-    <div className="border-[#D6DDD0] bg-[#FBFFFA] px-3 sm:px-5 xl:px-7 py-3 sm:py-4 shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl">
+    <div className="border-[#D6DDD0] bg-[#FBFFFA] px-3 sm:px-4 md:px-4 xl:px-7 py-3 sm:py-4 shadow-md border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25 rounded-xl">
       <div className="space-y-2">
         {/* SUB CATEGORY */}
         <div className="grid md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">

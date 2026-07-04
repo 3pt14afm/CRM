@@ -16,7 +16,7 @@ import SprfAddComments from '@/Components/sprf/SprfAddComments';
 import { FaUndo, FaAngleLeft } from 'react-icons/fa';
 import { MdOutlineCancel } from 'react-icons/md';
 import { LuScanEye } from 'react-icons/lu';
-import { IoPrintSharp } from 'react-icons/io5';
+import { IoChevronBack, IoPrintSharp } from 'react-icons/io5';
 
 // Single source of truth for SPRF constants, factories, normalizers,
 // calculations, validation, payload-building, and formatting. Unifies both
@@ -47,6 +47,7 @@ import {
   formatDateTime,
   buildSigner,
 } from '@/utils/sprf';
+import { IoIosArrowBack } from 'react-icons/io';
 
 function Entry({
   approverUsers = {},
@@ -872,21 +873,23 @@ const [companyInfo, setCompanyInfo] = useState({
 
       <div className="min-h-screen flex flex-col print:min-h-0 print:block">
       <div className="flex-1">
-        <div className="md:px-2 pt-3 md:pt-6 sm:pt-8 pb-2 md:pb-3 flex flex-wrap items-start justify-between gap-2 mx-4 sm:mx-6 md:mx-10 print:mx-0 print:pt-0">
-          <div className="flex items-baseline gap-1">
+        <div className="md:px-2 pt-1 md:pt-6 pb-2 md:pb-3 flex flex-wrap items-end justify-between gap-2 mx-4 sm:mx-6 md:mx-10 print:mx-0 print:pt-0">
+          <div className="flex items-baseline md:gap-1">
             <button
               type="button"
               onClick={handleGoBack}
-              className="hidden md:flex mr-2 mt-3 self-center w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all print:hidden"
+              className="flex mr-2 mt-3 md:mt-2 self-center w-7 h-7 md:w-8 md:h-8 items-center justify-center pr-0.5 rounded-full bg-[#B5EBA2]/20 backdrop-blur border border-darkgreen/10 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all print:hidden"
             >
-              <FaAngleLeft size={20} className="text-[#195C00]" />
+              <IoIosArrowBack size={20} className="text-darkgreen" />
             </button>
-            <h1 className="font-semibold mt-3 text-xs sm:text-sm md:text-base">{pageTitle}</h1>
-            <p className="mt-3">/</p>
-            <p className="text-lg sm:text-xl md:text-3xl font-semibold">{pageLabel}</p>
+            <div className="flex flex-col md:flex-row md:items-baseline md:gap-1">
+              <h1 className="font-semibold mt-3 text-xs sm:text-sm md:text-base">{pageTitle}</h1>
+              <p className="hidden md:block md:mt-3">/</p>
+              <p className="text-lg sm:text-xl md:text-3xl font-semibold">{pageLabel}</p>
+            </div>
           </div>
 
-          <div className="flex flex-col md:gap-1 items-end">
+          <div className="flex flex-col gap-0.5 md:gap-1 items-end pb-1">
             <h1 className="text-[10px] md:text-xs text-right text-slate-500">{formattedHeaderDate}</h1>
             <p className="text-[10px] md:text-xs text-right text-slate-500">
               Last Saved: {lastSavedDisplay}
@@ -895,13 +898,13 @@ const [companyInfo, setCompanyInfo] = useState({
         </div>
 
         <div className="mx-4 sm:mx-6 md:mx-10 pb-28 print:mx-0 print:pb-0">
-          <div className="print-avoid-break overflow-hidden rounded-2xl border border-[#2c2c2e]/20 bg-[#f8f8f8] shadow-md print:shadow-none print:border-none print:bg-transparent print:justify-center">
-            <div className="bg-[#B5EBA2]/50 px-3 sm:px-6 py-1 sm:py-2 border border-b-[#2c2c2e]/10 text-center text-[11px] sm:text-[13px] md:text-[15px] font-bold uppercase tracking-wide">
+          <div className="print-avoid-break rounded-2xl border border-[#2c2c2e]/20 bg-[#f8f8f8] shadow-md print:shadow-none print:border-none print:bg-transparent print:justify-center">
+            <div className="bg-[#B5EBA2]/50 px-3 rounded-t-2xl sm:px-6 py-1 sm:py-2 border border-b-[#2c2c2e]/10 text-center text-[11px] sm:text-[13px] md:text-[15px] font-bold uppercase tracking-wide">
               IT Solutions Special Price Request Form
             </div>
 
             <div className="p-3 sm:p-4 md:p-6 print:p-0">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-6 print:grid-cols-[50%_50%] print:gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2 lg:gap-6 print:grid-cols-[50%_50%] print:gap-2">
                 <div className="md:col-span-8 space-y-3 print:space-y-1">
                   <div className="md:hidden print:hidden">
                     <SprfMetaBlock
@@ -928,7 +931,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   />
                 </div>
 
-                <div className="md:col-span-12 lg:col-span-4 space-y-1.5 xl:space-y-2 print:col-auto print:space-y-1">
+                <div className="md:col-span-4 space-y-1.5 xl:space-y-2 print:col-auto print:space-y-1">
                   <div className="hidden md:block">
                     <SprfMetaBlock
                       dateTime={displayDateTime}
@@ -974,7 +977,7 @@ const [companyInfo, setCompanyInfo] = useState({
                     <Conditions />
                   </div>
 
-                  <div className="flex w-full md:w-[60%] gap-2">
+                  <div className="grid grid-cols-2 w-full md:w-[60%] gap-1 md:gap-2">
                     <SprfAddNotes scopeKey="sprf-main" />
                     <SprfAddComments comments={initialProject?.comments} scopeKey="entry" />
                   </div>

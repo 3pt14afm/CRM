@@ -481,6 +481,56 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       }
     : null;
 
+  // --- Mobile card layout (below md) ---
+  const renderCurrentCard = (r) => {
+    const isSentBack = Boolean(r.status_display_suffix);
+    const mainLabel = r.status_display_main ?? r.status ?? '—';
+    const isForReview = mainLabel === 'For Review';
+    const isReceivingApprover = isSentBack && isForReview;
+
+    const badgeClass = isReceivingApprover
+      ? 'bg-orange-100 text-orange-700 border-orange-200'
+      : isForReview
+        ? 'bg-purple-100 text-purple-700 border-purple-200'
+        : 'bg-blue-100 text-blue-700 border-blue-200';
+
+    return (
+      <div
+        onClick={() => router.visit(ziggyRoute('sprf.current.show', r.id))}
+        className="cursor-pointer px-2 py-3"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <p className={`text-[11px] font-medium ${r.type === 1 ? 'text-[#289800]' : 'text-gray-500'}`}>
+            {r.type === 1 ? 'Existing' : r.type === 0 ? 'Potential' : '—'}
+          </p>
+          <div className="shrink-0 flex flex-col items-end gap-1">
+            <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border whitespace-nowrap ${badgeClass}`}>
+              {mainLabel}
+            </span>
+            <span className="text-[10px] text-blue-700 italic">by: {r.current_approver ?? '—'}</span>
+          </div>
+        </div>
+
+        <div className="min-w-0 leading-relaxed pt-1">
+          <p className="text-[11px] font-medium">{r.sprf_no ?? '—'}</p>
+          <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
+          <p className="text-[11px] text-slate-800 font-semibold">{r.sub_category ?? '—'} · {r.account_manager ?? '—'}</p>
+        </div>
+
+        <div className="mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
+          <span>{approvalLevelLabel(r.approval_level)}</span>
+        </div>
+
+        <p className="flex items-center justify-between text-[11px] text-slate-500">
+          <span className="normal-case text-[10px] text-slate-500 italic">
+            prepared by <span className="text-[#195c00] font-semibold">{r.prepared_by ?? '—'}</span>
+          </span>
+          <span className="normal-case text-[10px] text-slate-500">{formatDateTime(r.submitted_at)}</span>
+        </p>
+      </div>
+    );
+  };
+
   const searchControl = (
     <SearchControl
       search={search}
@@ -534,19 +584,47 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
 
   return (
     <>
+      {/* PAGE NAVIGATION TABS (Mobile Only) */}
+      <div className="sticky top-0 z-30 px-4 py-1.5 pb-2 sm:hidden">
+        <div className="flex rounded-full bg-[#f8f8f8] w-full border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+          <button
+            type="button"
+            onClick={() => router.visit(route('sprf.entry.list'))}
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+          >
+            Drafts
+          </button>
+                
+          <button
+            type="button"
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800] border border-[#B5EBA2]/60"
+          >
+            Current
+          </button>
+                  
+          <button
+            type="button"
+            onClick={() => router.visit(route('sprf.archive'))}
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+          >
+            Archive
+          </button>              
+        </div>
+      </div>   
+      
       <Head title="SPRF Current" />
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
 
-          <div className="px-2 pt-8 pb-3 flex justify-between mx-10">
-            <div className="flex gap-1">
-              <h1 className="font-semibold mt-3">Project SPRF Approval</h1>
-              <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">Current</p>
+          <div className="px-4 sm:px-6 lg:px-10 pt-2 md:pt-8 pb-3 flex justify-between items-end">
+            <div className="flex items-baseline gap-1">
+              <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project SPRF Approval</h1>
+              <p className="text-slate-400 hidden sm:block">/</p>
+              <p className="text-2xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Current</p>
             </div>
             <div className="flex flex-col gap-1 items-end">
-              <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
+              <h1 className="text-[10px] md:text-xs text-slate-500">{formattedDate}</h1>
             </div>
           </div>
 
@@ -561,6 +639,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             filterControl={filterToolbar}
             loading={loading}
             emptyText="No matching records found."
+            renderCard={renderCurrentCard}
           />
         </div>
       </div>

@@ -252,22 +252,16 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
                 key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
                 className="bg-white border border-gray-200 rounded-xl px-3 md:px-4 py-2 md:py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
               >
-                <div className="sm:flex h-4 items-center justify-between w-full">
-                  <div className="items-start flex md:gap-2">
-                    <div className="flex items-center">
+                <div className="sm:flex h-4 items-start justify-between min-w-0">
+                  <div className="flex items-center md:gap-2 min-w-0">
+                    <div className="flex items-center shrink-0">
                       <FaRegUserCircle className="text-gray-400 hidden md:block text-sm shrink-0" />
                     </div>
-                    <span className="block text-[11px] font-medium text-gray-900">
-                      {n.author?.name ?? "Unknown"}
-                    </span>
-                  </div>
-                  <div className="text-[9px] sm:text-[10px] text-gray-500 italic whitespace-nowrap">
-                    {formatDateTime(n.created_at)}
+                    <span className="block text-[11px] mt-1 md:mt-0.5 leading-tight font-medium text-gray-900 truncate">{n.author?.name ?? "Unknown"}</span>
                   </div>
                 </div>
-                <p className="mt-5 sm:mt-2 print:mt-1 text-gray-900 text-[11px] sm:text-xs leading-snug sm:leading-relaxed">
-                  {n.body}
-                </p>
+                <p className="my-1.5 sm:mt-2 print:mt-1 text-gray-900 text-[11px] sm:text-xs leading-tight sm:leading-snug">{n.body}</p>
+                <div className="flex justify-end text-[9px] sm:text-[10px] text-gray-500 italic whitespace-nowrap">{formatDateTime(n.created_at)}</div>
               </div>
             ))}
           </div>

@@ -612,7 +612,7 @@ import { IoMdMore } from 'react-icons/io';
     return (
       <>
         {/* PAGE NAVIGATION TABS (Mobile Only) */}
-        <div className="sticky top-0 z-40 px-4 py-1.5 pb-2 sm:hidden">
+        <div className="sticky top-0 z-30 px-4 py-1.5 pb-2 sm:hidden">
             <div className="flex rounded-full bg-[#f8f8f8] border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
                 <button
                     type="button"
@@ -663,9 +663,9 @@ import { IoMdMore } from 'react-icons/io';
               columns={columns}
               rows={rows}
               rowKey={(r) => String(r.id)}
-              pagination={isLoading ? null : pagination} // Hide pagination cleanly during skeleton loads
+              pagination={isLoading ? null : pagination}
               searchControl={searchControl}
-              loading={false} // Prevents the main component section from dimming down or locking interaction layouts
+              loading={false} 
               emptyText={isLoading ? "Loading records..." : "No matching records found."}
               renderCard={renderEntryCard}
             />
