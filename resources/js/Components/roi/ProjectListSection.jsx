@@ -316,8 +316,8 @@ export default function ProjectListSection({
                   key={p}
                   className={`px-2 py-1 rounded-md ${
                     p === pagination.page
-                      ? "border border-[#4FA34E] bg-[#4FA34E] text-white font-semibold"
-                      : "text-slate-600 hover:bg-gray-100"
+                      ? "border border-[#4FA34E] bg-[#4FA34E]/10 font-semibold"
+                      : "text-slate-400 hover:bg-gray-100"
                   }`}
                   onClick={() => pagination.onPageChange(p)}
                   disabled={p === pagination.page}
