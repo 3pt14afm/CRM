@@ -53,6 +53,9 @@ function formatDateLabel(dateStr) {
  * Optional props:
  *   extraFilters      {ReactNode} — rendered between per-page and prepared-by
  *                                  (use this for Archive's "Decided By" chip)
+ *   extraFiltersEnd   {ReactNode} — rendered between Type and Date Range
+ *                                  (use this for filters that should appear
+ *                                  after Type, e.g. Archive's "Prepared By")
  */
 export default function ListFilterToolbar({
   // toolbar wrapper
@@ -96,7 +99,12 @@ export default function ListFilterToolbar({
   onDateClear,
 
   // slot for extra filter chips (e.g. "Decided By" in Archive)
+  // rendered after Rows, before the native Type select
   extraFilters,
+
+  // slot for extra filter chips rendered after Type, before Date Range
+  // (e.g. Archive's custom "Prepared By" chip)
+  extraFiltersEnd,
 }) {
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
   const [showPreparedBy,    setShowPreparedBy]    = useState(false);
@@ -147,9 +155,7 @@ export default function ListFilterToolbar({
             <select
               value={statusFilter}
               onChange={(e) => onStatusChange(e.target.value)}
-              className="h-7 md:h-9 w-[100px] md:w-36 pl-5 md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-                focus:outline-none focus:ring-0 focus:border-[#4FA34E]
-                transition-[border-color,box-shadow] duration-150 text-slate-700"
+              className="h-7 md:h-9 w-[100px] md:w-36 pl-5 md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer focus:outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150 text-slate-700"
             >
               {statusOptions.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -180,7 +186,7 @@ export default function ListFilterToolbar({
                 value={perPageInput}
                 onChange={(e) => onPerPageInputChange(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && onPerPageApply()}
-                className="w-16 h-8 px-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
+                className="w-16 h-8 px-2 text-[13px] border border-gray-200 rounded-lg outline-none focus:ring-0 focus:border-[#4FA34E]"
               />
               <button
                 type="button"
@@ -247,16 +253,18 @@ export default function ListFilterToolbar({
         <select
           value={typeFilter ?? ''}
           onChange={(e) => onTypeChange(e.target.value)}
-          className="h-7 md:h-9 w-[76px] md:w-36 pl-[22px] md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
+          className="h-7 md:h-9 w-[90px] md:w-36 pl-[22px] md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
             focus:outline-none focus:ring-0 focus:border-[#4FA34E]
             transition-[border-color,box-shadow] duration-150 text-slate-700"
         >
-          <option value="" disabled>Type</option>
           {typeOptions.map(({ value, label }) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
       </div>
+
+      {/* Extra filters slot rendered after Type (e.g. Archive's Prepared By) */}
+      {extraFiltersEnd}
 
       {/* Date Range */}
       <div className="relative flex-shrink-0" ref={datePickerRef}>

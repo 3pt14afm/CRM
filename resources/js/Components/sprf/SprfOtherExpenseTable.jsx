@@ -1,4 +1,5 @@
 import React from 'react';
+import SprfOtherExpenseCardList from './SprfOtherExpenseCardList';
 
 const peso = (value) => {
   if (value === '' || value === null || value === undefined) return '';
@@ -70,11 +71,21 @@ export default function SprfOtherExpenseTable({
 
   return (
     <div className="w-full md:w-[80%] xl:w-[65%]">
-      <div className="mb-1 text-[11px] xl:text-xs ml-3 font-bold uppercase text-[#111]">
+      <div className="hidden md:block mb-1 text-[11px] xl:text-xs ml-3 font-bold uppercase text-[#111]">
         Other Expense
       </div>
 
-      <div className="rounded-xl border border-[#CAD6C2] bg-white shadow-md overflow-hidden">
+      <SprfOtherExpenseCardList
+        otherExpenses={otherExpenses}
+        computedExpenses={computedExpenses}
+        onUpdateExpense={onUpdateExpense}
+        onAddExpenseRow={onAddExpenseRow}
+        onRemoveExpenseRow={onRemoveExpenseRow}
+        totalOtherExpense={totalOtherExpense}
+        readOnly={readOnly}
+      />
+
+      <div className="hidden md:block rounded-xl border border-[#CAD6C2] bg-white shadow-md overflow-hidden">
         <div className="overflow-x-auto touch-pan-x">
         <table className="w-full min-w-[560px] xl:min-w-0 table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>

@@ -14,7 +14,7 @@ export default function Archive({ archiveProjects = null, stats = null, filters 
   return (
     <>
       {/* PAGE NAVIGATION TABS (Mobile Only) */}
-      <div className="sticky top-0 z-40 px-4 py-1.5 pb-2 bg-[#f5f5f7] sm:hidden">
+      <div className="sticky top-0 z-30 px-4 py-1.5 pb-2 bg-[#f5f5f7] sm:hidden">
         <div className="flex rounded-full bg-[#f8f8f8] w-full border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
           <button
             type="button"

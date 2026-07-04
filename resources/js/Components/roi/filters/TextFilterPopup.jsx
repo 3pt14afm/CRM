@@ -25,9 +25,7 @@ export default function TextFilterPopup({ icon, label, placeholder, value, onCha
         <input autoFocus type="text" value={draft} placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && apply()}
-          className="w-full h-9 px-3 text-[13px] bg-white text-slate-700 border border-gray-200 rounded-lg
-            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150" />
+          className="w-full h-9 px-3 text-[13px] bg-white text-slate-700 border border-gray-200 rounded-lg outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150" />
       </div>
       <div className="px-3 pb-3 flex items-center gap-2 border-t border-gray-100 pt-3">
         <button type="button" onClick={clear}

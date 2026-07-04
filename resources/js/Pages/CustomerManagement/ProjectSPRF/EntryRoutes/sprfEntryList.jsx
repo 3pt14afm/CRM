@@ -6,7 +6,7 @@ import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { formatLastSaved } from '@/utils/dateUtils';
 import axios from 'axios';
 
-import { FaFolderOpen } from 'react-icons/fa';
+import { FaFolderOpen, FaPlus } from 'react-icons/fa';
 import { IoTimeOutline, IoAddCircleOutline } from 'react-icons/io5';
 import toast, { Toaster } from 'react-hot-toast';
 import { MdDelete, MdEdit, MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose } from 'react-icons/md';
@@ -36,6 +36,7 @@ export default function SprfEntryList({
   const [serverDrafts, setServerDrafts] = useState(drafts);
   const [serverStats, setServerStats] = useState(stats);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -43,6 +44,14 @@ export default function SprfEntryList({
   const [dateTo, setDateTo] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const datePickerRef = useRef(null);
+
+  useEffect(() => {
+      const mq = window.matchMedia("(max-width: 639px)"); // matches your sm: breakpoint
+      const update = () => setIsMobile(mq.matches);
+      update();
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }, []);
 
   // Sync server props to local state on initial load / navigation
   useEffect(() => {
@@ -99,32 +108,42 @@ export default function SprfEntryList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, statusFilter, dateFrom, dateTo]);
 
-  const tiles = useMemo(() => {
+const tiles = useMemo(() => {
     const totalDrafts = serverStats?.totalDrafts ?? serverDrafts?.total ?? 0;
-    const recentlyModified = serverStats?.recentlyModifiedText ?? '—';
+    const recentlyModified = serverStats?.recentlyModifiedText ?? "—";
 
-    return [
+    const baseTiles = [
       {
-        label: 'Total Drafts',
+        label: "Total Drafts",
         value: totalDrafts,
         icon: <FaFolderOpen />,
-        variant: 'normal',
+        variant: "normal",
       },
       {
-        label: 'Recently Modified',
+        label: "Recently Modified",
         value: recentlyModified,
         icon: <IoTimeOutline />,
-        variant: 'normal',
-      },
-      {
-        label: 'Create New Draft',
-        value: null,
-        icon: <IoAddCircleOutline />,
-        variant: 'action',
-        onClick: () => router.visit(route('sprf.entry.create')),
+        variant: "normal",
       },
     ];
-  }, [serverStats, serverDrafts]);
+
+    if (!isMobile) {
+      baseTiles.push({
+        label: (
+          <>
+            <span className="sm:hidden">Create</span>
+            <span className="hidden sm:inline">Create New Draft</span>
+          </>
+        ),
+        value: null,
+        icon: <IoAddCircleOutline />,
+        variant: "action",
+        onClick: () => router.visit(route("sprf.entry.create")),
+      });
+    }
+
+    return baseTiles;
+  }, [serverStats, serverDrafts, isMobile]);
 
   const handleDelete = (row) => {
     const ref = row.sprf_no ?? row.id;
@@ -347,35 +366,53 @@ export default function SprfEntryList({
     setShowDatePicker(false);
   };
 
-  // --- Search Control Bar ---
+  // --- Search Control Bar Markup Segment Layout ---
   const searchControl = (
-    <div className="flex flex-row items-center gap-1.5 min-w-0 w-full sm:w-auto">
-      <div className="relative h-6 flex items-center min-w-0 flex-1 sm:flex-none">
-        <MdSearch className="absolute left-2.5 text-slate-400 text-base pointer-events-none z-10" />
+    <div className="flex flex-row items-center gap-1 md:gap-1.5 min-w-0 w-full sm:w-auto">
+      <div className="relative h-7 md:h-8 flex items-center min-w-0 flex-shrink-0">
         <input
           type="text"
           placeholder="Search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-8 w-full sm:w-52 min-w-0 pl-8 pr-3 text-[13px] border border-gray-200 rounded-lg bg-white text-black placeholder:text-slate-400
-            outline-none focus:ring-0 focus:border-[#289800]
-            transition-[border-color,box-shadow] duration-150"
+          className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
+            outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
+            
+            /* Desktop styling: Always expanded */
+            md:w-52 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
+            
+            /* Mobile styling: Conditional based on whether text has been entered */
+            ${search 
+              ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" 
+              : "w-7 px-0 text-transparent placeholder:text-transparent cursor-pointer focus:w-40 focus:pl-8 focus:pr-3 focus:text-black focus:placeholder:text-slate-400 focus:cursor-text"
+            }
+          `}
         />
+
+        <MdSearch 
+          className={`absolute text-slate-400 text-base pointer-events-none z-10 transition-all duration-300 
+            /* Centers the icon when collapsed, moves it to the left when focused, typed in, or on desktop */
+            ${search ? "left-2.5 translate-x-0" : "left-1/2 -translate-x-1/2 peer-focus:left-2.5 peer-focus:translate-x-0 md:left-2.5 md:translate-x-0"}`} 
+        />
+
       </div>
 
-      <div className="relative h-6 flex items-center flex-shrink-0">
-        <MdOutlineFilterAlt className="absolute left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
+      
+      <div className="relative h-7 md:h-8 flex items-center flex-shrink-0">
+        <MdOutlineFilterAlt className="absolute left-1/2 -translate-x-1/2 md:translate-x-0 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10 transition-all duration-150" />
+        
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-8 w-28 sm:w-32 pl-8 pr-6 py-0 text-[13px] border border-gray-200 rounded-lg bg-white text-black appearance-none cursor-pointer
+          className="h-7 md:h-8 w-7 md:w-32 px-0 md:pl-8 md:pr-6 py-0 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white 
+            text-transparent md:text-black appearance-none cursor-pointer !bg-none [&::-ms-expand]:hidden
             flex items-center outline-none focus:ring-0 focus:border-[#289800]
-            transition-[border-color,box-shadow] duration-150"
+            transition-all duration-150"
         >
-          <option value="all">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="returned">Returned</option>
-          <option value="withdrawn">Withdrawn</option>
+          <option className="text-black" value="all">&nbsp;&nbsp;All Status&nbsp;&nbsp;</option>
+          <option className="text-black" value="draft">&nbsp;&nbsp;Draft&nbsp;&nbsp;</option>
+          <option className="text-black" value="returned">&nbsp;&nbsp;Returned&nbsp;&nbsp;</option>
+          <option className="text-black" value="withdrawn">&nbsp;&nbsp;Withdrawn&nbsp;&nbsp;</option>
         </select>
       </div>
 
@@ -383,13 +420,13 @@ export default function SprfEntryList({
         <button
           type="button"
           onClick={() => setShowDatePicker((p) => !p)}
-          className={`h-8 flex items-center gap-1.5 px-2.5 text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap outline-none focus:ring-0 focus:border-[#289800]
+          className={`h-7 md:h-8 flex items-center gap-1.5 px-1.5 md:px-2.5 text-xs md:text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap outline-none focus:ring-0 focus:border-[#289800]
             ${hasDateFilter
-              ? 'border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]'
-              : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300'
+              ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
+              : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"
             }`}
         >
-          <MdDateRange size={15} className={hasDateFilter ? 'text-[#4FA34E]' : 'text-slate-400'} />
+          <MdDateRange size={15} className={hasDateFilter ? "text-[#4FA34E]" : "text-slate-400"} />
           {hasDateFilter && (
             <span className="hidden sm:inline text-[12px] max-w-[180px] truncate">{dateLabel}</span>
           )}
@@ -446,21 +483,111 @@ export default function SprfEntryList({
     </div>
   );
 
+  // --- Mobile card layout (below md) ---
+  const renderEntryCard = (r) => {
+    if (r.isSkeleton) {
+      return (
+        <div className="flex items-center gap-3 animate-pulse px-2 py-3">
+          <div className="h-10 w-10 rounded-lg bg-slate-200/80 shrink-0" />
+          <div className="flex-1 space-y-2 min-w-0">
+            <div className="h-3 w-2/3 rounded-full bg-slate-200/80" />
+            <div className="h-2.5 w-1/2 rounded-full bg-slate-200/80" />
+          </div>
+        </div>
+      );
+    }
+
+    const isReturned = r.status === 'returned';
+    const isWithdrawn = r.status === 'withdrawn';
+
+    return (
+      <div className="px-2 py-3">
+        <div className="flex items-start justify-between gap-2">
+          <p className={`text-[11px] font-medium ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : r.type === 0 ? 'Potential' : '—'}</p>
+          <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border whitespace-nowrap
+            ${isReturned
+              ? "bg-red-100 text-red-700 border-red-200"
+              : isWithdrawn
+              ? "bg-blue-100 text-blue-700 border-blue-200"
+              : "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]"
+            }`}>
+            {r.status ?? '—'}
+          </span>
+        </div>
+
+        <div className="min-w-0 leading-relaxed pt-1">
+          <p className="text-xs font-medium">{r.sprf_no ?? '—'}</p>
+          <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
+          <p className="text-[11px] text-slate-800 font-semibold">{r.sub_category ?? '—'} · {r.account_manager ?? '—'}</p>
+        </div>
+
+        <p className="mt-5 flex items-center justify-between text-[11px] text-slate-500">
+          <span className="normal-case text-[10px] text-slate-500 italic">{formatLastSaved(r.last_saved_at)}</span>
+        </p>
+
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); router.visit(route('sprf.entry.projects.show', r.id)); }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
+          >
+            <MdEdit className="text-sm" /> Edit
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleDelete(r); }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-[#F27373] text-red-500 text-xs font-semibold hover:bg-[#F27373]/10"
+          >
+            <MdDelete className="text-sm" /> Delete
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
+      {/* PAGE NAVIGATION TABS (Mobile Only) */}
+      <div className="sticky top-0 z-30 px-4 py-1.5 pb-2 sm:hidden">
+        <div className="flex rounded-full bg-[#f8f8f8] w-full border border-[#2c2c2e10] border-b-[#2c2c2e]/15 shadow-sm">
+          <button
+            type="button"
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800] border border-[#B5EBA2]/60"
+          >
+            Drafts
+          </button>
+                
+          <button
+            type="button"
+            onClick={() => router.visit(route('sprf.current'))}
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+          >
+            Current
+          </button>
+                  
+          <button
+            type="button"
+            onClick={() => router.visit(route('sprf.archive'))}
+            className="flex-1 text-center px-2 text-[13px] sm:text-sm m-0.5 py-0.5 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+          >
+            Archive
+          </button>              
+        </div>
+      </div>   
+
       <Head title="SPRF Entry" />
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
-          <div className="px-2 pt-8 pb-3 flex justify-between mx-10 md:mx-4 lg:mx-5 xl:mx-10">
-            <div className="flex gap-1">
-              <h1 className="font-semibold mt-3">Project SPRF</h1>
-              <p className="mt-3">/</p>
-              <p className="text-3xl font-semibold">Entry</p>
-            </div>
 
+          <div className="px-4 sm:px-6 lg:px-10 pt-2 md:pt-8 pb-3 flex justify-between items-end">
+            <div className="flex items-baseline gap-1">
+              <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project SPRF Approval</h1>
+              <p className="text-slate-400 hidden sm:block">/</p>
+              <p className="text-2xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Entry</p>
+            </div>
             <div className="flex flex-col gap-1 items-end">
-              <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
+              <h1 className="text-[10px] md:text-xs text-slate-500">{formattedDate}</h1>
             </div>
           </div>
 
@@ -473,8 +600,18 @@ export default function SprfEntryList({
             pagination={isLoading ? null : pagination}
             searchControl={searchControl}
             emptyText={isLoading ? 'Loading records...' : 'No matching records found.'}
+            renderCard={renderEntryCard}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={() => router.visit(route("sprf.entry.create"))}
+          aria-label="Create New Draft"
+          className="sm:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center h-14 w-14 rounded-full bg-[#289800]/80 text-white shadow-lg active:scale-95 transition-transform"
+        >
+          <FaPlus className="text-xl" />
+        </button>
 
         <Toaster />
         <FlashMessages />

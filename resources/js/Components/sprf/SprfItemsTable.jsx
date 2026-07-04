@@ -2,36 +2,48 @@ import React, { useState } from 'react';
 import { MdKeyboardArrowDown, MdKeyboardArrowRight, MdOutlineDelete } from 'react-icons/md';
 import { peso, blankIfEmpty, percent } from '../../utils/sprf/calculations';
 import { PackagePlus } from 'lucide-react';
+import SprfItemsCardList from './SprfItemsCardList';
 
-const formatCurrencyInput = (val) => {
+const formatNumberInput = (val, maxDecimals = 2) => {
   if (val === '' || val === null || val === undefined) return '';
+
   let str = String(val).replace(/[^0-9.]/g, '');
+
+  // Allow only one decimal point
   const parts = str.split('.');
   if (parts.length > 2) {
     str = parts[0] + '.' + parts.slice(1).join('');
   }
+
   const finalParts = str.split('.');
+
+  // Add thousand separators
   finalParts[0] = finalParts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
   if (finalParts.length > 1) {
-    finalParts[1] = finalParts[1].slice(0, 2); // Strictly 2 decimals
+    finalParts[1] = finalParts[1].slice(0, maxDecimals);
     return `${finalParts[0]}.${finalParts[1]}`;
   }
+
   return finalParts[0];
 };
 
-// 2. Helper to truncate decimals BEFORE hitting state
-const truncateToTwoDecimals = (val) => {
+const truncateDecimals = (val, maxDecimals = 2) => {
   const parts = val.split('.');
+
   if (parts.length > 1) {
-    return `${parts[0]}.${parts[1].slice(0, 2)}`;
+    return `${parts[0]}.${parts[1].slice(0, maxDecimals)}`;
   }
+
   return val;
 };
 
-const parseCurrencyInput = (val) => {
+const parseNumberInput = (val, maxDecimals = 2) => {
   if (val === '' || val === null || val === undefined) return '';
+
   const clean = String(val).replace(/,/g, '');
-  return truncateToTwoDecimals(clean); // Enforce before returning
+
+  return truncateDecimals(clean, maxDecimals);
 };
 
 export default function SprfItemsTable({
@@ -66,7 +78,20 @@ export default function SprfItemsTable({
 
   return (
     <div>
-      <div className="rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md overflow-hidden">
+      <SprfItemsCardList
+        computedItems={computedItems}
+        expanded={expanded}
+        toggleExpand={toggleExpand}
+        onUpdateSubitem={onUpdateSubitem}
+        onAddGroup={onAddGroup}
+        onAddSubitem={onAddSubitem}
+        onRemoveSubitem={onRemoveSubitem}
+        totals={totals}
+        readOnly={readOnly}
+      />
+
+      {/* ── DESKTOP: original table (unchanged, md and up) ─────────────── */}
+      <div className="hidden md:block rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md overflow-hidden">
         <div className="overflow-x-auto touch-pan-x">
         <table className="w-full min-w-[880px] xl:min-w-0 table-fixed border-separate border-spacing-0 text-[11px]">
           <colgroup>
@@ -346,9 +371,9 @@ export default function SprfItemsTable({
                     ) : (
                       <input
                         type="text"
-                        value={formatCurrencyInput(sub.costPerUnit)}
+                        value={formatNumberInput(sub.costPerUnit, 2)}
                         onChange={(e) => {
-                          const rawValue = parseCurrencyInput(e.target.value);
+                          const rawValue = parseNumberInput(e.target.value, 2);
                           onUpdateSubitem(groupIndex, subIndex, 'costPerUnit', rawValue);
                         }}
                         className={`${inputClass} py-0.5`}
@@ -390,9 +415,9 @@ export default function SprfItemsTable({
                     ) : (
                       <input
                         type="text"
-                        value={formatCurrencyInput(sub.markupPercent)}
+                        value={formatNumberInput(sub.markupPercent, 4)}
                         onChange={(e) => {
-                          const rawValue = parseCurrencyInput(e.target.value);
+                          const rawValue = parseNumberInput(e.target.value, 4);
                           onUpdateSubitem(groupIndex, subIndex, 'markupPercent', rawValue);
                         }}
                         className={`${inputClass} py-0.5`}
