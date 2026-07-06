@@ -5,11 +5,12 @@ import { useRef } from 'react';
 import Summary1stYear from './Summary1stYear';
 import MachineConfigTab from './MachineConfigTab';
 import SucceedingYears from './SucceedingYears';
-import { FaRegFloppyDisk } from "react-icons/fa6";
-import { IoPrintSharp, IoSend, IoTrashSharp } from "react-icons/io5";
+import { IoPrintSharp } from "react-icons/io5";
 import { LuScanEye } from "react-icons/lu";
-import { MdDisabledByDefault, MdOutlineCancel  } from "react-icons/md";
-import { FaArrowLeft, FaArrowRight, FaAngleLeft, FaUndo   } from 'react-icons/fa';
+import { MdOutlineCancel, MdVerified } from "react-icons/md";
+import { FaUndo } from 'react-icons/fa';
+import { IoIosArrowBack } from 'react-icons/io';
+import { TiArrowBack, TiArrowForward } from 'react-icons/ti';
 import { useProjectData } from '@/Context/ProjectContext';
 
 import { useEntryHydration } from '@/hooks/roi/useEntryHydration';
@@ -118,6 +119,10 @@ const {
   const isCurrentRecord = routeName === 'current';
   const isSummaryLikeTab = tab === 'Summary' || tab === 'Succeeding';
 
+  const isCurrentRoute = routeName === 'current';
+  const isArchiveRoute = routeName === 'archive';
+  const isEntryRoute = !isCurrentRoute && !isArchiveRoute;
+
   const statusText = String(
   projectData?.metadata?.status ?? entryProject?.status ?? "draft"
   ).toLowerCase();
@@ -135,10 +140,7 @@ const isPreparer = isCurrentRecord && (Number(auth?.user?.id) === Number(entryPr
 
 
   const showDraftWatermark = !isCurrentRecord && statusText === "draft";
-  const showMachineDraftActions = tab === 'Machine' && !readOnly && !isCurrentRecord;
-  const showEntrySummaryDraftActions = isSummaryLikeTab && !readOnly && !isCurrentRecord;
   const showCurrentSummaryApprovalActions = isSummaryLikeTab && isCurrentRecord;
-  const showPrintFooter = isSummaryLikeTab;
 
 
 
@@ -163,7 +165,6 @@ const isAssignedApproverLevel = levelNum >= 2 && levelNum <= 6 && levelNum === p
   const canApprove = isAssignedApproverLevel && levelNum === 6;
 
   const showApprovalButtons = showCurrentSummaryApprovalActions && isAssignedApproverLevel;
-const showPrintOnly = showPrintFooter && !showEntrySummaryDraftActions && !showApprovalButtons && !showPreparerCurrentActions;
 
   // --- Tab refs (used by child components) ---
 
@@ -201,29 +202,33 @@ const handleGoBack = () => {
             : 'ROI Entry'
         }
       />
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col print:min-h-0 print:block">
       <div className="flex-1 pb-24">
-        <div className=" pt-8 pb-3  flex flex-col lg:flex-row justify-between  px-5">
-          <div className="flex gap-1  items-center">
+        <div className="md:px-2 pt-1 md:pt-6 pb-2 md:pb-3 grid grid-cols-3 items-end justify-between gap-2 mx-4 sm:mx-6 md:mx-10 print:mx-0 print:pt-0">
+          <div className="col-span-2 flex items-baseline md:gap-1">
             <button
               type="button"
               onClick={handleGoBack}
-              className="mr-2 mt-3 self-center w-8 h-8 flex items-center justify-center rounded-full bg-[#B5EBA2]/40 backdrop-blur border border-[#B5EBA2]/60 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all"
+              className="flex mr-2 mt-3 md:mt-2 self-center w-7 h-7 md:w-8 md:h-8 items-center justify-center pr-0.5 rounded-full bg-[#B5EBA2]/20 backdrop-blur border border-darkgreen/10 hover:bg-[#B5EBA2]/70 hover:shadow-[0_0_10px_#B5EBA2]/50 transition-all print:hidden"
             >
-              <FaAngleLeft size={20} className="text-[#195C00]" />
+              <IoIosArrowBack size={20} className="text-darkgreen" />
             </button>
-            <h1 className="font-semibold mt-3">Project ROI Approval</h1>
-            <p className="mt-3">/</p>
-            <p className="text-2xl mt-3 font-semibold">
-              {routeName === 'current' || routeName === 'archive'
-                ? `${entryProject?.company_name}`
-                : 'Entry'}
-            </p>
+            <div className="flex flex-col md:flex-row md:items-baseline md:gap-1">
+              <h1 className="font-semibold mt-3 text-xs sm:text-sm md:text-base">Project ROI Approval</h1>
+              <p className="hidden md:block md:mt-3">/</p>
+              <p className="text-lg sm:text-xl md:text-3xl font-semibold">
+                {routeName === 'current' || routeName === 'archive'
+                  ? `${entryProject?.company_name}`
+                  : 'Entry'}
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1 items-end">
-            <h1 className="text-xs text-right text-slate-500">{formattedDate}</h1>
-            <p className="text-base font-semibold text-right">Reference: {projectRef}</p>
+          <div className="col-span-1 flex flex-col gap-0.5 md:gap-1 items-end pb-1">
+            <h1 className="text-[10px] md:text-xs text-right text-slate-500">{formattedDate}</h1>
+            <p className="text-[10px] md:text-xs text-right text-slate-500">
+              Reference: {projectRef}
+            </p>
           </div>
         </div>
 
@@ -276,232 +281,27 @@ const handleGoBack = () => {
         ) : null}
       </div>
 
-    <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
-            <div className="px-3 sm:px-10 py-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-0 relative">
-              {showMachineDraftActions && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleClearAll}
-                    className="order-1 w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-5 py-1.5 sm:py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold text-sm whitespace-nowrap"
-                  >
-                    <IoTrashSharp /> Clear All
-                  </button>
+    <div className="sticky bottom-9 rounded-full md:rounded-none mx-2 md:mx-0 md:bottom-0 z-40 bg-[#f5f5f701] backdrop-blur-[3px] md:backdrop-blur border md:border-t md:border-x-0 border-black/15 shadow-2xl shadow-white">
+          {isEntryRoute && !readOnly ? (
+            
+            <div className="px-3 md:px-10 py-1.5 md:py-2 flex items-center justify-between gap-2 relative">
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="w-auto flex items-center justify-center text-xs md:text-sm gap-2 px-2.5 md:px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+              >
+                Clear All
+              </button>
 
-                  <div className="order-2 grid grid-cols-2 sm:flex sm:w-auto items-center gap-2 sm:gap-3 w-full">
-                    <button
-                      type="button"
-                      onClick={handleSaveDraft}
-                      className="flex items-center justify-center gap-2 px-3 sm:px-5 sm:pl-4 py-1.5 sm:py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold text-sm whitespace-nowrap"
-                    >
-                      <FaRegFloppyDisk /> Save Draft
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      className="flex items-center justify-center gap-2 px-3 sm:px-5 py-1.5 sm:py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow text-sm whitespace-nowrap"
-                    >
-                      Submit <IoSend />
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {showEntrySummaryDraftActions && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleClearAll}
-                    className="order-1 w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-5 py-1.5 sm:py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold text-sm whitespace-nowrap"
-                  >
-                    <IoTrashSharp /> Clear All
-                  </button>
-
-                  <div className="order-2 flex items-center justify-center gap-2 sm:absolute sm:left-1/2 sm:-translate-x-1/2">
-                    <button
-                      type="button"
-                      onClick={() => openPrintPage(false)}
-                      className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
-                    >
-                        <LuScanEye className="text-xl" />
-                        <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
-                            Print Preview
-                        </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openPrintPage(true)}
-                      className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
-                    >
-                        <IoPrintSharp className="text-xl" />
-                        <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
-                            Print
-                        </span>
-                    </button>
-                  </div>
-
-                  <div className="order-3 grid grid-cols-2 sm:flex sm:w-auto items-center gap-2 sm:gap-3 w-full">
-                    <button
-                      type="button"
-                      onClick={handleSaveDraft}
-                      className="flex items-center justify-center gap-2 px-3 sm:px-5 sm:pl-4 py-1.5 sm:py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold text-sm whitespace-nowrap"
-                    >
-                      <FaRegFloppyDisk /> Save Draft
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      className="flex items-center justify-center gap-2 px-3 sm:px-5 py-1.5 sm:py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow text-sm whitespace-nowrap"
-                    >
-                      Submit <IoSend />
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {/* ── Preparer actions — withdraw / cancel ── */}
-              {showPreparerCurrentActions && (
-                  <>
-                      <div className="order-1 flex items-center gap-3 w-full sm:w-auto">
-                          {canWithdraw && (
-                            <button
-                                type="button"
-                                onClick={handleWithdraw}
-                                className="group relative flex items-center justify-center sm:justify-start gap-1 px-4 py-1.5 sm:py-1 rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs xl:text-sm hover:shadow-innerSkyBlue font-semibold
-                                    bg-blue-400/10 backdrop-blur-md
-                                    shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]
-                                    hover:bg-blue-400/20 hover:border-[#0565D2]/70
-                                    transition-all duration-200 w-full sm:w-auto whitespace-nowrap"
-                            >
-                                <FaUndo size={12}/> Withdraw
-                                <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-[#0a4e9c] px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
-                                    Withdraw Proposal
-                                </span>
-                            </button>
-                          )}
-                      </div>
-
-                      <div className="order-2 flex items-center justify-center gap-2 sm:absolute sm:left-1/2 sm:-translate-x-1/2">
-                        <button
-                            type="button"
-                            onClick={() => openPrintPage(false)}
-                            className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
-                        >
-                            <LuScanEye className="text-xl" />
-                            <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
-                                Print Preview
-                            </span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => openPrintPage(true)}
-                            className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
-                        >
-                            <IoPrintSharp className="text-xl" />
-                            <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
-                                Print
-                            </span>
-                        </button>
-                    </div>
-
-                      <div className="order-3 flex items-center gap-3 w-full sm:w-auto justify-end">
-                          {canCancel && (
-                            <button
-                                type="button"
-                                onClick={handleCancel}
-                                className="group relative flex items-center justify-center sm:justify-start gap-1 px-2 xl:px-3 py-1.5 sm:py-1 rounded-xl border border-[#F27373] text-red-600 text-xs xl:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold transition-all w-full sm:w-auto whitespace-nowrap"
-                            >
-                                <MdOutlineCancel size={16}/> Cancel
-                                <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-red-600 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
-                                    Cancel Proposal
-                                </span>
-                            </button>
-                          )}
-                      </div>
-                  </>
-              )}
-
-              {/* Approval actions — only visible to assigned approvers */}
-              {showApprovalButtons && (
-                <>
-                  <div className="order-1 grid grid-cols-2 sm:flex sm:w-auto items-center gap-2 sm:gap-3 w-full">
-                    <button
-                      type="button"
-                      onClick={handleReject}
-                      className="px-3 sm:px-5 py-1.5 sm:py-1 gap-2 items-center justify-center flex rounded-xl border border-[#F27373] text-red-600 hover:shadow-innerRed hover:bg-[#F27373]/10 font-medium text-sm whitespace-nowrap"
-                    >
-                      <MdDisabledByDefault /> Disapprove/Reject
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleBackToSender}
-                      className="px-3 sm:px-5 py-1.5 sm:py-1 gap-2 items-center justify-center flex rounded-xl border bg-[#CD4E00] text-white hover:shadow-innerOrange font-medium text-sm whitespace-nowrap"
-                    >
-                      <FaArrowLeft /> Back to Sender
-                    </button>
-                  </div>
-
-                  <div className="order-2 flex items-center justify-center gap-2 sm:absolute sm:left-1/2 sm:-translate-x-1/2">
-                    <button
-                      type="button"
-                      onClick={() => openPrintPage(false)}
-                      className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
-                    >
-                      <LuScanEye className="text-xl" />
-                      <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
-                          Print Preview
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openPrintPage(true)}
-                      className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
-                    >
-                        <IoPrintSharp className="text-xl" />
-                        <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
-                            Print
-                        </span>
-                    </button>
-                  </div>
-
-                  <div className="order-3 flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
-                    {!canApprove ? (
-                      <button
-                        type="button"
-                        onClick={() => handleAdvance(entryProject?.id)}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 sm:px-5 py-1.5 sm:py-1 rounded-xl border text-white bg-[#0565D2] hover:shadow-innerBlue font-medium text-sm whitespace-nowrap"
-                      >
-                        Submit to Next Level <FaArrowRight />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleApprove(entryProject?.id)}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 sm:px-5 py-1.5 sm:py-1 rounded-xl bg-[#289800] text-white font-medium hover:shadow-innerDarkgreen shadow text-sm whitespace-nowrap"
-                      >
-                        Approve
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Print-only footer — visible to all non-draft, non-approver viewers */}
-              {showPrintOnly && (
-                <div className="sm:ml-auto flex items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
+              {isSummaryLikeTab && (
+                <div className="static sm:absolute sm:left-1/2 sm:-translate-x-1/2 flex items-center justify-center gap-4">
                   <button
                     type="button"
                     onClick={() => openPrintPage(false)}
-                    className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                    className="group relative flex items-center justify-center md:border md:border-green p-1.5 rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black transition-all"
                   >
-                    <LuScanEye className="text-xl" />
-                    <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    <LuScanEye className="text-[17px] md:text-xl" />
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 sm:text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                       Print Preview
                     </span>
                   </button>
@@ -509,17 +309,167 @@ const handleGoBack = () => {
                   <button
                     type="button"
                     onClick={() => openPrintPage(true)}
-                    className="group relative flex items-center justify-center border border-green p-2 rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                    className="group relative flex items-center justify-center md:border md:border-green p-1.5 rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black transition-all"
                   >
-                    <IoPrintSharp className="text-xl" />
-                    <span className="hidden sm:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
-                        Print
+                    <IoPrintSharp className="text-[17px] md:text-xl" />
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 sm:text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                      Print
                     </span>
                   </button>
                 </div>
               )}
+
+              <div className="flex items-center justify-center sm:justify-end gap-1 md:gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="flex-1 sm:flex-none flex items-center whitespace-nowrap justify-center text-xs md:text-sm gap-2 px-2.5 md:px-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="flex-1 sm:flex-none flex items-center justify-center text-xs md:text-sm gap-2 px-3 md:px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                >
+                  Submit
+                </button>
+              </div>
             </div>
+          ) : isCurrentRoute && readOnly ? (
+            isSummaryLikeTab ? (
+              <div className="px-3 md:px-10 py-1.5 md:py-2 flex justify-between gap-2 sm:gap-0 items-center">
+                <div className="flex items-center justify-center sm:justify-start flex-wrap gap-4 sm:gap-2">
+                  {showApprovalButtons && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleReject}
+                        className="flex items-center text-xs md:text-sm gap-2 px-2 sm:px-3 md:px-4 py-1 rounded-xl border border-[#F27373] hover:bg-[#F27373]/20 text-red-600 bg-[#F27373]/5 font-semibold"
+                      >
+                        Disapprove
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleBackToSender}
+                        className="flex items-center text-xs md:text-sm gap-1 px-1 sm:px-2.5 md:px-3 py-0 sm:py-0.5 md:py-1 rounded-xl border border-amber-400 bg-amber-50/50 hover:bg-amber-100 text-amber-600 font-semibold"
+                      >
+                        <TiArrowBack className="text-[25px] sm:text-[21px] md:text-xl"/><span className="hidden sm:inline">Send Back</span>
+                      </button>
+                    </>
+                  )}
+
+                  {showPreparerCurrentActions && canWithdraw && (
+                    <button
+                      type="button"
+                      onClick={handleWithdraw}
+                      className="group relative flex items-center gap-1 px-3 md:px-4 py-1 md:py-1.5 rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs md:text-sm hover:shadow-innerSkyBlue font-semibold bg-blue-400/10 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] hover:bg-blue-400/20 hover:border-[#0565D2]/70 transition-all duration-200"
+                    >
+                      <FaUndo className="text-xs md:text-md"/> Withdraw
+                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-[#0a4e9c] px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
+                        Withdraw Proposal
+                      </span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center flex-wrap gap-4">
+                  <button
+                    type="button"
+                    onClick={() => openPrintPage(false)}
+                    className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black transition-all"
+                  >
+                    <LuScanEye className="text-[17px] md:text-xl" />
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                      Print Preview
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openPrintPage(true)}
+                    className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black transition-all"
+                  >
+                    <IoPrintSharp className="text-[17px] md:text-xl" />
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                      Print
+                    </span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center sm:justify-end flex-wrap gap-3">
+                  {showPreparerCurrentActions && canCancel && (
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      className="group relative flex items-center gap-1 px-2 xl:px-3 py-1 md:py-1.5 rounded-xl border border-[#F27373] text-red-600 text-xs md:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold transition-all"
+                    >
+                      <MdOutlineCancel size={16}/> Cancel
+                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-red-600 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
+                        Cancel Proposal
+                      </span>
+                    </button>
+                  )}
+
+                  {showApprovalButtons && (
+                    !canApprove ? (
+                      <button
+                        type="button"
+                        onClick={() => handleAdvance(entryProject?.id)}
+                        className="flex items-center text-xs md:text-sm gap-1.5 md:gap-2 px-1 sm:px-4 md:px-5 py-0 sm:py-1 rounded-xl sm:bg-darkgreen border border-darkgreen sm:border-0 hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-medium sm:font-semibold md:shadow"
+                      >
+                        <span className="hidden sm:inline">Submit to Next Level</span><TiArrowForward className="text-[25px] sm:text-[21px] md:text-xl text-darkgreen hover:text-white sm:text-white"/>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(entryProject?.id)}
+                        className="flex items-center text-xs md:text-sm gap-1 md:gap-2 px-2.5 sm:px-3 md:px-4 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow"
+                      >
+                        <MdVerified /><span>Approve</span>
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="px-3 sm:px-10 py-3 flex items-center justify-end" />
+            )
+          ) : isArchiveRoute && readOnly ? (
+            isSummaryLikeTab ? (
+              <div className="px-3 sm:px-10 py-1 md:py-2 flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(false)}
+                  className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                >
+                  <LuScanEye className="text-[19px] md:text-xl" />
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    Print Preview
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openPrintPage(true)}
+                  className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                >
+                  <IoPrintSharp className="text-[19px] md:text-xl" />
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
+                    Print
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div className="px-3 sm:px-10 py-3 flex items-center justify-end" />
+            )
+          ) : (
+            <div className="px-3 sm:px-10 py-3 flex items-center justify-end" />
+          )}
       </div>
+
     </div>
 
 
