@@ -41,13 +41,20 @@ class RoiEntryProjectController extends Controller
             return response()->json([]);
         }
 
-        $cacheKey = 'company_search_' . $search;
+        $employeeId = Auth::user()->employee_id;
+        
+        if (!$employeeId) {
+            return response()->json([]);
+        }
 
-        $suggestions = Cache::remember($cacheKey, now()->addDay(), function () use ($search) {
+        $cacheKey = 'company_search_' . $employeeId . '_' . $search;
+
+        $suggestions = Cache::remember($cacheKey, now()->addDay(), function () use ($search, $employeeId) {
             return DB::table('erms.tbl_company')
                 ->where('status', 1)
                 ->where('company_name', 'LIKE', $search . '%')
-                ->whereNotNull('sap_code') // <--- Ensures sap_code is not null
+                ->whereNotNull('sap_code')
+                ->where('id_client_mngr', $employeeId) // only companies managed by this user
                 ->select('company_name', 'sap_code as company_sap_code')
                 ->limit(20)
                 ->get();
@@ -320,7 +327,7 @@ class RoiEntryProjectController extends Controller
     {
         abort_unless($project->user_id === Auth::id(), 403);
 
-        $allowedStatuses = ['draft', 'returned', 'withdrawn'];
+        $allowedStatuses = ['draft', 'returned', 'withdrawn', 'duplicate'];
         if (!in_array($project->status, $allowedStatuses, true)) {
             return back()->with('error', 'Only drafts or returned projects can be deleted.');
         }

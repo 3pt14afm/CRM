@@ -94,6 +94,8 @@ Route::middleware(['auth', 'verified'])
             //ROI ARCHIVE ROUTES
             Route::get('/archive', [RoiArchiveController::class, 'index'])->name('roi.archive');
             Route::get('/archive/{id}', [RoiArchiveController::class, 'show'])->name('roi.archive.show');
+            Route::post('/roi/archive/{id}/withdraw', [RoiArchiveController::class, 'withdraw'])
+            ->name('roi.archive.withdraw');
 
            // routes/web.php — archive print route
             Route::get('/archive/{id}/print', [RoiPrintController::class, 'printArchive'])->name('roi.archive.print');

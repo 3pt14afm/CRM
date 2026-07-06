@@ -21,7 +21,7 @@ class RoiController extends Controller
             // 1. Build Base Filterable Query
             $draftsQuery = RoiEntryProject::query()
                 ->where('user_id', $userId)
-                ->whereIn('status', ['draft', 'returned', 'sent back', 'withdrawn'])
+                ->whereIn('status', ['draft', 'returned', 'sent back', 'withdrawn', 'duplicate'])
                 ->when($request->filled('search'), function ($q) use ($request) {
                     $search = $request->input('search');
                     $q->where(function ($inner) use ($search) {
