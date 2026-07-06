@@ -14,7 +14,7 @@ import NamesBlock from '@/Components/sprf/NamesBlock';
 import SprfAddNotes from '@/Components/sprf/SprfAddNotes';
 import SprfAddComments from '@/Components/sprf/SprfAddComments';
 import { FaUndo, FaAngleLeft } from 'react-icons/fa';
-import { MdOutlineCancel } from 'react-icons/md';
+import { MdOutlineCancel, MdVerified } from 'react-icons/md';
 import { LuScanEye } from 'react-icons/lu';
 import { IoChevronBack, IoPrintSharp } from 'react-icons/io5';
 
@@ -47,7 +47,9 @@ import {
   formatDateTime,
   buildSigner,
 } from '@/utils/sprf';
-import { IoIosArrowBack } from 'react-icons/io';
+import { IoIosArrowBack, IoMdSend } from 'react-icons/io';
+import { RiArrowGoBackLine } from 'react-icons/ri';
+import { TiArrowBack, TiArrowForward } from 'react-icons/ti';
 
 function Entry({
   approverUsers = {},
@@ -903,7 +905,7 @@ const [companyInfo, setCompanyInfo] = useState({
               IT Solutions Special Price Request Form
             </div>
 
-            <div className="p-3 sm:p-4 md:p-6 print:p-0">
+            <div className="p-2 sm:p-4 md:p-6 print:p-0">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-2 lg:gap-6 print:grid-cols-[50%_50%] print:gap-2">
                 <div className="md:col-span-8 space-y-3 print:space-y-1">
                   <div className="md:hidden print:hidden">
@@ -1021,14 +1023,14 @@ const [companyInfo, setCompanyInfo] = useState({
         </div>
       </div>
 
-        <div className="sticky bottom-0 z-40 bg-[#f5f5f701] backdrop-blur border-t border-black/10">
+        <div className="sticky bottom-9 rounded-full md:rounded-none mx-2 md:mx-0 md:bottom-0 z-40 bg-[#f5f5f501] backdrop-blur-[3px] md:backdrop-blur border md:border-t md:border-x-0 border-black/15 shadow-2xl shadow-white">
           {isEntryRoute && !readOnly ? (
-            <div className="px-3 sm:px-10 py-2 flex items-center justify-between gap-2 relative">
+            <div className="px-3 md:px-10 py-1.5 md:py-2 flex items-center justify-between gap-2 relative">
               <button
                 type="button"
                 onClick={handleClearAll}
                 disabled={isSubmitting}
-                className="w-auto flex items-center justify-center text-xs md:text-base gap-2 px-3 md:px-5 py-1 rounded-lg md:rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                className="w-auto flex items-center justify-center text-xs md:text-base gap-2 px-2.5 md:px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
               >
                 Clear All
               </button>
@@ -1038,9 +1040,9 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(false)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                  className="group relative flex items-center justify-center md:border md:border-green p-1.5 rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black transition-all"
                 >
-                  <LuScanEye className="text-[15px] sm:text-xl" />
+                  <LuScanEye className="text-[17px] md:text-xl" />
                         
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 sm:text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print Preview
@@ -1051,9 +1053,9 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(true)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                  className="group relative flex items-center justify-center md:border md:border-green p-1.5 rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  <IoPrintSharp className="text-[15px] sm:text-xl" />
+                  <IoPrintSharp className="text-[17px] md:text-xl" />
 
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 sm:text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print
@@ -1061,12 +1063,12 @@ const [companyInfo, setCompanyInfo] = useState({
                 </button>
               </div>
 
-              <div className="flex items-center justify-center sm:justify-end gap-3">
+              <div className="flex items-center justify-center sm:justify-end gap-1 md:gap-3">
                 <button
                   type="button"
                   onClick={handleSaveDraft}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none flex items-center whitespace-nowrap justify-center text-xs md:text-base gap-2 px-3 md:px-4 py-1 rounded-lg md:rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center whitespace-nowrap justify-center text-xs md:text-base gap-2 px-2.5 md:px-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
                 >
                   Save Draft
                 </button>
@@ -1075,33 +1077,33 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none flex items-center justify-center text-xs md:text-base gap-2 px-3 md:px-5 py-1 rounded-lg md:rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center justify-center text-xs md:text-base gap-2 px-3 md:px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
                 >
                   Submit
                 </button>
               </div>
             </div>
           ) : isCurrentRoute && readOnly ? (
-            <div className="px-3 sm:px-10 py-2 flex justify-between gap-2 sm:gap-0 items-center">
-              <div className="flex items-center justify-center sm:justify-start flex-wrap gap-2">
+            <div className="px-3 md:px-10 py-1.5 md:py-2 flex justify-between gap-2 sm:gap-0 items-center">
+              <div className="flex items-center justify-center sm:justify-start flex-wrap gap-4 sm:gap-2">
                 {canActOnCurrentProject && (
                   <>
                     <button
                       type="button"
                       onClick={() => setShowRejectModal(true)}
                       disabled={isSubmitting}
-                      className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-3 sm:px-4 md:px-5 py-1 rounded-lg md:rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                      className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-2 sm:px-3 md:px-4 py-1 rounded-xl border border-[#F27373] hover:bg-[#F27373]/20 text-red-600 bg-[#F27373]/5 font-semibold disabled:opacity-50"
                     >
-                      Reject
+                      Disapprove
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setShowSendBackModal(true)}
                       disabled={isSubmitting}
-                      className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-3 sm:px-4 md:px-5 py-1 rounded-lg md:rounded-xl border border-amber-400 hover:bg-amber-50 text-amber-600 font-semibold disabled:opacity-50"
+                      className="flex items-center text-xs sm:text-sm md:text-base gap-1 px-1 sm:px-2.5 md:px-3 py-0 sm:py-1 rounded-xl border border-amber-400 bg-amber-50/50 hover:bg-amber-100 text-amber-600 font-semibold disabled:opacity-50"
                     >
-                      Send Back
+                     <TiArrowBack className="text-[25px] sm:text-[21px] md:text-xl"/><span className="hidden sm:inline">Send Back</span>
                     </button>
                   </>
                 )}
@@ -1111,9 +1113,9 @@ const [companyInfo, setCompanyInfo] = useState({
                     type="button"
                     onClick={() => setShowWithdrawModal(true)}
                     disabled={isSubmitting}
-                    className="group relative flex items-center gap-1 px-4 py-1 rounded-lg md:rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs xl:text-sm hover:shadow-innerSkyBlue font-semibold bg-blue-400/10 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] hover:bg-blue-400/20 hover:border-[#0565D2]/70 transition-all duration-200"
+                    className="group relative flex items-center gap-1 px-3 md:px-4 py-1 md:py-1.5 rounded-xl border border-[#0565D2]/50 text-[#0565D2] text-xs md:text-sm hover:shadow-innerSkyBlue font-semibold bg-blue-400/10 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] hover:bg-blue-400/20 hover:border-[#0565D2]/70 transition-all duration-200"
                         >
-                      <FaUndo size={12}/> Withdraw
+                      <FaUndo className="text-xs md:text-md"/> Withdraw
                     <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-[#0a4e9c] px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md z-10">
                       Withdraw Proposal
                     </span>
@@ -1126,9 +1128,9 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(false)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                  className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  <LuScanEye className="text-[15px] md:text-xl" />
+                  <LuScanEye className="text-[17px] md:text-xl" />
 
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print Preview
@@ -1139,9 +1141,9 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={() => openPrintPage(true)}
                   disabled={isSubmitting}
-                  className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                  className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/20 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
                 >
-                  <IoPrintSharp className="text-[15px] md:text-xl" />
+                  <IoPrintSharp className="text-[17px] md:text-xl" />
 
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                     Print
@@ -1155,7 +1157,7 @@ const [companyInfo, setCompanyInfo] = useState({
                     type="button"
                     onClick={() => setShowCancelModal(true)}
                     disabled={isSubmitting}
-                    className="group relative flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg md:rounded-xl border border-[#F27373] text-red-600 text-xs xl:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold disabled:opacity-50 transition-all"
+                    className="group relative flex items-center gap-1 px-2 xl:px-3 py-1 md:py-1.5 rounded-xl border border-[#F27373] text-red-600 text-xs md:text-sm hover:shadow-innerRed hover:bg-[#F27373]/10 font-semibold disabled:opacity-50 transition-all"
                   >
                     <MdOutlineCancel size={16}/> Cancel
 
@@ -1172,18 +1174,18 @@ const [companyInfo, setCompanyInfo] = useState({
                         type="button"
                         onClick={handleApproveCurrent}
                         disabled={isSubmitting}
-                        className="flex items-center gap-2 px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                        className="flex items-center text-xs sm:text-sm md:text-base gap-1 md:gap-2 px-2.5 sm:px-3 md:px-4 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
                       >
-                        Approve
+                        <MdVerified /><span>Approve</span>
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={handleAdvanceCurrent}
                         disabled={isSubmitting}
-                        className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-3 sm:px-4 md:px-5 py-1 rounded-lg md:rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-medium sm:font-semibold shadow disabled:opacity-50"
+                        className="flex items-center text-xs sm:text-sm md:text-base gap-1.5 md:gap-2 px-1 sm:px-4 md:px-5 py-0 sm:py-1 rounded-xl sm:bg-darkgreen border border-darkgreen sm:border-0 hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-medium sm:font-semibold md:shadow disabled:opacity-50"
                       >
-                        Submit to Next Level
+                        <span className="hidden sm:inline">Submit to Next Level</span><TiArrowForward className="text-[25px] sm:text-[21px] md:text-xl text-darkgreen hover:text-white sm:text-white"/>
                       </button>
                     )}
                   </>
@@ -1191,14 +1193,14 @@ const [companyInfo, setCompanyInfo] = useState({
               </div>
             </div>
           ) : isArchiveRoute && readOnly ? (
-            <div className="px-3 sm:px-10 py-2 flex items-center justify-center gap-2">
+            <div className="px-3 sm:px-10 py-1 md:py-2 flex items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => openPrintPage(false)}
                 disabled={isSubmitting}
-                className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
+                className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/50 hover:shadow-innerGreen text-black transition-all"
               >
-                <LuScanEye className="text-[15px] md:text-xl" />
+                <LuScanEye className="text-[19px] md:text-xl" />
                         
                 <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                   Print Preview
@@ -1209,9 +1211,9 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={() => openPrintPage(true)}
                 disabled={isSubmitting}
-                className="group relative flex items-center justify-center border border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
+                className="group relative flex items-center justify-center md:border md:border-green p-1.5 sm:p-2 rounded-lg md:rounded-xl md:bg-lightgreen/50 hover:shadow-innerGreen text-black disabled:opacity-50 transition-all"
               >
-                <IoPrintSharp className="text-[15px] md:text-xl" />
+                <IoPrintSharp className="text-[19px] md:text-xl" />
 
                 <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-md">
                   Print

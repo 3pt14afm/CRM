@@ -34,6 +34,48 @@ const parseCurrencyInput = (val) => {
   return truncateToTwoDecimals(clean); // Enforce before returning
 };
 
+// Same as formatCurrencyInput/parseCurrencyInput but with configurable decimal
+// precision — used for fields like Markup % that need more than 2 decimals,
+// matching SprfItemsTable.jsx (the authoritative calculation source).
+const formatNumberInput = (val, maxDecimals = 2) => {
+  if (val === '' || val === null || val === undefined) return '';
+
+  let str = String(val).replace(/[^0-9.]/g, '');
+
+  const parts = str.split('.');
+  if (parts.length > 2) {
+    str = parts[0] + '.' + parts.slice(1).join('');
+  }
+
+  const finalParts = str.split('.');
+  finalParts[0] = finalParts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  if (finalParts.length > 1) {
+    finalParts[1] = finalParts[1].slice(0, maxDecimals);
+    return `${finalParts[0]}.${finalParts[1]}`;
+  }
+
+  return finalParts[0];
+};
+
+const truncateDecimals = (val, maxDecimals = 2) => {
+  const parts = val.split('.');
+
+  if (parts.length > 1) {
+    return `${parts[0]}.${parts[1].slice(0, maxDecimals)}`;
+  }
+
+  return val;
+};
+
+const parseNumberInput = (val, maxDecimals = 2) => {
+  if (val === '' || val === null || val === undefined) return '';
+
+  const clean = String(val).replace(/,/g, '');
+
+  return truncateDecimals(clean, maxDecimals);
+};
+
 /**
  * Mobile card list for SPRF item lots (below `md`).
  * Rendered by SprfItemsTable.jsx — shares the same `expanded` state and the
@@ -53,7 +95,7 @@ export default function SprfItemsCardList({
 }) {
   // One card per item lot (below md)
   return (
-    <div className="md:hidden flex flex-col gap-2">
+    <div className="md:hidden flex flex-col gap-2 border border-[#CAD6C2]/70 p-2 rounded-xl bg-[#B5EBA2]/5 shadow-inner">
         {computedItems.map((group, groupIndex) => {
             const isExpanded = expanded[group.rowKey] !== false;
             const subitems = group.computedSubitems || [];
@@ -135,7 +177,7 @@ export default function SprfItemsCardList({
                                                 type="text"
                                                 value={sub.productCode ?? ''}
                                                 onChange={(e) => onUpdateSubitem(groupIndex, subIndex, 'productCode', e.target.value)}
-                                                className="w-full text-xs normal-case border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-slate-400"
+                                                className="w-full text-xs normal-case border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85"
                                                 placeholder="Enter product code"
                                             />
                                             )}
@@ -169,7 +211,7 @@ export default function SprfItemsCardList({
                                                 e.target.style.height = 'auto';
                                                 e.target.style.height = e.target.scrollHeight + 'px';
                                             }}
-                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent resize-none overflow-hidden leading-snug whitespace-pre-wrap [overflow-wrap:anywhere] transition-[height] duration-150 ease-out placeholder:text-slate-400"
+                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent resize-none overflow-hidden leading-snug whitespace-pre-wrap [overflow-wrap:anywhere] transition-[height] duration-150 ease-out placeholder:text-gray-300/85"
                                             placeholder="Enter item description"
                                             />
                                         )}
@@ -194,7 +236,7 @@ export default function SprfItemsCardList({
                                             const value = e.target.value;
                                             onUpdateSubitem(groupIndex, subIndex, 'qty', value === '' ? '' : String(Math.floor(Number(value))));
                                             }}
-                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-slate-400 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                             placeholder="0"
                                         />
                                         )}
@@ -211,7 +253,7 @@ export default function SprfItemsCardList({
                                             type="text"
                                             value={sub.disty ?? ''}
                                             onChange={(e) => onUpdateSubitem(groupIndex, subIndex, 'disty', e.target.value)}
-                                            className="w-full text-xs normal-case border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-slate-400"
+                                            className="w-full text-xs normal-case border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85"
                                             placeholder="Enter disty"
                                         />
                                         )}
@@ -227,12 +269,12 @@ export default function SprfItemsCardList({
                                         ) : (
                                         <input
                                             type="text"
-                                            value={formatCurrencyInput(sub.markupPercent)}
+                                            value={formatNumberInput(sub.markupPercent, 4)}
                                             onChange={(e) => {
-                                            const rawValue = parseCurrencyInput(e.target.value);
+                                            const rawValue = parseNumberInput(e.target.value, 4);
                                             onUpdateSubitem(groupIndex, subIndex, 'markupPercent', rawValue);
                                             }}
-                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-slate-400"
+                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85"
                                             placeholder="0"
                                         />
                                         )}
@@ -252,7 +294,7 @@ export default function SprfItemsCardList({
                                             const rawValue = parseCurrencyInput(e.target.value);
                                             onUpdateSubitem(groupIndex, subIndex, 'costPerUnit', rawValue);
                                             }}
-                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-slate-400"
+                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85"
                                             placeholder="0.00"
                                         />
                                         )}
@@ -300,7 +342,7 @@ export default function SprfItemsCardList({
         })}
 
         {/* Mobile totals */}
-        <div className="rounded-xl border border-[#CAD6C2] bg-[#D9F2D0]/5 shadow px-4 py-3 flex flex-col gap-1.5 text-[11px] font-semibold">
+        <div className="rounded-xl border border-[#CAD6C2] bg-white shadow px-4 py-3 flex flex-col gap-1.5 text-[11px] font-semibold">
             <div className="flex justify-between">
             <span>Total Cost</span>
             <span>{peso(totals.ttlCost)}</span>

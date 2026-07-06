@@ -302,17 +302,17 @@ import { IoMdMore } from 'react-icons/io';
             </span>
           ),
         },
-            {
-              key: "type",
-              header: <div className="text-center w-full">TYPE</div>,
-                cell: (r) => r.isSkeleton ? (
+        {
+          key: "type",
+          header: <div className="text-center w-full">TYPE</div>,
+            cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-                <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
-                  {r.type === 1 ? "Existing" : "Potential"}
-                </span>
-              ),
-            },
+            <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+              {r.type === 1 ? "Existing" : "Potential"}
+            </span>
+          ),
+        },
         {
           key: "last_saved_at",
           header: <div className="text-center w-full">LAST SAVED</div>,

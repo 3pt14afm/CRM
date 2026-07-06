@@ -26,7 +26,7 @@ class SprfEntryItemSubitem extends Model
         'qty'            => 'integer',
         'cost_per_unit'  => 'decimal:2',
         'total_cost'     => 'decimal:2',
-        'markup_percent' => 'decimal:2',
+        'markup_percent' => 'decimal:4',
     ];
 
     public function item(): BelongsTo
