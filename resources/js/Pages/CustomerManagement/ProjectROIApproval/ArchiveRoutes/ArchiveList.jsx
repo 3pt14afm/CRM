@@ -49,100 +49,98 @@ const LS = {
 
 
 
-function ActionsDropdown({ row, isAdmin, hideView = false }) {
-  const [open, setOpen] = useState(false);
-  
-  const isApproved = String(row.status ?? "").toLowerCase() === "approved";
-  const hasProposal = !!row.has_proposal;
-  const isOwner = !!row.is_owner;
-  const isApprover = !!row.is_approver;
-  const isPrivileged = isAdmin || isOwner || isApprover;
+  function ActionsDropdown({ row, isAdmin, hideView = false }) {
+      // const [open, setOpen] = useState(false);
+      
+      // const isApproved = String(row.status ?? "").toLowerCase() === "approved";
+      // const hasProposal = !!row.has_proposal;
+      // const isOwner = !!row.is_owner;
+      // const isApprover = !!row.is_approver;
+      // const isPrivileged = isAdmin || isOwner || isApprover;
 
-  const showDropdown = isApproved && isPrivileged && (hasProposal || isOwner);
+      // const showDropdown = isApproved && isPrivileged && (hasProposal || isOwner);
 
-  if (!showDropdown) {
-    if (hideView) return null; 
+      // if (!showDropdown) {
+      //   if (hideView) return null; 
+        return (
+          <div className="flex justify-center items-center">
+            <button
+              type="button"
+              className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+              onClick={(e) => { e.stopPropagation(); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
+            >
+              <IoEyeOutline className="text-[17px]" />
+            </button>
+          </div>
+        );
 
-    return (
-      <div className="flex justify-center items-center">
-        <button
-          type="button"
-          className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
-          onClick={(e) => { e.stopPropagation(); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
-        >
-          <IoEyeOutline className="text-[17px]" />
-        </button>
-      </div>
-    );
+      // // Render 3-dot Dropdown 
+    // return (
+    //   // 1. Added 'relative' to this wrapper so the absolute dropdown anchors to it
+    //   <div className="relative flex justify-center items-center">
+    //     <button
+    //       type="button"
+    //       onClick={(e) => {
+    //         e.stopPropagation();
+    //         setOpen((p) => !p);
+    //       }}
+    //       className="px-1.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+    //     >
+    //       <span className="flex flex-col gap-[3px] items-center justify-center">
+    //         <span className="w-[3px] h-[3px] rounded-full bg-current" />
+    //         <span className="w-[3px] h-[3px] rounded-full bg-current" />
+    //         <span className="w-[3px] h-[3px] rounded-full bg-current" />
+    //       </span>
+    //     </button>
+
+    //     {/* 2. Invisible full-screen overlay to close the menu when clicking outside */}
+    //     {open && (
+    //       <div 
+    //         className="fixed inset-0 z-40" 
+    //         onClick={(e) => { e.stopPropagation(); setOpen(false); }} 
+    //       />
+    //     )}
+
+    //     {/* 3. The Dropdown Menu (Standard relative/absolute positioning instead of createPortal) */}
+    //     {open && (
+    //       <div
+    //         className="absolute right-0 top-full mt-1 z-50 flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[120px]"
+    //       >
+    //         {!hideView && (
+    //           <button
+    //             type="button"
+    //             className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold"
+    //             onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
+    //           >
+    //             <IoEyeOutline className="text-[15px]" />
+    //             <span>View</span>
+    //           </button>
+    //         )}
+
+    //         {!hasProposal ? (
+    //           <button
+    //             type="button"
+    //             className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 text-xs font-semibold"
+    //             onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
+    //           >
+    //             <MdOutlineDescription className="text-[15px]" />
+    //             <span>Generate</span>
+    //           </button>
+    //         ) : (
+    //           <button
+    //             type="button"
+    //             className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-semibold"
+    //             onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
+    //           >
+    //             <MdOutlineDescription className="text-[15px]" />
+    //             <span>Proposal</span>
+    //           </button>
+    //         )}
+    //       </div>
+    //     )}
+    //   </div>
+    // );
   }
-
-  // Render 3-dot Dropdown 
-  return (
-    // 1. Added 'relative' to this wrapper so the absolute dropdown anchors to it
-    <div className="relative flex justify-center items-center">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((p) => !p);
-        }}
-        className="px-1.5 py-1 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-      >
-        <span className="flex flex-col gap-[3px] items-center justify-center">
-          <span className="w-[3px] h-[3px] rounded-full bg-current" />
-          <span className="w-[3px] h-[3px] rounded-full bg-current" />
-          <span className="w-[3px] h-[3px] rounded-full bg-current" />
-        </span>
-      </button>
-
-      {/* 2. Invisible full-screen overlay to close the menu when clicking outside */}
-      {open && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={(e) => { e.stopPropagation(); setOpen(false); }} 
-        />
-      )}
-
-      {/* 3. The Dropdown Menu (Standard relative/absolute positioning instead of createPortal) */}
-      {open && (
-        <div
-          className="absolute right-0 top-full mt-1 z-50 flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[120px]"
-        >
-          {!hideView && (
-            <button
-              type="button"
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("roi.archive.show", row.id)); }}
-            >
-              <IoEyeOutline className="text-[15px]" />
-              <span>View</span>
-            </button>
-          )}
-
-          {!hasProposal ? (
-            <button
-              type="button"
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 text-xs font-semibold"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
-            >
-              <MdOutlineDescription className="text-[15px]" />
-              <span>Generate</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-semibold"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); router.visit(ziggyRoute("proposals.show", row.id)); }}
-            >
-              <MdOutlineDescription className="text-[15px]" />
-              <span>Proposal</span>
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ArchiveList({ archiveProjects: initialArchiveProjects, stats: initialStats, filters, locations = [], isAdmin = false }) {
   const [localArchiveProjects, setLocalArchiveProjects] = useState(initialArchiveProjects);
