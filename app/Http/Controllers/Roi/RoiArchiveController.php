@@ -43,7 +43,7 @@ class RoiArchiveController extends Controller
                 TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, ''))) as prepared_by_name,
                 TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, ''))) as approved_by_name,
                 TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, ''))) as rejected_by_name,
-                COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at) as decided_at
+                COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at) as decided_at
             ");
 
         // Apply Filters
@@ -60,11 +60,11 @@ class RoiArchiveController extends Controller
         }
 
         if ($request->filled('date_from')) {
-            $query->whereRaw("COALESCE(rejected_at, approved_at, last_saved_at) >= ?", [$request->date_from . ' 00:00:00']);
+            $query->whereRaw("COALESCE(rejected_at, approved_at, cancelled_at, last_saved_at) >= ?", [$request->date_from . ' 00:00:00']);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereRaw("COALESCE(rejected_at, approved_at, last_saved_at) <= ?", [$request->date_to . ' 23:59:59']);
+            $query->whereRaw("COALESCE(rejected_at, approved_at, cancelled_at, last_saved_at) <= ?", [$request->date_to . ' 23:59:59']);
         }
 
         if ($request->filled('decided_by')) {
@@ -103,7 +103,7 @@ class RoiArchiveController extends Controller
         $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
 
         $allowedSorts = [
-            'decided_at'       => "COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.last_saved_at)",
+            'decided_at'       => "COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at, roi_archive_projects.last_saved_at)",
             'prepared_by_name' => "TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, '')))",
             'reference'        => 'roi_archive_projects.reference',
             'company_sap_code' => 'roi_archive_projects.company_sap_code',
@@ -127,7 +127,7 @@ class RoiArchiveController extends Controller
             ->when(
                 $sortOrder,
                 fn($q) => $q->orderByRaw("{$sortCol} {$sortOrder}"),
-                fn($q) => $q->orderByRaw("CASE WHEN roi_archive_projects.user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.last_saved_at) DESC", [$userId])
+                fn($q) => $q->orderByRaw("CASE WHEN roi_archive_projects.user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at, roi_archive_projects.last_saved_at) DESC", [$userId])
             )
             ->paginate($perPage)
             ->withQueryString()
@@ -142,7 +142,7 @@ class RoiArchiveController extends Controller
 
                 $p->decided_at_display = match ($status) {
                     'rejected'  => $p->rejected_at,
-                    'cancelled' => $p->last_saved_at,
+                    'cancelled' => $p->cancelled_at,
                     default     => $p->approved_at,
                 };
 
