@@ -187,7 +187,7 @@ export default function ProjectListSection({
         {columns.map((c, index) => (
           <td 
             key={c.key} 
-            className={`px-2 py-1 md:px-2 md:text-[11px] lg:text-xs lg:px-1 ${index === 0 ? "!pl-4 xl:!pl-6" : ""}`}
+            className={`px-2 py-1 md:text-[11px] lg:text-xs ${index === 0 ? 'pl-2 md:pl-3 lg:pl-4 xl:pl-6' : ''}`}
           >
             {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
           </td>
@@ -270,7 +270,7 @@ export default function ProjectListSection({
             <thead className="bg-gray-100">
               <tr className="text-left text-slate-500">
                 {columns.map((c, index) => (
-                  <th key={c.key} className={`px-1 py-1 font-bold tracking-wide leading-tight md:px-2 md:py-[6px] md:text-[8px] lg:px-3 lg:text-[10px] xl:text-[11px] ${index === 0 ? "!pl-4 xl:!pl-6" : ""}`}>
+                  <th key={c.key} className={`px-2 py-1 font-bold tracking-wide leading-tight md:py-[6px] md:text-[8px] lg:text-[10px] xl:text-[11px] ${index === 0 ? 'pl-2 md:pl-3 lg:pl-4 xl:pl-6' : ''}`}>
                     {c.header}
                   </th>
                 ))}

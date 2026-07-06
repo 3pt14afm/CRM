@@ -1030,7 +1030,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 type="button"
                 onClick={handleClearAll}
                 disabled={isSubmitting}
-                className="w-auto flex items-center justify-center text-xs md:text-base gap-2 px-2.5 md:px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
+                className="w-auto flex items-center justify-center text-xs md:text-sm gap-2 px-2.5 md:px-5 py-1 rounded-xl border border-[#F27373] hover:shadow-innerRed text-red-600 hover:bg-[#F27373]/10 font-semibold disabled:opacity-50"
               >
                 Clear All
               </button>
@@ -1068,7 +1068,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={handleSaveDraft}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none flex items-center whitespace-nowrap justify-center text-xs md:text-base gap-2 px-2.5 md:px-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center whitespace-nowrap justify-center text-xs md:text-sm gap-2 px-2.5 md:px-4 py-1 rounded-xl border border-darkgreen text-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800]/10 font-semibold disabled:opacity-50"
                 >
                   Save Draft
                 </button>
@@ -1077,7 +1077,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none flex items-center justify-center text-xs md:text-base gap-2 px-3 md:px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                  className="flex-1 sm:flex-none flex items-center justify-center text-xs md:text-sm gap-2 px-3 md:px-5 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
                 >
                   Submit
                 </button>
@@ -1092,7 +1092,7 @@ const [companyInfo, setCompanyInfo] = useState({
                       type="button"
                       onClick={() => setShowRejectModal(true)}
                       disabled={isSubmitting}
-                      className="flex items-center text-xs sm:text-sm md:text-base gap-2 px-2 sm:px-3 md:px-4 py-1 rounded-xl border border-[#F27373] hover:bg-[#F27373]/20 text-red-600 bg-[#F27373]/5 font-semibold disabled:opacity-50"
+                      className="flex items-center text-xs md:text-sm gap-2 px-2 sm:px-3 md:px-4 py-1 rounded-xl border border-[#F27373] hover:bg-[#F27373]/20 text-red-600 bg-[#F27373]/5 font-semibold disabled:opacity-50"
                     >
                       Disapprove
                     </button>
@@ -1101,7 +1101,7 @@ const [companyInfo, setCompanyInfo] = useState({
                       type="button"
                       onClick={() => setShowSendBackModal(true)}
                       disabled={isSubmitting}
-                      className="flex items-center text-xs sm:text-sm md:text-base gap-1 px-1 sm:px-2.5 md:px-3 py-0 sm:py-1 rounded-xl border border-amber-400 bg-amber-50/50 hover:bg-amber-100 text-amber-600 font-semibold disabled:opacity-50"
+                      className="flex items-center text-xs md:text-sm gap-1 px-1 sm:px-2.5 md:px-3 py-0 sm:py-0.5 md:py-1 rounded-xl border border-amber-400 bg-amber-50/50 hover:bg-amber-100 text-amber-600 font-semibold disabled:opacity-50"
                     >
                      <TiArrowBack className="text-[25px] sm:text-[21px] md:text-xl"/><span className="hidden sm:inline">Send Back</span>
                     </button>
@@ -1174,7 +1174,7 @@ const [companyInfo, setCompanyInfo] = useState({
                         type="button"
                         onClick={handleApproveCurrent}
                         disabled={isSubmitting}
-                        className="flex items-center text-xs sm:text-sm md:text-base gap-1 md:gap-2 px-2.5 sm:px-3 md:px-4 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
+                        className="flex items-center text-xs md:text-sm gap-1 md:gap-2 px-2.5 sm:px-3 md:px-4 py-1 rounded-xl bg-darkgreen hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-semibold shadow disabled:opacity-50"
                       >
                         <MdVerified /><span>Approve</span>
                       </button>
@@ -1183,7 +1183,7 @@ const [companyInfo, setCompanyInfo] = useState({
                         type="button"
                         onClick={handleAdvanceCurrent}
                         disabled={isSubmitting}
-                        className="flex items-center text-xs sm:text-sm md:text-base gap-1.5 md:gap-2 px-1 sm:px-4 md:px-5 py-0 sm:py-1 rounded-xl sm:bg-darkgreen border border-darkgreen sm:border-0 hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-medium sm:font-semibold md:shadow disabled:opacity-50"
+                        className="flex items-center text-xs md:text-sm gap-1.5 md:gap-2 px-1 sm:px-4 md:px-5 py-0 sm:py-1 rounded-xl sm:bg-darkgreen border border-darkgreen sm:border-0 hover:shadow-innerDarkgreen hover:bg-[#289800] text-white font-medium sm:font-semibold md:shadow disabled:opacity-50"
                       >
                         <span className="hidden sm:inline">Submit to Next Level</span><TiArrowForward className="text-[25px] sm:text-[21px] md:text-xl text-darkgreen hover:text-white sm:text-white"/>
                       </button>

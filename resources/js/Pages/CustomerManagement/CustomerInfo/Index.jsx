@@ -236,7 +236,7 @@ const handleSearchChange = (value) => {
     const statusCell = (row) => {
         const isActive = row.status == 1;
         return (
-            <div className="flex justify-center items-center">
+            <div className="flex items-center">
                 <span className={`px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider border
                     ${isActive
                         ? 'bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20'
@@ -271,14 +271,12 @@ const handleSearchChange = (value) => {
         const isActive = r.status == 1;
         return (
             <div className="flex items-center gap-3">
-                    <FaBuildingUser className="text-darkgreen w-5 h-5 flex-shrink-0" />
-                
                 <div className="flex-1 min-w-0">
                     <p className={`text-xs font-semibold leading-snug truncate ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
                         {r.company_name ?? '—'}
                     </p>
                     <p className="text-[11px] text-slate-500 truncate uppercase">
-                        {[r.client_category, r.delsan_company, r.sap_code].filter(Boolean).join(' · ') || '—'}
+                        {[r.sap_code, r.client_category, r.delsan_company].filter(Boolean).join(' · ') || '—'}
                     </p>
                 </div>
                 <StatusBadgePill isActive={isActive} />
@@ -290,7 +288,6 @@ const handleSearchChange = (value) => {
         const isActive = r.status == 1;
         return (
             <div className="flex items-center gap-3">
-                <FaBuildingUser className="text-darkgreen w-5 h-5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold leading-snug truncate text-[#0f3800]">
                         {r.company_name ?? '—'}
@@ -308,6 +305,30 @@ const handleSearchChange = (value) => {
     /* ── Existing Columns (all columns + client_manager after delsan_company) ── */
     const existingColumns = useMemo(() => [
         {
+            key: 'sap_code',
+            header: (
+                <SortHeader label="SAP CODE" sortKey="sap_code"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
+                <span className="font-mono text-sm flex items-center text-slate-500">
+                    {r.sap_code ?? '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'delsan_company',
+            header: (
+                <SortHeader label="DELSAN" sortKey="delsan_company"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
+                <span className="font-medium flex items-center uppercase">
+                    {r.delsan_company ?? '—'}
+                </span>
+            ),
+        },
+        {
             key: 'company_name',
             header: (
                 <SortHeader label="COMPANY NAME" sortKey="company_name"
@@ -316,57 +337,41 @@ const handleSearchChange = (value) => {
             cell: (r) => {
                 const isActive = r.status == 1;
                 return (
-                    <div className={`font-medium flex items-center min-w-72 max-w-80 ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
-                        <FaBuildingUser className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <div className={`font-medium flex items-center min-w-52 max-w-60 ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
                         {r.company_name ?? '—'}
                     </div>
                 );
             },
         },
         {
-            key: 'sap_code',
-            header: (
-                <SortHeader label="SAP CODE" sortKey="sap_code" align="center"
-                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
-            ),
-            cell: (r) => (
-                <span className="font-mono text-sm flex justify-center items-center text-slate-500">
-                    {r.sap_code ?? '—'}
-                </span>
-            ),
-        },
-        {
             key: 'client_category',
             header: (
-                <SortHeader label="CATEGORY" sortKey="client_category" align="center"
+                <SortHeader label="CATEGORY" sortKey="client_category"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
-                <span className="font-medium flex min-w-28 justify-center items-center">
+                <span className="font-medium flex min-w-28 items-center">
                     {r.client_category ?? '—'}
                 </span>
             ),
         },
         {
-            key: 'delsan_company',
-            header: (
-                <SortHeader label="DELSAN COMPANY" sortKey="delsan_company" align="center"
-                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
-            ),
+            key: 'address',
+            header: "ADDRESS",
             cell: (r) => (
-                <span className="font-medium flex justify-center items-center uppercase">
-                    {r.delsan_company ?? '—'}
+                <span className="text-xs flex items-center min-w-52 max-w-60 py-1 text-slate-600">
+                    {r.address ?? '—'}
                 </span>
             ),
         },
         {
             key: 'client_manager',
             header: (
-                <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager" align="center"
+                <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
-                <span className="font-medium flex justify-center items-center text-center">
+                <span className="font-medium flex items-center">
                     {r.client_manager ?? r.id_client_mngr ?? '—'} 
                 </span>
             ),
@@ -374,7 +379,7 @@ const handleSearchChange = (value) => {
         {
             key: 'status',
             header: (
-                <SortHeader label="STATUS" sortKey="status" align="center"
+                <SortHeader label="STATUS" sortKey="status"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: statusCell,
@@ -392,7 +397,6 @@ const handleSearchChange = (value) => {
             ),
             cell: (r) => (
                 <div className="font-medium flex items-center min-w-72 max-w-72 text-[#0f3800]">
-                    <FaBuildingUser className="w-4 h-4 mr-2 flex-shrink-0" />
                     {r.company_name ?? '—'}
                 </div>
             ),
@@ -400,11 +404,11 @@ const handleSearchChange = (value) => {
         {
             key: 'client_manager',
             header: (
-                <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager" align="center"
+                <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
-                <span className="font-medium flex justify-center items-center">
+                <span className="font-medium flex items-center">
                     {r.client_manager ?? '—'}
                 </span>
             ),
@@ -412,7 +416,7 @@ const handleSearchChange = (value) => {
         {
             key: 'address',
             header: (
-                <SortHeader label="ADDRESS" sortKey="address" align="center"
+                <SortHeader label="ADDRESS" sortKey="address"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
@@ -427,7 +431,7 @@ const handleSearchChange = (value) => {
                 <button
                     type="button"
                     onClick={() => handleSort('created_at')}
-                    className="flex justify-center items-center w-full text-slate-500 gap-1"
+                    className="flex items-center w-full text-slate-500 gap-1"
                 >
                     <FaRegClock className="text-sm" title="Created At" />
                     <span className={`text-[11px] leading-none ${searchState.sort_by === 'created_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
@@ -436,7 +440,7 @@ const handleSearchChange = (value) => {
                 </button>
             ),
             cell: (r) => (
-                <span className="text-slate-600 text-[10px] flex justify-center items-center whitespace-nowrap">
+                <span className="text-slate-600 text-[10px] flex items-center whitespace-nowrap">
                     {r.created_at
                         ? new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }).format(new Date(r.created_at))
                         : '—'}
@@ -446,7 +450,7 @@ const handleSearchChange = (value) => {
         {
             key: 'status',
             header: (
-                <SortHeader label="STATUS" sortKey="status" align="center"
+                <SortHeader label="STATUS" sortKey="status"
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: statusCell,
