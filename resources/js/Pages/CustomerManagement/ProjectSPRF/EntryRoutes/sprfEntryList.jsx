@@ -8,6 +8,7 @@ import axios from 'axios';
 
 import { FaFolderOpen, FaPlus } from 'react-icons/fa';
 import { IoTimeOutline, IoAddCircleOutline } from 'react-icons/io5';
+import { IoMdMore } from 'react-icons/io';
 import toast, { Toaster } from 'react-hot-toast';
 import { MdDelete, MdEdit, MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose } from 'react-icons/md';
 import FlashMessages from '@/Components/FlashMessages';
@@ -263,6 +264,17 @@ const tiles = useMemo(() => {
           ),
       },
       {
+          key: "type",
+          header: <div className="text-center w-full">TYPE</div>,
+            cell: (r) => r.isSkeleton ? (
+            <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
+          ) : (
+            <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+              {r.type === 1 ? "Existing" : "Potential"}
+            </span>
+          ),
+        },
+      {
         key: 'last_saved_at',
         header: <div className="text-center w-full">LAST SAVED</div>,
         cell: (r) =>
@@ -483,6 +495,44 @@ const tiles = useMemo(() => {
     </div>
   );
 
+  const MoreActionsMenu = ({ r, router, handleDelete }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <div className="relative">
+        {/* The "More" Trigger Button */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+          className="rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+        >
+          <IoMdMore className="text-xl" />
+        </button>
+
+        {isOpen && ( <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} /> )}
+
+        {isOpen && (
+          <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-xl z-50 p-1 flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); router.visit(route('sprf.entry.projects.show', r.id)); }}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-[#289800] hover:bg-[#B5EBA2]/20"
+            >
+              <MdEdit className="text-sm" /> Edit
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); handleDelete(r); }}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-red-500 hover:bg-red-50"
+            >
+              <MdDelete className="text-sm" /> Delete
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // --- Mobile card layout (below md) ---
   const renderEntryCard = (r) => {
     if (r.isSkeleton) {
@@ -497,49 +547,51 @@ const tiles = useMemo(() => {
       );
     }
 
-    const isReturned = r.status === 'returned';
-    const isWithdrawn = r.status === 'withdrawn';
+    const statusLower = r.status?.toLowerCase() ?? '';
+    const isDraft = statusLower === 'draft';
+    const isReturned = statusLower === 'returned';
+    const isWithdrawn = statusLower === 'withdrawn';
 
     return (
-      <div className="px-2 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <p className={`text-[11px] font-medium ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : r.type === 0 ? 'Potential' : '—'}</p>
-          <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border whitespace-nowrap
-            ${isReturned
-              ? "bg-red-100 text-red-700 border-red-200"
-              : isWithdrawn
-              ? "bg-blue-100 text-blue-700 border-blue-200"
-              : "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]"
-            }`}>
-            {r.status ?? '—'}
-          </span>
+      <div
+        onClick={() => router.visit(route('sprf.entry.projects.show', r.id))}
+        className="cursor-pointer px-2 py-3 hover:bg-slate-50 transition-colors rounded-xl"
+      >
+        <div className="gap-2">
+          {/* Top Row: Type & Status Badge */}
+          <div className="flex items-start justify-between gap-2">
+            <p className={`text-[11px] font-medium ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : r.type === 0 ? 'Potential' : '—'}</p>
+            <div className="flex items-start justify-end gap-1">
+              <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap
+                ${isReturned
+                  ? "bg-red-100 text-red-700 border border-red-200"
+                  : isDraft
+                  ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                  : isWithdrawn
+                  ? "bg-[#0565D2]/15 border-[#0565D2]/50 text-[#0565D2]"
+                  : "bg-gray-100 text-gray-700 border border-gray-200"
+                }`}>
+                {r.status ?? '—'}
+              </span>
+
+              <div className="flex items-center justify-end">
+                <MoreActionsMenu r={r} router={router} handleDelete={handleDelete} />
+              </div>
+            </div>
+          </div>
+
+          {/* Middle Row: Company Details */}
+          <div className="min-w-0 leading-relaxed pt-2.5">
+            <p className="text-xs font-medium">{r.sprf_no ?? '—'}</p>
+            <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
+            <p className="text-[11px] text-slate-800 font-semibold">{r.sub_category ?? '—'}</p>
+          </div>
         </div>
 
-        <div className="min-w-0 leading-relaxed pt-1">
-          <p className="text-xs font-medium">{r.sprf_no ?? '—'}</p>
-          <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
-          <p className="text-[11px] text-slate-800 font-semibold">{r.sub_category ?? '—'} · {r.account_manager ?? '—'}</p>
-        </div>
-
-        <p className="mt-5 flex items-center justify-between text-[11px] text-slate-500">
-          <span className="normal-case text-[10px] text-slate-500 italic">{formatLastSaved(r.last_saved_at)}</span>
-        </p>
-
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); router.visit(route('sprf.entry.projects.show', r.id)); }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
-          >
-            <MdEdit className="text-sm" /> Edit
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handleDelete(r); }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-[#F27373] text-red-500 text-xs font-semibold hover:bg-[#F27373]/10"
-          >
-            <MdDelete className="text-sm" /> Delete
-          </button>
+        {/* Bottom-Mid Row: Last Saved */}
+        <div className="flex items-center justify-between mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
+          <span>{r.account_manager ?? '—'}</span>
+          <span className="normal-case text-slate-500">{formatLastSaved(r.last_saved_at)}</span>
         </div>
       </div>
     );

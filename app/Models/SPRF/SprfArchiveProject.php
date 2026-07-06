@@ -43,7 +43,7 @@ class SprfArchiveProject extends Model
         'company_sap_code',
 
         'remarks',
-        'remarks_attachments', // <--- ADD THIS
+        'remarks_attachments', 
         'rebate_justification',
         'notes',
         'comments',
@@ -70,7 +70,7 @@ class SprfArchiveProject extends Model
         'other_expense_total' => 'decimal:2',
         'total_expense' => 'decimal:2',
         'gp_value' => 'decimal:2',
-        'gp_percent' => 'decimal:2',
+        'gp_percent' => 'decimal:4',
         'requires_vp_ccto' => 'boolean',
         'requires_president_ceo' => 'boolean',
         'requires_rebate_justification' => 'boolean',

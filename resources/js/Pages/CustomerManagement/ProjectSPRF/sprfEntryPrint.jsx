@@ -220,6 +220,22 @@ export default function SprfEntryPrint({
 
   useEffect(() => {
     try {
+      // Prefer the sessionStorage snapshot when one exists — it was captured
+      // directly from the live entry form (openPrintPage in sprfEntry.jsx),
+      // so it carries full, unrounded precision for values like markupPercent
+      // and totalGpPercent, including any unsaved edits. entryProject (the
+      // backend-persisted project) is the fallback for cases with no active
+      // editing session, e.g. printing straight from Current/Archive lists.
+      if (storageKey) {
+        const raw = sessionStorage.getItem(storageKey);
+
+        if (raw) {
+          setPrintData(JSON.parse(raw));
+          setLoaded(true);
+          return;
+        }
+      }
+
       if (entryProject) {
         const mappedData = mapProjectToPrintData(entryProject, signatures);
 
@@ -235,19 +251,6 @@ export default function SprfEntryPrint({
         return;
       }
 
-      if (!storageKey) {
-        setLoaded(true);
-        return;
-      }
-
-      const raw = sessionStorage.getItem(storageKey);
-
-      if (!raw) {
-        setLoaded(true);
-        return;
-      }
-
-      setPrintData(JSON.parse(raw));
       setLoaded(true);
     } catch (error) {
       console.error('SPRF print page failed to load data:', error);
@@ -545,7 +548,7 @@ function PrintSummaryRow({ label, value, isPercent = false, isLast = false }) {
   const displayValue = isPercent
     ? isBlank(value)
       ? ''
-      : `${Number(value).toFixed(2)}%`
+      : `${Number(value).toFixed(4)}%`
     : displayWholePeso(value);
 
   return (
@@ -657,7 +660,7 @@ function PrintItemsTable({ groups, totals }) {
                   )}
 
                   <td className="border-b border-darkgreen/15 p-1 text-center">
-                    {isBlank(sub.markupPercent) ? '' : parseFloat(Number(sub.markupPercent).toFixed(2))}
+                    {isBlank(sub.markupPercent) ? '' : parseFloat(Number(sub.markupPercent).toFixed(4))}
                   </td>
                 </tr>
               )) : null;
