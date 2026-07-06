@@ -225,6 +225,7 @@ public function show($id)
         }
 
         $data = $request->validate($this->rules());
+        $data['unit_price'] = $data['unit_price'] ?? 0;
 
         Proposal::updateOrCreate(
             [
@@ -253,15 +254,18 @@ public function show($id)
         }
 
         $data = $request->validate($this->rules());
+        $data['unit_price'] = $data['unit_price'] ?? 0;
 
         // Build proposal ref using user's location code e.g. QC-2026-00001
-     $year     = now()->format('Y');
-    $sequence = str_pad(
-        Proposal::whereYear('created_at', $year)->count() + 1,
-        5, '0', STR_PAD_LEFT
-    );
-    $ref = "PROP-{$year}-{$sequence}";
+        $year     = now()->format('Y');
+        $sequence = str_pad(
+            Proposal::whereYear('created_at', $year)->count() + 1,
+            5, '0', STR_PAD_LEFT
+        );
+        $ref = "PROP-{$year}-{$sequence}";
 
+      
+ 
         Proposal::updateOrCreate(
             [
                 'roi_archive_project_id' => $id,

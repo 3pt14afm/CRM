@@ -4,11 +4,11 @@ import PrintablePaper from "./PrintablePaper";
 function ProposalCoverPaper({ proposal, items }) {
   return (
     <PrintablePaper>
-      <div className="mb-6">
+      <div className="-mt-8 mb-2">
         <img
-          src="/images/logo.png"
+          src="/images/delsangroup.png"
           alt="Delsan Office Systems Corporation"
-          className="h-14 w-auto object-contain"
+          className="h-20 w-auto object-contain"
         />
       </div>
 
@@ -71,7 +71,7 @@ function ProposalCoverPaper({ proposal, items }) {
       </div>
 
       <div className="mb-10">
-        <h3 className="text-[#C40000] font-black text-[15px] uppercase mb-4 border-b border-slate-100 pb-1">
+        <h3 className="text-[#C40000] font-black text-[18px] uppercase mb-4 border-b border-slate-100 pb-1">
           {items?.find((i) => i.kind === "machine")?.sku || ""}
         </h3>
 
