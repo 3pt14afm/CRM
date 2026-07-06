@@ -25,12 +25,12 @@ function Summary1stYear() {
 
   return (
     <div className='mx-5 print:mx-0 bg-[#f8f8f8] print:bg-white border rounded-r-lg rounded-b-xl border-t-[#2c2c2e]/10 border-b-[#2c2c2e]/30 border-[#2c2c2e]/20 shadow-md print:shadow-none print:justify-center print:border-none print:bg-transparent'>
-      <div className='mx-10 print:mx-0 print:pt-0 pt-8'>
+      <div className='lg:mx-10 mx-4 print:mx-0 print:pt-0 pt-8'>
 
         <div className="print-avoid-break">
           <CompanyInfoSum />
 
-          <div className='grid grid-cols-[40%_60%] gap-4 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-0 print:gap-0'>
+          <div className='lg:grid lg:grid-cols-[40%_60%] gap-4 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-0 print:gap-0'>
             <div className="max-w-4xl w-full mt-3 print:ml-0 print:mt-0 print:mr-0">
               <TotalMVP />
             </div>
@@ -64,18 +64,11 @@ function Summary1stYear() {
             <EntryRemarksSummary />
           </div>
 
-          <div className='lg:mx-20 print:mx-0 pt-5'>
-            <div className='mb-4 grid grid-cols-2 gap-4 items-start'>
-              <div>
-                <AddNotes />
-              </div>
-              <div>
-                <AddComments />
-              </div>
-            </div>
+        <div className='lg:mx-20  print:mx-0 pt-5'>
+          <AddComments />
 
-            <Names />
-          </div>
+          <Names />
+        </div>
         </div>
       </div>
     </div>

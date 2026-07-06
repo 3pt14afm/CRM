@@ -174,9 +174,98 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
   const consumableRows = buildRows(filteredConsumable, consumables);
   const othersRows = buildRows(othersMachines, othersPotentialMachines);
 
+  // =========================
+  // MOBILE CARD HELPERS
+  // =========================
+  const MobileStat = ({ label, value, className = '' }) => (
+    <div className="flex flex-col min-w-0">
+      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{label}</p>
+      <p className={`text-xs font-semibold pt-1 leading-tight break-words ${className}`}>{value}</p>
+    </div>
+  );
+
+  const MachineCard = ({ m, p, sectionLabel }) => {
+    if (!m && !p) return null;
+    const effectivePrice = m ? (isOutright ? (Number(m.price) || 0) : 0) : 0;
+    const effectiveSellCpp = m && m.yields > 0 ? effectivePrice / m.yields : 0;
+
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase truncate">{m ? m.sku : ''}</p>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">
+            {sectionLabel}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <MobileStat label="Cost" value={m ? formatNum(m.inputtedCost || m.cost) : ''} />
+          <MobileStat label="Yields" value={m && Number(m.yields || 0) !== 0 ? Number(m.yields).toLocaleString() : ''} />
+          <MobileStat label="Cost CPP" value={m ? formatNum(m.costCpp) : ''} />
+          <MobileStat label="Selling Price" value={m ? formatNum(effectivePrice) : ''} />
+          <MobileStat label="Sell CPP" value={m ? formatNum(effectiveSellCpp) : ''} />
+          <MobileStat label="Qty" value={p ? (p.qty !== 0 ? p.qty : '') : ''} />
+        </div>
+        <div className="grid grid-cols-2 gap-2 pt-2 mt-1 border-t border-gray-100">
+          <MobileStat label="Total Cost" value={p ? format(p.totalCost) : ''} />
+          <MobileStat label="Gross Sales" value={p ? format(p.totalSell) : ''} />
+        </div>
+        {p && (Number(p.machineMarginTotal) || 0) !== 0 && (
+          <p className="text-[10px] text-blue-700 italic">
+            {format(p.machineMarginTotal)}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  const ConsumableCard = ({ c, p }) => {
+    if (!c && !p) return null;
+    const costCpp = c && c.yields > 0 ? c.cost / c.yields : 0;
+    const sellCpp = c && c.yields > 0 ? c.price / c.yields : 0;
+
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col gap-2">
+        <p className="text-xs font-bold uppercase truncate">{c ? c.sku : ''}</p>
+        <div className="grid grid-cols-3 gap-2">
+          <MobileStat label="Cost" value={c ? formatNum(c.cost) : ''} />
+          <MobileStat label="Yields" value={c && Number(c.yields || 0) !== 0 ? Number(c.yields).toLocaleString() : ''} />
+          <MobileStat label="Cost CPP" value={c ? formatNum(costCpp) : ''} />
+          <MobileStat label="Selling Price" value={c ? formatNum(c.price) : ''} />
+          <MobileStat label="Sell CPP" value={c ? formatNum(sellCpp) : ''} />
+          <MobileStat label="Qty" value={p ? formatConsumableQty(p.qty) : ''} />
+        </div>
+        <div className="grid grid-cols-2 gap-2 pt-2 mt-1 border-t border-gray-100">
+          <MobileStat label="Total Cost" value={p ? format(p.totalCost) : ''} />
+          <MobileStat label="Gross Sales" value={p ? format(p.totalSell) : ''} />
+        </div>
+      </div>
+    );
+  };
+
+  const FeeCard = ({ fee }) => {
+    const isA3ColorClick = fee.label?.toLowerCase().includes("a3 color click");
+    const isCompany = companyFees.some((cf) => cf.id === fee.id);
+    const feeCost = Number(fee.cost) || 0;
+    const feeQty = Number(fee.qty) || 0;
+
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col gap-2">
+        <p className="text-xs font-bold truncate">{fee.label}</p>
+        <div className="grid grid-cols-3 gap-2">
+          <MobileStat label="Cost" value={isA3ColorClick ? '' : format(fee.cost)} />
+          <MobileStat label="Qty" value={feeCost !== 0 && feeQty !== 0 ? feeQty : ''} />
+          <MobileStat
+            label={isCompany ? 'Company Total' : 'Customer Total'}
+            value={format(fee.total)}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="font-sans tracking-tight">
-      <div className="grid grid-cols-[69.3%_1.4%_29.3%] mb-2">
+      <div className="hidden md:grid print:grid grid-cols-[69.3%_1.4%_29.3%] mb-2">
         <div></div>
         <div></div>
         <div className="text-center pr-1">
@@ -186,7 +275,128 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
         </div>
       </div>
 
-      <div className="rounded-xl overflow-hidden">
+      {/* Mobile title (shown once, simpler) */}
+      <div className="md:hidden print:hidden text-center mb-3">
+        <span className="text-sm font-bold uppercase tracking-tight text-gray-700">
+          {title}
+        </span>
+      </div>
+
+      {/* ============================================================ */}
+      {/* MOBILE VIEW: CARD-BASED LAYOUT                                */}
+      {/* ============================================================ */}
+      <div className="md:hidden print:hidden flex flex-col gap-4">
+
+        {/* MACHINE SECTION */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8]/60 rounded px-3 py-1.5">
+            Machine
+          </p>
+          {machineRows.length > 0 ? (
+            machineRows.map((row, index) => (
+              <MachineCard key={`m-mobile-${index}`} m={row.left} p={row.right} sectionLabel="Machine" />
+            ))
+          ) : (
+            <p className="text-[11px] text-gray-400 italic px-3">No machines added.</p>
+          )}
+        </div>
+
+        {/* CONSUMABLES SECTION */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8]/60 rounded px-3 py-1.5">
+            Consumables
+          </p>
+          {consumableRows.length > 0 ? (
+            consumableRows.map((row, index) => (
+              <ConsumableCard key={`c-mobile-${index}`} c={row.left} p={row.right} />
+            ))
+          ) : (
+            <p className="text-[11px] text-gray-400 italic px-3">No consumables added.</p>
+          )}
+        </div>
+
+        {/* OTHERS SECTION */}
+        {othersRows.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8]/40 rounded px-3 py-1.5">
+              Others
+            </p>
+            {othersRows.map((row, index) => (
+              <MachineCard key={`o-mobile-${index}`} m={row.left} p={row.right} sectionLabel="Others" />
+            ))}
+          </div>
+        )}
+
+        {/* TOTALS CARD */}
+        <div className="rounded-lg bg-[#E2F4D8]/70 p-3 flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase text-gray-700">Totals</p>
+          <div className="grid grid-cols-3 gap-2">
+            <MobileStat label="Unit Cost" value={formatNum(totals.unitCost)} />
+            <MobileStat label="Yields" value={Number(totals.yields || 0) !== 0 ? Number(totals.yields).toLocaleString() : ''} />
+            <MobileStat label="Cost CPP" value={formatNum(totals.costCpp)} className="text-green-700" />
+            <MobileStat label="Selling Price" value={formatNum(manualTotalSellingPrice)} />
+            <MobileStat label="Sell CPP" value={formatNum(manualTotalSellCpp)} />
+          </div>
+          <div className="grid grid-cols-2 gap-2 pt-2 mt-1 border-t border-gray-300">
+            <div className="flex flex-col">
+              <MobileStat label="Total Cost" value={format(firstYearTotalCost)} />
+              {(Number(bundleDeduction) || 0) > 0 && (
+                <p className="text-[10px] text-red-700 pt-0.5">-{format(bundleDeduction)}</p>
+              )}
+            </div>
+            <MobileStat label="Gross Sales" value={format(fistYearTotalSell)} />
+          </div>
+        </div>
+
+        {/* ADDITIONAL FEES SECTION */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8] rounded px-3 py-1.5">
+            Others (Fees)
+          </p>
+          {allAdditionalFees.length > 0 && (
+            allAdditionalFees.map((fee, idx) => <FeeCard key={fee.id || idx} fee={fee} />)
+          )}
+
+          {/* FEES TOTAL CARD */}
+          <div className="rounded-lg bg-[#E2F4D8]/70 p-3 flex flex-col gap-2">
+            <p className="text-[11px] font-bold uppercase text-gray-800">Fees Total</p>
+            <div className="grid grid-cols-2 gap-2">
+              <MobileStat label="Company Total" value={format(companyTotal)} />
+              <MobileStat label="Customer Total" value={format(customerTotal)} />
+            </div>
+          </div>
+        </div>
+
+        {/* SUMMARY: TOTAL / ROI FOOTER */}
+        <div className="rounded-lg overflow-hidden border border-gray-200">
+          <div className="grid grid-cols-2 gap-4 bg-[#E2F4D8] px-4 py-3">
+            <MobileStat label="Total Cost" value={format(finalTotalCost)} />
+            <MobileStat label="Total Revenue" value={format(finalTotalRevenue)} />
+          </div>
+          <div className="flex flex-row items-center justify-between bg-[#E2F4D8] px-4 py-3 border-t border-white/60">
+            <div className="flex flex-col">
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ROI</p>
+              <p className="text-xs font-semibold pt-1 leading-tight break-words">
+                {format(finalTotalROI)}
+              </p>
+            </div>
+            <div className="flex items-center justify-center flex-1">
+              <p
+                className={`text-xs font-semibold ${
+                  roiPercentage >= 0 ? "text-green-700" : "text-red-600"
+                }`}
+              >
+                ({roiPercentage.toFixed(2)}%)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* DESKTOP VIEW: ORIGINAL TABLE LAYOUT (unchanged)                */}
+      {/* ============================================================ */}
+      <div className="hidden md:block print:block rounded-xl overflow-hidden">
         <table className="w-full bg-[#f8f8f8] print:bg-white border-collapse table-fixed">
           <colgroup>
             <col className="w-[30.7%]" />

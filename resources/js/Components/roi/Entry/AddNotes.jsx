@@ -198,13 +198,13 @@ const canNote = isCurrentRoute
 
         <div
           onClick={!isLocked ? openModal : undefined}
-          className={`flex items-center print:hidden border border-gray-200 rounded-xl py-3 px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
+          className={`flex items-center gap-2 sm:gap-3 print:hidden border border-gray-200 rounded-xl py-2 sm:py-3 px-3 sm:px-6 shadow-[0px_2px_10px_rgba(0,0,0,0.10)] ${
             !isLocked
               ? "bg-white hover:cursor-pointer"
               : "bg-gray-50 cursor-not-allowed opacity-70"
           }`}
         >
-          <div className="flex-grow text-gray-400 text-xs print:text-[10px]">
+          <div className="flex-grow min-w-0 text-gray-400 text-xs print:text-[10px] truncate">
             Write your notes here.....
           </div>
 
@@ -212,16 +212,17 @@ const canNote = isCurrentRoute
             type="button"
             onClick={!isLocked ? openModal : (e) => e.stopPropagation()}
             disabled={isLocked}
-            className={`flex items-center gap-1 px-3 py-2 rounded-full font-semibold text-xs transition-all shrink-0 ${
+            aria-label="Add Notes"
+            className={`flex items-center justify-center gap-1 rounded-full font-semibold transition-all shrink-0 w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-2 text-xs ${
               !isLocked
                 ? "bg-[#2DA300] hover:bg-[#268a00] text-white shadow-[0px_4px_10px_rgba(45,163,0,0.3)]"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            <span className="flex items-center justify-center w-3.5 h-3.5 text-[30px] leading-none">
+            <span className="flex items-center justify-center w-5 h-5 sm:w-3.5 sm:h-3.5 text-xl sm:text-[30px] leading-none">
               <IoIosAddCircle />
             </span>
-            Add Notes
+            <span className="hidden sm:inline">Add Notes</span>
           </button>
         </div>
 
@@ -240,12 +241,12 @@ const canNote = isCurrentRoute
                 key={n.id ?? `${n.created_at ?? "note"}-${idx}`}
                 className="bg-white border border-gray-200 rounded-xl px-4 py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
               >
-                <div className="flex h-4 items-center justify-between">
-                  <div className="items-start flex gap-2">
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1">
+                  <div className="items-start flex gap-2 min-w-0">
                     <div className="flex items-center">
                       <FaRegUserCircle className="text-gray-400 text-sm shrink-0" />
                     </div>
-                    <span className="block text-[11px] font-medium text-gray-900">
+                    <span className="block text-[11px] font-medium text-gray-900 truncate">
                       {n.author?.name ?? "Unknown"}
                     </span>
                   </div>
@@ -262,20 +263,20 @@ const canNote = isCurrentRoute
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4 sm:px-0">
           <div className="absolute inset-0 bg-black/35" />
 
           <div
             ref={modalRef}
-            className="relative w-[40%] max-w-xl bg-white rounded-xl shadow-xl border border-black/10 overflow-hidden"
+            className="relative w-full sm:w-[40%] max-w-xl bg-white rounded-xl shadow-xl border border-black/10 overflow-hidden max-h-[90vh] overflow-y-auto"
           >
-            <div className="px-10 pt-10 pb-4">
-              <h2 className="text-2xl font-extrabold tracking-wide text-black">
+            <div className="px-5 sm:px-10 pt-6 sm:pt-10 pb-4">
+              <h2 className="text-lg sm:text-2xl font-extrabold tracking-wide text-black">
                 ADD NOTE
               </h2>
             </div>
 
-            <div className="px-10 pb-8">
+            <div className="px-5 sm:px-10 pb-6 sm:pb-8">
               <div className="relative bg-white rounded-xl border border-black/10 shadow-sm overflow-hidden">
                 <div className="relative p-4">
                   <FaRegUserCircle className="absolute left-6 top-6 text-2xl text-gray-400" />
@@ -284,7 +285,7 @@ const canNote = isCurrentRoute
                     value={noteDraft}
                     onChange={(e) => setNoteDraft(e.target.value)}
                     placeholder="Write note here..."
-                    className="w-full min-h-[330px] pl-12 pr-4 text-gray-700 placeholder-gray-400 text-base resize-none border-none focus:outline-none focus:ring-0"
+                    className="w-full min-h-[200px] sm:min-h-[330px] pl-12 pr-4 text-gray-700 placeholder-gray-400 text-base resize-none border-none focus:outline-none focus:ring-0"
                   />
                 </div>
 

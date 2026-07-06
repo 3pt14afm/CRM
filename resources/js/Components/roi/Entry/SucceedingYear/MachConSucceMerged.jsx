@@ -85,6 +85,11 @@ function MachConSucceMerged() {
       ? `2nd-${getOrdinal(contractYears)} Year Potential`
       : '2nd Year Potential';
 
+  // Compact version of rangeTitle for mobile card sub-headers
+  const shortRangeLabel = contractYears > 2
+    ? `2nd-${getOrdinal(contractYears)} Yr`
+    : '2nd Yr';
+
   const normalPotentialMachines = machines.filter((m) => m.mode !== 'others' && m.type !== 'others');
   const othersPotentialMachines = machines.filter((m) => m.mode === 'others' || m.type === 'others');
 
@@ -104,9 +109,48 @@ function MachConSucceMerged() {
   const consumableRows = buildRows(filteredConsumable, consumables, consumables);
   const othersRows = buildRows(othersMachines, othersPotentialMachines, othersPotentialMachines);
 
+  // =========================
+  // MOBILE CARD HELPERS
+  // =========================
+  const MobileStat = ({ label, value, className = '' }) => (
+    <div className="flex flex-col min-w-0">
+      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{label}</p>
+      <p className={`text-xs font-semibold pt-1 leading-tight break-words ${className}`}>{value}</p>
+    </div>
+  );
+
+  // Generic item card: SKU + cost, then two sub-sections (Nth Year / Total Succeeding Years)
+  const ItemCard = ({ sku, cost, yearQty, yearTotalCost, yearTotalSell, succQty, succTotalCost, succTotalSell }) => {
+    if (!sku) return null;
+
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase truncate">{sku}</p>
+          <MobileStat label="Cost" value={cost} className="text-right" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2 mt-1 border-t border-gray-100">
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{shortRangeLabel}</p>
+            <MobileStat label="Qty" value={yearQty} />
+            <MobileStat label="Total Cost" value={yearTotalCost} />
+            <MobileStat label="Gross Sales" value={yearTotalSell} />
+          </div>
+          <div className="flex flex-col gap-1.5 pl-3 border-l border-gray-100">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Succeeding Yrs</p>
+            <MobileStat label="Qty" value={succQty} />
+            <MobileStat label="Total Cost" value={succTotalCost} />
+            <MobileStat label="Gross Sales" value={succTotalSell} />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="font-sans tracking-tight mb-4">
-      <div className="grid grid-cols-[30.7%_9.1%_1.4%_7.3%_10.7%_10.7%_1.4%_7.3%_10.7%_10.7%] mb-2">
+      <div className="hidden md:grid print:grid grid-cols-[30.7%_9.1%_1.4%_7.3%_10.7%_10.7%_1.4%_7.3%_10.7%_10.7%] mb-2">
         <div className="col-span-3"></div>
         <div className="col-span-3 text-center pr-1">
           <span className="text-[17px] print:text-sm print:font-medium font-bold uppercase tracking-tight text-gray-700">
@@ -121,7 +165,112 @@ function MachConSucceMerged() {
         </div>
       </div>
 
-      <div className="rounded-xl overflow-hidden">
+      {/* Mobile title */}
+      <div className="md:hidden print:hidden text-center mb-3">
+        <span className="text-sm font-bold uppercase tracking-tight text-gray-700 block">
+          {rangeTitle}
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-tight text-gray-400 block mt-0.5">
+          vs. Total Succeeding Years
+        </span>
+      </div>
+
+      {/* ============================================================ */}
+      {/* MOBILE VIEW: CARD-BASED LAYOUT                                */}
+      {/* ============================================================ */}
+      <div className="md:hidden print:hidden flex flex-col gap-4">
+
+        {/* MACHINE SECTION */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8]/60 rounded px-3 py-1.5">
+            Machine
+          </p>
+          {machineRows.length > 0 ? (
+            machineRows.map((row, index) => (
+              <ItemCard
+                key={`m-mobile-${index}`}
+                sku={row.left?.sku || ''}
+                cost={row.left ? formatNum(row.left.cost) : ''}
+                yearQty={formatQty(0)}
+                yearTotalCost={format(0)}
+                yearTotalSell={format(0)}
+                succQty={formatQty(0)}
+                succTotalCost={format(0)}
+                succTotalSell={format(0)}
+              />
+            ))
+          ) : (
+            <p className="text-[11px] text-gray-400 italic px-3">No machines added.</p>
+          )}
+        </div>
+
+        {/* CONSUMABLES SECTION */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8]/60 rounded px-3 py-1.5">
+            Consumables
+          </p>
+          {consumableRows.length > 0 ? (
+            consumableRows.map((row, index) => (
+              <ItemCard
+                key={`c-mobile-${index}`}
+                sku={row.left?.sku || ''}
+                cost={row.left ? formatNum(row.left.cost) : ''}
+                yearQty={row.middle ? formatConsumableQty(row.middle.qty) : ''}
+                yearTotalCost={row.middle ? format(row.middle.totalCost) : ''}
+                yearTotalSell={row.middle ? format(row.middle.totalSell) : ''}
+                succQty={row.right ? formatConsumableQty(n(row.right.qty) * succeedingYearCount) : ''}
+                succTotalCost={row.right ? format(n(row.right.totalCost) * succeedingYearCount) : ''}
+                succTotalSell={row.right ? format(n(row.right.totalSell) * succeedingYearCount) : ''}
+              />
+            ))
+          ) : (
+            <p className="text-[11px] text-gray-400 italic px-3">No consumables added.</p>
+          )}
+        </div>
+
+        {/* OTHERS SECTION */}
+        {othersRows.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8]/40 rounded px-3 py-1.5">
+              Others
+            </p>
+            {othersRows.map((row, index) => (
+              <ItemCard
+                key={`o-mobile-${index}`}
+                sku={row.left?.sku || ''}
+                cost={row.left ? formatNum(row.left.cost) : ''}
+                yearQty={formatQty(0)}
+                yearTotalCost={format(0)}
+                yearTotalSell={format(0)}
+                succQty={formatQty(0)}
+                succTotalCost={format(0)}
+                succTotalSell={format(0)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* TOTAL FOOTER CARD */}
+        <div className="rounded-lg overflow-hidden border border-gray-200 bg-[#E2F4D8]">
+          <div className="grid grid-cols-2 gap-3 px-4 py-3">
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">{shortRangeLabel}</p>
+              <MobileStat label="Total Cost" value={format(consumablesOnlyTotalCost)} />
+              <MobileStat label="Gross Sales" value={format(consumablesOnlyTotalSales)} />
+            </div>
+            <div className="flex flex-col gap-1.5 pl-3 border-l border-white/50">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Succeeding Yrs</p>
+              <MobileStat label="Total Cost" value={format(consumablesOnlyTotalCost * succeedingYearCount)} />
+              <MobileStat label="Gross Sales" value={format(consumablesOnlyTotalSales * succeedingYearCount)} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* DESKTOP VIEW: ORIGINAL TABLE LAYOUT (unchanged)                */}
+      {/* ============================================================ */}
+      <div className="hidden md:block print:block rounded-xl overflow-hidden">
         <table className="w-full bg-[#f8f8f8] print:bg-white border-collapse table-fixed">
           <colgroup>
             <col className="w-[30.7%]" /><col className="w-[9.7%]" /><col className="w-[1.2%]" />

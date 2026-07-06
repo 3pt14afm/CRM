@@ -93,7 +93,7 @@ const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
 
   return (
     <div className="w-full mx-auto space-y-12 font-sans pb-10 mt-10 print:mx-0">
-      <div className="grid grid-cols-4 gap-y-12 gap-x-9 px-2 print:gap-x-6 print:px-1">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-8 sm:gap-y-12 gap-x-4 sm:gap-x-9 px-2 print:gap-x-6 print:px-1 print:grid-cols-4">
         <Signatory
           label="PREPARED BY:"
           name={preparedBy}
@@ -131,7 +131,7 @@ const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
           signatureUrl={getSignature(signatures?.endorsed_by ?? null, isRejected && rejectedLevel === 4 ? rejectedAt : endorsedAt)}
         />
 
-        <div className="col-start-3">
+        <div className="sm:col-start-3 print:col-start-3">
           <Signatory
             label="CONFIRMED BY:"
             name={isRejected && rejectedLevel === 5 ? rejectedBy : confirmedBy}
@@ -142,7 +142,7 @@ const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
           />
         </div>
 
-        <div className="col-start-4">
+        <div className="sm:col-start-4 print:col-start-4">
           <Signatory
             label="APPROVED BY:"
             name={isRejected && rejectedLevel === 6 ? rejectedBy : approvedBy}

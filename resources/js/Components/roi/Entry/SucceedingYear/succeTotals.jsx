@@ -26,7 +26,7 @@ function SucceTotals() {
 
   const companyTotal = companyFees.reduce((sum, fee) => sum + Number(fee.total || 0), 0);
   const customerTotal = customerFees.reduce((sum, fee) => sum + Number(fee.total || 0), 0);
-  
+
   const contractYears = parseInt(projectData?.companyInfo?.contractYears, 10) || 0;
   const succeedingYearCount = Math.max(contractYears - 1, 0);
 
@@ -76,9 +76,142 @@ function SucceTotals() {
     }
   }, [lifetime, updateSection]);
 
+  // =========================
+  // MOBILE CARD HELPERS
+  // =========================
+  const MobileStat = ({ label, value, className = "" }) => (
+    <div className="flex flex-col min-w-0">
+      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{label}</p>
+      <p className={`text-xs font-semibold pt-1 leading-tight break-words ${className}`}>{value}</p>
+    </div>
+  );
+
+  const FeeCard = ({ fee }) => {
+    const isA3ColorClick = fee.label?.toLowerCase().includes("a3 color click");
+    const isCompany = companyFees.some((cf) => cf.id === fee.id);
+    const feeQty = n(fee.qty);
+    const feeCost = n(fee.cost);
+
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold truncate">{fee.label}</p>
+          <MobileStat label="Cost" value={isA3ColorClick ? "" : format(fee.cost)} className="text-right" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2 mt-1 border-t border-gray-100">
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Per Year</p>
+            <MobileStat label="Qty" value={feeCost !== 0 ? nFormat(feeQty) : ""} />
+            <MobileStat
+              label={isCompany ? "Company Total" : "Customer Total"}
+              value={format(fee.total)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 pl-3 border-l border-gray-100">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Succeeding Yrs</p>
+            <MobileStat label="Qty" value={feeCost !== 0 ? nFormat(feeQty * succeedingYearCount) : ""} />
+            <MobileStat
+              label={isCompany ? "Company Total" : "Customer Total"}
+              value={format(n(fee.total) * succeedingYearCount)}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="my-2 font-sans tracking-tight text-[10px]">
-      <div className="items-start text-[12px]">
+      {/* ============================================================ */}
+      {/* MOBILE VIEW: CARD-BASED LAYOUT                                */}
+      {/* ============================================================ */}
+      <div className="md:hidden print:hidden flex flex-col gap-4">
+
+        {/* ADDITIONAL FEES SECTION */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase text-gray-600 bg-[#E2F4D8]/70 rounded px-3 py-1.5">
+            Others (Fees)
+          </p>
+          {allAdditionalFees.length > 0 && (
+            allAdditionalFees.map((fee, idx) => <FeeCard key={fee.id || idx} fee={fee} />)
+          )}
+
+          {/* FEES TOTAL CARD */}
+          <div className="rounded-lg bg-[#E2F4D8]/70 p-3 flex flex-col gap-2">
+            <p className="text-[11px] font-bold uppercase text-gray-800">Fees Total</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Per Year</p>
+                <MobileStat label="Company Total" value={format(companyTotal)} />
+                <MobileStat label="Customer Total" value={format(customerTotal)} />
+              </div>
+              <div className="flex flex-col gap-1.5 pl-3 border-l border-gray-300">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Succeeding Yrs</p>
+                <MobileStat label="Company Total" value={format(companyTotal * succeedingYearCount)} />
+                <MobileStat label="Customer Total" value={format(customerTotal * succeedingYearCount)} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SUMMARY: TOTAL / ROI FOOTER */}
+        <div className="rounded-lg overflow-hidden border border-gray-200">
+          <div className="grid grid-cols-2 gap-3 bg-[#E2F4D8] px-4 py-3">
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Per Year</p>
+              <MobileStat label="Total Cost" value={format(year2Cost)} />
+              <MobileStat label="Total Revenue" value={format(year2Revenue)} />
+            </div>
+            <div className="flex flex-col gap-1.5 pl-3 border-l border-white/60">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Succeeding Yrs</p>
+              <MobileStat label="Total Cost" value={format(overallSucceCost)} />
+              <MobileStat label="Total Revenue" value={format(overallSucceRevenue)} />
+            </div>
+          </div>
+
+          <div className="flex flex-row items-center justify-between bg-[#E2F4D8] px-4 py-3 border-t border-white/60">
+            <div className="flex flex-col">
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ROI (Per Year)</p>
+              <p className="text-xs font-semibold pt-1 leading-tight break-words">
+                {format(year2ROI)}
+              </p>
+            </div>
+            <div className="flex items-center justify-center flex-1">
+              <p
+                className={`text-xs font-semibold ${
+                  roiPercentage >= 0 ? "text-green-700" : "text-red-600"
+                }`}
+              >
+                {roiPercentage !== 0 ? `(${roiPercentage.toFixed(2)}%)` : ""}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-row items-center justify-between bg-[#E2F4D8] px-4 py-3 border-t border-white/60">
+            <div className="flex flex-col">
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ROI (Succeeding Yrs)</p>
+              <p className="text-xs font-semibold pt-1 leading-tight break-words">
+                {format(overallSucceROI)}
+              </p>
+            </div>
+            <div className="flex items-center justify-center flex-1">
+              <p
+                className={`text-xs font-semibold ${
+                  overallSucceRoiPercentage >= 0 ? "text-green-700" : "text-red-600"
+                }`}
+              >
+                {overallSucceRoiPercentage !== 0 ? `(${overallSucceRoiPercentage.toFixed(2)}%)` : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* DESKTOP VIEW: ORIGINAL TABLE LAYOUT (unchanged)                */}
+      {/* ============================================================ */}
+      <div className="hidden md:block print:block items-start text-[12px]">
         <div className="w-full">
           <div className="border-gray-300 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
