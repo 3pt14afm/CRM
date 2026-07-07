@@ -119,6 +119,7 @@ class SprfController extends Controller
 
     public function archive(Request $request)
     {
+        $userId  = Auth::id();
         $perPage = (int) $request->input('per_page', 10);
 
         $filters = $request->only([
@@ -132,7 +133,14 @@ class SprfController extends Controller
                 'approvedBy:id,first_name,last_name',
                 'rejectedBy:id,first_name,last_name',
             ])
-            ->whereIn('status', ['approved', 'rejected', 'cancelled']);
+            ->whereIn('status', ['approved', 'rejected', 'cancelled'])
+            ->where(function ($q) use ($userId) {
+                $q->where('prepared_by_user_id', $userId)
+                  ->orWhere('director_customer_engagement_user_id', $userId)
+                  ->orWhere('esd_director_user_id', $userId)
+                  ->orWhere('vp_ccto_user_id', $userId)
+                  ->orWhere('president_ceo_user_id', $userId);
+            });
 
         // 1. Search
         if ($request->filled('search')) {

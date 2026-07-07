@@ -353,28 +353,28 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
   );
 
   // Custom Prepared By Popup (Using MdPerson)
-  const preparedBySlot = (
-    <div className="relative flex-shrink-0" ref={preparedByRef}>
-      <FilterChip
-        active={!!preparedBy}
-        icon={<MdPerson size={15} />}
-        label="Prepared By"
-        value={preparedBy}
-        onClick={() => setShowPreparedBy((p) => !p)}
-        onClear={() => handlePreparedByApply("")}
-      />
-      <TextFilterPopup
-        open={showPreparedBy}
-        label="Prepared By"
-        placeholder="e.g. Maria Santos"
-        icon={<MdPerson size={14} className="text-[#4FA34E]" />}
-        value={preparedBy}
-        onChange={setPreparedBy}
-        onApply={handlePreparedByApply}
-        onClose={() => setShowPreparedBy(false)}
-      />
-    </div>
-  );
+  // const preparedBySlot = (
+  //   <div className="relative flex-shrink-0" ref={preparedByRef}>
+  //     <FilterChip
+  //       active={!!preparedBy}
+  //       icon={<MdPerson size={15} />}
+  //       label="Prepared By"
+  //       value={preparedBy}
+  //       onClick={() => setShowPreparedBy((p) => !p)}
+  //       onClear={() => handlePreparedByApply("")}
+  //     />
+  //     <TextFilterPopup
+  //       open={showPreparedBy}
+  //       label="Prepared By"
+  //       placeholder="e.g. Maria Santos"
+  //       icon={<MdPerson size={14} className="text-[#4FA34E]" />}
+  //       value={preparedBy}
+  //       onChange={setPreparedBy}
+  //       onApply={handlePreparedByApply}
+  //       onClose={() => setShowPreparedBy(false)}
+  //     />
+  //   </div>
+  // );
 
   const filterToolbar = (
     <ListFilterToolbar
@@ -406,7 +406,7 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       onTypeChange={handleTypeChange}
       
       extraFilters={approvalLevelSlot}
-      extraFiltersEnd={preparedBySlot}
+      // extraFiltersEnd={preparedBySlot}
       
       // Date Range (Native)
       dateFrom={dateFrom}
@@ -417,9 +417,9 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       onDateClear={handleDateClear}
       
       // Disabled strictly ROI-specific native elements
-      preparedBy=""
-      onPreparedByChange={() => {}}
-      onPreparedByApply={() => {}}
+       preparedBy={preparedBy}
+        onPreparedByChange={setPreparedBy}
+        onPreparedByApply={handlePreparedByApply}
       locationId=""
       selectedLocationName=""
       locations={[]}

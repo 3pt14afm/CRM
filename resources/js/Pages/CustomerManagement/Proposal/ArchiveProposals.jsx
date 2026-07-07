@@ -226,17 +226,17 @@ function ArchivedProposals({ archivedRoiProposals, archivedSprfProposals, stats 
         </div>
       ),
     },
-    {
-      key: "aging_display",
-      header: <span className="block text-center">AGE</span>,
-      cell: (r) => (
-        <div className="flex justify-center">
-          <span className="text-xs font-medium text-slate-600">
-            {r.aging_display ?? ""}
-          </span>
-        </div>
-      ),
-    },
+    // {
+    //   key: "aging_display",
+    //   header: <span className="block text-center">AGE</span>,
+    //   cell: (r) => (
+    //     <div className="flex justify-center">
+    //       <span className="text-xs font-medium text-slate-600">
+    //         {r.aging_display ?? ""}
+    //       </span>
+    //     </div>
+    //   ),
+    // },
     {
       key: "actions",
       header: <span className="block text-center">ACTIONS</span>,

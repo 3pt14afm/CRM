@@ -5,13 +5,12 @@ import { useProjectData } from '@/Context/ProjectContext';
 function Names() {
   const { project: rawProject, entryProject, usersById = {}, route: routeName, signatures = {} } = usePage().props;
   const project = rawProject ?? entryProject;
-  console.log('Project Status:', project?.status, 'Cancelled At:', project?.cancelled_at);
   const { projectData } = useProjectData();
 
   const isArchive   = routeName === 'archive';
   const status      = String(project?.status ?? '').toLowerCase();
   const isRejected  = isArchive && status === 'rejected';
-  
+
 
 
   const nameOf = (id, fallback = '—') => {
@@ -66,25 +65,31 @@ function Names() {
   const approvedByPosition = hasPageProject ? positionOf(project?.approved_by) : fromSnap('approvedByPosition');
   const rejectedByPosition = hasPageProject ? positionOf(project?.rejected_by) : fromSnap('rejectedByPosition');
 
-const isSentBack = status === 'sent back';
-const currentLevel = Number(project?.current_level ?? 0);
+  const isSentBack = status === 'sent back';
+  const currentLevel = Number(project?.current_level ?? 0);
 
   const isCancelled = isArchive && status === 'cancelled';
 
-// REPLACE WITH:
-const preparedAt = isCancelled 
-  ? timestampOf(project?.cancelled_at ?? project?.last_saved_at) 
-  : timestampOf(project?.submitted_at);
+  // "Prepared By" date shows the cancellation date when the project was cancelled,
+  // otherwise the original submission date.
+  const preparedAt = isCancelled
+    ? timestampOf(project?.cancelled_at ?? project?.last_saved_at)
+    : timestampOf(project?.submitted_at);
 
-// Cancelled — wipe all approval timestamps, nobody signed off
-const reviewedAt  = isCancelled ? '' : isSentBack && currentLevel <= 2 ? '' : timestampOf(project?.reviewed_at);
-const checkedAt   = isCancelled ? '' : isSentBack && currentLevel <= 3 ? '' : timestampOf(project?.checked_at);
-const endorsedAt  = isCancelled ? '' : isSentBack && currentLevel <= 4 ? '' : timestampOf(project?.endorsed_at);
-const confirmedAt = isCancelled ? '' : isSentBack && currentLevel <= 5 ? '' : timestampOf(project?.confirmed_at);
-const approvedAt  = isCancelled ? '' : isSentBack && currentLevel <= 6 ? '' : timestampOf(project?.approved_at);
+  // NOTE: Cancellation no longer wipes prior approval timestamps.
+  // A project can be cancelled after some levels already signed off (e.g. cancelled
+  // at level 4 means levels 2 and 3 genuinely approved it already) — those signatures
+  // and timestamps must still display. timestampOf() already returns '' for any level
+  // that has no real value, so levels that were never reached still show blank
+  // naturally, without needing an isCancelled override here.
+  const reviewedAt  = isSentBack && currentLevel <= 2 ? '' : timestampOf(project?.reviewed_at);
+  const checkedAt   = isSentBack && currentLevel <= 3 ? '' : timestampOf(project?.checked_at);
+  const endorsedAt  = isSentBack && currentLevel <= 4 ? '' : timestampOf(project?.endorsed_at);
+  const confirmedAt = isSentBack && currentLevel <= 5 ? '' : timestampOf(project?.confirmed_at);
+  const approvedAt  = isSentBack && currentLevel <= 6 ? '' : timestampOf(project?.approved_at);
 
-// Rejected — show rejected_at at the level where rejection happened
-const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
+  // Rejected — show rejected_at at the level where rejection happened
+  const rejectedAt  = isRejected ? timestampOf(project?.rejected_at) : '';
 
   // Helper to only show signature if timestamp exists
   const getSignature = (signatureUrl, timestamp) => {
@@ -172,14 +177,14 @@ const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureU
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         )}
-        
+
         {/* Name centered at the bottom border */}
         <p className="absolute bottom-0 left-0 right-0 text-sm text-center font-semibold text-gray-900 border-b border-gray-400 pb-0.5 print:font-medium print:text-[13px] print:min-w-[120px]">
           {name || '—'}
         </p>
 
         {/* Date and time positioned beside the signature/name area aligned horizontally on the right */}
-        <span 
+        <span
             className={`absolute right-2 bottom-8 text-[10.5px] font-normal tracking-tight whitespace-nowrap leading-none select-none print:text-[9.5px] ${isRejectedAction || isCancelledAction ? "text-red-500" : "text-[#175500]"}`}
           >
           {timestamp}

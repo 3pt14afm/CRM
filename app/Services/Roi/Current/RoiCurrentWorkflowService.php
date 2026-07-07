@@ -856,7 +856,7 @@ class RoiCurrentWorkflowService
             $base = $current->only([
                 'user_id', 'location_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status', 'submitted_at',
                 'reviewed_by', 'reviewed_at', 'checked_by', 'checked_at', 'endorsed_by', 'endorsed_at',
-                'confirmed_by', 'confirmed_at', 'approved_by', 'entry_remarks', 'entry_remarks_attachments',
+                'confirmed_by', 'confirmed_at', 'approved_by','approved_at', 'entry_remarks', 'entry_remarks_attachments',
                 'company_name', 'company_sap_code', 'type', 'contract_years', 'contract_type', 'purpose', 'bundled_std_ink',
                 'annual_interest', 'percent_margin', 'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly',
                 'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
@@ -902,13 +902,7 @@ class RoiCurrentWorkflowService
 
         $archived = $this->archiveFromCurrent($current, [
             'status'            => 'cancelled',
-            'cancelled_at'         => now(),
-            'reviewed_at'       => null,
-            'checked_at'        => null,
-            'endorsed_at'       => null,
-            'confirmed_at'      => null,
-            'approved_at'       => null,
-            'approved_by'       => null,
+            'cancelled_at'      => now(),
             'rejected_at'       => null,
             'rejected_by'       => null,
             'rejected_by_level' => null,
