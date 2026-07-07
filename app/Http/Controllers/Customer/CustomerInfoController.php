@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerInfo\Company;
 use App\Models\CustomerInfo\PotentialCustomer;
+use App\Models\LocationDepartment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -24,6 +26,53 @@ public function index(Request $request)
     $sortBy    = $request->input('sort_by', 'company_name');
     $sortOrder = $request->input('sort_order', 'asc');
     $statusParam = $request->input('status', '1'); // default to Active only
+
+    $currentUser = Auth::user();
+    $userId      = (int) ($currentUser->id ?? 0);
+    $employeeId  = $currentUser->employee_id ?? null;
+    $isAdmin     = $userId === 1;
+
+    // Which (location_id, department_id) combos is this user an approver for,
+    // per the LocationDepartment approver matrix (reviewed/checked/endorsed/confirmed/approved).
+    $approverLocationDepts = $isAdmin
+        ? collect()
+        : LocationDepartment::query()
+            ->where(function ($q) use ($userId) {
+                $q->where('reviewed_by', $userId)
+                  ->orWhere('checked_by', $userId)
+                  ->orWhere('endorsed_by', $userId)
+                  ->orWhere('confirmed_by', $userId)
+                  ->orWhere('approved_by', $userId);
+            })
+            ->get(['location_id', 'department_id']);
+
+    // Shared visibility scope, applied against the `client_managers` alias
+    // (already left-joined on `id_client_mngr` = `client_managers.employee_id`
+    // in both the companies and potentials queries below).
+    // A row is visible to a non-admin if:
+    //   - they are the client manager themselves, OR
+    //   - they are an approver (per LocationDepartment) for the client manager's
+    //     own (primary_location_id, department_id) combo.
+    $applyVisibility = function ($query) use ($isAdmin, $employeeId, $approverLocationDepts) {
+        if ($isAdmin) {
+            return;
+        }
+
+        $query->where(function ($q) use ($employeeId, $approverLocationDepts) {
+            $q->where('client_managers.employee_id', $employeeId);
+
+            if ($approverLocationDepts->isNotEmpty()) {
+                $q->orWhere(function ($qOr) use ($approverLocationDepts) {
+                    foreach ($approverLocationDepts as $ld) {
+                        $qOr->orWhere(function ($qPair) use ($ld) {
+                            $qPair->where('client_managers.primary_location_id', $ld->location_id)
+                                  ->where('client_managers.department_id', $ld->department_id);
+                        });
+                    }
+                });
+            }
+        });
+    };
 
     // ── Existing companies ──────────────────────────────────────────────
 
@@ -55,6 +104,7 @@ public function index(Request $request)
         })
         ->select("{$companyTable}.*")
         ->with('clientManager')
+        ->when(true, $applyVisibility)
         ->when($request->input('search'), function ($query, $search) {
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%{$search}%")
@@ -135,6 +185,7 @@ public function index(Request $request)
         })
         ->select("{$potentialTable}.*")
         ->with('clientManager')
+        ->when(true, $applyVisibility)
         ->when($request->input('search'), function ($query, $search) {
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%{$search}%")
@@ -173,14 +224,13 @@ public function index(Request $request)
     ]);
 
     // ── AJAX (axios) search request: bypass Inertia, return raw paginators ──
-// ── AJAX (axios) search request: bypass Inertia, return raw paginators ──
-// Only for plain axios calls — never for Inertia's own visits, which send X-Inertia.
-if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
-    return response()->json([
-        'companies'  => $companies,
-        'potentials' => $potentials,
-    ]);
-}
+    // Only for plain axios calls — never for Inertia's own visits, which send X-Inertia.
+    if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
+        return response()->json([
+            'companies'  => $companies,
+            'potentials' => $potentials,
+        ]);
+    }
 
     // ── Render ──────────────────────────────────────────────────────────
 

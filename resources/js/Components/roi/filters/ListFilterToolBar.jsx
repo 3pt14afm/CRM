@@ -204,7 +204,7 @@ export default function ListFilterToolbar({
       {extraFilters}
 
       {/* Prepared By */}
-      {preparedBy?.length > 0 && (
+      {/* {preparedBy?.length > 0 && ( */}
         <div className="relative flex-shrink-0" ref={preparedByRef}>
           <FilterChip
             active={!!preparedBy}
@@ -225,7 +225,7 @@ export default function ListFilterToolbar({
             onClose={() => setShowPreparedBy(false)}
           />
         </div>
-      )}
+      {/* )} */}
       {/* Location */}
       {locations?.length > 0 && (
       <div className="relative flex-shrink-0" ref={locationRef}>

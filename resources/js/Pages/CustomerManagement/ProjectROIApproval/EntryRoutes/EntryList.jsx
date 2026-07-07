@@ -539,6 +539,7 @@ import { IoMdMore } from 'react-icons/io';
             <option className="text-black" value="draft">&nbsp;&nbsp;Draft&nbsp;&nbsp;</option>
             <option className="text-black" value="returned">&nbsp;&nbsp;Returned&nbsp;&nbsp;</option>
             <option className="text-black" value="withdrawn">&nbsp;&nbsp;Withdrawn&nbsp;&nbsp;</option>
+             <option className="text-black" value="duplicate">&nbsp;&nbsp;Duplicate&nbsp;&nbsp;</option>
           </select>
         </div>
 

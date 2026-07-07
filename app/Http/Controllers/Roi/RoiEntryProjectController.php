@@ -71,9 +71,17 @@ class RoiEntryProjectController extends Controller
             return response()->json([]);
         }
 
+          $employeeId = Auth::user()->employee_id;
+        
+        if (!$employeeId) {
+            return response()->json([]);
+        }
+
+
         $suggestions = \App\Models\CustomerInfo\PotentialCustomer::query()
             ->where('status', 1)
             ->whereRaw('LOWER(company_name) LIKE ?', [$search . '%'])
+             ->where('id_client_mngr', $employeeId) // only companies managed by this user
             ->select('id', 'company_name')
             ->limit(20)
             ->get();
