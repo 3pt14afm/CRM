@@ -1,12 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import NewApproverMatrixModal from "@/Components/admin/modals/NewApproverMatrixModal";
 import EditApproverMatrixModal from "@/Components/admin/modals/EditApproverMatrixModal";
 import NewSprfApproverMatrixModal from "@/Components/admin/modals/NewSprfApproverMatrixModal";
 import EditSprfApproverMatrixModal from "@/Components/admin/modals/EditSprfApproverMatrixModal";
+import FilterPill from "@/Components/FilterPill";
+import SortHeader from "@/Components/SortHeader";
 import { MdEdit, MdOutlinePowerSettingsNew } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
+import { FiSearch } from "react-icons/fi";
 
 function StatusPill({ children, tone = "neutral" }) {
   const classes = {
@@ -105,7 +108,9 @@ const EMPTY_SPRF_FORM = {
   remarks: "",
 };
 
-function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
+function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filters = {} }) {
+  const roiFilters = filters.roi ?? {};
+  const sprfFilters = filters.sprf ?? {};
   const [activeMatrixTab, setActiveMatrixTab] = useState("ROI");
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -132,6 +137,148 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
   const users = stats?.users ?? [];
   const locations = stats?.locations ?? [];
   const departments = stats?.departments ?? [];
+
+  const locationFilterOptions = useMemo(
+    () => [
+      { label: "All", value: "" },
+      ...locations.map((l) => ({ label: l.name, value: String(l.id) })),
+    ],
+    [locations]
+  );
+
+  const departmentFilterOptions = useMemo(
+    () => [
+      { label: "All", value: "" },
+      ...departments.map((d) => ({ label: d.name, value: String(d.id) })),
+    ],
+    [departments]
+  );
+
+  const roiStatusFilterOptions = useMemo(
+    () => [
+      { label: "All", value: "" },
+      { label: "Active", value: "Active" },
+      { label: "Inactive", value: "Inactive" },
+    ],
+    []
+  );
+
+  const sprfStatusFilterOptions = useMemo(
+    () => [
+      { label: "All", value: "" },
+      { label: "Active", value: "active" },
+      { label: "Inactive", value: "inactive" },
+    ],
+    []
+  );
+
+  const [roiSearchQuery, setRoiSearchQuery] = useState(roiFilters.search ?? "");
+  const [sprfSearchQuery, setSprfSearchQuery] = useState(sprfFilters.search ?? "");
+
+  useEffect(() => {
+    setRoiSearchQuery(roiFilters.search ?? "");
+  }, [roiFilters.search]);
+
+  useEffect(() => {
+    setSprfSearchQuery(sprfFilters.search ?? "");
+  }, [sprfFilters.search]);
+
+  const applyRoiFilters = useCallback(
+    (next = {}) => {
+      router.get(
+        route("admin.approver-matrix.index"),
+        {
+          roi_search: next.search ?? roiFilters.search ?? "",
+          roi_location: next.location ?? roiFilters.location ?? "",
+          roi_department: next.department ?? roiFilters.department ?? "",
+          roi_status: next.status ?? roiFilters.status ?? "",
+          roi_sortBy: next.sortBy ?? roiFilters.sortBy ?? "",
+          roi_sortDirection: next.sortDirection ?? roiFilters.sortDirection ?? "asc",
+          roi_page: next.page ?? 1,
+          sprf_search: sprfFilters.search ?? "",
+          sprf_location: sprfFilters.location ?? "",
+          sprf_department: sprfFilters.department ?? "",
+          sprf_status: sprfFilters.status ?? "",
+          sprf_sortBy: sprfFilters.sortBy ?? "",
+          sprf_sortDirection: sprfFilters.sortDirection ?? "asc",
+        },
+        { preserveScroll: true, preserveState: true, replace: true }
+      );
+    },
+    [roiFilters, sprfFilters]
+  );
+
+  const applySprfFilters = useCallback(
+    (next = {}) => {
+      router.get(
+        route("admin.approver-matrix.index"),
+        {
+          roi_search: roiFilters.search ?? "",
+          roi_location: roiFilters.location ?? "",
+          roi_department: roiFilters.department ?? "",
+          roi_status: roiFilters.status ?? "",
+          roi_sortBy: roiFilters.sortBy ?? "",
+          roi_sortDirection: roiFilters.sortDirection ?? "asc",
+          sprf_search: next.search ?? sprfFilters.search ?? "",
+          sprf_location: next.location ?? sprfFilters.location ?? "",
+          sprf_department: next.department ?? sprfFilters.department ?? "",
+          sprf_status: next.status ?? sprfFilters.status ?? "",
+          sprf_sortBy: next.sortBy ?? sprfFilters.sortBy ?? "",
+          sprf_sortDirection: next.sortDirection ?? sprfFilters.sortDirection ?? "asc",
+        },
+        { preserveScroll: true, preserveState: true, replace: true }
+      );
+    },
+    [roiFilters, sprfFilters]
+  );
+
+  useEffect(() => {
+    const normalized = roiSearchQuery.trim();
+    if (normalized === (roiFilters.search ?? "").trim()) return;
+
+    const timeout = setTimeout(() => {
+      applyRoiFilters({ search: normalized, page: 1 });
+    }, 300);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roiSearchQuery]);
+
+  useEffect(() => {
+    const normalized = sprfSearchQuery.trim();
+    if (normalized === (sprfFilters.search ?? "").trim()) return;
+
+    const timeout = setTimeout(() => {
+      applySprfFilters({ search: normalized });
+    }, 300);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sprfSearchQuery]);
+
+  const handleRoiSort = useCallback(
+    (columnKey) => {
+      const nextDirection =
+        (roiFilters.sortBy ?? "") === columnKey && (roiFilters.sortDirection ?? "asc") === "asc"
+          ? "desc"
+          : "asc";
+
+      applyRoiFilters({ sortBy: columnKey, sortDirection: nextDirection, page: 1 });
+    },
+    [applyRoiFilters, roiFilters.sortBy, roiFilters.sortDirection]
+  );
+
+  const handleSprfSort = useCallback(
+    (columnKey) => {
+      const nextDirection =
+        (sprfFilters.sortBy ?? "") === columnKey && (sprfFilters.sortDirection ?? "asc") === "asc"
+          ? "desc"
+          : "asc";
+
+      applySprfFilters({ sortBy: columnKey, sortDirection: nextDirection });
+    },
+    [applySprfFilters, sprfFilters.sortBy, sprfFilters.sortDirection]
+  );
 
   const [createForm, setCreateForm] = useState({
     location_id: "",
@@ -401,11 +548,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
   };
 
   const goToPage = (p) => {
-    router.get(
-      route("admin.approver-matrix.index"),
-      { page: p },
-      { preserveScroll: true, preserveState: true }
-    );
+    applyRoiFilters({ page: p });
   };
 
   const openCreateForActiveTab = () => {
@@ -531,17 +674,75 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
 
             {activeMatrixTab === "ROI" && (
               <div className="mt-2">
+                <div className="mb-3 flex flex-wrap items-center gap-1 rounded-lg border border-black/10 px-2 py-[6px] bg-white">
+                  <FilterPill
+                    label="Status"
+                    value={roiFilters.status ?? ""}
+                    options={roiStatusFilterOptions}
+                    onChange={(v) => applyRoiFilters({ status: v, page: 1 })}
+                  />
+                  <FilterPill
+                    label="Location"
+                    value={roiFilters.location ?? ""}
+                    options={locationFilterOptions}
+                    onChange={(v) => applyRoiFilters({ location: v, page: 1 })}
+                  />
+                  <FilterPill
+                    label="Department"
+                    value={roiFilters.department ?? ""}
+                    options={departmentFilterOptions}
+                    onChange={(v) => applyRoiFilters({ department: v, page: 1 })}
+                  />
+
+                  <div className="relative ml-auto">
+                    <FiSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={roiSearchQuery}
+                      onChange={(e) => setRoiSearchQuery(e.target.value)}
+                      placeholder="Search location or department..."
+                      className="rounded-md border border-black/10 bg-white py-[6px] pl-8 pr-3 text-xs text-slate-700 outline-none focus:ring-0 focus:border-[#289800]"
+                    />
+                  </div>
+                </div>
+
                 <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
-                          <th className="px-6 py-2 text-left font-bold">Location</th>
-                          <th className="px-4 py-2 text-center font-bold">Department</th>
+                          <th className="px-6 py-2 text-left font-bold">
+                            <SortHeader
+                              label="LOCATION"
+                              sortKey="location_name"
+                              sortBy={roiFilters.sortBy ?? ""}
+                              sortDirection={roiFilters.sortDirection ?? "asc"}
+                              onSort={handleRoiSort}
+                            />
+                          </th>
+                          <th className="px-4 py-2 text-center font-bold">
+                            <SortHeader
+                              label="DEPARTMENT"
+                              sortKey="department_name"
+                              sortBy={roiFilters.sortBy ?? ""}
+                              sortDirection={roiFilters.sortDirection ?? "asc"}
+                              onSort={handleRoiSort}
+                              align="center"
+                            />
+                          </th>
                           <th className="px-4 py-2 text-center font-bold min-w-[420px]">
                             Approvers
                           </th>
-                          <th className="px-4 py-2 text-center font-bold">Status</th>
+                          <th className="px-4 py-2 text-center font-bold">
+                            <SortHeader
+                              label="STATUS"
+                              sortKey="status"
+                              sortBy={roiFilters.sortBy ?? ""}
+                              sortDirection={roiFilters.sortDirection ?? "asc"}
+                              onSort={handleRoiSort}
+                              align="center"
+                            />
+                          </th>
                           <th className="px-4 py-2 text-center font-bold">Actions</th>
                         </tr>
                       </thead>
@@ -667,19 +868,77 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {} }) {
             )}
 
             {activeMatrixTab === "SPRF" && (
-              <div className="mt-5">
+              <div className="mt-2">
+                <div className="mb-3 flex flex-wrap items-center gap-1 rounded-lg border border-black/10 px-2 py-[6px] bg-white">
+                  <FilterPill
+                    label="Status"
+                    value={sprfFilters.status ?? ""}
+                    options={sprfStatusFilterOptions}
+                    onChange={(v) => applySprfFilters({ status: v })}
+                  />
+                  <FilterPill
+                    label="Location"
+                    value={sprfFilters.location ?? ""}
+                    options={locationFilterOptions}
+                    onChange={(v) => applySprfFilters({ location: v })}
+                  />
+                  <FilterPill
+                    label="Department"
+                    value={sprfFilters.department ?? ""}
+                    options={departmentFilterOptions}
+                    onChange={(v) => applySprfFilters({ department: v })}
+                  />
+
+                  <div className="relative ml-auto">
+                    <FiSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={sprfSearchQuery}
+                      onChange={(e) => setSprfSearchQuery(e.target.value)}
+                      placeholder="Search location or department..."
+                      className="rounded-md border border-black/10 bg-white py-[6px] pl-8 pr-3 text-xs text-slate-700 outline-none focus:ring-0 focus:border-[#289800]"
+                    />
+                  </div>
+                </div>
+
                 <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
-                          <th className="px-6 py-2 text-left font-bold">Location</th>
-                          <th className="px-4 py-2 text-center font-bold">Department</th>
+                          <th className="px-6 py-2 text-left font-bold">
+                            <SortHeader
+                              label="LOCATION"
+                              sortKey="location_name"
+                              sortBy={sprfFilters.sortBy ?? ""}
+                              sortDirection={sprfFilters.sortDirection ?? "asc"}
+                              onSort={handleSprfSort}
+                            />
+                          </th>
+                          <th className="px-4 py-2 text-center font-bold">
+                            <SortHeader
+                              label="DEPARTMENT"
+                              sortKey="department_name"
+                              sortBy={sprfFilters.sortBy ?? ""}
+                              sortDirection={sprfFilters.sortDirection ?? "asc"}
+                              onSort={handleSprfSort}
+                              align="center"
+                            />
+                          </th>
                           <th className="px-4 py-2 text-center font-bold">Condition</th>
                           <th className="px-4 py-2 text-center font-bold min-w-[320px]">
                             Approvers
                           </th>
-                          <th className="px-4 py-2 text-center font-bold">Status</th>
+                          <th className="px-4 py-2 text-center font-bold">
+                            <SortHeader
+                              label="STATUS"
+                              sortKey="status"
+                              sortBy={sprfFilters.sortBy ?? ""}
+                              sortDirection={sprfFilters.sortDirection ?? "asc"}
+                              onSort={handleSprfSort}
+                              align="center"
+                            />
+                          </th>
                           <th className="px-4 py-2 text-center font-bold">Actions</th>
                         </tr>
                       </thead>

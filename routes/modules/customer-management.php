@@ -167,4 +167,5 @@ Route::middleware(['auth', 'verified'])
             Route::get('/companies', [CustomerInfoController::class, 'index'])->name('companies.index');
             Route::get('/companies/{id}', [CustomerInfoController::class, 'show'])->name('companies.show');
             Route::get('/customer-info/potentials', [PotentialCustomerController::class, 'index'])->name('customerinfo.potentials.index');
+            Route::patch('/potentials/{potential}', [CustomerInfoController::class, 'updatePotential'])->name('potentials.update');
         });

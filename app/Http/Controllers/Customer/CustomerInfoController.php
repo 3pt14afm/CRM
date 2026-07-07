@@ -219,6 +219,7 @@ public function index(Request $request)
         'contact_no'     => $p->contact_no,
         'id_client_mngr' => $p->id_client_mngr,
         'client_manager' => $p->clientManager ? $p->clientManager->first_name . ' ' . $p->clientManager->last_name : null,
+        'delsan_company' => $p->clientManager?->delsan,
         'status'         => $p->status,
         'created_at'     => $p->created_at?->toDateTimeString(),
     ]);
@@ -257,5 +258,17 @@ public function index(Request $request)
         return Inertia::render('Companies/Show', [
             'company' => $company,
         ]);
+    }
+
+    public function updatePotential(Request $request, PotentialCustomer $potential)
+    {
+        $validated = $request->validate([
+            'address'    => ['sometimes', 'nullable', 'string', 'max:255'],
+            'contact_no' => ['sometimes', 'nullable', 'string', 'max:50'],
+        ]);
+
+        $potential->update($validated);
+
+        return back();
     }
 }

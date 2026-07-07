@@ -1,5 +1,12 @@
 import AdminFormModal from "@/Components/admin/AdminFormModal";
 
+const DELSAN_OPTIONS = [
+  { label: "—", value: "" },
+  { label: "DOSC", value: "dosc" },
+  { label: "DBIC", value: "dbic" },
+  { label: "DDTC", value: "ddtc" },
+];
+
 export default function EditLocationModal({
   show,
   onClose,
@@ -87,6 +94,28 @@ export default function EditLocationModal({
           />
           {errors.address ? (
             <p className="mt-1 text-xs text-red-600">{errors.address}</p>
+          ) : null}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">
+            Delsan
+          </label>
+          <select
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            value={editForm.delsan ?? ""}
+            onChange={(e) =>
+              setEditForm((p) => ({ ...p, delsan: e.target.value }))
+            }
+          >
+            {DELSAN_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {errors.delsan ? (
+            <p className="mt-1 text-xs text-red-600">{errors.delsan}</p>
           ) : null}
         </div>
 

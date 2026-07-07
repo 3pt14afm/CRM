@@ -2,21 +2,13 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Head, router } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
-import FilterChip from '@/Components/roi/filters/FilterChip';
-import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
-import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
-import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import {
-  MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose, MdExpandMore,
-  MdPerson, MdLocationOn,
-} from 'react-icons/md';
-import { TbLayoutRows } from 'react-icons/tb';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
-import SortHeader from '@/Components/roi/filters/SortHeader';
+import SortHeader from '@/Components/SortHeader';
+import { RiArrowDownSLine, RiArrowUpSLine, RiExpandUpDownLine } from 'react-icons/ri';
 
 function formatDateLabel(dateStr) {
   if (!dateStr) return null;
@@ -211,10 +203,9 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}
-          align="center"
         />
       ),
-      cell: (r) => <span className="font-medium flex justify-center items-center">{r.reference ?? "—"}</span>,
+      cell: (r) => <span className="font-medium flex items-center">{r.reference ?? "—"}</span>,
     },
     {
       key: "company_sap_code",
@@ -225,11 +216,10 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <span className="font-mono text-xs text-[#33721c] flex justify-center items-center">
+        <span className="font-mono text-xs text-[#33721c] flex items-center">
           {r.company_sap_code ?? "—"}
         </span>
       ),
@@ -243,11 +233,10 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <div className="flex justify-center items-center w-full h-full">
+        <div className="flex items-center w-full h-full">
           <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
             {r.company_name ?? "—"}
           </span>
@@ -263,11 +252,10 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <span className="font-medium flex justify-center items-center">
+        <span className="font-medium flex items-center">
           {r.contract_years != null ? `${r.contract_years}` : "—"}
         </span>
       ),
@@ -281,10 +269,9 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}
-          align="center"
         />
       ),
-      cell: (r) => <span className="font-medium flex justify-center items-center">{r.contract_type ?? "—"}</span>,
+      cell: (r) => <span className="font-medium flex items-center">{r.contract_type ?? "—"}</span>,
     },
     {
       key: "type",
@@ -295,11 +282,10 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+        <span className={`font-medium flex items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
           {r.type === 1 ? "Existing" : "Potential"}
         </span>
       ),
@@ -313,12 +299,11 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}
-          align="center"
         />
       ),
       cell: (row) => (
-        <div className="w-full flex justify-center items-center">
-          <div className="flex flex-col items-center leading-tight">
+        <div className="">
+          <div className="flex flex-col items-start leading-tight">
             <span className="inline-block px-1 xl:px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider bg-blue-100 text-blue-700 border border-blue-200">
               <span className="uppercase">{row.status_display_main ?? row.status}</span>
               {row.status_display_suffix && (
@@ -335,17 +320,20 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
     {
       key: "last_saved_at",
       header: (
-        // Clock icon style matching ArchiveList's decided_at column
         <button
           type="button"
           onClick={() => handleSort('last_saved_at')}
-          className="flex justify-center items-center w-full text-slate-500 gap-1"
+          className="flex justify-between items-center w-full text-slate-500 gap-1"
         >
           <FaRegClock className="text-sm" title="Last Saved" />
           <span className={`text-[11px] leading-none ${
             sortBy === 'last_saved_at' ? 'text-[#289800]' : 'text-slate-400'
           }`}>
-            {sortBy === 'last_saved_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+            {(() => {
+                const active = sortBy === "last_saved_at";
+                const Indicator = active ? sortOrder === "desc" ? RiArrowDownSLine : RiArrowUpSLine : RiExpandUpDownLine;
+                return <Indicator />;
+              })()}
           </span>
         </button>
       ),
@@ -374,7 +362,7 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
           formattedDate = displayVal;
         }
         return (
-          <span className="text-slate-600 text-[11px] xl:text-xs flex justify-center items-center">
+          <span className="text-slate-600 text-[10px] xl:text-[11px] flex items-center">
             {formattedDate}
           </span>
         );
