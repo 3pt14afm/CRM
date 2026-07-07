@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import GeneratedProposals from './GeneratedProposals';
+import ArchivedProposals from './ArchiveProposals';
 import { useState } from 'react';
 import ApproveProjects from './ApprovedProjects';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -10,13 +11,13 @@ export default function ProposalRoute({
     stats,
     roiProposals,
     sprfProposals,
+    archivedRoiProposals,
+    archivedSprfProposals,
     generatedstats,
+    filters,
+    locations,
 }) {
     const [activeTab, setActiveTab] = useState('archive')
-
-    const today = new Date().toLocaleDateString("en-US", {
-        day: "2-digit", month: "2-digit", year: "2-digit"
-    });
 
     return (
         <>
@@ -39,7 +40,7 @@ export default function ProposalRoute({
                     <button
                         type="button"
                         onClick={() => setActiveTab('archive')}
-                        className={`px-2 lg:px-4 text-xs lg:text-sm m-0.5 mr-0 py-1.5 ${
+                        className={`px-2 lg:px-4 text-xs lg:text-sm m-0.5 py-1.5 ${
                             activeTab === 'archive'
                                 ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800]'
                                 : 'rounded-t-xl text-slate-500'
@@ -50,13 +51,24 @@ export default function ProposalRoute({
                     <button
                         type="button"
                         onClick={() => setActiveTab('generated')}
-                        className={`px-2 lg:px-4 text-xs lg:text-sm m-0.5 ml-0 py-1.5 ${
+                        className={`px-2 lg:px-4 text-xs lg:text-sm m-0.5 py-1.5 ${
                             activeTab === 'generated'
                                 ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800]'
                                 : 'rounded-t-xl text-slate-500'
                         }`}
                     >
                         Generated Proposals
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('archived')}
+                        className={`px-2 lg:px-4 text-xs lg:text-sm m-0.5 py-1.5 ${
+                            activeTab === 'archived'
+                                ? 'bg-[#B5EBA2]/50 font-bold rounded-full text-[#289800]'
+                                : 'rounded-t-xl text-slate-500'
+                        }`}
+                    >
+                        Archived Proposals
                     </button>
                 </div>
             </div>
@@ -67,12 +79,21 @@ export default function ProposalRoute({
                         roiProjects={roiProjects ?? { data: [] }}
                         sprfProjects={sprfProjects ?? { data: [] }}
                         stats={stats ?? {}}
+                        filters={filters}
+                        locations={locations}
                     />
                 )}
                 {activeTab === 'generated' && (
                     <GeneratedProposals
                         roiProposals={roiProposals ?? { data: [] }}
                         sprfProposals={sprfProposals ?? { data: [] }}
+                        stats={generatedstats ?? {}}
+                    />
+                )}
+                {activeTab === 'archived' && (
+                    <ArchivedProposals
+                        archivedRoiProposals={archivedRoiProposals ?? { data: [] }}
+                        archivedSprfProposals={archivedSprfProposals ?? { data: [] }}
                         stats={generatedstats ?? {}}
                     />
                 )}

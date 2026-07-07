@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function PrintLayout({ children, showDraftWatermark = false }) {
+export default function PrintLayout({ children, showDraftWatermark = false, watermarkText = "DRAFT" }) {
   const shouldShowDraftWatermark =
     showDraftWatermark === true ||
     showDraftWatermark === 1 ||
@@ -12,7 +12,7 @@ export default function PrintLayout({ children, showDraftWatermark = false }) {
         {/* Watermark */}
         {shouldShowDraftWatermark && (
           <div className="print-watermark" aria-hidden="true">
-            DRAFT
+            {watermarkText}
           </div>
         )}
 

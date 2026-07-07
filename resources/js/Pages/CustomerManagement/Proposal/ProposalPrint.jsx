@@ -58,10 +58,33 @@ function ProposalPrint({ proposal, items, fees, autoprint = false }) {
 
 export default ProposalPrint;
 
-ProposalPrint.layout = (page) => (
-  <PrintLayout
-    showDraftWatermark={page.props?.proposal?.status !== "generated"}
-  >
-    {page}
-  </PrintLayout>
-);
+// Watermark logic:
+// - draft               -> "DRAFT"
+// - generated            -> no watermark
+// - awarded / closed     -> stamped with their own label
+function resolveWatermark(status) {
+  switch (status) {
+    case "draft":
+      return "DRAFT";
+    case "awarded":
+      return "AWARDED";
+    case "closed":
+      return "CLOSED";
+    default:
+      return null; // 'generated' -> no watermark
+  }
+}
+
+ProposalPrint.layout = (page) => {
+  const status = page.props?.proposal?.status;
+  const watermarkText = resolveWatermark(status);
+
+  return (
+    <PrintLayout
+      showDraftWatermark={!!watermarkText}
+      watermarkText={watermarkText}
+    >
+      {page}
+    </PrintLayout>
+  );
+};

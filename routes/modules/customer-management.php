@@ -111,6 +111,8 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/{id}/print', [ProposalController::class, 'print'])->name('print');
                 Route::post('/{id}/draft', [ProposalController::class, 'saveDraft'])->name('draft');
                 Route::post('/{id}/generate', [ProposalController::class, 'generate'])->name('generate');
+                Route::patch('/{id}/status', [ProposalController::class, 'changeStatus'])
+                ->name('status');
             });
         });
 

@@ -266,17 +266,6 @@ function ApproveProjects({
       ),
     },
     {
-      header: "STATUS",
-      key: "status",
-      cell: (row) => (
-        <div className="flex justify-center items-center">
-          <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
-            {row.status ?? "APPROVED"}
-          </span>
-        </div>
-      ),
-    },
-    {
       key: "approved_by_name",
       header: (
         <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-center items-center w-full text-slate-500 gap-1">

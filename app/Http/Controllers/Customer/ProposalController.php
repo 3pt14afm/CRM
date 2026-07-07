@@ -23,18 +23,40 @@ class ProposalController extends Controller
         $roiResult  = $this->getAvailableRoiProjects($request, $userId, $perPage);
         $sprfResult = $this->getAvailableSprfProjects($request, $userId, $perPage);
 
-        $stats = [
+        // Stats for the "Available Projects" tables
+        $availableStats = [
             'totalArchiveProjects'  => $roiResult['stats']['total'] + $sprfResult['stats']['total'],
             'recentlyArchivedToday' => ($roiResult['stats']['today'] + $sprfResult['stats']['today']) . ' Today',
             'totalRoiProjects'      => $roiResult['stats']['total'],
             'totalSprfProjects'     => $sprfResult['stats']['total'],
         ];
 
+        // Stats for the "My Proposals" (generated) tables — this is what
+        // GeneratedProposals.jsx reads as liveStats.totalRoiMine, etc.
+        $generatedStats = [
+            'totalProposals'     => Proposal::where('user_id', $userId)->whereNotIn('status', ['awarded', 'closed'])->count(),
+            'generatedCount'     => Proposal::where('user_id', $userId)->where('status', 'generated')->count(),
+            'totalRoiMine'       => Proposal::where('user_id', $userId)->where('project_type', 'roi')->whereNotIn('status', ['awarded', 'closed'])->count(),
+            'totalSprfMine'      => Proposal::where('user_id', $userId)->where('project_type', 'sprf')->whereNotIn('status', ['awarded', 'closed'])->count(),
+            'generatedRoiCount'  => Proposal::where('user_id', $userId)->where('project_type', 'roi')->where('status', 'generated')->count(),
+            'generatedSprfCount' => Proposal::where('user_id', $userId)->where('project_type', 'sprf')->where('status', 'generated')->count(),
+            'archivedRoiCount'   => Proposal::where('user_id', $userId)->where('project_type', 'roi')->whereIn('status', ['awarded', 'closed'])->count(),
+            'archivedSprfCount'  => Proposal::where('user_id', $userId)->where('project_type', 'sprf')->whereIn('status', ['awarded', 'closed'])->count(),
+        ];
+
         if ($request->wantsJson()) {
+            // GeneratedProposals.jsx (axios/XHR) expects roiProposals / sprfProposals
+            // (paginated "my proposals" data) and a single `stats` object that
+            // contains both the available-project counts AND the my-proposals
+            // counts (totalRoiMine, generatedRoiCount, ...).
             return response()->json([
-                'roiProjects'  => $roiResult['data'],
-                'sprfProjects' => $sprfResult['data'],
-                'stats'        => $stats,
+                'roiProjects'           => $roiResult['data'],
+                'sprfProjects'          => $sprfResult['data'],
+                'roiProposals'          => $this->getMyRoiProposals($request, $userId, $perPage),
+                'sprfProposals'         => $this->getMySprfProposals($request, $userId, $perPage),
+                'archivedRoiProposals'  => $this->getMyArchivedRoiProposals($request, $userId, $perPage),
+                'archivedSprfProposals' => $this->getMyArchivedSprfProposals($request, $userId, $perPage),
+                'stats'                 => array_merge($availableStats, $generatedStats),
             ]);
         }
 
@@ -46,7 +68,7 @@ class ProposalController extends Controller
         return Inertia::render('CustomerManagement/Proposal/ProposalRoute', [
             'roiProjects'  => $roiResult['data'],
             'sprfProjects' => $sprfResult['data'],
-            'stats'        => $stats,
+            'stats'        => $availableStats,
             'filters'      => [
                 'search'      => trim((string) $request->input('search', '')),
                 'type'        => $request->input('type', ''),
@@ -60,20 +82,12 @@ class ProposalController extends Controller
             ],
             'locations' => $locations,
 
-            'roiProposals'  => $this->getMyRoiProposals($userId, $perPage),
-                'sprfProposals' => $this->getMySprfProposals($userId, $perPage),
-                'generatedstats' => [
-                    'totalProposals'    => Proposal::where('user_id', $userId)->count(),
-                    'generatedCount'    => Proposal::where('user_id', $userId)->where('status', 'generated')->count(),
-                    'totalRoiMine'      => Proposal::where('user_id', $userId)->where('project_type', 'roi')->count(),
-                    'totalSprfMine'     => Proposal::where('user_id', $userId)->where('project_type', 'sprf')->count(),
-                    'generatedRoiCount' => Proposal::where('user_id', $userId)->where('project_type', 'roi')->where('status', 'generated')->count(),
-                    'generatedSprfCount'=> Proposal::where('user_id', $userId)->where('project_type', 'sprf')->where('status', 'generated')->count(),
-                ],
-            'generatedstats' => [
-                'totalProposals' => Proposal::where('user_id', $userId)->count(),
-                'generatedCount' => Proposal::where('user_id', $userId)->where('status', 'generated')->count(),
-            ],
+            'roiProposals'          => $this->getMyRoiProposals($request, $userId, $perPage),
+            'sprfProposals'         => $this->getMySprfProposals($request, $userId, $perPage),
+            'archivedRoiProposals'  => $this->getMyArchivedRoiProposals($request, $userId, $perPage),
+            'archivedSprfProposals' => $this->getMyArchivedSprfProposals($request, $userId, $perPage),
+
+            'generatedstats' => $generatedStats,
         ]);
     }
 
@@ -97,7 +111,7 @@ class ProposalController extends Controller
             ->where('roi_archive_projects.status', 'approved')
             ->with(['user', 'approver'])
             ->whereDoesntHave('proposals', function ($q) {
-                $q->whereIn('status', ['draft', 'generated']);
+                $q->whereIn('status', ['draft', 'generated', 'awarded', 'closed']);
             });
 
         if ($search !== '') {
@@ -194,7 +208,7 @@ class ProposalController extends Controller
             ->where('status', 'approved')
             ->with(['preparer', 'approvedBy'])
             ->whereDoesntHave('proposals', function ($q) {
-                $q->whereIn('status', ['draft', 'generated']);
+                $q->whereIn('status', ['draft', 'generated', 'awarded', 'closed']);
             });
 
         if ($search !== '') {
@@ -233,7 +247,7 @@ class ProposalController extends Controller
         if (isset($sortableColumns[$sortBy])) {
             $query->orderBy($sortableColumns[$sortBy], $sortOrder);
         } else {
-            $query->orderByDesc('approved_at'); // was: orderByDesc('updated_at')
+            $query->orderByDesc('approved_at');
         }
 
         $statsQuery = (clone $query)->reorder();
@@ -246,52 +260,264 @@ class ProposalController extends Controller
             'data' => $data,
             'stats' => [
                 'total' => $statsQuery->count('id'),
-                'today' => (clone $statsQuery)->whereDate('approved_at', now()->toDateString())->count('id'),  
-              ],
+                'today' => (clone $statsQuery)->whereDate('approved_at', now()->toDateString())->count('id'),
+            ],
         ];
     }
 
-private function getMyRoiProposals($userId, int $perPage)
-{
-    return Proposal::query()
-        ->where('user_id', $userId)
-        ->where('project_type', 'roi')
-        ->with('roiArchiveProject')
-        ->orderByDesc('updated_at')
-        ->paginate($perPage, ['*'], 'roi_page')
-        ->through(fn (Proposal $p) => [
-            'id'             => $p->roiArchiveProject?->id,
-            'proposal_id'    => $p->id,
-            'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
-            'company_name'   => $p->company_name,
-            'status'         => $p->status,
-            'project_type'   => 'roi',
-            'updated_at'     => $p->updated_at->diffForHumans(),
-            'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
-            'project_ref'    => $p->roiArchiveProject->reference ?? '—',
-        ]);
-}
+    // ─── My Proposals (Generated tab) ──────────────────────────────
 
-private function getMySprfProposals($userId, int $perPage)
-{
-    return Proposal::query()
-        ->where('user_id', $userId)
-        ->where('project_type', 'sprf')
-        ->with('sprfArchiveProject')
-        ->orderByDesc('updated_at')
-        ->paginate($perPage, ['*'], 'sprf_page')
-        ->through(fn (Proposal $p) => [
-            'id'             => $p->sprfArchiveProject?->id,
-            'proposal_id'    => $p->id,
-            'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
-            'company_name'   => $p->company_name,
-            'status'         => $p->status,
-            'project_type'   => 'sprf',
-            'updated_at'     => $p->updated_at->diffForHumans(),
-            'contract_years' => '—',
-            'project_ref'    => $p->sprfArchiveProject->sprf_no ?? '—',
-        ]);
-}
+    private function getMyRoiProposals(Request $request, $userId, int $perPage)
+    {
+        $search    = trim((string) $request->input('gen_search', ''));
+        $status    = $request->input('gen_status', '');
+        $sortBy    = (string) $request->input('gen_sort_by', 'updated_at');
+        $sortOrder = strtolower((string) $request->input('gen_sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $query = Proposal::query()
+            ->select('proposals.*')
+            ->where('proposals.user_id', $userId)
+            ->where('proposals.project_type', 'roi')
+            ->whereNotIn('proposals.status', ['awarded', 'closed'])
+            ->with('roiArchiveProject');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('proposals.company_name', 'like', "%{$search}%")
+                  ->orWhereHas('roiArchiveProject', function ($sub) use ($search) {
+                      $sub->where('reference', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if (in_array($status, ['draft', 'generated'], true)) {
+            $query->where('proposals.status', $status);
+        }
+
+        $sortableColumns = [
+            'company_name' => 'proposals.company_name',
+            'status'       => 'proposals.status',
+            'updated_at'   => 'proposals.updated_at',
+            'proposal_ref' => 'proposals.proposal_ref',
+        ];
+
+        if ($sortBy === 'project_ref') {
+            $query->leftJoin('roi_archive_projects', 'proposals.roi_archive_project_id', '=', 'roi_archive_projects.id')
+                ->orderBy('roi_archive_projects.reference', $sortOrder);
+        } elseif (isset($sortableColumns[$sortBy])) {
+            $query->orderBy($sortableColumns[$sortBy], $sortOrder);
+        } else {
+            $query->orderByDesc('proposals.updated_at');
+        }
+
+        return $query->paginate($perPage, ['*'], 'roi_page')
+            ->withQueryString()
+            ->through(fn (Proposal $p) => [
+                'id'             => $p->roiArchiveProject?->id,
+                'proposal_id'    => $p->id,
+                'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
+                'company_name'   => $p->company_name,
+                'status'         => $p->status,
+                'project_type'   => 'roi',
+                'updated_at'     => $p->updated_at->diffForHumans(),
+                'generated_at'   => $p->generated_at?->toIso8601String(),
+                'archived_at'    => $p->archived_at?->toIso8601String(),
+                'aging_seconds'  => $p->agingSeconds(),
+                'aging_display'  => $p->agingDisplay(),
+                'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
+                'project_ref'    => $p->roiArchiveProject->reference ?? '—',
+            ]);
+    }
+
+    private function getMySprfProposals(Request $request, $userId, int $perPage)
+    {
+        $search    = trim((string) $request->input('gen_search', ''));
+        $status    = $request->input('gen_status', '');
+        $sortBy    = (string) $request->input('gen_sort_by', 'updated_at');
+        $sortOrder = strtolower((string) $request->input('gen_sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $query = Proposal::query()
+            ->select('proposals.*')
+            ->where('proposals.user_id', $userId)
+            ->where('proposals.project_type', 'sprf')
+            ->whereNotIn('proposals.status', ['awarded', 'closed'])
+            ->with('sprfArchiveProject');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('proposals.company_name', 'like', "%{$search}%")
+                  ->orWhereHas('sprfArchiveProject', function ($sub) use ($search) {
+                      $sub->where('sprf_no', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if (in_array($status, ['draft', 'generated'], true)) {
+            $query->where('proposals.status', $status);
+        }
+
+        $sortableColumns = [
+            'company_name' => 'proposals.company_name',
+            'status'       => 'proposals.status',
+            'updated_at'   => 'proposals.updated_at',
+            'proposal_ref' => 'proposals.proposal_ref',
+        ];
+
+        if ($sortBy === 'project_ref') {
+            $query->leftJoin('sprf_archive_projects', 'proposals.sprf_archive_project_id', '=', 'sprf_archive_projects.id')
+                ->orderBy('sprf_archive_projects.sprf_no', $sortOrder);
+        } elseif (isset($sortableColumns[$sortBy])) {
+            $query->orderBy($sortableColumns[$sortBy], $sortOrder);
+        } else {
+            $query->orderByDesc('proposals.updated_at');
+        }
+
+        return $query->paginate($perPage, ['*'], 'sprf_page')
+            ->withQueryString()
+            ->through(fn (Proposal $p) => [
+                'id'             => $p->sprfArchiveProject?->id,
+                'proposal_id'    => $p->id,
+                'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
+                'company_name'   => $p->company_name,
+                'status'         => $p->status,
+                'project_type'   => 'sprf',
+                'updated_at'     => $p->updated_at->diffForHumans(),
+                'generated_at'   => $p->generated_at?->toIso8601String(),
+                'archived_at'    => $p->archived_at?->toIso8601String(),
+                'aging_seconds'  => $p->agingSeconds(),
+                'aging_display'  => $p->agingDisplay(),
+                'contract_years' => '—',
+                'project_ref'    => $p->sprfArchiveProject->sprf_no ?? '—',
+            ]);
+    }
+
+    // ─── My Proposals (Archived tab: awarded / closed) ─────────────
+
+    private function getMyArchivedRoiProposals(Request $request, $userId, int $perPage)
+    {
+        $search    = trim((string) $request->input('arch_search', ''));
+        $status    = $request->input('arch_status', '');
+        $sortBy    = (string) $request->input('arch_sort_by', 'archived_at');
+        $sortOrder = strtolower((string) $request->input('arch_sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $query = Proposal::query()
+            ->select('proposals.*')
+            ->where('proposals.user_id', $userId)
+            ->where('proposals.project_type', 'roi')
+            ->whereIn('proposals.status', ['awarded', 'closed'])
+            ->with('roiArchiveProject');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('proposals.company_name', 'like', "%{$search}%")
+                  ->orWhereHas('roiArchiveProject', function ($sub) use ($search) {
+                      $sub->where('reference', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if (in_array($status, ['awarded', 'closed'], true)) {
+            $query->where('proposals.status', $status);
+        }
+
+        $sortableColumns = [
+            'company_name' => 'proposals.company_name',
+            'status'       => 'proposals.status',
+            'archived_at'  => 'proposals.archived_at',
+            'updated_at'   => 'proposals.updated_at',
+            'proposal_ref' => 'proposals.proposal_ref',
+        ];
+
+        if ($sortBy === 'project_ref') {
+            $query->leftJoin('roi_archive_projects', 'proposals.roi_archive_project_id', '=', 'roi_archive_projects.id')
+                ->orderBy('roi_archive_projects.reference', $sortOrder);
+        } elseif (isset($sortableColumns[$sortBy])) {
+            $query->orderBy($sortableColumns[$sortBy], $sortOrder);
+        } else {
+            $query->orderByDesc('proposals.archived_at');
+        }
+
+        return $query->paginate($perPage, ['*'], 'archived_roi_page')
+            ->withQueryString()
+            ->through(fn (Proposal $p) => [
+                'id'             => $p->roiArchiveProject?->id,
+                'proposal_id'    => $p->id,
+                'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
+                'company_name'   => $p->company_name,
+                'status'         => $p->status,
+                'project_type'   => 'roi',
+                'updated_at'     => $p->updated_at->diffForHumans(),
+                'generated_at'   => $p->generated_at?->toIso8601String(),
+                'archived_at'    => $p->archived_at?->toIso8601String(),
+                'aging_seconds'  => $p->agingSeconds(),
+                'aging_display'  => $p->agingDisplay(),
+                'contract_years' => $p->roiArchiveProject->contract_years ?? '—',
+                'project_ref'    => $p->roiArchiveProject->reference ?? '—',
+            ]);
+    }
+
+    private function getMyArchivedSprfProposals(Request $request, $userId, int $perPage)
+    {
+        $search    = trim((string) $request->input('arch_search', ''));
+        $status    = $request->input('arch_status', '');
+        $sortBy    = (string) $request->input('arch_sort_by', 'archived_at');
+        $sortOrder = strtolower((string) $request->input('arch_sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $query = Proposal::query()
+            ->select('proposals.*')
+            ->where('proposals.user_id', $userId)
+            ->where('proposals.project_type', 'sprf')
+            ->whereIn('proposals.status', ['awarded', 'closed'])
+            ->with('sprfArchiveProject');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('proposals.company_name', 'like', "%{$search}%")
+                  ->orWhereHas('sprfArchiveProject', function ($sub) use ($search) {
+                      $sub->where('sprf_no', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if (in_array($status, ['awarded', 'closed'], true)) {
+            $query->where('proposals.status', $status);
+        }
+
+        $sortableColumns = [
+            'company_name' => 'proposals.company_name',
+            'status'       => 'proposals.status',
+            'archived_at'  => 'proposals.archived_at',
+            'updated_at'   => 'proposals.updated_at',
+            'proposal_ref' => 'proposals.proposal_ref',
+        ];
+
+        if ($sortBy === 'project_ref') {
+            $query->leftJoin('sprf_archive_projects', 'proposals.sprf_archive_project_id', '=', 'sprf_archive_projects.id')
+                ->orderBy('sprf_archive_projects.sprf_no', $sortOrder);
+        } elseif (isset($sortableColumns[$sortBy])) {
+            $query->orderBy($sortableColumns[$sortBy], $sortOrder);
+        } else {
+            $query->orderByDesc('proposals.archived_at');
+        }
+
+        return $query->paginate($perPage, ['*'], 'archived_sprf_page')
+            ->withQueryString()
+            ->through(fn (Proposal $p) => [
+                'id'             => $p->sprfArchiveProject?->id,
+                'proposal_id'    => $p->id,
+                'proposal_ref'   => $p->proposal_ref ?? 'DRAFT',
+                'company_name'   => $p->company_name,
+                'status'         => $p->status,
+                'project_type'   => 'sprf',
+                'updated_at'     => $p->updated_at->diffForHumans(),
+                'generated_at'   => $p->generated_at?->toIso8601String(),
+                'archived_at'    => $p->archived_at?->toIso8601String(),
+                'aging_seconds'  => $p->agingSeconds(),
+                'aging_display'  => $p->agingDisplay(),
+                'contract_years' => '—',
+                'project_ref'    => $p->sprfArchiveProject->sprf_no ?? '—',
+            ]);
+    }
 
     // ─── Show Proposal Page ───────────────────────────────────────
 
@@ -433,9 +659,34 @@ private function getMySprfProposals($userId, int $perPage)
             'status'       => 'generated',
             'proposal_ref' => $ref,
             'project_type' => $type,
+            'generated_at' => now(), // aging clock starts here
         ]));
 
         return redirect()->route('proposals.index')->with('success', 'Proposal generated successfully.');
+    }
+
+    // ─── Change Status (awarded / closed) ──────────────────────────
+
+    public function changeStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => ['required', 'in:awarded,closed'],
+        ]);
+
+        $proposal = Proposal::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        if (!$proposal->isGenerated()) {
+            return back()->with('error', 'Only generated proposals can be marked as awarded or closed.');
+        }
+
+        $proposal->update([
+            'status'      => $request->status,
+            'archived_at' => now(), // aging clock stops here
+        ]);
+
+        return back()->with('success', "Proposal marked as {$request->status}.");
     }
 
     // ─── Item/Fee Normalizers ───────────────────────────────────────
