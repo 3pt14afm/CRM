@@ -115,4 +115,9 @@ class SprfArchiveProject extends Model
     {
         return $query->whereIn('status', ['approved', 'rejected']);
     }
+
+    public function proposals()
+   {
+       return $this->hasMany(\App\Models\Proposal::class, 'sprf_archive_project_id');
+   }
 }

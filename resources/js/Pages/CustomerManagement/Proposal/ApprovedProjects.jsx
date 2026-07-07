@@ -46,9 +46,58 @@ const LS = {
   },
 };
 
-function ApproveProjects({ proposals: initialProposals, stats: initialStats, filters, locations = [] }) {
-  const [localProposals, setLocalProposals] = useState(initialProposals);
-  const [localStats,     setLocalStats]     = useState(initialStats);
+// ─── Tab switcher (ROI / SPRF) ───────────────────────────────────
+function ProjectTypeTabs({ active, onChange, roiCount, sprfCount }) {
+  const tabs = [
+    { key: 'roi',  label: 'ROI Projects',  count: roiCount },
+    { key: 'sprf', label: 'SPRF Projects', count: sprfCount },
+  ];
+
+  return (
+    <div className="flex items-center ml-3 -mb-2 pt-5 gap-1  px-1">
+      {tabs.map((tab) => {
+        const isActive = active === tab.key;
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => onChange(tab.key)}
+            className={`relative flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors ${
+              isActive
+                ? "text-[#289800]"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <span>{tab.label}</span>
+            {typeof tab.count === "number" && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                isActive ? "bg-[#E9F7E7] text-[#2DA300]" : "bg-slate-100 text-slate-500"
+              }`}>
+                {tab.count}
+              </span>
+            )}
+            {isActive && (
+              <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#289800] rounded-full" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ApproveProjects({
+  roiProjects: initialRoiProjects,
+  sprfProjects: initialSprfProjects,
+  stats: initialStats,
+  filters,
+  locations = [],
+}) {
+  const [activeTab, setActiveTab] = useState(() => LS.get('active_tab', 'roi'));
+
+  const [localRoiProjects,  setLocalRoiProjects]  = useState(initialRoiProjects);
+  const [localSprfProjects, setLocalSprfProjects] = useState(initialSprfProjects);
+  const [localStats,        setLocalStats]        = useState(initialStats);
 
   const [search,     setSearch]     = useState(() => LS.get('search',      filters?.search      ?? ""));
   const [typeFilter,  setTypeFilter] = useState(() => LS.get('type',       filters?.type        ?? ""));
@@ -88,7 +137,7 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
   const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? ""));
   const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ""));
 
-  // Persist filters to localStorage whenever they change
+  // Persist filters (incl. active tab) to localStorage whenever they change
   useEffect(() => {
     LS.set('search',      search);
     LS.set('type',        String(typeFilter));
@@ -100,12 +149,14 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     LS.set('page',        String(currentPage));
     LS.set('sort_by',     sortBy);
     LS.set('sort_order',  sortOrder);
-  }, [search, typeFilter, dateFrom, dateTo, decidedBy, locationId, perPage, currentPage, sortBy, sortOrder]);
+    LS.set('active_tab',  activeTab);
+  }, [search, typeFilter, dateFrom, dateTo, decidedBy, locationId, perPage, currentPage, sortBy, sortOrder, activeTab]);
 
   useEffect(() => {
-    setLocalProposals(initialProposals);
+    setLocalRoiProjects(initialRoiProjects);
+    setLocalSprfProjects(initialSprfProjects);
     setLocalStats(initialStats);
-  }, [initialProposals, initialStats]);
+  }, [initialRoiProjects, initialSprfProjects, initialStats]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -130,6 +181,12 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     return () => clearInterval(interval);
   }, []);
 
+  // Switching tabs resets to page 1 for whichever list becomes active
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
   const handleSort = (key) => {
     const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
     setSortBy(key);
@@ -145,54 +202,38 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
 
   const hasActiveFilters = !!(search || typeFilter !== "" || dateFrom || dateTo || decidedBy || locationId || perPage !== 10 || sortBy !== "" || sortOrder !== "");
 
+  const roiCount  = localStats?.totalRoiProjects  ?? localRoiProjects?.total  ?? 0;
+  const sprfCount = localStats?.totalSprfProjects ?? localSprfProjects?.total ?? 0;
+
   const tiles = useMemo(() => {
-    const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localProposals?.total ?? 0;
+    const totalArchiveProjects  = activeTab === 'sprf' ? sprfCount : roiCount;
     const recentlyArchivedToday = localStats?.recentlyArchivedToday ?? "—";
     return [
       { label: "Total Archives",    value: totalArchiveProjects,  icon: <FaFolderOpen />,  variant: "normal" },
       { label: "Recently Archived", value: recentlyArchivedToday, icon: <IoTimeOutline />, variant: "normal" },
     ];
-  }, [localStats, localProposals]);
+  }, [localStats, activeTab, roiCount, sprfCount]);
 
-  const columns = useMemo(() => [
+  // ─── ROI columns (unchanged) ─────────────────────────────────
+  const roiColumns = useMemo(() => [
     {
       key: "user_name",
       header: (
-        <SortHeader
-          label="PREPARED BY"
-          sortKey="prepared_by_name"
-          sortBy={sortBy}
-          sortDirection={sortOrder}
-          onSort={handleSort}
-        />
+        <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
       cell: (r) => <span className="text-[#289800] font-semibold">{r.user?.name ?? "—"}</span>,
     },
     {
       key: "reference",
       header: (
-        <SortHeader
-          label="REFERENCE"
-          sortKey="reference"
-          sortBy={sortBy}
-          sortDirection={sortOrder}
-          onSort={handleSort}
-          align="center"
-        />
+        <SortHeader label="REFERENCE" sortKey="reference" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
       ),
       cell: (r) => <span className="font-semibold flex justify-center items-center">{r.reference ?? "—"}</span>,
     },
     {
       key: "company_name",
       header: (
-        <SortHeader
-          label="COMPANY NAME"
-          sortKey="company_name"
-          sortBy={sortBy}
-          sortDirection={sortOrder}
-          onSort={handleSort}
-          align="center"
-        />
+        <SortHeader label="COMPANY NAME" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
       ),
       cell: (r) => (
         <div className="flex justify-center items-center w-full h-full">
@@ -205,14 +246,7 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     {
       key: "contract_years",
       header: (
-        <SortHeader
-          label="CONTRACT TERM"
-          sortKey="contract_years"
-          sortBy={sortBy}
-          sortDirection={sortOrder}
-          onSort={handleSort}
-          align="center"
-        />
+        <SortHeader label="CONTRACT TERM" sortKey="contract_years" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
       ),
       cell: (r) => (
         <span className="font-medium flex justify-center items-center">
@@ -223,14 +257,7 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     {
       key: "type",
       header: (
-        <SortHeader
-          label="TYPE"
-          sortKey="type"
-          sortBy={sortBy}
-          sortDirection={sortOrder}
-          onSort={handleSort}
-          align="center"
-        />
+        <SortHeader label="TYPE" sortKey="type" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
       ),
       cell: (r) => (
         <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
@@ -252,23 +279,33 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     {
       key: "approved_by_name",
       header: (
-        <button
-          type="button"
-          onClick={() => handleSort('decided_at')}
-          className="flex justify-center items-center w-full text-slate-500 gap-1"
-        >
+        <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-center items-center w-full text-slate-500 gap-1">
           <span>APPROVED BY</span>
-          <span className={`text-[11px] leading-none ${
-            sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'
-          }`}>
+          <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
             {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
           </span>
         </button>
       ),
-      cell: (r) => (
-        <span className="text-slate-800 flex justify-center items-center">{r.decided_by_name ?? "—"}</span>
-      ),
+      cell: (r) => <span className="text-slate-800 flex justify-center items-center">{r.decided_by_name ?? "—"}</span>,
     },
+{
+  key: "decided_at",
+  header: (
+    <SortHeader
+      label={<IoTimeOutline size={14} />}
+      sortKey="decided_at"
+      sortBy={sortBy}
+      sortDirection={sortOrder}
+      onSort={handleSort}
+      align="center"
+    />
+  ),
+  cell: (r) => (
+    <span className="text-slate-600 flex justify-center items-center text-xs">
+      {r.decided_at_display ?? "—"}
+    </span>
+  ),
+},
     {
       key: "actions",
       header: <div className="text-center w-full">ACTIONS</div>,
@@ -277,7 +314,7 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
           <button
             className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
             type="button"
-            onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
+            onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'roi' }))}
           >
             <FaFileInvoice className="text-[15px]" />
           </button>
@@ -287,7 +324,108 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sortBy, sortOrder]);
 
-  /* ── Fetch ── */
+  // ─── SPRF columns ─────────────────────────────────────────────
+  // NOTE: SprfArchiveProject doesn't have company_name or contract_years —
+  // using sprf_no as the reference and company_sap_code in place of company name.
+  const sprfColumns = useMemo(() => [
+    {
+      key: "preparer_name",
+      header: (
+        <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
+      ),
+      cell: (r) => <span className="text-[#289800] font-semibold">{r.preparer?.name ?? "—"}</span>,
+    },
+    {
+      key: "sprf_no",
+      header: (
+        <SortHeader label="SPRF NO." sortKey="sprf_no" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+      ),
+      cell: (r) => <span className="font-semibold flex justify-center items-center">{r.sprf_no ?? "—"}</span>,
+    },
+    {
+      key: "company_sap_code",
+      header: (
+        <SortHeader label="COMPANY (SAP CODE)" sortKey="company_sap_code" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+      ),
+      cell: (r) => (
+        <div className="flex justify-center items-center w-full h-full">
+          <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+            {r.company_sap_code ?? "—"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "account",
+      header: (
+        <SortHeader label="ACCOUNT" sortKey="account" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+      ),
+      cell: (r) => <span className="font-medium flex justify-center items-center">{r.account ?? "—"}</span>,
+    },
+    {
+      header: "STATUS",
+      key: "status",
+      cell: (row) => (
+        <div className="flex justify-center items-center">
+          <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
+            {row.status ?? "APPROVED"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "approved_by_name",
+      header: (
+        <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-center items-center w-full text-slate-500 gap-1">
+          <span>APPROVED BY</span>
+          <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
+            {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+          </span>
+        </button>
+      ),
+      cell: (r) => <span className="text-slate-800 flex justify-center items-center">{r.decided_by_name ?? "—"}</span>,
+    },
+    {
+  key: "decided_at",
+  header: (
+    <button
+      type="button"
+      onClick={() => handleSort('decided_at')}
+      className="flex justify-center items-center w-full text-slate-500 gap-1"
+    >
+      <IoTimeOutline size={14} />
+      <span className={`text-[11px] leading-none ${
+        sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'
+      }`}>
+        {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+      </span>
+    </button>
+  ),
+  cell: (r) => (
+    <span className="text-slate-600 flex justify-center items-center text-xs">
+      {r.decided_at_display ?? "—"}
+    </span>
+  ),
+},
+    {
+      key: "actions",
+      header: <div className="text-center w-full">ACTIONS</div>,
+      cell: (r) => (
+        <div className="flex justify-center items-center">
+          <button
+            className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+            type="button"
+            onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'sprf' }))}
+          >
+            <FaFileInvoice className="text-[15px]" />
+          </button>
+        </div>
+      ),
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sortBy, sortOrder]);
+
+  /* ── Fetch (both lists come back from the same endpoint every time) ── */
   const fetchApproveData = async ({
     silent            = false,
     targetPage        = currentPage,
@@ -320,11 +458,15 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       });
 
-      const proposalsPayload = response.data?.props?.proposals ?? response.data?.proposals ?? response.data;
-      setLocalProposals(proposalsPayload);
+      const props = response.data?.props ?? response.data;
+      const roiPayload  = props?.roiProjects  ?? null;
+      const sprfPayload = props?.sprfProjects ?? null;
+
+      if (roiPayload)  setLocalRoiProjects(roiPayload);
+      if (sprfPayload) setLocalSprfProjects(sprfPayload);
       setCurrentPage(targetPage);
 
-      const statsPayload = response.data?.props?.stats ?? response.data?.stats ?? null;
+      const statsPayload = props?.stats ?? null;
       if (statsPayload) setLocalStats(statsPayload);
     } catch (error) {
       console.error("Failed to query approved records:", error);
@@ -374,6 +516,7 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     LS.set('per_page',   "10");
     LS.set('sort_by',    "");
     LS.set('sort_order', "");
+    LS.set('active_tab', activeTab);
 
     fetchApproveData({
       currentSearch:     "",
@@ -397,15 +540,18 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
     return null;
   })();
 
-  const rows = localProposals?.data ?? [];
-  const pagination = localProposals && typeof localProposals.current_page === "number"
+  // ─── Active list resolution ───────────────────────────────────
+  const activeProjects = activeTab === 'sprf' ? localSprfProjects : localRoiProjects;
+  const rows = activeProjects?.data ?? [];
+  const pagination = activeProjects && typeof activeProjects.current_page === "number"
     ? {
-        page:         localProposals.current_page,
-        perPage:      localProposals.per_page ?? perPage,
-        total:        localProposals.total ?? rows.length,
+        page:         activeProjects.current_page,
+        perPage:      activeProjects.per_page ?? perPage,
+        total:        activeProjects.total ?? rows.length,
         onPageChange: goToPage,
       }
     : null;
+  const activeColumns = activeTab === 'sprf' ? sprfColumns : roiColumns;
 
   const searchControl = (
     <SearchControl
@@ -414,7 +560,7 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
       sortOrder={sortOrder}
       onSortToggle={() => handleSort(sortBy || 'decided_at')}
       loading={loading || isRefreshing}
-      onRefresh={() => fetchApproveData({ targetPage: localProposals?.current_page ?? 1 })}
+      onRefresh={() => fetchApproveData({ targetPage: activeProjects?.current_page ?? 1 })}
     />
   );
 
@@ -442,36 +588,45 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
   );
 
   const filterToolbar = (
-    <ListFilterToolbar
-      hasActiveFilters={hasActiveFilters}
-      onClearAll={handleClearAllFilters}
-      typeOptions={[
-        { value: "", label: "All Types" },
-        { value: 1,  label: "Existing" },
-        { value: 0,  label: "Potential" },
-      ]}
-      typeFilter={typeFilter}
-      onTypeChange={handleTypeChange}
-      perPage={perPage}
-      perPageInput={perPageInput}
-      onPerPageInputChange={setPerPageInput}
-      onPerPageApply={handlePerPageInputApply}
-      extraFilters={decidedBySlot}
-      locationId={locationId}
-      selectedLocationName={selectedLocationName}
-      locations={locations}
-      onLocationApply={handleLocationApply}
-      dateFrom={dateFrom}
-      dateTo={dateTo}
-      onDateFromChange={setDateFrom}
-      onDateToChange={setDateTo}
-      onDateApply={handleDateApply}
-      onDateClear={handleDateClear}
-    />
+    <>
+
+      <ListFilterToolbar
+        hasActiveFilters={hasActiveFilters}
+        onClearAll={handleClearAllFilters}
+        typeOptions={[
+          { value: "", label: "All Types" },
+          { value: 1,  label: "Existing" },
+          { value: 0,  label: "Potential" },
+        ]}
+        typeFilter={typeFilter}
+        onTypeChange={handleTypeChange}
+        perPage={perPage}
+        perPageInput={perPageInput}
+        onPerPageInputChange={setPerPageInput}
+        onPerPageApply={handlePerPageInputApply}
+        extraFilters={decidedBySlot}
+        locationId={locationId}
+        selectedLocationName={selectedLocationName}
+        locations={locations}
+        onLocationApply={handleLocationApply}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        onDateApply={handleDateApply}
+        onDateClear={handleDateClear}
+      />
+                <ProjectTypeTabs
+        active={activeTab}
+        onChange={handleTabChange}
+        roiCount={roiCount}
+        sprfCount={sprfCount}
+      />
+    </>
   );
 
   // --- Mobile card layout (below md) ---
-  const renderApprovedCard = (r) => (
+  const renderRoiCard = (r) => (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
@@ -495,7 +650,37 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
         <button
           type="button"
           className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
-          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id }))}
+          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'roi' }))}
+        >
+          <FaFileInvoice className="text-[15px]" />
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderSprfCard = (r) => (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-semibold">{r.sprf_no ?? '—'}</p>
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
+            {r.status ?? 'APPROVED'}
+          </span>
+        </div>
+        <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_sap_code ?? '—'}</p>
+        <p className="mt-1 text-[11px] text-slate-500">{r.account ?? '—'}</p>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Prepared by <span className="font-medium text-slate-700">{r.preparer?.name ?? '—'}</span>
+        </p>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Approved by <span className="font-medium text-slate-700">{r.decided_by_name ?? '—'}</span>
+        </p>
+      </div>
+      <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'sprf' }))}
         >
           <FaFileInvoice className="text-[15px]" />
         </button>
@@ -506,16 +691,16 @@ function ApproveProjects({ proposals: initialProposals, stats: initialStats, fil
   return (
     <ProjectListSection
       tiles={tiles}
-      tableTitle="Approved Projects"
-      columns={columns}
+      tableTitle={activeTab === 'sprf' ? "Approved SPRF Projects" : "Approved ROI Projects"}
+      columns={activeColumns}
       rows={rows}
-      rowKey={(r) => String(r.id)}
+      rowKey={(r) => `${activeTab}-${r.id}`}
       pagination={pagination}
       searchControl={searchControl}
       filterControl={filterToolbar}
       loading={loading || isRefreshing}
       emptyText="No matching records found."
-      renderCard={renderApprovedCard}
+      renderCard={activeTab === 'sprf' ? renderSprfCard : renderRoiCard}
     />
   );
 }
