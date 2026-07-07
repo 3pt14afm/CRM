@@ -83,6 +83,7 @@ class User extends Authenticatable
     protected $appends = [
         'name',
         'workflow_role',
+        'delsan',
     ];
 
     public function setEmployeeIdAttribute($value): void
@@ -140,6 +141,16 @@ class User extends Authenticatable
         return isset($this->attributes['role'])
             ? strtolower(trim((string) ($this->attributes['role'] ?? '')))
             : null;
+    }
+
+    /**
+     * Get the 'delsan' value from the user's associated location.
+     * Returns null if the user has no location, or the location
+     * has no delsan value set.
+     */
+    public function getDelsanAttribute(): ?string
+    {
+        return $this->location?->delsan;
     }
 
     public function companyPosition()

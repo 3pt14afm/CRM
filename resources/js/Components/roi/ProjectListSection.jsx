@@ -32,7 +32,6 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
         {icon}
       </div>
 
-      {/* Remove the {variant === 'action' ? 'hidden md:block' : ''} from this div */}
       <div className="flex-1">
         <div className={`${variant === "highlight" || variant === "action" ? "text-white/90 font-semibold text-[11px] md:text-xs lg:text-sm xl:text-base" : "text-slate-500 text-[10px] md:text-[11px] lg:text-xs xl:text-sm"}`}>
           {label}
@@ -79,8 +78,6 @@ function SkeletonCard() {
   );
 }
 
-// ADDED: helper to compute up to `maxVisible` page numbers centered
-// around the current page, clamped to the valid [1, totalPages] range.
 function getPageNumbers(currentPage, totalPages, maxVisible = 5) {
   if (totalPages <= 0) return [];
   if (totalPages <= maxVisible) {
@@ -116,8 +113,8 @@ export default function ProjectListSection({
   searchControl = null,
   filterControl = null, 
   pagination = null,
-  onRowClick = null, // ADDED: accept the onRowClick prop
-  renderCard = null, // OPTIONAL: mobile card layout, e.g. (row) => (<YourCardMarkup row={row} />)
+  onRowClick = null, 
+  renderCard = null, 
 }) {
   const hasRows = rows?.length > 0;
 
@@ -129,12 +126,12 @@ export default function ProjectListSection({
     return `Showing ${start}-${end} of ${total}`;
   })();
 
-  // ADDED: total page count + windowed list of page numbers (max 5) for pagination
   const totalPages = pagination
     ? Math.max(1, Math.ceil(pagination.total / pagination.perPage))
     : 0;
-  // ADDED: fewer visible page numbers on small screens so the bar doesn't overflow
+    
   const [maxVisiblePages, setMaxVisiblePages] = useState(5);
+  
   useEffect(() => {
     const updateMaxVisible = () => {
       setMaxVisiblePages(window.innerWidth < 640 ? 3 : 5);
@@ -148,7 +145,6 @@ export default function ProjectListSection({
     ? getPageNumbers(pagination.page, totalPages, maxVisiblePages)
     : [];
 
-  // ADDED: local state for the "go to page" input on the right side of pagination
   const [pageInput, setPageInput] = useState("");
 
   const submitPageInput = () => {
@@ -178,22 +174,27 @@ export default function ProjectListSection({
       );
     }
 
-    return rows.map((r) => (
-      <tr
-        key={rowKey(r)}
-        onClick={() => onRowClick && onRowClick(r)}
-        className={`border-t hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)] hover:bg-slate-50/95 border-black/5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`} // ADDED: Pointer cursor
-      >
-        {columns.map((c, index) => (
-          <td 
-            key={c.key} 
-            className={`px-2 py-1 md:text-[11px] lg:text-xs ${index === 0 ? 'pl-2 md:pl-3 lg:pl-4 xl:pl-6' : ''}`}
-          >
-            {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
-          </td>
-        ))}
-      </tr>
-    ));
+    return rows.map((r, index) => {
+      // Zebra striping: even index = white, odd index = slate-50
+      const rowBg = index % 2 === 0 ? "bg-white" : "bg-gray-50/50";
+
+      return (
+        <tr
+          key={rowKey(r)}
+          onClick={() => onRowClick && onRowClick(r)}
+          className={`hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1),inset_-10px_-12px_10px_rgba(255,255,255,0.1),-1px_1px_1px_rgba(0,0,0,0.1)]  ${rowBg} hover:bg-zinc-100 ${onRowClick ? 'cursor-pointer' : ''}`} 
+        >
+          {columns.map((c, colIndex) => (
+            <td 
+              key={c.key} 
+              className={`px-2 py-1 border border-b-gray-200/50 border-r-gray-50/60 md:text-[11px] lg:text-xs ${colIndex === 0 ? 'pl-2 md:pl-3 lg:pl-4 xl:pl-6' : ''}`}
+            >
+              {typeof c.cell === "function" ? c.cell(r) : r[c.key]}
+            </td>
+          ))}
+        </tr>
+      );
+    });
   };
 
   const renderCards = () => {
@@ -224,7 +225,6 @@ export default function ProjectListSection({
 
   return (
     <div className="mx-4 md:mx-6 lg:mx-10">
-    {/* Tiles */}
     <div className="flex justify-start sm:justify-start md:grid md:grid-cols-12 gap-1 sm:gap-2 md:gap-4 xl:gap-6 ">
       {tiles.map((t) => (
         <div key={t.label} className="flex-1 md:flex-none col-span-12 md:col-span-4 ">
@@ -233,17 +233,14 @@ export default function ProjectListSection({
       ))}
     </div>
 
-      {/* Filter Toolbar Section */}
       {filterControl && (
         <div className="mt-4">
           {filterControl}
         </div>
       )}
 
-      {/* Table Container */}
       <div className="mt-4 bg-white rounded-xl border border-black/15 md:border-black/10 md:border-b-black/20 md:border-r-black/20 md:shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)] overflow-hidden">
 
-        {/* Table Header */}
         <div className="flex gap-2 items-center justify-between py-2.5 md:py-3 border-b border-black/10 px-3 lg:px-4 xl:px-6 min-w-0">
           <h2 className="font-semibold text-[13px] lg:text-sm xl:text-lg text-slate-800 flex-shrink-0">
             {tableTitle}
@@ -270,7 +267,7 @@ export default function ProjectListSection({
             <thead className="bg-gray-100">
               <tr className="text-left text-slate-500">
                 {columns.map((c, index) => (
-                  <th key={c.key} className={`px-2 py-1 font-bold tracking-wide leading-tight md:py-[6px] md:text-[8px] lg:text-[10px] xl:text-[11px] ${index === 0 ? 'pl-2 md:pl-3 lg:pl-4 xl:pl-6' : ''}`}>
+                  <th key={c.key} className={`px-2 py-1 font-bold border border-r-gray-200/50 tracking-wide leading-tight md:py-[6px] md:text-[8px] lg:text-[10px] xl:text-[11px] ${index === 0 ? 'pl-2 md:pl-3 lg:pl-4 xl:pl-6' : ''}`}>
                     {c.header}
                   </th>
                 ))}
@@ -285,9 +282,6 @@ export default function ProjectListSection({
           <div className="flex flex-col md:flex-row items-center md:justify-between gap-2 px-3 border-t border-black/15 md:px-3 py-2 md:py-1.5 text-[11px] lg:text-xs lg:px-4 xl:px-6">
             <div className="text-slate-500 order-2 md:order-1">{rangeText}</div>
 
-            {/* MODIFIED: pagination now renders up to 5 clickable page numbers
-                instead of just the current page, while keeping the same
-                button styling/sizing as before. Wraps and shrinks on mobile. */}
             <div className="flex items-center flex-wrap justify-center gap-1 order-1 md:order-2">
               <button
                 className="px-1 py-1 rounded-md border border-black/20 disabled:opacity-50"
@@ -348,7 +342,6 @@ export default function ProjectListSection({
                 <MdKeyboardArrowRight className="text-[15px] md:text-xs lg:text-sm xl:text-base" />
               </button>
 
-              {/* ADDED: input for jumping directly to a page number */}
               <div className="flex items-center gap-1 ml-1 md:ml-2 pl-1 md:pl-2 border-l border-black/10">
                 <span className="text-slate-500 hidden md:inline">Go to</span>
                 <input

@@ -8,9 +8,8 @@ import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons
 import { TbLayoutRows } from 'react-icons/tb';
 import { usePage } from '@inertiajs/react';
 import CompanyDetailsSidebar from './CompanyDetailsSidebar';
-import { FaBuildingUser } from 'react-icons/fa6';
-import { BsBuildingFillAdd } from 'react-icons/bs';
 import { FaRegClock } from 'react-icons/fa';
+import SortHeader from '@/Components/SortHeader';
 
 const STORAGE_KEY = 'customerinfo_filters';
 
@@ -32,25 +31,6 @@ function loadPersistedFilters() {
     } catch {
         return null;
     }
-}
-
-/* ── Sort Header ── */
-function SortHeader({ label, sortKey, sortBy, sortDirection, onSort, align = 'left' }) {
-    const active = sortBy === sortKey;
-    const indicator = active ? (sortDirection === 'desc' ? '▼' : '▲') : '⇅';
-    const justifyClass = align === 'center' ? 'justify-center text-center' : 'justify-start text-left';
-
-    return (
-        <button
-            type="button"
-            title={`Sort by ${label}`}
-            onClick={() => onSort(sortKey)}
-            className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
-        >
-            <span>{label}</span>
-            <span className={`text-[11px] leading-none ${ active ? 'text-[#289800]' : 'text-slate-400 transition-colors group-hover:text-slate-500' }`}>{indicator}</span>
-        </button>
-    );
 }
 
 function Index({ companies, potentials, filters, categories = [] }) {
@@ -169,6 +149,29 @@ const handleSearchChange = (value) => {
         runSearch(value, updated);
     }, 350);
 };
+    // Saves the edited Address / Contact Number for a Potential company in one request.
+    // Hits CustomerInfoController@updatePotential via the `customerinfo.potentials.update`
+    // PATCH route (add it to web.php if it isn't there yet — see note below).
+    const handleSaveCompanyFields = (companyId, fields) => {
+        return new Promise((resolve, reject) => {
+            router.patch(
+                route('customerinfo.potentials.update', companyId),
+                fields,
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedCompany((prev) =>
+                            prev && prev.id === companyId ? { ...prev, ...fields } : prev
+                        );
+                        resolve();
+                    },
+                    onError: (errors) => reject(errors),
+                }
+            );
+        });
+    };
+
     const handleSort = (key) => {
         const newOrder = searchState.sort_by === key && searchState.sort_order === 'asc'
             ? 'desc' : 'asc';
@@ -390,6 +393,18 @@ const handleSearchChange = (value) => {
             /* ── Potentials Columns (company name, client manager, address, status only) ── */
             const potentialsColumns = useMemo(() => [
         {
+            key: 'delsan_company',
+            header: (
+                <SortHeader label="DELSAN" sortKey="delsan_company"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
+            cell: (r) => (
+                <span className="font-medium flex items-center uppercase">
+                    {r.delsan_company ?? '—'}
+                </span>
+            ),
+        },
+        {
             key: 'company_name',
             header: (
                 <SortHeader label="COMPANY NAME" sortKey="company_name"
@@ -428,16 +443,13 @@ const handleSearchChange = (value) => {
         {
             key: 'created_at',
             header: (
-                <button
-                    type="button"
-                    onClick={() => handleSort('created_at')}
-                    className="flex items-center w-full text-slate-500 gap-1"
-                >
-                    <FaRegClock className="text-sm" title="Created At" />
-                    <span className={`text-[11px] leading-none ${searchState.sort_by === 'created_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
-                        {searchState.sort_by === 'created_at' ? (searchState.sort_order === 'desc' ? '▼' : '▲') : '⇅'}
-                    </span>
-                </button>
+                <SortHeader
+                    label={<div className="flex items-center"><FaRegClock className="text-sm" /></div>}
+                    sortKey="created_at"
+                    sortBy={searchState.sort_by}
+                    sortDirection={searchState.sort_order}
+                    onSort={handleSort}
+                />
             ),
             cell: (r) => (
                 <span className="text-slate-600 text-[10px] flex items-center whitespace-nowrap">
@@ -758,6 +770,8 @@ const handleSearchChange = (value) => {
                 isOpen={isSidebarOpen}
                 company={selectedCompany}
                 onClose={() => setIsSidebarOpen(false)}
+                isPotential={activeTab === 'Potentials'}
+                onSave={handleSaveCompanyFields}
             />
         </>
     );

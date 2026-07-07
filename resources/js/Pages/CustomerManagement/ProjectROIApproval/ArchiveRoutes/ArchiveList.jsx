@@ -10,10 +10,11 @@ import { MdCheck, MdCheckCircle, MdCancel, MdVerifiedUser, MdOutlineClose, MdOut
 import { route as ziggyRoute } from 'ziggy-js';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
-import SortHeader from '@/Components/roi/filters/SortHeader';
+import SortHeader from '@/Components/SortHeader';
 import { IoCopyOutline } from "react-icons/io5";
 import { toast } from "sonner"; ``
 import { createPortal } from "react-dom";
+import { RiArrowDownSLine, RiArrowUpSLine, RiExpandUpDownLine } from 'react-icons/ri';
 
 function formatDateLabel(dateStr) {
   try {
@@ -51,10 +52,6 @@ function formatDateLabel(dateStr) {
 
 
 ;
-
-
-
-
 
 function ActionsDropdown({ row, isAdmin, hideView = false }) {
   const [open, setOpen] = useState(false);
@@ -368,10 +365,9 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
-        cell: (r) => <span className="font-mono flex justify-center items-center">{r.reference ?? "—"}</span>,
+        cell: (r) => <span className="font-mono flex items-center">{r.reference ?? "—"}</span>,
       },
       {
         key: "company_sap_code",
@@ -382,11 +378,10 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (r) => (
-          <span className="font-mono text-xs text-[#33721c] flex justify-center items-center">
+          <span className="font-mono text-xs text-[#33721c] flex items-center">
             {r.company_sap_code ?? "—"}
           </span>
         ),
@@ -400,11 +395,10 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (r) => (
-          <div className="flex justify-center items-center w-full h-full">
+          <div className="flex items-center w-full h-full">
             <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
               {r.company_name ?? "—"}
             </span>
@@ -420,11 +414,10 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (r) => (
-          <span className="font-medium flex justify-center items-center">
+          <span className="font-medium flex items-center">
             {r.contract_years != null ? `${r.contract_years}` : "—"}
           </span>
         ),
@@ -438,10 +431,9 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
-        cell: (r) => <span className="font-medium flex justify-center items-center">{r.contract_type ?? "—"}</span>,
+        cell: (r) => <span className="font-medium flex items-center">{r.contract_type ?? "—"}</span>,
       },
       {
         key: "type",
@@ -452,11 +444,10 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (r) => (
-          <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+          <span className={`font-medium flex items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
             {r.type === 1 ? "Existing" : "Potential"}
           </span>
         ),
@@ -470,7 +461,6 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (row) => {
@@ -479,7 +469,7 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
           const isApproved  = s === "approved";
           const isCancelled = s === "cancelled";
           return (
-            <div className="flex justify-center items-center">
+            <div className="flex items-center">
               <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
                 ${isRejected
                   ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
@@ -512,18 +502,22 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
           <button
             type="button"
             onClick={() => handleSort('decided_at')}
-            className="flex justify-center items-center w-full text-slate-500 gap-1"
+            className="flex justify-between items-center w-full text-slate-500 gap-1"
           >
             <FaRegClock className="text-sm" title="Decision Date" />
             <span className={`text-[11px] leading-none ${
               sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'
             }`}>
-              {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+              {(() => {
+                  const active = sortBy === "decided_at";
+                  const Indicator = active ? sortOrder === "desc" ? RiArrowDownSLine : RiArrowUpSLine : RiExpandUpDownLine;
+                  return <Indicator />;
+                })()}
             </span>
           </button>
         ),
         cell: (r) => (
-          <span className="text-slate-600 text-[10px] flex justify-center items-center whitespace-nowrap">
+          <span className="text-slate-600 text-[10px] flex items-center whitespace-nowrap">
             {r.decided_at_display ? formatDateLabel(r.decided_at_display) : "—"}
           </span>
         ),

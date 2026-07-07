@@ -19,7 +19,7 @@ class ApproverMatrixController extends Controller
 {
     // ─── Index ────────────────────────────────────────────────────────────────
 
-    public function index()
+    public function index(Request $request)
     {
         $perPage = 10;
 
@@ -27,14 +27,45 @@ class ApproverMatrixController extends Controller
             ->selectRaw("id, CONCAT(first_name, ' ', last_name) as full_name")
             ->pluck('full_name', 'id');
 
+        // ── ROI: search / filter / sort inputs ────────────────────
+        $roiSearch = $request->input('roi_search');
+        $roiLocation = $request->input('roi_location');
+        $roiDepartment = $request->input('roi_department');
+        $roiStatus = $request->input('roi_status');
+        $roiSortBy = (string) $request->input('roi_sortBy', '');
+        $roiSortDirection = (string) $request->input('roi_sortDirection', 'asc');
+
+        // ── SPRF: search / filter / sort inputs ────────────────────
+        $sprfSearch = $request->input('sprf_search');
+        $sprfLocation = $request->input('sprf_location');
+        $sprfDepartment = $request->input('sprf_department');
+        $sprfStatus = $request->input('sprf_status');
+        $sprfSortBy = (string) $request->input('sprf_sortBy', '');
+        $sprfSortDirection = (string) $request->input('sprf_sortDirection', 'asc');
+
         // ── ROI matrices ──────────────────────────────────────────
-        $matrices = LocationDepartment::query()
+        $roiQuery = LocationDepartment::query()
+            ->select('location_departments.*')
+            ->leftJoin('locations as roi_sort_locations', 'location_departments.location_id', '=', 'roi_sort_locations.id')
+            ->leftJoin('company_departments as roi_sort_departments', 'location_departments.department_id', '=', 'roi_sort_departments.id')
             ->with([
                 'location:id,name',
                 'department:id,name',
             ])
-            ->orderBy('id')
-            ->paginate($perPage)
+            ->when($roiSearch, fn ($q) =>
+                $q->where(function ($inner) use ($roiSearch) {
+                    $inner->where('roi_sort_locations.name', 'like', "%{$roiSearch}%")
+                          ->orWhere('roi_sort_departments.name', 'like', "%{$roiSearch}%");
+                })
+            )
+            ->when($roiLocation, fn ($q) => $q->where('location_departments.location_id', (int) $roiLocation))
+            ->when($roiDepartment, fn ($q) => $q->where('location_departments.department_id', (int) $roiDepartment))
+            ->when($roiStatus, fn ($q) => $q->where('location_departments.status', $roiStatus));
+
+        $this->applyRoiSorting($roiQuery, $roiSortBy, $roiSortDirection);
+
+        $matrices = $roiQuery
+            ->paginate($perPage, ['*'], 'roi_page')
             ->through(function (LocationDepartment $row) use ($userNames) {
                 return [
                     'id'            => $row->id,
@@ -61,7 +92,10 @@ class ApproverMatrixController extends Controller
             ->withQueryString();
 
         // ── SPRF matrices (flat table, keyed by location + department) ────────
-        $sprfMatrices = SprfApprovalMatrix::query()
+        $sprfQuery = SprfApprovalMatrix::query()
+            ->select('sprf_approval_matrices.*')
+            ->leftJoin('locations as sprf_sort_locations', 'sprf_approval_matrices.location_id', '=', 'sprf_sort_locations.id')
+            ->leftJoin('company_departments as sprf_sort_departments', 'sprf_approval_matrices.department_id', '=', 'sprf_sort_departments.id')
             ->with([
                 'location:id,name',
                 'department:id,name',
@@ -70,9 +104,20 @@ class ApproverMatrixController extends Controller
                 'vpCcto:id,first_name,last_name',
                 'presidentCeo:id,first_name,last_name',
             ])
-            ->orderBy('location_id')
-            ->orderBy('department_id')
-            ->orderByDesc('is_active')
+            ->when($sprfSearch, fn ($q) =>
+                $q->where(function ($inner) use ($sprfSearch) {
+                    $inner->where('sprf_sort_locations.name', 'like', "%{$sprfSearch}%")
+                          ->orWhere('sprf_sort_departments.name', 'like', "%{$sprfSearch}%");
+                })
+            )
+            ->when($sprfLocation, fn ($q) => $q->where('sprf_approval_matrices.location_id', (int) $sprfLocation))
+            ->when($sprfDepartment, fn ($q) => $q->where('sprf_approval_matrices.department_id', (int) $sprfDepartment))
+            ->when($sprfStatus === 'active', fn ($q) => $q->where('sprf_approval_matrices.is_active', true))
+            ->when($sprfStatus === 'inactive', fn ($q) => $q->where('sprf_approval_matrices.is_active', false));
+
+        $this->applySprfSorting($sprfQuery, $sprfSortBy, $sprfSortDirection);
+
+        $sprfMatrices = $sprfQuery
             ->get()
             ->map(function (SprfApprovalMatrix $matrix) {
                 return [
@@ -140,6 +185,24 @@ class ApproverMatrixController extends Controller
             'matrices'     => $matrices,
             'stats'        => $stats,
             'sprfMatrices' => $sprfMatrices,
+            'filters'      => [
+                'roi' => [
+                    'search'        => $roiSearch,
+                    'location'      => $roiLocation,
+                    'department'    => $roiDepartment,
+                    'status'        => $roiStatus,
+                    'sortBy'        => $roiSortBy,
+                    'sortDirection' => $roiSortDirection,
+                ],
+                'sprf' => [
+                    'search'        => $sprfSearch,
+                    'location'      => $sprfLocation,
+                    'department'    => $sprfDepartment,
+                    'status'        => $sprfStatus,
+                    'sortBy'        => $sprfSortBy,
+                    'sortDirection' => $sprfSortDirection,
+                ],
+            ],
         ]);
     }
 
@@ -285,5 +348,53 @@ class ApproverMatrixController extends Controller
             'is_active'                            => ['required', 'boolean'],
             'remarks'                              => ['nullable', 'string', 'max:1000'],
         ]);
+    }
+
+    private function applyRoiSorting($query, string $sortBy, string $sortDirection): void
+    {
+        $direction = strtolower($sortDirection) === 'desc' ? 'desc' : 'asc';
+
+        switch ($sortBy) {
+            case 'location_name':
+                $query->orderByRaw("COALESCE(roi_sort_locations.name, '') {$direction}");
+                break;
+
+            case 'department_name':
+                $query->orderByRaw("COALESCE(roi_sort_departments.name, '') {$direction}");
+                break;
+
+            case 'status':
+                $query->orderBy('location_departments.status', $direction);
+                break;
+
+            default:
+                $query->orderBy('location_departments.id', 'asc');
+                break;
+        }
+    }
+
+    private function applySprfSorting($query, string $sortBy, string $sortDirection): void
+    {
+        $direction = strtolower($sortDirection) === 'desc' ? 'desc' : 'asc';
+
+        switch ($sortBy) {
+            case 'location_name':
+                $query->orderByRaw("COALESCE(sprf_sort_locations.name, '') {$direction}");
+                break;
+
+            case 'department_name':
+                $query->orderByRaw("COALESCE(sprf_sort_departments.name, '') {$direction}");
+                break;
+
+            case 'status':
+                $query->orderBy('sprf_approval_matrices.is_active', $direction);
+                break;
+
+            default:
+                $query->orderBy('sprf_approval_matrices.location_id', 'asc')
+                    ->orderBy('sprf_approval_matrices.department_id', 'asc')
+                    ->orderByDesc('sprf_approval_matrices.is_active');
+                break;
+        }
     }
 }

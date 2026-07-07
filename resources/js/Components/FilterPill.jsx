@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { FiX } from "react-icons/fi";
 
 function FilterPill({ label, value = "", options = [], onChange, disabled = false }) {
   const [open, setOpen] = useState(false);
@@ -6,6 +7,7 @@ function FilterPill({ label, value = "", options = [], onChange, disabled = fals
 
   const selected = options.find((option) => String(option.value) === String(value));
   const selectedLabel = selected?.label ?? "All";
+  const isActive = Boolean(value) && String(value) !== "";
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -23,32 +25,64 @@ function FilterPill({ label, value = "", options = [], onChange, disabled = fals
     setOpen(false);
   };
 
+  const handleClear = (event) => {
+    event.stopPropagation();
+    onChange?.("");
+    setOpen(false);
+  };
+
+  const handleToggleKeyDown = (event) => {
+    if (disabled) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setOpen((prev) => !prev);
+    }
+  };
+
   return (
     <div ref={wrapperRef} className="relative">
-      <button
-        type="button"
-        disabled={disabled}
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
         onClick={() => !disabled && setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 py-[6px] text-xs font-semibold text-slate-700 hover:bg-gray-100 hover:shadow-inner disabled:cursor-not-allowed disabled:opacity-60"
+        onKeyDown={handleToggleKeyDown}
+        className={`inline-flex items-center gap-1 rounded-lg border border-black/10 px-2 py-[6px] text-xs font-semibold hover:shadow-inner disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer select-none ${
+          isActive 
+            ? "bg-green/30 text-slate-800 hover:bg-[lightgreen]/30" 
+            : "bg-white text-slate-700 hover:bg-gray-100"
+        }`}
         title={label}
       >
         <span>{label}:</span>
         <span className="font-medium text-black">{selectedLabel}</span>
-        <span className="ml-1 text-slate-400">▾</span>
-      </button>
+
+        {isActive ? (
+          <button
+            type="button"
+            onClick={handleClear}
+            title={`Clear ${label} filter`}
+            className="rounded-full p-0.5 text-slate-500 hover:bg-white hover:text-red-600"
+          >
+            <FiX className="text-xs" />
+          </button>
+        ) : (
+          <span className="ml-1 text-slate-400">▾</span>
+        )}
+      </div>
 
       {open && (
         <div className="absolute left-0 top-full z-20 mt-2 min-w-full max-h-40 overflow-y-auto rounded-md bg-white border border-black/10 shadow-lg [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
           {options.map((option) => {
-            const isActive = String(option.value) === String(value);
+            const isOptionActive = String(option.value) === String(value);
 
             return (
               <button
                 key={`${label}-${option.value}`}
                 type="button"
                 onClick={() => handleSelect(option.value)}
-                className={`block w-full px-3 py-2 text-left text-xs hover:shadow-[inset_2px_2px_5px_rgba(163,177,198,0.35),inset_-2px_-2px_5px_rgba(0,0,0,0.05)] ${
-                  isActive
+                className={`block w-full whitespace-nowrap px-3 py-2 text-left text-xs hover:shadow-[inset_2px_2px_5px_rgba(163,177,198,0.35),inset_-2px_-2px_5px_rgba(0,0,0,0.05)] ${
+                  isOptionActive
                     ? "bg-[#e7f8e5] text-[#289800] border-l-2 border-[#289800] font-semibold hover:bg-[#e7f8e5] hover:shadow-[inset_2px_2px_5px_rgba(40,152,0,0.2),inset_-2px_-2px_5px_rgba(40,152,0,0.05)]"
                     : "text-slate-700"
                 }`}

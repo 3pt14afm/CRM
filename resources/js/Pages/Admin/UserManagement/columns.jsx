@@ -1,39 +1,6 @@
 import React from "react";
 import { MdEdit } from "react-icons/md";
-
-function SortHeader({
-  label,
-  sortKey,
-  sortBy,
-  sortDirection,
-  onSort,
-  align = "left",
-}) {
-  const active = sortBy === sortKey;
-  const indicator = active ? (sortDirection === "desc" ? "▼" : "▲") : "⇅";
-  const justifyClass =
-    align === "center" ? "justify-center text-center" : "justify-start text-left";
-
-  return (
-    <button
-      type="button"
-      title={`Sort by ${label.toUpperCase()}`}
-      onClick={() => onSort(sortKey)}
-      className={`group inline-flex w-full items-center gap-1 font-bold tracking-wide ${justifyClass}`}
-    >
-      <span>{label}</span>
-      <span
-        className={`text-[11px] leading-none ${
-          active
-            ? "text-[#289800]"
-            : "text-slate-400 transition-colors group-hover:text-slate-500"
-        }`}
-      >
-        {indicator}
-      </span>
-    </button>
-  );
-}
+import SortHeader from "@/Components/SortHeader";
 
 export function getUserColumns({
   onEdit,
@@ -86,11 +53,10 @@ export function getUserColumns({
           sortBy={sortBy}
           sortDirection={sortDirection}
           onSort={onSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
+        <div className="w-full flex items-center">
           <span className="">{r.employee_id ?? "—"}</span>
         </div>
       ),
@@ -104,15 +70,10 @@ export function getUserColumns({
           sortBy={sortBy}
           sortDirection={sortDirection}
           onSort={onSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
-          <span className="text-center">
-            {r.position ?? "—"}
-          </span>
-        </div>
+        <div className="w-full flex items-center">{r.position ?? "—"}</div>
       ),
     },
     {
@@ -124,22 +85,36 @@ export function getUserColumns({
           sortBy={sortBy}
           sortDirection={sortDirection}
           onSort={onSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
-          <span className="text-center">
-            {r.department_name ?? "—"}
+        <div className="w-full flex items-center">{r.department_name ?? "—"}</div>
+      ),
+    },
+    {
+      key: "delsan",
+      header: (
+        <SortHeader
+          label="DELSAN"
+          sortKey="delsan"
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSort={onSort}
+        />
+      ),
+      cell: (r) => (
+        <div className="w-full flex items-center">
+          <span className="text-center uppercase">
+            {r.delsan ?? "—"}
           </span>
         </div>
       ),
     },
     {
       key: "email",
-      header: <div className="text-center w-full">EMAIL</div>,
+      header: <div className="flex text-center w-full">EMAIL</div>,
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
+        <div className="w-full flex items-center">
           <span className="text-slate-600">
             {r.email ?? "—"}
           </span>
@@ -155,28 +130,23 @@ export function getUserColumns({
           sortBy={sortBy}
           sortDirection={sortDirection}
           onSort={onSort}
-          align="center"
         />
       ),
       cell: (r) => (
-        <div className="w-full flex justify-center items-center">
-          <span className="text-center">
-            {r.location_name ?? "—"}
-          </span>
-        </div>
+        <div className="w-full flex items-center">{r.location_name ?? "—"}</div>
       ),
     },
     {
       key: "status",
-      header: <div className="w-full text-center">STATUS</div>,
+      header: <div className="w-full flex text-center">STATUS</div>,
       cell: (row) => {
         const active = isUserActive(row);
 
         return (
-          <div className="w-full flex justify-center items-center">
+          <div className="w-full flex items-center">
             <span
               className={`
-                px-1.5 xl:px-2 py-px rounded-full text-[10px] xl:text-xs lg:font-medium font-semibold tracking-wider
+                px-1 rounded-full text-[10px] lg:text-[11px] lg:font-medium font-semibold tracking-wider
                 ${
                   active
                     ? "bg-[#E9F7E7] text-[#289800] border border-[#2DA300]/20"
