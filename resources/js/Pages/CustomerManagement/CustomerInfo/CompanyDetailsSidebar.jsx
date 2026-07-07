@@ -1,12 +1,55 @@
-import React, { useState } from 'react';
-import { MdClose, MdLocationOn, MdBusiness, MdPhone, MdInfoOutline, MdAdd, MdPersonOutline, MdPerson3, MdOpenInFull, MdOutlineMap } from 'react-icons/md';
+import React, { useState, useEffect } from 'react';
+import { MdClose, MdLocationOn, MdBusiness, MdPhone, MdInfoOutline, MdAdd, MdPersonOutline, MdPerson3, MdOpenInFull, MdOutlineMap, MdCheck } from 'react-icons/md';
 import { BsPatchCheckFill } from 'react-icons/bs'; 
 import { FiEdit } from 'react-icons/fi';
 
-export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
+export default function CompanyDetailsSidebar({ isOpen, company, onClose, isPotential = false, onSave }) {
 
     // Controls the centered "expanded map" modal
     const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+    // Controls the single edit mode (toggled from the header FiEdit button) that
+    // reveals editable Address / Contact Number inputs together (Potentials only)
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editAddress, setEditAddress] = useState('');
+    const [editContact, setEditContact] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Reset any in-progress edit whenever the selected company changes
+    useEffect(() => {
+        setIsEditMode(false);
+        setEditAddress(company?.address || '');
+        setEditContact(company?.contact_no || '');
+        setIsSaving(false);
+    }, [company?.id]);
+
+    const startEdit = () => {
+        setEditAddress(company?.address || '');
+        setEditContact(company?.contact_no || '');
+        setIsEditMode(true);
+    };
+
+    const cancelEdit = () => {
+        setIsEditMode(false);
+        setEditAddress(company?.address || '');
+        setEditContact(company?.contact_no || '');
+    };
+
+    const saveEdit = async () => {
+        if (!company || !onSave) return;
+        setIsSaving(true);
+        try {
+            await onSave(company.id, {
+                address: editAddress,
+                contact_no: editContact,
+            });
+            setIsEditMode(false);
+        } catch (err) {
+            console.error('Failed to save company details:', err);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     // Helper to get initials for the avatar circle
     const getInitials = (name) => {
@@ -56,7 +99,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                     <div className="hidden sm:block absolute -left-5 top-9">
                         <button 
                             onClick={onClose} 
-                            className="bg-white border border-gray-200 shadow-sm p-1.5 rounded-full hover:bg-gray-50 transition-colors"
+                            className="hidden sm:inline bg-white border border-gray-200 shadow-sm p-1.5 rounded-full hover:bg-gray-50 transition-colors"
                         >
                             <MdClose size={22} className="text-gray-700" />
                         </button>
@@ -65,9 +108,43 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                     {/* Company Details Title Header */}
                     <div className="px-4 md:px-7 p-3.5 flex justify-between items-center flex-shrink-0 rounded-t-3xl">
                         <div className="flex items-center gap-4">
-                            <FiEdit className="text-slate-800 text-md md:text-lg transition-colors transition-duration-100ms cursor-pointer hover:text-[#195c00] hover:text-xl" />
+                            {isPotential && isEditMode ? (
+                                <div className="flex items-center gap-3">
+                                    <MdCheck
+                                        onClick={!isSaving ? saveEdit : undefined}
+                                        className={`text-[#195c00] text-lg cursor-pointer hover:text-[#0f3800] ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                                    />
+                                    <MdClose
+                                        onClick={!isSaving ? cancelEdit : undefined}
+                                        className={`text-red-500 text-lg cursor-pointer hover:text-red-700 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                                    />
+                                </div>
+                            ) : (
+                                <FiEdit
+                                    onClick={isPotential ? startEdit : undefined}
+                                    className={`sm:hidden text-slate-800 text-md md:text-lg transition-colors transition-duration-100ms hover:text-[#195c00] hover:text-xl ${isPotential ? 'cursor-pointer' : 'cursor-default opacity-40'}`}
+                                />
+                            )}
                             <h2 className="text-sm md:text-base font-bold text-slate-800">Company Details</h2>
                         </div>
+
+                        {isPotential && isEditMode ? (
+                            <div className="hidden sm:flex items-center gap-3">
+                                <MdCheck
+                                    onClick={!isSaving ? saveEdit : undefined}
+                                    className={`text-[#195c00] text-lg cursor-pointer hover:text-[#0f3800] ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                                />
+                                <MdClose
+                                    onClick={!isSaving ? cancelEdit : undefined}
+                                    className={`text-red-500 text-lg cursor-pointer hover:text-red-700 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                                />
+                            </div>
+                        ) : (
+                            <FiEdit
+                                onClick={isPotential ? startEdit : undefined}
+                                className={`hidden sm:inline text-slate-800 text-md md:text-lg transition-colors transition-duration-100ms hover:text-[#195c00] hover:text-xl ${isPotential ? 'cursor-pointer' : 'cursor-default opacity-40'}`}
+                            />
+                        )}
     
                         <button
                             onClick={onClose}
@@ -216,11 +293,27 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                         <div className="size-8 md:size-9 rounded-full bg-[#289800]/10 flex items-center justify-center flex-shrink-0 border border-[#289800]/10">
                                             <MdLocationOn className="text-[#289800] text-lg md:text-xl" />
                                         </div>
-                                        <div className="pt-0.5">
+                                        <div className="pt-0.5 flex-1 min-w-0">
                                             <div className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Address</div>
-                                            <div className="text-[13px] md:text-[14px] font-medium text-slate-800 leading-tight">
-                                                {company.address || 'Not provided'}
-                                            </div>
+                                            {isEditMode ? (
+                                                <input
+                                                    autoFocus
+                                                    type="text"
+                                                    value={editAddress}
+                                                    onChange={(e) => setEditAddress(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') saveEdit();
+                                                        if (e.key === 'Escape') cancelEdit();
+                                                    }}
+                                                    disabled={isSaving}
+                                                    placeholder="Enter address"
+                                                    className="w-full text-[13px] md:text-[14px] font-medium text-slate-800 border border-gray-300 rounded-md px-2 py-1 outline-none focus:ring-0 focus:border-[#289800] disabled:opacity-60"
+                                                />
+                                            ) : (
+                                                <div className="text-[13px] md:text-[14px] font-medium text-slate-800 leading-tight">
+                                                    {company.address || 'Not provided'}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -242,11 +335,26 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose }) {
                                         <div className="size-8 md:size-9 rounded-full bg-[#289800]/10 flex items-center justify-center flex-shrink-0 border border-[#289800]/10">
                                             <MdPhone className="text-[#289800] text-lg md:text-xl" />
                                         </div>
-                                        <div className="pt-0.5">
+                                        <div className="pt-0.5 flex-1 min-w-0">
                                             <div className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Contact Number</div>
-                                            <div className="text-[13px] md:text-[14px] font-medium text-slate-800 leading-tight">
-                                                {company.contact_no || 'Not Provided'}
-                                            </div>
+                                            {isEditMode ? (
+                                                <input
+                                                    type="tel"
+                                                    value={editContact}
+                                                    onChange={(e) => setEditContact(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') saveEdit();
+                                                        if (e.key === 'Escape') cancelEdit();
+                                                    }}
+                                                    disabled={isSaving}
+                                                    placeholder="Enter contact number"
+                                                    className="w-full text-[13px] md:text-[14px] font-medium text-slate-800 border border-gray-300 rounded-md px-2 py-1 outline-none focus:ring-0 focus:border-[#289800] disabled:opacity-60"
+                                                />
+                                            ) : (
+                                                <div className="text-[13px] md:text-[14px] font-medium text-slate-800 leading-tight">
+                                                    {company.contact_no || 'Not Provided'}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

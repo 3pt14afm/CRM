@@ -44,10 +44,12 @@ class UserController extends Controller
         }
 
         $locations = Location::query()
+            ->addSelect(['users_count' => User::selectRaw('count(*)')
+                ->whereColumn('primary_location_id', 'locations.id')
+            ])
             ->orderBy('name')
             ->paginate(10)
             ->through(function ($location) {
-                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
                 $location->status = $location->is_active ? 'Active' : 'Inactive';
                 return $location;
             })
@@ -78,13 +80,12 @@ class UserController extends Controller
         ]);
     }
 
-
-
     private function getUserManagementUsers(Request $request, $locationLookup, $departmentLookup)
     {
         $perPageInput = strtolower(trim((string) $request->input('perPage', '10')));
 
         $usersQuery = User::query()
+            ->with(['location:id,delsan'])
             ->leftJoin('company_departments as sort_departments', 'users.department_id', '=', 'sort_departments.id')
             ->leftJoin('locations as sort_locations', 'users.primary_location_id', '=', 'sort_locations.id')
             ->when($request->filled('search'), function ($q) use ($request) {
@@ -158,6 +159,7 @@ class UserController extends Controller
         $perPageInput = strtolower(trim((string) $request->input('perPage', '10')));
 
         $usersQuery = User::query()
+            ->with(['location:id,delsan'])
             ->leftJoin('company_departments as sort_departments', 'users.department_id', '=', 'sort_departments.id')
             ->leftJoin('locations as sort_locations', 'users.primary_location_id', '=', 'sort_locations.id')
             ->when($request->filled('search'), function ($q) use ($request) {
@@ -708,6 +710,12 @@ class UserController extends Controller
                     ->orderBy('users.last_name', 'asc');
                 break;
 
+            case 'delsan':
+                $query->orderByRaw("COALESCE(sort_locations.delsan, '') {$direction}")
+                    ->orderBy('users.first_name', 'asc')
+                    ->orderBy('users.last_name', 'asc');
+                break;
+
             case 'location_name':
                 $query->orderByRaw("COALESCE(sort_locations.name, '') {$direction}")
                     ->orderBy('users.first_name', 'asc')
@@ -721,31 +729,28 @@ class UserController extends Controller
         }
     }
 
-public function updateSignatureForUser(Request $request, $id)
-{
-    $request->validate([
-        'signature' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:3072'],
-    ]);
+    public function updateSignatureForUser(Request $request, $id)
+    {
+        $request->validate([
+            'signature' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:3072'],
+        ]);
 
-    $user = \App\Models\User::findOrFail($id);
+        $user = \App\Models\User::findOrFail($id);
 
-    // Force the extension to be .png so it matches your frontend
-    $filename = $user->employee_id . '.png';
+        $filename = $user->employee_id . '.png';
 
-    // Delete old signature files with any extension to avoid duplicates
-    foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
-        $oldPath = storage_path('storage/app/public/signatures/' . $user->employee_id . '.' . $oldExt);
-        if (file_exists($oldPath)) {
-            unlink($oldPath);
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $oldExt) {
+            $oldPath = storage_path('storage/app/public/signatures/' . $user->employee_id . '.' . $oldExt);
+            if (file_exists($oldPath)) {
+                unlink($oldPath);
+            }
         }
+
+        $request->file('signature')->storeAs('signatures', $filename, 'public');
+
+        return back()->with('success', 'Signature updated for ' . trim($user->first_name . ' ' . $user->last_name) . '.');
     }
 
-    $request->file('signature')->storeAs('signatures', $filename, 'public');
-
-    return back()->with('success', 'Signature updated for ' . trim($user->first_name . ' ' . $user->last_name) . '.');
-}
-
-// Admin\UserController.php
     public function updateAvatarForUser(Request $request, $id)
     {
         $request->validate([
@@ -769,5 +774,4 @@ public function updateSignatureForUser(Request $request, $id)
 
         return back()->with('success', 'Profile picture updated for ' . trim($user->first_name . ' ' . $user->last_name) . '.');
     }
-           
 }

@@ -12,11 +12,48 @@ class LocationController extends Controller
 {
     public function locationMaster(Request $request)
     {
+        $search = $request->input('search');
+        $status = $request->input('status');
+        $delsan = $request->input('delsan');
+        $sortBy = $request->input('sortBy', 'name');
+        $sortDirection = $request->input('sortDirection', 'asc');
+
+        $allowedSorts = ['name', 'code', 'phone_number', 'delsan', 'is_active'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'name';
+        }
+        $sortDirection = strtolower($sortDirection) === 'desc' ? 'desc' : 'asc';
+
         $locations = Location::query()
-            ->orderBy('name')
+            ->addSelect(['users_count' => User::selectRaw('count(*)')
+                ->whereColumn('primary_location_id', 'locations.id')
+            ])
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                          ->orWhere('code', 'like', "%{$search}%")
+                          ->orWhere('phone_number', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%")
+                          ->orWhere('delsan', 'like', "%{$search}%");
+                });
+            })
+            ->when($status, function ($q) use ($status) {
+                if ($status === 'active') {
+                    $q->where('is_active', true);
+                } elseif ($status === 'inactive') {
+                    $q->where('is_active', false);
+                }
+            })
+            ->when($delsan, function ($q) use ($delsan) {
+                $q->where('delsan', $delsan);
+            })
+            ->when($sortBy === 'delsan', function ($q) use ($sortDirection) {
+                $q->orderByRaw("COALESCE(delsan, '') {$sortDirection}"); 
+            }, function ($q) use ($sortBy, $sortDirection) {
+                $q->orderBy($sortBy, $sortDirection);
+            })
             ->paginate(10)
             ->through(function ($location) {
-                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
                 $location->status = $location->is_active ? 'Active' : 'Inactive';
                 return $location;
             })
@@ -31,24 +68,53 @@ class LocationController extends Controller
         return Inertia::render('Admin/LocationMaster', [
             'locations' => $locations,
             'stats'     => $stats,
+            'filters'   => $request->only(['search', 'status', 'delsan', 'sortBy', 'sortDirection']),
         ]);
     }
 
     public function locationIndex(Request $request)
     {
         $search = $request->input('search');
+        $status = $request->input('status');
+        $delsan = $request->input('delsan');
+        $sortBy = $request->input('sortBy', 'name');
+        $sortDirection = $request->input('sortDirection', 'asc');
+
+        $allowedSorts = ['name', 'code', 'phone_number', 'delsan', 'is_active'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'name';
+        }
+        $sortDirection = strtolower($sortDirection) === 'desc' ? 'desc' : 'asc';
 
         $locations = Location::query()
-            ->when($search, fn ($q) =>
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('phone_number', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%")
-            )
-            ->orderBy('name')
+            ->addSelect(['users_count' => User::selectRaw('count(*)')
+                ->whereColumn('primary_location_id', 'locations.id')
+            ])
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                          ->orWhere('code', 'like', "%{$search}%")
+                          ->orWhere('phone_number', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%");
+                });
+            })
+            ->when($status, function ($q) use ($status) {
+                if ($status === 'active') {
+                    $q->where('is_active', true);
+                } elseif ($status === 'inactive') {
+                    $q->where('is_active', false);
+                }
+            })
+            ->when($delsan, function ($q) use ($delsan) {
+                $q->where('delsan', $delsan);
+            })
+            ->when($sortBy === 'delsan', function ($q) use ($sortDirection) {
+                $q->orderByRaw("COALESCE(delsan, '') {$sortDirection}"); 
+            }, function ($q) use ($sortBy, $sortDirection) {
+                $q->orderBy($sortBy, $sortDirection);
+            })
             ->paginate(10)
             ->through(function ($location) {
-                $location->users_count = User::where('primary_location_id', (int) $location->id)->count();
                 $location->status = $location->is_active ? 'Active' : 'Inactive';
                 return $location;
             })
@@ -62,7 +128,7 @@ class LocationController extends Controller
         return Inertia::render('Admin/Locations/Index', [
             'locations' => $locations,
             'stats'     => $stats,
-            'filters'   => ['search' => $search],
+            'filters'   => $request->only(['search', 'status', 'delsan', 'sortBy', 'sortDirection']),
         ]);
     }
 
@@ -73,6 +139,7 @@ class LocationController extends Controller
             'code' => 'nullable|string|max:20|unique:locations,code',
             'phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:1000',
+            'delsan' => 'nullable|in:dosc,dbic,ddtc',
         ]);
 
         Location::create([
@@ -80,6 +147,7 @@ class LocationController extends Controller
             'code' => $request->code ? strtoupper($request->code) : null,
             'phone_number' => $request->phone_number,
             'address' => $request->address,
+            'delsan' => $request->delsan,
             'is_active' => true,
         ]);
 
@@ -93,6 +161,7 @@ class LocationController extends Controller
             'code' => 'nullable|string|max:20|unique:locations,code,' . $location->id,
             'phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:1000',
+            'delsan' => 'nullable|in:dosc,dbic,ddtc',
         ]);
 
         $location->update([
@@ -100,6 +169,7 @@ class LocationController extends Controller
             'code' => $request->code ? strtoupper($request->code) : null,
             'phone_number' => $request->phone_number,
             'address' => $request->address,
+            'delsan' => $request->delsan,
         ]);
 
         return back()->with('success', 'Location updated.');

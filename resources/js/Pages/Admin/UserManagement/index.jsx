@@ -7,7 +7,7 @@ import NewUserModal from "@/Components/admin/modals/NewUserModal";
 import EditUserModal from "@/Components/admin/modals/EditUserModal";
 import { getUserColumns } from "./columns";
 import { isUserActive, formatShortDate } from "./helpers";
-import FilterPill from "./FilterPill";
+import FilterPill from "@/Components/FilterPill";
 import PerPageFilterPill from "./PerPageFilterPill";
 import useAssignUserModal from "./hooks/useAssignUserModal";
 import useEditUserModal from "./hooks/useEditUserModal";
@@ -15,7 +15,7 @@ import usePositions from "./hooks/usePositions";
 import useDepartments from "./hooks/useDepartments";
 import { BsPersonFillAdd } from "react-icons/bs";
 import { FaUsers } from "react-icons/fa";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiX } from "react-icons/fi";
 
 function UserManagement({
   users,
@@ -328,6 +328,30 @@ function UserManagement({
     [applyFilters]
   );
 
+  const handleClearAll = useCallback(() => {
+    setSearchQuery("");
+    setShowSearchSuggestions(false);
+    applyFilters({
+      status: "",
+      location: "",
+      department: "",
+      position: "",
+      search: "",
+      sortBy: "",
+      sortDirection: "asc",
+      page: 1,
+    });
+  }, [applyFilters]);
+
+  const hasActiveFiltersOrSort = Boolean(
+    filters.status ||
+      filters.location ||
+      filters.department ||
+      filters.position ||
+      filters.search ||
+      filters.sortBy
+  );
+
   const handleSelectSuggestion = useCallback((item) => {
     const value = item.value ?? "";
     setSearchQuery(value);
@@ -492,6 +516,18 @@ function UserManagement({
                         applyFilters({ perPage: value, page: 1 })
                       }
                     />
+
+                    {hasActiveFiltersOrSort && (
+                      <button
+                        type="button"
+                        onClick={handleClearAll}
+                        title="Clear all filters and sorting"
+                        className="ml-auto inline-flex items-center gap-1 rounded-md bg-white px-2 py-[6px] text-xs font-medium text-blue-400 hover:bg-gray-100 hover:text-red-600 hover:shadow-inner"
+                      >
+                        <FiX className="text-xs" />
+                        <span>Clear all</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 

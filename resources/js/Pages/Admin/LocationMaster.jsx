@@ -1,12 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import ProjectListSection from "@/Components/roi/ProjectListSection";
 import NewLocationModal from "@/Components/admin/modals/NewLocationModal";
 import EditLocationModal from "@/Components/admin/modals/EditLocationModal";
+import FilterPill from "@/Components/FilterPill";
+import SortHeader from "@/Components/SortHeader";
 import { MdAddLocationAlt, MdEdit, MdLocationPin } from "react-icons/md";
+import { FiSearch, FiX } from "react-icons/fi";
 
-function LocationMaster({ stats, locations }) {
+function LocationMaster({ stats, locations, filters = {} }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createProcessing, setCreateProcessing] = useState(false);
   const [createErrors, setCreateErrors] = useState({});
@@ -16,6 +19,7 @@ function LocationMaster({ stats, locations }) {
     code: "",
     phone_number: "",
     address: "",
+    delsan: "",
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -28,8 +32,12 @@ function LocationMaster({ stats, locations }) {
     code: "",
     phone_number: "",
     address: "",
+    delsan: "",
     is_active: true,
   });
+
+  // Search and Filter State
+  const [searchQuery, setSearchQuery] = useState(filters.search ?? "");
 
   const today = new Date();
   const formattedDate = new Intl.DateTimeFormat("en-US", {
@@ -49,6 +57,85 @@ function LocationMaster({ stats, locations }) {
     return true;
   };
 
+  // --- Filtering, Sorting, and Searching Logic ---
+  const buildFilterParams = useCallback(
+    (nextFilters = {}) => ({
+      search: nextFilters.search ?? searchQuery.trim(),
+      status: nextFilters.status ?? filters.status ?? "",
+      delsan: nextFilters.delsan ?? filters.delsan ?? "",
+      sortBy: nextFilters.sortBy ?? filters.sortBy ?? "",
+      sortDirection: nextFilters.sortDirection ?? filters.sortDirection ?? "asc",
+      page: nextFilters.page ?? 1,
+    }),
+    [searchQuery, filters]
+  );
+
+  const applyFilters = useCallback(
+    (nextFilters = {}) => {
+      router.get(
+        route("admin.location-master.index"), // Update this route name if different in your web.php
+        buildFilterParams(nextFilters),
+        {
+          preserveScroll: true,
+          preserveState: true,
+          replace: true,
+        }
+      );
+    },
+    [buildFilterParams]
+  );
+
+  const handleSort = useCallback(
+    (columnKey) => {
+      const currentSortBy = filters.sortBy ?? "";
+      const currentSortDirection = filters.sortDirection ?? "asc";
+
+      const nextDirection =
+        currentSortBy === columnKey && currentSortDirection === "asc"
+          ? "desc"
+          : "asc";
+
+      applyFilters({
+        sortBy: columnKey,
+        sortDirection: nextDirection,
+        page: 1,
+      });
+    },
+    [applyFilters, filters.sortBy, filters.sortDirection]
+  );
+
+  const handleClearAll = useCallback(() => {
+    setSearchQuery("");
+    applyFilters({
+      search: "",
+      status: "",
+      delsan: "",
+      sortBy: "",
+      sortDirection: "asc",
+      page: 1,
+    });
+  }, [applyFilters]);
+
+  const hasActiveFiltersOrSort = Boolean(
+    filters.status || filters.delsan || filters.search || filters.sortBy
+  );
+
+  // Debounced Search Effect
+  useEffect(() => {
+    const normalized = searchQuery.trim();
+    if (normalized === (filters.search ?? "").trim()) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      applyFilters({ search: normalized, page: 1 });
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery, filters.search, applyFilters]);
+
+
+  // --- Modal Handlers ---
   const openCreateModal = () => {
     setCreateErrors({});
     setCreateProcessing(false);
@@ -57,6 +144,7 @@ function LocationMaster({ stats, locations }) {
       code: "",
       phone_number: "",
       address: "",
+      delsan: "",
     });
     setShowCreateModal(true);
   };
@@ -76,6 +164,7 @@ function LocationMaster({ stats, locations }) {
       code: location?.code ?? "",
       phone_number: location?.phone_number ?? "",
       address: location?.address ?? "",
+      delsan: location?.delsan ?? "",
       is_active: isLocationActive(location),
     });
 
@@ -100,6 +189,7 @@ function LocationMaster({ stats, locations }) {
         code: createForm.code,
         phone_number: createForm.phone_number,
         address: createForm.address,
+        delsan: createForm.delsan,
       },
       {
         preserveScroll: true,
@@ -131,6 +221,7 @@ function LocationMaster({ stats, locations }) {
         code: editForm.code,
         phone_number: editForm.phone_number,
         address: editForm.address,
+        delsan: editForm.delsan,
       },
       {
         preserveScroll: true,
@@ -180,14 +271,30 @@ function LocationMaster({ stats, locations }) {
     () => [
       {
         key: "name",
-        header: "LOCATION NAME",
+        header: (
+          <SortHeader
+            label="LOCATION NAME"
+            sortKey="name"
+            sortBy={filters.sortBy}
+            sortDirection={filters.sortDirection}
+            onSort={handleSort}
+          />
+        ),
         cell: (r) => r.name ?? "—",
       },
       {
         key: "code",
-        header: <div className="text-center w-full">CODE</div>,
+        header: (
+          <SortHeader
+            label="CODE"
+            sortKey="code"
+            sortBy={filters.sortBy}
+            sortDirection={filters.sortDirection}
+            onSort={handleSort}
+          />
+        ),
         cell: (r) => (
-          <div className="w-full flex justify-center items-center">
+          <div className="w-full flex items-center">
             <span className="text-[11px] lg:text-sm capitalize">
               {r.code ?? "—"}
             </span>
@@ -196,9 +303,17 @@ function LocationMaster({ stats, locations }) {
       },
       {
         key: "phone_number",
-        header: <div className="text-center w-full">PHONE NUMBER</div>,
+        header: (
+          <SortHeader
+            label="PHONE NUMBER"
+            sortKey="phone_number"
+            sortBy={filters.sortBy}
+            sortDirection={filters.sortDirection}
+            onSort={handleSort}
+          />
+        ),
         cell: (r) => (
-          <div className="w-full flex justify-center items-center">
+          <div className="w-full flex items-center">
             <span className="text-[11px] lg:text-sm">
               {r.phone_number ?? "—"}
             </span>
@@ -206,16 +321,43 @@ function LocationMaster({ stats, locations }) {
         ),
       },
       {
+        key: "delsan",
+        header: (
+          <SortHeader
+            label="DELSAN"
+            sortKey="delsan"
+            sortBy={filters.sortBy}
+            sortDirection={filters.sortDirection}
+            onSort={handleSort}
+          />
+        ),
+        cell: (r) => (
+          <div className="w-full flex items-center">
+            <span className="text-[11px] lg:text-sm uppercase">
+              {r.delsan ?? "—"}
+            </span>
+          </div>
+        ),
+      },
+      {
         key: "status",
-        header: <div className="text-center w-full">STATUS</div>,
+        header: (
+          <SortHeader
+            label="STATUS"
+            sortKey="is_active"
+            sortBy={filters.sortBy}
+            sortDirection={filters.sortDirection}
+            onSort={handleSort}
+          />
+        ),
         cell: (r) => {
           const isActive = isLocationActive(r);
 
           return (
-            <div className="w-full flex justify-center items-center">
+            <div className="w-full flex items-center">
               <span
                 className={`
-                  px-2 py-px rounded-full text-[10px] font-bold uppercase tracking-wider
+                  px-1 rounded-full text-[9px] font-bold uppercase tracking-wider
                   ${
                     isActive
                       ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
@@ -231,7 +373,7 @@ function LocationMaster({ stats, locations }) {
       },
       {
         key: "actions",
-        header: <div className="text-center w-full">ACTIONS</div>,
+        header: <div className="text-center w-full font-bold tracking-wide">ACTIONS</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <div className="flex items-center gap-2">
@@ -248,15 +390,11 @@ function LocationMaster({ stats, locations }) {
         ),
       },
     ],
-    []
+    [filters.sortBy, filters.sortDirection, handleSort]
   );
 
   const goToPage = (p) => {
-    router.get(
-      route("admin.location-master.index"),
-      { page: p },
-      { preserveScroll: true, preserveState: true }
-    );
+    applyFilters({ page: p });
   };
 
   const locationPagination =
@@ -311,33 +449,87 @@ function LocationMaster({ stats, locations }) {
               </div>
             </div>
 
-            
+            <div className="mt-4">
+              <div className="-mx-4 md:-mx-6 lg:-mx-10">
+                {/* Filters Row */}
+                <div className="-mb-2 mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-black/10 border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <FilterPill
+                      label="Status"
+                      value={filters.status ?? ""}
+                      options={[
+                        { label: "All", value: "" },
+                        { label: "Active", value: "active" },
+                        { label: "Inactive", value: "inactive" },
+                      ]}
+                      onChange={(value) => applyFilters({ status: value, page: 1 })}
+                    />
 
-            <div className="-mt-2 -mx-4 md:-mx-6 lg:-mx-10">
-              <ProjectListSection
-                tiles={[]}
-                tableTitle={
-                  <div className="flex items-center gap-2">
-                    <MdLocationPin className="h-4 w-4" />
-                    <span>Locations</span>
+                    <FilterPill
+                      label="Delsan"
+                      value={filters.delsan ?? ""}
+                      options={[
+                        { label: "All", value: "" },
+                        { label: "DOSC", value: "dosc" },
+                        { label: "DBIC", value: "dbic" },
+                        { label: "DDTC", value: "ddtc" },
+                      ]}
+                      onChange={(value) => applyFilters({ delsan: value, page: 1 })}
+                    />
+
+                    {hasActiveFiltersOrSort && (
+                      <button
+                        type="button"
+                        onClick={handleClearAll}
+                        title="Clear all filters and sorting"
+                        className="ml-auto inline-flex items-center gap-1 rounded-md bg-white px-2 py-[6px] text-xs font-medium text-blue-400 hover:bg-gray-100 hover:text-red-600 hover:shadow-inner"
+                      >
+                        <FiX className="text-xs" />
+                        <span>Clear all</span>
+                      </button>
+                    )}
                   </div>
-                }
-                columns={locationColumns}
-                rows={locationRows}
-                rowKey={(r, i) => String(r.id ?? i)}
-                pagination={locationPagination}
-                rightControls={
-                    <button
-                      type="button"
-                      title="Add Location"
-                      aria-label="Add Location"
-                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
-                      onClick={openCreateModal}
-                    >
-                      <MdAddLocationAlt className="w-6 h-6" />
-                    </button>
+                </div>
+
+                {/* Table Section */}
+                <ProjectListSection
+                  tiles={[]}
+                  tableTitle={
+                    <div className="flex items-center gap-2">
+                      <MdLocationPin className="h-4 w-4" />
+                      <span>Locations</span>
+                    </div>
                   }
-              />
+                  columns={locationColumns}
+                  rows={locationRows}
+                  rowKey={(r, i) => String(r.id ?? i)}
+                  pagination={locationPagination}
+                  rightControls={
+                    <div className="flex items-center gap-3">
+                      {/* Search Input */}
+                      <div className="relative">
+                        <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          className="w-64 rounded-lg border border-black/10 bg-white px-3 py-1 pl-9 text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search locations..."
+                        />
+                      </div>
+                      
+                      <button
+                        type="button"
+                        title="Add Location"
+                        aria-label="Add Location"
+                        className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                        onClick={openCreateModal}
+                      >
+                        <MdAddLocationAlt className="w-6 h-6" />
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
             </div>
           </div>
         </div>
