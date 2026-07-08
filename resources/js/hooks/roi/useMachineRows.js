@@ -440,32 +440,31 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     });
   };
 
-  const setMode = (id, mode) => {
-    if (id === MANDATORY_ROW_ID) return;
+const setMode = (id, mode) => {
+  if (id === MANDATORY_ROW_ID) return;
 
-    setManuallyEdited((prev) => {
-      const next = { ...prev };
-      delete next[`${id}:cost`];
-      delete next[`${id}:yields`];
-      return next;
-    });
+  setManuallyEdited((prev) => {
+    const next = { ...prev };
+    delete next[`${id}:cost`];
+    delete next[`${id}:yields`];
+    return next;
+  });
 
-    setRows((prev) =>
-      prev.map((r) => {
-        if (r.id !== id) return r;
-        return enforceRowQty({
-          ...r,
-          type:                 mode === MODE.OTHERS ? ROW_TYPE.CONSUMABLE : r.type,
-          mode,
-          sku:                  '',
-          selectedMachineId:    '',
-          selectedConsumableId: '',
-          linkedMachineRowId:   null,
-          autoAdded:            false,
-        }, contractType);
-      })
-    );
-  };
+  setRows((prev) =>
+    prev.map((r) => {
+      if (r.id !== id) return r;
+      return enforceRowQty({
+        ...r,
+        type:                 mode === MODE.OTHERS ? ROW_TYPE.CONSUMABLE : r.type,
+        mode,
+        selectedMachineId:    '',
+        selectedConsumableId: '',
+        linkedMachineRowId:   null,
+        autoAdded:            false,
+      }, contractType);
+    })
+  );
+};
 
   const addRow = () => setRows((prev) => [...prev, makeBlankRow()]);
 
