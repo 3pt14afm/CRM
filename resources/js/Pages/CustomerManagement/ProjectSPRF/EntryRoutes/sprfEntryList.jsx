@@ -229,66 +229,66 @@ const tiles = useMemo(() => {
       },
       {
         key: 'sub_category',
-        header: <div className="text-center w-full">SUB CATEGORY</div>,
+        header: <div className="w-full">SUB CATEGORY</div>,
         cell: (r) =>
           r.isSkeleton ? (
             <div className="h-4 w-24 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="font-medium flex justify-center items-center">
+            <span className="font-medium flex items-center">
               {r.sub_category ?? '—'}
             </span>
           ),
       },
       {
         key: 'company_name',
-        header: <div className="text-center w-full">ACCOUNT</div>,
+        header: <div className="w-full">ACCOUNT</div>,
         cell: (r) =>
           r.isSkeleton ? (
             <div className="h-4 w-32 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="font-medium flex justify-center items-center">
+            <span className="font-medium flex items-center">
               {r.company_name ?? '—'}
             </span>
           ),
       },
       {
         key: 'account_manager',
-        header: <div className="text-center w-full">ACCOUNT MANAGER</div>,
+        header: <div className="w-full">ACCOUNT MANAGER</div>,
         cell: (r) =>
           r.isSkeleton ? (
             <div className="h-4 w-28 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="font-medium flex justify-center items-center">
+            <span className="font-medium flex items-center">
               {r.account_manager ?? '—'}
             </span>
           ),
       },
       {
           key: "type",
-          header: <div className="text-center w-full">TYPE</div>,
+          header: <div className="w-full">TYPE</div>,
             cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+            <span className={`font-medium flex items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
               {r.type === 1 ? "Existing" : "Potential"}
             </span>
           ),
         },
       {
         key: 'last_saved_at',
-        header: <div className="text-center w-full">LAST SAVED</div>,
+        header: <div className="w-full">LAST SAVED</div>,
         cell: (r) =>
           r.isSkeleton ? (
             <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="flex justify-center items-center text-[11px] text-slate-500">
+            <span className="flex items-center md:text-[10px] lg:text-[11px] text-slate-500">
               {formatLastSaved(r.last_saved_at)}
             </span>
           ),
       },
       {
         key: 'status',
-        header: <div className="text-center w-full">STATUS</div>,
+        header: <div className="w-full">STATUS</div>,
         cell: (row) => {
           if (row.isSkeleton) {
             return <div className="h-5 w-20 bg-slate-200/80 rounded-full animate-pulse mx-auto" />;
@@ -297,7 +297,7 @@ const tiles = useMemo(() => {
           const isReturned = row.status === 'returned';
 
           return (
-            <div className="flex justify-center items-center">
+            <div className="flex items-center">
               <span
                 className={`px-2 rounded-full text-[9px] font-bold uppercase tracking-wider md:text-[8px] md:px-1 lg:text-[9px] lg:px-[6px] xl:text-[10px] xl:px-2 border ${
                   isReturned

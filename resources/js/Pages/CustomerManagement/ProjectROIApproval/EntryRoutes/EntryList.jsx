@@ -260,72 +260,72 @@ import { IoMdMore } from 'react-icons/io';
         },
         {
           key: "company_sap_code",
-          header: <div className="text-center w-full">SAP CODE</div>,
+          header: <div className="w-full">SAP CODE</div>,
           cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="font-mono text-sm text-[#33721c] flex justify-center items-center">
+            <span className="font-mono text-xs lg:text-sm text-[#33721c] flex items-center">
               {r.company_sap_code ?? "—"}
             </span>
           ),
         },
         {
           key: "company_name",
-          header: <div className="text-center w-full">COMPANY NAME</div>,
+          header: <div className="w-full">COMPANY NAME</div>,
           cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-36 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="font-medium flex justify-center items-center text-center">
+            <span className="font-medium flex items-center ">
               {r.company_name ?? "—"}
             </span>
           ),
         },
         {
           key: "contract_years",
-          header: <div className="text-center w-full">CONTRACT TERM</div>,
+          header: <div className="w-full">CONTRACT TERM</div>,
           cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-10 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="font-medium flex justify-center items-center">
+            <span className="font-medium flex items-center">
               {r.contract_years != null ? `${r.contract_years}` : "—"}
             </span>
           ),
         },
         {
           key: "contract_type",
-          header: <div className="text-center w-full">CONTRACT TYPE</div>,
+          header: <div className="w-full">CONTRACT TYPE</div>,
           cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-20 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="font-medium flex justify-center items-center text-center">
+            <span className="font-medium flex items-center">
               {r.contract_type ?? "—"}
             </span>
           ),
         },
         {
           key: "type",
-          header: <div className="text-center w-full">TYPE</div>,
+          header: <div className="w-full">TYPE</div>,
             cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+            <span className={`font-medium flex items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
               {r.type === 1 ? "Existing" : "Potential"}
             </span>
           ),
         },
         {
           key: "last_saved_at",
-          header: <div className="text-center w-full">LAST SAVED</div>,
+          header: <div className="w-full">LAST SAVED</div>,
           cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
-            <span className="text-xs text-slate-600 flex justify-center items-center">
+            <span className=" md:text-[10px] lg:text-[11px] text-slate-600 flex items-center">
               {r.last_saved_display ?? "—"}
             </span>
           ),
         },
         {
-          header: <div className="text-center w-full">STATUS</div>,
+          header: <div className="w-full">STATUS</div>,
           key: "status",
           cell: (row) => {
             if (row.isSkeleton) {
@@ -341,7 +341,7 @@ import { IoMdMore } from 'react-icons/io';
 
 
             return (
-              <div className="flex justify-center items-center">
+              <div className="flex items-center">
                 <span className={`
                   px-2 rounded-full text-[9px] font-bold uppercase tracking-wider      
                   md:text-[8px] md:px-1

@@ -219,7 +219,7 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
         />
       ),
       cell: (r) => (
-        <span className="font-mono text-xs text-[#33721c] flex items-center">
+        <span className="font-mono text-xs lg:text-sm text-[#33721c] flex items-center">
           {r.company_sap_code ?? "—"}
         </span>
       ),
@@ -237,7 +237,7 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
       ),
       cell: (r) => (
         <div className="flex items-center w-full h-full">
-          <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+          <span className="font-medium">
             {r.company_name ?? "—"}
           </span>
         </div>
@@ -302,7 +302,6 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
         />
       ),
       cell: (row) => (
-        <div className="">
           <div className="flex flex-col items-start leading-tight">
             <span className="inline-block px-1 xl:px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider bg-blue-100 text-blue-700 border border-blue-200">
               <span className="uppercase">{row.status_display_main ?? row.status}</span>
@@ -310,11 +309,10 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
                 <span className="font-normal text-[10px] text-gray-500">{row.status_display_suffix}</span>
               )}
             </span>
-            <span className="mt-1 text-[10px] text-center italic text-blue-700">
+            <span className="mt-1 text-[10px] italic text-blue-700">
               by: {row.status_assignee_name ?? "—"}
             </span>
           </div>
-        </div>
       ),
     },
     {
