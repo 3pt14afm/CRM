@@ -277,7 +277,7 @@ export default function ListFilterToolbar({
           onClear={onDateClear}
         />
         {showDatePicker && (
-          <div className="absolute left-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
+          <div className="absolute  top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
             <div className="flex items-center gap-2 mb-3">
               <MdDateRange size={16} className="text-[#4FA34E]" />
               <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>

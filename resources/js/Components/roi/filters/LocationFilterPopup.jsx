@@ -20,7 +20,7 @@ export default function LocationFilterPopup({ locations = [], selectedId, onAppl
 
   if (!open) return null;
   return (
-    <div className="absolute left-0 top-11 z-50 w-72 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden flex flex-col"
+    <div className="absolute right-0 top-11 z-50 lg:w-72 w-56 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden flex flex-col"
       style={{ maxHeight: 340 }}>
       <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center gap-2">
