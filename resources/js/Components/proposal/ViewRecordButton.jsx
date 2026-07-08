@@ -1,5 +1,6 @@
 import React from 'react';
 import { router } from '@inertiajs/react';
+import {toast} from 'sonner';
 import { FaFileInvoice, FaPen } from 'react-icons/fa';
 import { route as ziggyRoute } from 'ziggy-js';
 
@@ -9,14 +10,26 @@ import { route as ziggyRoute } from 'ziggy-js';
  * across ArchiveProposals, GeneratedProposals and ApprovedProjects — only
  * the route params and icon (FaFileInvoice vs FaPen) varied.
  */
+
+
 export default function ViewRecordButton({ id, type, icon: Icon = FaFileInvoice, size = '12px', dense = false }) {
+  const isSprf = type === 'sprf';
+
+  const handleClick = () => {
+    if (isSprf) {
+      toast.error('SPRF proposals generation is currently in development.');
+      return;
+    }
+    router.visit(ziggyRoute('proposals.show', { id, type }));
+  };
+
   return (
     <button
       type="button"
       className={`px-2 py-1 flex flex-row justify-center gap-2 items-center rounded-lg text-[#289800] font-semibold transition-colors shadow-sm border border-[#289800]/10 ${
         dense ? 'bg-[#B5EBA2]/10 hover:bg-[#B5EBA2]/50' : 'bg-[#B5EBA2]/25 hover:bg-[#B5EBA2]/50'
       }`}
-      onClick={() => router.visit(ziggyRoute('proposals.show', { id, type }))}
+      onClick={handleClick}
     >
       <Icon style={{ fontSize: size }} />
     </button>
