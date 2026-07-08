@@ -367,7 +367,7 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
             onSort={handleSort}
           />
         ),
-        cell: (r) => <span className="font-mono flex items-center">{r.reference ?? "—"}</span>,
+        cell: (r) => <span className="flex items-center font-medium">{r.reference ?? "—"}</span>,
       },
       {
         key: "company_sap_code",
@@ -381,7 +381,7 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
           />
         ),
         cell: (r) => (
-          <span className="font-mono text-xs text-[#33721c] flex items-center">
+          <span className="font-mono md:text-[11px] lg:text-xs text-[#33721c] flex items-center">
             {r.company_sap_code ?? "—"}
           </span>
         ),
@@ -399,7 +399,7 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
         ),
         cell: (r) => (
           <div className="flex items-center w-full h-full">
-            <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+            <span className="font-medium cursor-pointer transition-all duration-200">
               {r.company_name ?? "—"}
             </span>
           </div>
@@ -469,29 +469,22 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
           const isApproved  = s === "approved";
           const isCancelled = s === "cancelled";
           return (
-            <div className="flex items-center">
-              <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
-                ${isRejected
-                  ? "bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20"
-                  : isApproved
-                  ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
-                  : isCancelled
-                  ? "bg-red-600/10 text-red-600 border border-red-300"
-                  : "bg-blue-100 text-blue-700 border border-blue-200"
-                }`}>
-                {isRejected ? (
-                  <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
-                ) : isApproved ? (
-                  <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
-                ) : isCancelled ? (
-                  <MdOutlineCancel className="text-[11px] xl:text-[13px] flex-shrink-0" />
-                ) : (
-                  <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />
-                )}
-                <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">
-                  {row.decided_by_name ?? "—"}
-                </span>
-              </div>
+            <div className={`inline-flex items-center gap-1 max-w-full whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
+              ${isRejected ? 'bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20'
+                : isApproved ? 'bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20'
+                : isCancelled ? 'bg-red-600/10 text-red-600 border border-red-300'
+                : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+              {isRejected ? <MdOutlineClose className="text-[11px] xl:text-[13px] shrink-0" />
+                : isApproved ? <MdCheck className="text-[11px] xl:text-[13px] shrink-0" />
+                : isCancelled ? <MdOutlineCancel className="text-[11px] xl:text-[13px] shrink-0" />
+                : <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 shrink-0" />}
+              
+              <span
+                className="pr-1 truncate min-w-0 max-w-[60px] sm:max-w-[90px] md:max-w-[130px] lg:max-w-[160px] xl:max-w-none cursor-default"
+                title={row.decided_by_name ?? '—'}
+              >
+                {row.decided_by_name ?? '—'}
+              </span>
             </div>
           );
         },

@@ -240,7 +240,7 @@ const handleSearchChange = (value) => {
         const isActive = row.status == 1;
         return (
             <div className="flex items-center">
-                <span className={`px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider border
+                <span className={`px-1 lg:px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider border
                     ${isActive
                         ? 'bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20'
                         : 'bg-[#FDECEC] text-[#C40000] border-[#C40000]/20'
@@ -261,7 +261,7 @@ const handleSearchChange = (value) => {
         .toUpperCase();
 
     const StatusBadgePill = ({ isActive }) => (
-        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border
+        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider border
             ${isActive
                 ? 'bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20'
                 : 'bg-[#FDECEC] text-[#C40000] border-[#C40000]/20'
@@ -273,16 +273,21 @@ const handleSearchChange = (value) => {
     const renderExistingCard = (r) => {
         const isActive = r.status == 1;
         return (
-            <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                    <span className="font-mono text-slate-600 text-xs">{r.sap_code}</span>
+                    <span><StatusBadgePill isActive={isActive} /></span>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
                     <p className={`text-xs font-semibold leading-snug truncate ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
                         {r.company_name ?? '—'}
                     </p>
-                    <p className="text-[11px] text-slate-500 truncate uppercase">
-                        {[r.sap_code, r.client_category, r.delsan_company].filter(Boolean).join(' · ') || '—'}
+                    <p className="text-[11px] font-medium truncate uppercase">
+                        {[r.client_category, r.delsan_company].filter(Boolean).join(' · ') || '—'}
                     </p>
+                    <p className="text-[11px] font-medium text-slate-700">{r.client_manager ?? r.id_client_mngr ?? '—'}</p>
                 </div>
-                <StatusBadgePill isActive={isActive} />
+                
             </div>
         );
     };
@@ -290,16 +295,18 @@ const handleSearchChange = (value) => {
     const renderPotentialCard = (r) => {
         const isActive = r.status == 1;
         return (
-            <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold leading-snug truncate text-[#0f3800]">
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                    <span className="text-slate-600 text-[10px]">{r.client_manager ?? r.id_client_mngr ?? '—'}</span>
+                    <span><StatusBadgePill isActive={isActive} /></span>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                    <p className={`text-xs font-semibold leading-snug truncate ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
                         {r.company_name ?? '—'}
                     </p>
-                    <p className="text-[11px] text-slate-500 truncate">
-                        {[r.client_manager, r.address].filter(Boolean).join(' · ') || '—'}
-                    </p>
+                    <p className="text-[11px] font-medium text-slate-700">{r.address ?? '—'}</p>
                 </div>
-                <StatusBadgePill isActive={isActive} />
+                
             </div>
         );
     };
@@ -411,7 +418,7 @@ const handleSearchChange = (value) => {
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
-                <div className="font-medium flex items-center min-w-72 max-w-72 text-[#0f3800]">
+                <div className="font-medium flex items-center min-w-52 max-w-60 text-[#0f3800]">
                     {r.company_name ?? '—'}
                 </div>
             ),
@@ -435,7 +442,7 @@ const handleSearchChange = (value) => {
                     sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
             ),
             cell: (r) => (
-                <span className="text-sm flex justify-center items-center text-slate-600">
+                <span className="flex max-w-52 items-center text-slate-600">
                     {r.address ?? '—'}
                 </span>
             ),
@@ -650,9 +657,9 @@ const handleSearchChange = (value) => {
                 <button
                     type="button"
                     onClick={clearAllFilters}
-                    className="h-7 md:h-9 flex items-center gap-1 px-1 text-[13px] text-[#4FA34E] hover:text-slate-600 transition-colors flex-shrink-0"
+                    className="h-7 md:h-9 flex items-center gap-1 px-1 text-[11px] md:text-[13px] text-[#4FA34E] hover:text-slate-600 transition-colors flex-shrink-0"
                 >
-                    <MdClose size={14} />
+                    <MdClose className="md:size-4" />
                     <span>Clear all</span>
                 </button>
             )}

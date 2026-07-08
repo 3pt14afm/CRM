@@ -5,7 +5,7 @@ import { route as ziggyRoute } from 'ziggy-js';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
 import SearchControl from '@/Components/roi/filters/SearchControl';
-import SortHeader from '@/Components/roi/filters/SortHeader';
+import SortHeader from '@/Components/SortHeader';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -307,10 +307,10 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
-        cell: (r) => <div className="text-center"><span className="font-medium">{r.sprf_no ?? '—'}</span></div>,
+        cell: (r) =>
+          <div className=""><span className="font-medium">{r.sprf_no ?? '—'}</span></div> ,
       },
       {
         key: 'sub_category',
@@ -321,10 +321,9 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
-        cell: (r) => <span className="font-medium flex justify-center items-center text-center">{r.sub_category ?? '—'}</span>,
+        cell: (r) => <span className="font-medium flex items-center">{r.sub_category ?? '—'}</span>,
       },
       {
         key: 'company_name',
@@ -335,10 +334,9 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
-        cell: (r) => <div className="w-full flex justify-center font-medium items-center text-center"><span>{r.company_name ?? '—'}</span></div>,
+        cell: (r) => <div className="w-full flex font-medium items-center"><span>{r.company_name ?? '—'}</span></div>,
       },
       {
         key: 'account_manager',
@@ -349,10 +347,9 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
-        cell: (r) => <div className="w-full flex justify-center font-medium items-center text-center"><span>{r.account_manager ?? '—'}</span></div>,
+        cell: (r) => <div className="w-full flex font-medium items-center"><span>{r.account_manager ?? '—'}</span></div>,
       },
       {
         key: 'type',
@@ -363,11 +360,10 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (r) => (
-          <span className={`font-medium flex justify-center items-center text-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+          <span className={`font-medium flex items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
             {r.type === 1 ? "Existing" : r.type === 0 ? "Potential" : "—"}
           </span>
         ),
@@ -381,11 +377,10 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (r) => (
-          <span className="font-medium text-blue-700 flex justify-center items-center text-center text-[11px] xl:text-xs">
+          <span className="font-medium text-blue-700 flex items-center text-[11px] xl:text-xs">
             {approvalLevelLabel(r.approval_level)}
           </span>
         ),
@@ -399,7 +394,6 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             sortBy={sortBy}
             sortDirection={sortOrder}
             onSort={handleSort}
-            align="center"
           />
         ),
         cell: (row) => {
@@ -415,39 +409,31 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
               : { badge: 'bg-blue-100 text-blue-700 border-blue-200', suffix: 'text-blue-500', by: 'text-blue-700' };
 
           return (
-            <div className="w-full flex justify-center items-center">
-              <div className="flex flex-col items-center leading-tight">
-                <span className={`inline-block px-2 py-1 text-center rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider border ${colorClasses.badge}`}>
+              <div className="flex flex-col items-start leading-tight">
+                <span className={`inline-block px-2 py-1 text-center rounded-2xl lg:rounded-full text-[8px] xl:text-[9px] font-bold tracking-wider border ${colorClasses.badge}`}>
                   <span className="uppercase">
                     {mainLabel}
                     <span className={`font-normal text-[10px] normal-case italic ${colorClasses.suffix}`}>{row.status_display_suffix}</span>
                   </span>
                 </span>
-                <span className={`mt-1 text-[10px] text-center italic ${colorClasses.by}`}>by: {row.current_approver ?? '—'}</span>
+                <span className={`mt-1 text-[10px] italic ${colorClasses.by}`}>by: {row.current_approver ?? '—'}</span>
               </div>
-            </div>
           );
         },
       },
       {
         key: 'submitted_at',
         header: (
-          <button
-            type="button"
-            onClick={() => handleSort('submitted_at')}
-            className="flex justify-center items-center w-full text-slate-500 gap-1"
-          >
-            <FaRegClock className="text-sm" title="Date Submitted" />
-            <span className="text-[11px] leading-none">DATE SUBMITTED</span>
-            <span className={`text-[11px] leading-none ${
-              sortBy === 'submitted_at' ? 'text-[#289800]' : 'text-slate-400'
-            }`}>
-              {sortBy === 'submitted_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
-            </span>
-          </button>
+          <SortHeader
+            label={<div className="flex items-center gap-1"><span>SUBMIT DATE</span></div>}
+            sortKey="submitted_at"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+          />
         ),
         cell: (r) => (
-          <div className="w-full text-slate-600 flex justify-center items-center text-center">
+          <div className="w-full text-slate-600 flex items-center">
             <span className="text-[10px] xl:text-[11px]">{formatDateTime(r.submitted_at)}</span>
           </div>
         ),

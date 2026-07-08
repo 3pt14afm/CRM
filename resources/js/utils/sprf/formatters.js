@@ -17,6 +17,6 @@ export const buildSigner = ({
   lookupPosition = '',
 } = {}) => ({
   name,
-  title,
+  title: lookupPosition?.trim?.() ? lookupPosition : title,
   lookupPosition,
 });
