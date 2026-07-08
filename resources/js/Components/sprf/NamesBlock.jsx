@@ -157,7 +157,7 @@ function Signatory({ name, title, timestamp = null, isRejector = false, signatur
             {name?.trim() || '—'}
           </span>
         </div>
-        <div className="text-[10px] xl:text-[11px] text-gray-500 mt-1 flex items-center justify-center">
+        <div className="text-[10px] uppercase xl:text-[11px] text-gray-500 mt-1 flex items-center justify-center">
           {title || ''}
         </div>
       </div>

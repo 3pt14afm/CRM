@@ -10,7 +10,7 @@ import {
 import { route as ziggyRoute } from 'ziggy-js';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SearchControl from '@/Components/roi/filters/SearchControl';
-import SortHeader from '@/Components/roi/filters/SortHeader';
+import SortHeader from '@/Components/SortHeader';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
 import FilterChip from '@/Components/roi/filters/FilterChip';
 
@@ -195,51 +195,51 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
     {
       key: 'sprf_no',
       header: (
-        <SortHeader label="SPRF #" sortKey="sprf_no" align="center"
+        <SortHeader label="SPRF #" sortKey="sprf_no"
           sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
-      cell: (r) => <div className="text-center"><span className="font-mono text-xs flex justify-center items-center text-slate-500">{r.sprf_no ?? '—'}</span></div>,
+      cell: (r) => <span className="font-mono text-xs flex items-center text-slate-500">{r.sprf_no ?? '—'}</span>,
     },
     {
       key: 'sub_category',
       header: (
-        <SortHeader label="SUB CATEGORY" sortKey="sub_category" align="center"
+        <SortHeader label="SUB CATEGORY" sortKey="sub_category"
           sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
-      cell: (r) => <span className="font-medium flex justify-center items-center">{r.sub_category ?? '—'}</span>,
+      cell: (r) => <span className="font-medium flex items-center">{r.sub_category ?? '—'}</span>,
     },
     {
       key: 'company_name',
       header: (
-        <SortHeader label="ACCOUNT" sortKey="company_name" align="center"
+        <SortHeader label="ACCOUNT" sortKey="company_name"
           sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
-      cell: (r) => <div className="w-full flex justify-center font-medium items-center"><span>{r.company_name ?? '—'}</span></div>,
+      cell: (r) => <div className="w-full flex font-medium items-center"><span>{r.company_name ?? '—'}</span></div>,
     },
     {
       key: 'account_manager',
       header: (
-        <SortHeader label="ACCOUNT MANAGER" sortKey="account_manager" align="center"
+        <SortHeader label="ACCOUNT MANAGER" sortKey="account_manager"
           sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
-      cell: (r) => <div className="w-full flex justify-center font-medium items-center"><span>{r.account_manager ?? '—'}</span></div>,
+      cell: (r) => <div className="w-full flex font-medium items-center"><span>{r.account_manager ?? '—'}</span></div>,
     },
     {
       key: 'type',
       header: (
-        <SortHeader label="TYPE" sortKey="type" align="center"
+        <SortHeader label="TYPE" sortKey="type"
           sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
-      cell: (r) => <div className="w-full flex justify-center font-medium items-center"><span>{companyTypeLabel(r.type)}</span></div>,
+      cell: (r) => <div className="w-full flex font-medium items-center"><span>{companyTypeLabel(r.type)}</span></div>,
     },
     {
       key: 'approval_level',
       header: (
-        <SortHeader label="APPROVAL LEVEL" sortKey="approval_level" align="center"
+        <SortHeader label="APPROVAL LEVEL" sortKey="approval_level"
           sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
       cell: (r) => (
-        <span className="font-medium text-blue-700 flex justify-center items-center text-center text-[11px] xl:text-xs">
+        <span className="font-medium text-blue-700 flex items-center text-[11px] xl:text-xs">
           {approvalLevelLabel(r.approval_level)}
         </span>
       ),
@@ -247,44 +247,49 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
     {
       key: 'status',
       header: (
-        <SortHeader label="STATUS" sortKey="status" align="center"
-          sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
+          <SortHeader label="STATUS" sortKey="status"
+            sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
       ),
       cell: (row) => {
         const s          = String(row.status ?? '').toLowerCase();
         const isRejected  = s === 'rejected';
         const isApproved  = s === 'approved';
         const isCancelled = s === 'cancelled';
+        
         return (
-          <div className="flex justify-center items-center">
-            <div className={`flex items-center gap-1 whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
+            <div className={`inline-flex items-center gap-1 max-w-full whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
               ${isRejected ? 'bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20'
                 : isApproved ? 'bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20'
                 : isCancelled ? 'bg-red-600/10 text-red-600 border border-red-300'
                 : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
-              {isRejected ? <MdOutlineClose className="text-[11px] xl:text-[13px] flex-shrink-0" />
-                : isApproved ? <MdCheck className="text-[11px] xl:text-[13px] flex-shrink-0" />
-                : isCancelled ? <MdOutlineCancel className="text-[11px] xl:text-[13px] flex-shrink-0" />
-                : <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 flex-shrink-0" />}
-              <span className="truncate max-w-[75px] hover:whitespace-normal hover:max-w-full hover:cursor-pointer">{row.decided_by_name ?? '—'}</span>
+              {isRejected ? <MdOutlineClose className="text-[11px] xl:text-[13px] shrink-0" />
+                : isApproved ? <MdCheck className="text-[11px] xl:text-[13px] shrink-0" />
+                : isCancelled ? <MdOutlineCancel className="text-[11px] xl:text-[13px] shrink-0" />
+                : <span className="w-[12px] h-[12px] xl:w-[14px] xl:h-[14px] rounded-full bg-blue-700/20 shrink-0" />}
+              
+              <span
+                className="pr-1 truncate min-w-0 max-w-[60px] sm:max-w-[90px] md:max-w-[130px] lg:max-w-[160px] xl:max-w-none cursor-default"
+                title={row.decided_by_name ?? '—'}
+              >
+                {row.decided_by_name ?? '—'}
+              </span>
             </div>
-          </div>
         );
       },
     },
     {
       key: 'decided_at',
       header: (
-        <button type="button" onClick={() => handleSort('decided_at')}
-          className="flex justify-center items-center w-full text-slate-500 gap-1">
-          <FaRegClock className="text-sm" title="Decision Date" />
-          <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
-            {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
-          </span>
-        </button>
+        <SortHeader 
+          label={<div className="flex items-center"><span>DATE ARCHIVED</span></div>} 
+          sortKey="decided_at" 
+          sortBy={sortBy} 
+          sortDirection={sortOrder} 
+          onSort={handleSort} 
+        />
       ),
       cell: (r) => (
-        <div className="w-full text-slate-600 flex justify-center items-center text-center">
+        <div className="w-full text-slate-600 flex items-center">
           <span className="text-[10px] xl:text-[11px]">{r.decided_at_display ?? '—'}</span>
         </div>
       ),
@@ -442,6 +447,8 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       ? "bg-red-600/10 text-red-600 border-red-300"
       : "bg-blue-100 text-blue-700 border-blue-200";
 
+    const decisionLabel = isCancelled ? 'cancelled by' : isApproved ? 'approved by' : isRejected ? 'disapproved by' : 'decided by';
+
     return (
       <div
         onClick={() => router.visit(ziggyRoute('sprf.archive.show', r.id))}
@@ -469,7 +476,7 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
 
         <p className="flex items-center justify-between text-[11px] text-slate-500">
           <span className="normal-case text-[10px] text-slate-500 italic">
-            decided by <span className="text-slate-700 font-semibold">{r.decided_by_name ?? '—'}</span>
+            {decisionLabel}{' '} <span className="text-slate-700 font-semibold">{r.decided_by_name ?? '—'}</span>
           </span>
           <span className="normal-case text-[10px] text-slate-500">
             prepared by <span className="text-[#195c00] font-semibold">{r.prepared_by ?? '—'}</span>
