@@ -164,33 +164,33 @@ function GeneratedProposals({ roiProposals, sprfProposals, stats }) {
   }, [liveStats, activeTab, roiCount, sprfCount]);
 
   const columns = useMemo(() => [
-{
-  key: "company_name",
-  header: (
-    <SortHeader label="CLIENT / COMPANY" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
-  ),
-  cell: (r) => (
-    <span className="font-medium text-slate-600 block truncate max-w-[180px]">
-      {r.company_name ?? "—"}
-    </span>
-  ),
-},
+    {
+      key: "company_name",
+      header: (
+        <SortHeader label="CLIENT / COMPANY" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
+      ),
+      cell: (r) => (
+        <span className="font-medium text-slate-600 block truncate max-w-[180px]">
+          {r.company_name ?? "—"}
+        </span>
+      ),
+    },
     {
       key: "project_ref",
       header: (
-        <SortHeader label={activeTab === 'sprf' ? "SPRF NO." : "ARCHIVE REF"} sortKey="project_ref" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
+        <SortHeader label={activeTab === 'sprf' ? "SPRF NO." : "ARCHIVE REF"} sortKey="project_ref" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
-      cell: (r) => <span className="text-xs text-slate-400">{r.project_ref}</span>,
+      cell: (r) => <span className="text-xs text-slate-400 block">{r.project_ref}</span>,
     },
     {
       key: "status",
       header: (
-        <SortHeader label="STATUS" sortKey="status" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="STATUS" sortKey="status" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
       cell: (r) => {
         const isGenerated = r.status === 'generated';
         return (
-          <div className="flex justify-center">
+          <div className="flex justify-start">
             <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
               isGenerated
                 ? "bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20"
@@ -205,10 +205,10 @@ function GeneratedProposals({ roiProposals, sprfProposals, stats }) {
     {
       key: "updated_at",
       header: (
-        <SortHeader label="LAST MODIFIED" sortKey="updated_at" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="LAST MODIFIED" sortKey="updated_at" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
       cell: (r) => (
-        <div className="flex items-center justify-center gap-1 text-slate-500">
+        <div className="flex items-center justify-start gap-1 text-slate-500">
           <IoTimeOutline />
           <span className="text-xs">{r.updated_at}</span>
         </div>
@@ -216,9 +216,9 @@ function GeneratedProposals({ roiProposals, sprfProposals, stats }) {
     },
     {
       key: "aging_display",
-      header: <span className="block text-center">AGE</span>,
+      header: <span className="block text-left">AGE</span>,
       cell: (r) => (
-        <div className="flex justify-center">
+        <div className="flex justify-start">
           <span className="text-xs font-medium text-slate-600">
             {r.aging_display ?? ""}
           </span>
@@ -244,7 +244,7 @@ function GeneratedProposals({ roiProposals, sprfProposals, stats }) {
         </div>
       ),
     },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [activeTab, sortBy, sortOrder]);
 
   const goToPage = (p) => {
@@ -270,7 +270,7 @@ function GeneratedProposals({ roiProposals, sprfProposals, stats }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-           <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
+           <p className="text-xs text-slate-700 truncate mt-0.5">{r.company_name ?? '—'}</p>
             <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${
               isGenerated
                 ? "bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20"

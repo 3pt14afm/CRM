@@ -180,33 +180,28 @@ function ArchivedProposals({ archivedRoiProposals, archivedSprfProposals, stats 
     },
   ], [activeTab, roiCount, sprfCount, rows]);
 
-  const columns = useMemo(() => [
-    // {
-    //   key: "proposal_ref",
-    //   header: "PROPOSAL REF",
-    //   cell: (r) => <span className="font-bold text-slate-700">{r.proposal_ref}</span>,
-    // },
+const columns = useMemo(() => [
     {
       key: "company_name",
       header: (
-        <SortHeader label="CLIENT / COMPANY" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
+        <SortHeader label="CLIENT / COMPANY" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
-      cell: (r) => <span className="font-medium text-slate-600">{r.company_name ?? "—"}</span>,
+      cell: (r) => <span className="font-medium text-slate-600 flex justify-start">{r.company_name ?? "—"}</span>,
     },
     {
       key: "project_ref",
       header: (
-        <SortHeader label={activeTab === 'sprf' ? "SPRF NO." : "ARCHIVE REF"} sortKey="project_ref" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
+        <SortHeader label={activeTab === 'sprf' ? "SPRF NO." : "ARCHIVE REF"} sortKey="project_ref" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
-      cell: (r) => <span className="text-xs text-slate-400">{r.project_ref}</span>,
+      cell: (r) => <span className="text-xs text-slate-400 flex justify-start">{r.project_ref}</span>,
     },
     {
       key: "status",
       header: (
-        <SortHeader label="STATUS" sortKey="status" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="STATUS" sortKey="status" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
       cell: (r) => (
-        <div className="flex justify-center">
+        <div className="flex justify-start">
           <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider border ${statusBadgeClasses(r.status)}`}>
             {r.status}
           </span>
@@ -216,27 +211,16 @@ function ArchivedProposals({ archivedRoiProposals, archivedSprfProposals, stats 
     {
       key: "archived_at",
       header: (
-        <SortHeader label="ARCHIVED AT" sortKey="archived_at" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="ARCHIVED AT" sortKey="archived_at" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
       cell: (r) => (
-        <div className="flex justify-center">
+        <div className="flex justify-start">
           <span className="text-xs font-mono text-slate-600">
             {formatArchivedAt(r.archived_at)}
           </span>
         </div>
       ),
     },
-    // {
-    //   key: "aging_display",
-    //   header: <span className="block text-center">AGE</span>,
-    //   cell: (r) => (
-    //     <div className="flex justify-center">
-    //       <span className="text-xs font-medium text-slate-600">
-    //         {r.aging_display ?? ""}
-    //       </span>
-    //     </div>
-    //   ),
-    // },
     {
       key: "actions",
       header: <span className="block text-center">ACTIONS</span>,
@@ -271,15 +255,15 @@ function ArchivedProposals({ archivedRoiProposals, archivedSprfProposals, stats 
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold">{r.proposal_ref}</p>
+            <p className="text-xs text-slate-700 truncate max-w-[190px] mt-0.5">{r.company_name ?? '—'}</p>
           <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadgeClasses(r.status)}`}>
             {r.status}
           </span>
         </div>
-        <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
+      
         <p className="text-[11px] text-slate-400 font-mono">{r.project_ref}</p>
         <p className="mt-1 text-[10px] text-slate-500">
-          <span className="font-medium text-slate-700">{r.aging_display ?? ""}</span>
+          <span className="font-normal text-slate-700">{r.aging_display ?? ""}</span>
         </p>
         <p className="mt-1 text-[11px] text-slate-500">
           <span className="font-medium text-slate-700 font-mono">{formatArchivedAt(r.archived_at)}</span>

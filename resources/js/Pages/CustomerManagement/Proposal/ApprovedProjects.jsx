@@ -219,25 +219,25 @@ function ApproveProjects({
     {
       key: "user_name",
       header: (
-        <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
+        <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
-      cell: (r) => <span className="text-[#289800] font-semibold">{r.user?.name ?? "—"}</span>,
+      cell: (r) => <span className="text-[#289800] font-semibold flex justify-start items-center">{r.user?.name ?? "—"}</span>,
     },
     {
       key: "reference",
       header: (
-        <SortHeader label="REFERENCE" sortKey="reference" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="REFERENCE" sortKey="reference" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
-      cell: (r) => <span className="font-semibold flex justify-center items-center">{r.reference ?? "—"}</span>,
+      cell: (r) => <span className="font-semibold flex justify-start items-center">{r.reference ?? "—"}</span>,
     },
     {
       key: "company_name",
       header: (
-        <SortHeader label="COMPANY NAME" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="COMPANY NAME" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
       cell: (r) => (
-        <div className="flex justify-center items-center w-full h-full">
-          <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+        <div className="flex justify-start items-center w-full h-full">
+          <span className="font-medium text-left block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
             {r.company_name ?? "—"}
           </span>
         </div>
@@ -246,10 +246,10 @@ function ApproveProjects({
     {
       key: "contract_years",
       header: (
-        <SortHeader label="CONTRACT TERM" sortKey="contract_years" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="CONTRACT TERM" sortKey="contract_years" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
       cell: (r) => (
-        <span className="font-medium flex justify-center items-center">
+        <span className="font-medium flex justify-start items-center">
           {r.contract_years != null ? `${r.contract_years} Years` : "—"}
         </span>
       ),
@@ -257,10 +257,10 @@ function ApproveProjects({
     {
       key: "type",
       header: (
-        <SortHeader label="TYPE" sortKey="type" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
+        <SortHeader label="TYPE" sortKey="type" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
       ),
       cell: (r) => (
-        <span className={`font-medium flex justify-center items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
+        <span className={`font-medium flex justify-start items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
           {r.type === 1 ? "Existing" : "Potential"}
         </span>
       ),
@@ -268,33 +268,33 @@ function ApproveProjects({
     {
       key: "approved_by_name",
       header: (
-        <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-center items-center w-full text-slate-500 gap-1">
+        <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-start items-center w-full text-slate-500 gap-1">
           <span>APPROVED BY</span>
           <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
             {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
           </span>
         </button>
       ),
-      cell: (r) => <span className="text-slate-800 flex justify-center items-center">{r.decided_by_name ?? "—"}</span>,
+      cell: (r) => <span className="text-slate-800 flex justify-start items-center">{r.decided_by_name ?? "—"}</span>,
     },
-{
-  key: "decided_at",
-  header: (
-    <SortHeader
-      label={<IoTimeOutline size={14} />}
-      sortKey="decided_at"
-      sortBy={sortBy}
-      sortDirection={sortOrder}
-      onSort={handleSort}
-      align="center"
-    />
-  ),
-  cell: (r) => (
-    <span className="text-slate-600 flex justify-center items-center text-xs">
-      {r.decided_at_display ?? "—"}
-    </span>
-  ),
-},
+    {
+      key: "decided_at",
+      header: (
+        <SortHeader
+          label={<IoTimeOutline size={14} />}
+          sortKey="decided_at"
+          sortBy={sortBy}
+          sortDirection={sortOrder}
+          onSort={handleSort}
+          align="left"
+        />
+      ),
+      cell: (r) => (
+        <span className="text-slate-600 flex justify-start items-center text-xs">
+          {r.decided_at_display ?? "—"}
+        </span>
+      ),
+    },
     {
       key: "actions",
       header: <div className="text-center w-full">ACTIONS</div>,
@@ -310,109 +310,102 @@ function ApproveProjects({
         </div>
       ),
     },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sortBy, sortOrder]);
 
   // ─── SPRF columns ─────────────────────────────────────────────
   // NOTE: SprfArchiveProject doesn't have company_name or contract_years —
   // using sprf_no as the reference and company_sap_code in place of company name.
-  const sprfColumns = useMemo(() => [
-    {
-      key: "preparer_name",
-      header: (
-        <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} />
-      ),
-      cell: (r) => <span className="text-[#289800] font-semibold">{r.preparer?.name ?? "—"}</span>,
-    },
-    {
-      key: "sprf_no",
-      header: (
-        <SortHeader label="SPRF NO." sortKey="sprf_no" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
-      ),
-      cell: (r) => <span className="font-semibold flex justify-center items-center">{r.sprf_no ?? "—"}</span>,
-    },
-    {
-      key: "company_sap_code",
-      header: (
-        <SortHeader label="COMPANY (SAP CODE)" sortKey="company_sap_code" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
-      ),
-      cell: (r) => (
-        <div className="flex justify-center items-center w-full h-full">
-          <span className="font-medium text-center block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
-            {r.company_sap_code ?? "—"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "account",
-      header: (
-        <SortHeader label="ACCOUNT" sortKey="account" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="center" />
-      ),
-      cell: (r) => <span className="font-medium flex justify-center items-center">{r.account ?? "—"}</span>,
-    },
-    {
-      header: "STATUS",
-      key: "status",
-      cell: (row) => (
-        <div className="flex justify-center items-center">
-          <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
-            {row.status ?? "APPROVED"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "approved_by_name",
-      header: (
-        <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-center items-center w-full text-slate-500 gap-1">
-          <span>APPROVED BY</span>
-          <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
-            {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
-          </span>
-        </button>
-      ),
-      cell: (r) => <span className="text-slate-800 flex justify-center items-center">{r.decided_by_name ?? "—"}</span>,
-    },
-    {
-  key: "decided_at",
-  header: (
-    <button
-      type="button"
-      onClick={() => handleSort('decided_at')}
-      className="flex justify-center items-center w-full text-slate-500 gap-1"
-    >
-      <IoTimeOutline size={14} />
-      <span className={`text-[11px] leading-none ${
-        sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'
-      }`}>
-        {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+const sprfColumns = useMemo(() => [
+  {
+    key: "preparer_name",
+    header: (
+      <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
+    ),
+    cell: (r) => <span className="text-[#289800] font-semibold flex justify-start items-center">{r.preparer?.name ?? "—"}</span>,
+  },
+  {
+    key: "sprf_no",
+    header: (
+      <SortHeader label="SPRF NO." sortKey="sprf_no" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
+    ),
+    cell: (r) => <span className="font-semibold flex justify-start items-center">{r.sprf_no ?? "—"}</span>,
+  },
+  {
+    key: "company_sap_code",
+    header: (
+      <SortHeader label="COMPANY (SAP CODE)" sortKey="company_sap_code" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
+    ),
+    cell: (r) => (
+      <div className="flex justify-start items-center w-full h-full">
+        <span className="font-medium text-left block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+          {r.company_sap_code ?? "—"}
+        </span>
+      </div>
+    ),
+  },
+  {
+    key: "account",
+    header: (
+      <SortHeader label="ACCOUNT" sortKey="account" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
+    ),
+    cell: (r) => <span className="font-medium flex justify-start items-center">{r.account ?? "—"}</span>,
+  },
+  {
+    header: "STATUS",
+    key: "status",
+    cell: (row) => (
+      <div className="flex justify-start items-center">
+        <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
+          {row.status ?? "APPROVED"}
+        </span>
+      </div>
+    ),
+  },
+  {
+    key: "approved_by_name",
+    header: (
+      <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-start items-center w-full text-slate-500 gap-1">
+        <span>APPROVED BY</span>
+        <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
+          {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+        </span>
+      </button>
+    ),
+    cell: (r) => <span className="text-slate-800 flex justify-start items-center">{r.decided_by_name ?? "—"}</span>,
+  },
+  {
+    key: "decided_at",
+    header: (
+      <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-start items-center w-full text-slate-500 gap-1">
+        <IoTimeOutline size={14} />
+        <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
+          {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+        </span>
+      </button>
+    ),
+    cell: (r) => (
+      <span className="text-slate-600 flex justify-start items-center text-xs">
+        {r.decided_at_display ?? "—"}
       </span>
-    </button>
-  ),
-  cell: (r) => (
-    <span className="text-slate-600 flex justify-center items-center text-xs">
-      {r.decided_at_display ?? "—"}
-    </span>
-  ),
-},
-    {
-      key: "actions",
-      header: <div className="text-center w-full">ACTIONS</div>,
-      cell: (r) => (
-        <div className="flex justify-center items-center">
-          <button
-            className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
-            type="button"
-            onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'sprf' }))}
-          >
-            <FaFileInvoice className="text-[15px]" />
-          </button>
-        </div>
-      ),
-    },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sortBy, sortOrder]);
+    ),
+  },
+  {
+    key: "actions",
+    header: <div className="text-center w-full">ACTIONS</div>,
+    cell: (r) => (
+      <div className="flex justify-center items-center">
+        <button
+          className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
+          type="button"
+          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'sprf' }))}
+        >
+          <FaFileInvoice className="text-[15px]" />
+        </button>
+      </div>
+    ),
+  },
+], [sortBy, sortOrder]);
 
   /* ── Fetch (both lists come back from the same endpoint every time) ── */
   const fetchApproveData = async ({
