@@ -151,7 +151,7 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
     if (hideView) return null;
 
     return (
-      <div className="hidden lg:flex justify-center items-center">
+      <div className="flex justify-center items-center">
         <button
           type="button"
           className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
