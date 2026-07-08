@@ -1,90 +1,24 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { router } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import FilterChip from '@/Components/roi/filters/FilterChip';
 import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
 import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
-import { FaFileInvoice, FaFolderOpen, FaRegClock } from 'react-icons/fa';
+import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline } from 'react-icons/io5';
 import { MdVerifiedUser } from 'react-icons/md';
 import { route as ziggyRoute } from 'ziggy-js';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
-import SortHeader from '@/Components/roi/filters/SortHeader';
+import ProjectTypeTabs from '@/Components/proposal/ProjectTypeTabs';
+import StatusBadge from '@/Components/proposal/StatusBadge';
+import ViewRecordButton from '@/Components/proposal/ViewRecordButton';
+import { sortableColumn, actionsColumn, statusColumn } from '@/Components/proposal/columns';
+import { createStorage } from '@/hooks/proposal/useNamespacedStorage';
+import { buildPagination } from '@/utils/proposal/buildPagination';
+import { formatDateLabel } from '@/utils/proposal/dateFormat';
 
-function formatDateLabel(dateStr) {
-  try {
-    if (!dateStr) return "—";
-    const datePart = dateStr.split(' ')[0];
-    const [year, month, day] = datePart.split('-');
-    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
-    if (isNaN(date.getTime())) return "—";
-    return date.toLocaleDateString('en-US', {
-      month: '2-digit', day: '2-digit', year: '2-digit', timeZone: 'UTC',
-    });
-  } catch {
-    return "—";
-  }
-}
-
-const LS = {
-  get: (key, fallback = "") => {
-    try { return localStorage.getItem(`approve_filter_${key}`) ?? fallback; }
-    catch { return fallback; }
-  },
-  set: (key, value) => {
-    try { localStorage.setItem(`approve_filter_${key}`, value); }
-    catch {}
-  },
-  clearAll: () => {
-    try {
-      Object.keys(localStorage)
-        .filter(k => k.startsWith('approve_filter_'))
-        .forEach(k => localStorage.removeItem(k));
-    } catch {}
-  },
-};
-
-// ─── Tab switcher (ROI / SPRF) ───────────────────────────────────
-function ProjectTypeTabs({ active, onChange, roiCount, sprfCount }) {
-  const tabs = [
-    { key: 'roi',  label: 'ROI Projects',  count: roiCount },
-    { key: 'sprf', label: 'SPRF Projects', count: sprfCount },
-  ];
-
-  return (
-    <div className="flex items-center ml-3 -mb-2 pt-5 gap-1  px-1">
-      {tabs.map((tab) => {
-        const isActive = active === tab.key;
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            className={`relative flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors ${
-              isActive
-                ? "text-[#289800]"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <span>{tab.label}</span>
-            {typeof tab.count === "number" && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                isActive ? "bg-[#E9F7E7] text-[#2DA300]" : "bg-slate-100 text-slate-500"
-              }`}>
-                {tab.count}
-              </span>
-            )}
-            {isActive && (
-              <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#289800] rounded-full" />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const LS = createStorage('approve_filter');
 
 function ApproveProjects({
   roiProjects: initialRoiProjects,
@@ -95,61 +29,61 @@ function ApproveProjects({
 }) {
   const [activeTab, setActiveTab] = useState(() => LS.get('active_tab', 'roi'));
 
-  const [localRoiProjects,  setLocalRoiProjects]  = useState(initialRoiProjects);
+  const [localRoiProjects, setLocalRoiProjects] = useState(initialRoiProjects);
   const [localSprfProjects, setLocalSprfProjects] = useState(initialSprfProjects);
-  const [localStats,        setLocalStats]        = useState(initialStats);
+  const [localStats, setLocalStats] = useState(initialStats);
 
-  const [search,     setSearch]     = useState(() => LS.get('search',      filters?.search      ?? ""));
-  const [typeFilter,  setTypeFilter] = useState(() => LS.get('type',       filters?.type        ?? ""));
-  const [perPage,     setPerPage]    = useState(() => {
-    const stored = LS.get('per_page', "");
+  const [search, setSearch] = useState(() => LS.get('search', filters?.search ?? ''));
+  const [typeFilter, setTypeFilter] = useState(() => LS.get('type', filters?.type ?? ''));
+  const [perPage, setPerPage] = useState(() => {
+    const stored = LS.get('per_page', '');
     const parsed = parseInt(stored, 10);
-    return !isNaN(parsed) && parsed > 0 ? parsed : (filters?.per_page ?? 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : filters?.per_page ?? 10;
   });
-  const [dateFrom,    setDateFrom]    = useState(() => LS.get('date_from',   filters?.date_from   ?? ""));
-  const [dateTo,      setDateTo]      = useState(() => LS.get('date_to',     filters?.date_to     ?? ""));
-  const [decidedBy,   setDecidedBy]   = useState(() => LS.get('decided_by',  filters?.decided_by  ?? ""));
-  const [locationId,  setLocationId]  = useState(() => LS.get('location_id', filters?.location_id ?? ""));
+  const [dateFrom, setDateFrom] = useState(() => LS.get('date_from', filters?.date_from ?? ''));
+  const [dateTo, setDateTo] = useState(() => LS.get('date_to', filters?.date_to ?? ''));
+  const [decidedBy, setDecidedBy] = useState(() => LS.get('decided_by', filters?.decided_by ?? ''));
+  const [locationId, setLocationId] = useState(() => LS.get('location_id', filters?.location_id ?? ''));
   const [currentPage, setCurrentPage] = useState(() => {
-    const stored = LS.get('page', "");
+    const stored = LS.get('page', '');
     const parsed = parseInt(stored, 10);
     return !isNaN(parsed) && parsed > 0 ? parsed : 1;
   });
 
-  const [showDatePicker,    setShowDatePicker]    = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
-  const [showDecidedBy,     setShowDecidedBy]     = useState(false);
-  const [showLocation,      setShowLocation]      = useState(false);
+  const [showDecidedBy, setShowDecidedBy] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
 
   const [perPageInput, setPerPageInput] = useState(() => {
-    const stored = LS.get('per_page', "");
+    const stored = LS.get('per_page', '');
     const parsed = parseInt(stored, 10);
     return !isNaN(parsed) && parsed > 0 ? String(parsed) : String(filters?.per_page ?? 10);
   });
-  const [loading,      setLoading]      = useState(false);
+  const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const datePickerRef    = useRef(null);
+  const datePickerRef = useRef(null);
   const perPagePickerRef = useRef(null);
-  const decidedByRef     = useRef(null);
-  const locationRef      = useRef(null);
+  const decidedByRef = useRef(null);
+  const locationRef = useRef(null);
 
-  const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? ""));
-  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ""));
+  const [sortBy, setSortBy] = useState(() => LS.get('sort_by', filters?.sort_by ?? ''));
+  const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ''));
 
   // Persist filters (incl. active tab) to localStorage whenever they change
   useEffect(() => {
-    LS.set('search',      search);
-    LS.set('type',        String(typeFilter));
-    LS.set('date_from',   dateFrom);
-    LS.set('date_to',     dateTo);
-    LS.set('decided_by',  decidedBy);
+    LS.set('search', search);
+    LS.set('type', String(typeFilter));
+    LS.set('date_from', dateFrom);
+    LS.set('date_to', dateTo);
+    LS.set('decided_by', decidedBy);
     LS.set('location_id', String(locationId));
-    LS.set('per_page',    String(perPage));
-    LS.set('page',        String(currentPage));
-    LS.set('sort_by',     sortBy);
-    LS.set('sort_order',  sortOrder);
-    LS.set('active_tab',  activeTab);
+    LS.set('per_page', String(perPage));
+    LS.set('page', String(currentPage));
+    LS.set('sort_by', sortBy);
+    LS.set('sort_order', sortOrder);
+    LS.set('active_tab', activeTab);
   }, [search, typeFilter, dateFrom, dateTo, decidedBy, locationId, perPage, currentPage, sortBy, sortOrder, activeTab]);
 
   useEffect(() => {
@@ -160,13 +94,13 @@ function ApproveProjects({
 
   useEffect(() => {
     const handler = (e) => {
-      if (datePickerRef.current    && !datePickerRef.current.contains(e.target))    setShowDatePicker(false);
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target)) setShowDatePicker(false);
       if (perPagePickerRef.current && !perPagePickerRef.current.contains(e.target)) setShowPerPagePicker(false);
-      if (decidedByRef.current     && !decidedByRef.current.contains(e.target))     setShowDecidedBy(false);
-      if (locationRef.current      && !locationRef.current.contains(e.target))      setShowLocation(false);
+      if (decidedByRef.current && !decidedByRef.current.contains(e.target)) setShowDecidedBy(false);
+      if (locationRef.current && !locationRef.current.contains(e.target)) setShowLocation(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const fetchApproveDataRef = useRef(null);
@@ -191,267 +125,204 @@ function ApproveProjects({
     const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
     setSortBy(key);
     setSortOrder(newOrder);
-    LS.set('sort_by',    key);
+    LS.set('sort_by', key);
     LS.set('sort_order', newOrder);
     fetchApproveData({ currentSortBy: key, currentSortOrder: newOrder });
   };
 
-  const selectedLocationName = useMemo(() =>
-    locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
-  , [locationId, locations]);
+  const selectedLocationName = useMemo(
+    () => (locationId ? locations.find((l) => String(l.id) === String(locationId))?.name ?? '' : ''),
+    [locationId, locations]
+  );
 
-  const hasActiveFilters = !!(search || typeFilter !== "" || dateFrom || dateTo || decidedBy || locationId || perPage !== 10 || sortBy !== "" || sortOrder !== "");
+  const hasActiveFilters = !!(
+    search ||
+    typeFilter !== '' ||
+    dateFrom ||
+    dateTo ||
+    decidedBy ||
+    locationId ||
+    perPage !== 10 ||
+    sortBy !== '' ||
+    sortOrder !== ''
+  );
 
-  const roiCount  = localStats?.totalRoiProjects  ?? localRoiProjects?.total  ?? 0;
+  const roiCount = localStats?.totalRoiProjects ?? localRoiProjects?.total ?? 0;
   const sprfCount = localStats?.totalSprfProjects ?? localSprfProjects?.total ?? 0;
 
   const tiles = useMemo(() => {
-    const totalArchiveProjects  = activeTab === 'sprf' ? sprfCount : roiCount;
-    const recentlyArchivedToday = localStats?.recentlyArchivedToday ?? "—";
+    const totalArchiveProjects = activeTab === 'sprf' ? sprfCount : roiCount;
+    const recentlyArchivedToday = localStats?.recentlyArchivedToday ?? '—';
     return [
-      { label: "Total Archives",    value: totalArchiveProjects,  icon: <FaFolderOpen />,  variant: "normal" },
-      { label: "Recently Archived", value: recentlyArchivedToday, icon: <IoTimeOutline />, variant: "normal" },
+      { label: 'Total Archives', value: totalArchiveProjects, icon: <FaFolderOpen />, variant: 'normal' },
+      { label: 'Recently Archived', value: recentlyArchivedToday, icon: <IoTimeOutline />, variant: 'normal' },
     ];
   }, [localStats, activeTab, roiCount, sprfCount]);
 
   // ─── ROI columns (unchanged) ─────────────────────────────────
-  const roiColumns = useMemo(() => [
-    {
-      key: "user_name",
-      header: (
-        <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-      ),
-      cell: (r) => <span className="text-[#289800] font-semibold flex justify-start items-center">{r.user?.name ?? "—"}</span>,
-    },
-    {
-      key: "reference",
-      header: (
-        <SortHeader label="REFERENCE" sortKey="reference" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-      ),
-      cell: (r) => <span className="font-semibold flex justify-start items-center">{r.reference ?? "—"}</span>,
-    },
-    {
-      key: "company_name",
-      header: (
-        <SortHeader label="COMPANY NAME" sortKey="company_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-      ),
-      cell: (r) => (
-        <div className="flex justify-start items-center w-full h-full">
-          <span className="font-medium text-left block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
-            {r.company_name ?? "—"}
+  const roiColumns = useMemo(
+    () => [
+      sortableColumn({
+        key: 'company_sap_code', label: 'SAP CODE',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => (
+          <div className="flex justify-start items-center w-full h-full">
+            <span className="font-mono text-sm text-left  hover:whitespace-normal cursor-pointer transition-all duration-200">
+              {r.company_sap_code ?? ''}
+            </span>
+          </div>
+        ),
+      }),
+      sortableColumn({
+        key: 'reference', label: 'REFERENCE',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => <span className="font-semibold flex justify-start items-center">{r.reference ?? '—'}</span>,
+      }),
+      sortableColumn({
+        key: 'company_name', label: 'COMPANY NAME',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => (
+          <div className="flex justify-start items-center w-full h-full">
+            <span className="font-medium text-left block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+              {r.company_name ?? '—'}
+            </span>
+          </div>
+        ),
+      }),
+      sortableColumn({
+        key: 'contract_years', label: 'CONTRACT TERM',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => (
+          <span className="font-medium flex justify-start items-center">
+            {r.contract_years != null ? `${r.contract_years} Years` : '—'}
           </span>
-        </div>
-      ),
-    },
-    {
-      key: "contract_years",
-      header: (
-        <SortHeader label="CONTRACT TERM" sortKey="contract_years" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-      ),
-      cell: (r) => (
-        <span className="font-medium flex justify-start items-center">
-          {r.contract_years != null ? `${r.contract_years} Years` : "—"}
-        </span>
-      ),
-    },
-    {
-      key: "type",
-      header: (
-        <SortHeader label="TYPE" sortKey="type" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-      ),
-      cell: (r) => (
-        <span className={`font-medium flex justify-start items-center ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>
-          {r.type === 1 ? "Existing" : "Potential"}
-        </span>
-      ),
-    },
-    {
-      key: "approved_by_name",
-      header: (
-        <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-start items-center w-full text-slate-500 gap-1">
-          <span>APPROVED BY</span>
-          <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
-            {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
+        ),
+      }),
+      sortableColumn({
+        key: 'type', label: 'TYPE',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => (
+          <span className={`font-medium flex justify-start items-center ${r.type === 1 ? 'text-[#289800]' : 'text-gray-500'}`}>
+            {r.type === 1 ? 'Existing' : 'Potential'}
           </span>
-        </button>
-      ),
-      cell: (r) => <span className="text-slate-800 flex justify-start items-center">{r.decided_by_name ?? "—"}</span>,
-    },
-    {
-      key: "decided_at",
-      header: (
-        <SortHeader
-          label={<IoTimeOutline size={14} />}
-          sortKey="decided_at"
-          sortBy={sortBy}
-          sortDirection={sortOrder}
-          onSort={handleSort}
-          align="left"
-        />
-      ),
-      cell: (r) => (
-        <span className="text-slate-600 flex justify-start items-center text-xs">
-          {r.decided_at_display ?? "—"}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      header: <div className="text-center w-full">ACTIONS</div>,
-      cell: (r) => (
-        <div className="flex justify-center items-center">
-          <button
-            className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
-            type="button"
-            onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'roi' }))}
-          >
-            <FaFileInvoice className="text-[15px]" />
-          </button>
-        </div>
-      ),
-    },
+        ),
+      }),
+      sortableColumn({
+        key: 'approved_by_name', sortKey: 'decided_at', label: 'APPROVED BY',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => <span className="text-slate-800 flex justify-start items-center">{r.decided_by_name ?? '—'}</span>,
+      }),
+      sortableColumn({
+        key: 'decided_at', label: <IoTimeOutline size={14} />,
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => <span className="text-slate-600 flex justify-start items-center text-xs">{r.decided_at_display ?? '—'}</span>,
+      }),
+      actionsColumn({
+        headerLabel: <div className="text-center w-full">ACTIONS</div>,
+        cellClassName: 'flex justify-center items-center',
+        render: (r) => <ViewRecordButton id={r.id} type="roi" size="15px" />,
+      }),
+    ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sortBy, sortOrder]);
+    [sortBy, sortOrder]
+  );
 
   // ─── SPRF columns ─────────────────────────────────────────────
   // NOTE: SprfArchiveProject doesn't have company_name or contract_years —
   // using sprf_no as the reference and company_sap_code in place of company name.
-const sprfColumns = useMemo(() => [
-  {
-    key: "preparer_name",
-    header: (
-      <SortHeader label="PREPARED BY" sortKey="prepared_by_name" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-    ),
-    cell: (r) => <span className="text-[#289800] font-semibold flex justify-start items-center">{r.preparer?.name ?? "—"}</span>,
-  },
-  {
-    key: "sprf_no",
-    header: (
-      <SortHeader label="SPRF NO." sortKey="sprf_no" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-    ),
-    cell: (r) => <span className="font-semibold flex justify-start items-center">{r.sprf_no ?? "—"}</span>,
-  },
-  {
-    key: "company_sap_code",
-    header: (
-      <SortHeader label="COMPANY (SAP CODE)" sortKey="company_sap_code" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-    ),
-    cell: (r) => (
-      <div className="flex justify-start items-center w-full h-full">
-        <span className="font-medium text-left block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
-          {r.company_sap_code ?? "—"}
-        </span>
-      </div>
-    ),
-  },
-  {
-    key: "account",
-    header: (
-      <SortHeader label="ACCOUNT" sortKey="account" sortBy={sortBy} sortDirection={sortOrder} onSort={handleSort} align="left" />
-    ),
-    cell: (r) => <span className="font-medium flex justify-start items-center">{r.account ?? "—"}</span>,
-  },
-  {
-    header: "STATUS",
-    key: "status",
-    cell: (row) => (
-      <div className="flex justify-start items-center">
-        <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
-          {row.status ?? "APPROVED"}
-        </span>
-      </div>
-    ),
-  },
-  {
-    key: "approved_by_name",
-    header: (
-      <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-start items-center w-full text-slate-500 gap-1">
-        <span>APPROVED BY</span>
-        <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
-          {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
-        </span>
-      </button>
-    ),
-    cell: (r) => <span className="text-slate-800 flex justify-start items-center">{r.decided_by_name ?? "—"}</span>,
-  },
-  {
-    key: "decided_at",
-    header: (
-      <button type="button" onClick={() => handleSort('decided_at')} className="flex justify-start items-center w-full text-slate-500 gap-1">
-        <IoTimeOutline size={14} />
-        <span className={`text-[11px] leading-none ${sortBy === 'decided_at' ? 'text-[#289800]' : 'text-slate-400'}`}>
-          {sortBy === 'decided_at' ? (sortOrder === 'desc' ? '▼' : '▲') : '⇅'}
-        </span>
-      </button>
-    ),
-    cell: (r) => (
-      <span className="text-slate-600 flex justify-start items-center text-xs">
-        {r.decided_at_display ?? "—"}
-      </span>
-    ),
-  },
-  {
-    key: "actions",
-    header: <div className="text-center w-full">ACTIONS</div>,
-    cell: (r) => (
-      <div className="flex justify-center items-center">
-        <button
-          className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
-          type="button"
-          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'sprf' }))}
-        >
-          <FaFileInvoice className="text-[15px]" />
-        </button>
-      </div>
-    ),
-  },
-], [sortBy, sortOrder]);
+  const sprfColumns = useMemo(
+    () => [
+      sortableColumn({
+        key: 'company_sap_code', label: 'COMPANY (SAP CODE)',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => (
+          <div className="flex justify-start items-center w-full h-full">
+            <span className="font-medium text-left block truncate max-w-[150px] hover:max-w-max hover:whitespace-normal cursor-pointer transition-all duration-200">
+              {r.company_sap_code ?? ''}
+            </span>
+          </div>
+        ),
+      }),
+      sortableColumn({
+        key: 'sprf_no', label: 'SPRF NO.',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => <span className="font-semibold flex justify-start items-center">{r.sprf_no ?? '—'}</span>,
+      }),
+      sortableColumn({
+        key: 'account', label: 'ACCOUNT',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => <span className="font-medium flex justify-start items-center">{r.account ?? '—'}</span>,
+      }),
+      statusColumn({
+        getStatus: (r) => r.status ?? 'approved',
+        // NOTE: non-sortable here, matching the original — this column had
+        // no SortHeader/onClick at all, unlike the other columns.
+      }),
+      sortableColumn({
+        key: 'approved_by_name', sortKey: 'decided_at', label: 'APPROVED BY',
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => <span className="text-slate-800 flex justify-start items-center">{r.decided_by_name ?? '—'}</span>,
+      }),
+      sortableColumn({
+        key: 'decided_at', label: <IoTimeOutline size={14} />,
+        sortBy, sortOrder, onSort: handleSort,
+        cell: (r) => <span className="text-slate-600 flex justify-start items-center text-xs">{r.decided_at_display ?? '—'}</span>,
+      }),
+      actionsColumn({
+        headerLabel: <div className="text-center w-full">ACTIONS</div>,
+        cellClassName: 'flex justify-center items-center',
+        render: (r) => <ViewRecordButton id={r.id} type="sprf" size="15px" />,
+      }),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sortBy, sortOrder]
+  );
 
   /* ── Fetch (both lists come back from the same endpoint every time) ── */
   const fetchApproveData = async ({
-    silent            = false,
-    targetPage        = currentPage,
-    currentSearch     = search,
-    currentType       = typeFilter,
-    currentPerPage    = perPage,
-    currentDateFrom   = dateFrom,
-    currentDateTo     = dateTo,
-    currentDecidedBy  = decidedBy,
+    silent = false,
+    targetPage = currentPage,
+    currentSearch = search,
+    currentType = typeFilter,
+    currentPerPage = perPage,
+    currentDateFrom = dateFrom,
+    currentDateTo = dateTo,
+    currentDecidedBy = decidedBy,
     currentLocationId = locationId,
-    currentSortBy     = sortBy,
-    currentSortOrder  = sortOrder,
+    currentSortBy = sortBy,
+    currentSortOrder = sortOrder,
   } = {}) => {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
-      const response = await axios.get(ziggyRoute("proposals.index"), {
+      const response = await axios.get(ziggyRoute('proposals.index'), {
         params: {
-          page:        targetPage,
-          search:      currentSearch     || undefined,
-          per_page:    currentPerPage,
-          date_from:   currentDateFrom   || undefined,
-          date_to:     currentDateTo     || undefined,
-          decided_by:  currentDecidedBy  || undefined,
+          page: targetPage,
+          search: currentSearch || undefined,
+          per_page: currentPerPage,
+          date_from: currentDateFrom || undefined,
+          date_to: currentDateTo || undefined,
+          decided_by: currentDecidedBy || undefined,
           location_id: currentLocationId || undefined,
-          sort_by:     currentSortBy     || undefined,
-          sort_order:  currentSortOrder  || undefined,
-          type:        currentType !== "" ? currentType : undefined,
+          sort_by: currentSortBy || undefined,
+          sort_order: currentSortOrder || undefined,
+          type: currentType !== '' ? currentType : undefined,
         },
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+        headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
       });
 
       const props = response.data?.props ?? response.data;
-      const roiPayload  = props?.roiProjects  ?? null;
+      const roiPayload = props?.roiProjects ?? null;
       const sprfPayload = props?.sprfProjects ?? null;
 
-      if (roiPayload)  setLocalRoiProjects(roiPayload);
+      if (roiPayload) setLocalRoiProjects(roiPayload);
       if (sprfPayload) setLocalSprfProjects(sprfPayload);
       setCurrentPage(targetPage);
 
       const statsPayload = props?.stats ?? null;
       if (statsPayload) setLocalStats(statsPayload);
     } catch (error) {
-      console.error("Failed to query approved records:", error);
+      console.error('Failed to query approved records:', error);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -461,55 +332,70 @@ const sprfColumns = useMemo(() => [
   useEffect(() => {
     const t = setTimeout(() => fetchApproveData({ targetPage: 1 }), 400);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  const handleTypeChange       = (val) => { setTypeFilter(val);   fetchApproveData({ currentType: val,       targetPage: 1 }); };
-  const handleDecidedByApply   = (val) => { setDecidedBy(val);    fetchApproveData({ currentDecidedBy: val,  targetPage: 1 }); };
-  const handleLocationApply    = (val) => { setLocationId(val);   fetchApproveData({ currentLocationId: val, targetPage: 1 }); };
-  const handleDateApply        = ()    => { setShowDatePicker(false); fetchApproveData({ targetPage: 1 }); };
-  const handleDateClear        = ()    => {
-    setDateFrom("");
-    setDateTo("");
+  const handleTypeChange = (val) => {
+    setTypeFilter(val);
+    fetchApproveData({ currentType: val, targetPage: 1 });
+  };
+  const handleDecidedByApply = (val) => {
+    setDecidedBy(val);
+    fetchApproveData({ currentDecidedBy: val, targetPage: 1 });
+  };
+  const handleLocationApply = (val) => {
+    setLocationId(val);
+    fetchApproveData({ currentLocationId: val, targetPage: 1 });
+  };
+  const handleDateApply = () => {
+    setShowDatePicker(false);
+    fetchApproveData({ targetPage: 1 });
+  };
+  const handleDateClear = () => {
+    setDateFrom('');
+    setDateTo('');
     setShowDatePicker(false);
     fetchApproveData({ currentDateFrom: undefined, currentDateTo: undefined, targetPage: 1 });
   };
   const handlePerPageInputApply = () => {
     const raw = parseInt(perPageInput, 10);
     const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 500) : perPage;
-    setPerPage(num); setPerPageInput(String(num)); setShowPerPagePicker(false);
+    setPerPage(num);
+    setPerPageInput(String(num));
+    setShowPerPagePicker(false);
     fetchApproveData({ currentPerPage: num, targetPage: 1 });
   };
 
   const handleClearAllFilters = () => {
-    setSearch("");
-    setTypeFilter("");
-    setDateFrom("");
-    setDateTo("");
-    setDecidedBy("");
-    setLocationId("");
+    setSearch('');
+    setTypeFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setDecidedBy('');
+    setLocationId('');
     setPerPage(10);
-    setPerPageInput("10");
-    setSortBy("");
-    setSortOrder("");
+    setPerPageInput('10');
+    setSortBy('');
+    setSortOrder('');
     setShowDatePicker(false);
     setShowDecidedBy(false);
     setShowLocation(false);
     LS.clearAll();
-    LS.set('per_page',   "10");
-    LS.set('sort_by',    "");
-    LS.set('sort_order', "");
+    LS.set('per_page', '10');
+    LS.set('sort_by', '');
+    LS.set('sort_order', '');
     LS.set('active_tab', activeTab);
 
     fetchApproveData({
-      currentSearch:     "",
-      currentType:       "",
-      currentDateFrom:   undefined,
-      currentDateTo:     undefined,
-      currentDecidedBy:  "",
-      currentLocationId: "",
-      currentSortBy:     "",
-      currentSortOrder:  "",
-      targetPage:        1,
+      currentSearch: '',
+      currentType: '',
+      currentDateFrom: undefined,
+      currentDateTo: undefined,
+      currentDecidedBy: '',
+      currentLocationId: '',
+      currentSortBy: '',
+      currentSortOrder: '',
+      targetPage: 1,
     });
   };
 
@@ -518,21 +404,14 @@ const sprfColumns = useMemo(() => [
   const dateLabel = (() => {
     if (dateFrom && dateTo) return `${formatDateLabel(dateFrom)} – ${formatDateLabel(dateTo)}`;
     if (dateFrom) return `From ${formatDateLabel(dateFrom)}`;
-    if (dateTo)   return `Until ${formatDateLabel(dateTo)}`;
+    if (dateTo) return `Until ${formatDateLabel(dateTo)}`;
     return null;
   })();
 
   // ─── Active list resolution ───────────────────────────────────
   const activeProjects = activeTab === 'sprf' ? localSprfProjects : localRoiProjects;
   const rows = activeProjects?.data ?? [];
-  const pagination = activeProjects && typeof activeProjects.current_page === "number"
-    ? {
-        page:         activeProjects.current_page,
-        perPage:      activeProjects.per_page ?? perPage,
-        total:        activeProjects.total ?? rows.length,
-        onPageChange: goToPage,
-      }
-    : null;
+  const pagination = buildPagination(activeProjects, goToPage, perPage);
   const activeColumns = activeTab === 'sprf' ? sprfColumns : roiColumns;
 
   const searchControl = (
@@ -554,7 +433,7 @@ const sprfColumns = useMemo(() => [
         label="Decided By"
         value={decidedBy}
         onClick={() => setShowDecidedBy((p) => !p)}
-        onClear={() => handleDecidedByApply("")}
+        onClear={() => handleDecidedByApply('')}
       />
       <TextFilterPopup
         open={showDecidedBy}
@@ -571,14 +450,13 @@ const sprfColumns = useMemo(() => [
 
   const filterToolbar = (
     <>
-
       <ListFilterToolbar
         hasActiveFilters={hasActiveFilters}
         onClearAll={handleClearAllFilters}
         typeOptions={[
-          { value: "", label: "All Types" },
-          { value: 1,  label: "Existing" },
-          { value: 0,  label: "Potential" },
+          { value: '', label: 'All Types' },
+          { value: 1, label: 'Existing' },
+          { value: 0, label: 'Potential' },
         ]}
         typeFilter={typeFilter}
         onTypeChange={handleTypeChange}
@@ -598,11 +476,14 @@ const sprfColumns = useMemo(() => [
         onDateApply={handleDateApply}
         onDateClear={handleDateClear}
       />
-                <ProjectTypeTabs
+      <ProjectTypeTabs
         active={activeTab}
         onChange={handleTabChange}
         roiCount={roiCount}
         sprfCount={sprfCount}
+        roiLabel="ROI Projects"
+        sprfLabel="SPRF Projects"
+        wrapperClassName="flex items-center ml-3 -mb-2 pt-5 gap-1 px-1"
       />
     </>
   );
@@ -612,12 +493,11 @@ const sprfColumns = useMemo(() => [
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold">{r.reference ?? '—'}</p>
-          <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
-            {r.status ?? 'APPROVED'}
-          </span>
+          <p className="text-sm font-mono">{r.reference ?? '—'}</p>
+          <StatusBadge status={r.status ?? 'approved'} />
         </div>
-        <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
+        <p className="text-sm text-slate-600 truncate mt-0.5">{r.company_name ?? '—'}</p>
+        <p className="text-[11px] text-slate-400 font-mono">{r.company_sap_code ?? ''}</p>
         <p className="mt-1 text-[11px] text-slate-500">
           {r.contract_years != null ? `${r.contract_years} Years` : '—'} · {r.type === 1 ? 'Existing' : 'Potential'}
         </p>
@@ -628,52 +508,55 @@ const sprfColumns = useMemo(() => [
           Approved by <span className="font-medium text-slate-700">{r.decided_by_name ?? '—'}</span>
         </p>
       </div>
-      <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
-          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'roi' }))}
-        >
-          <FaFileInvoice className="text-[15px]" />
-        </button>
+
+      {/* Right column with aligned Date and Action Button */}
+      <div className="flex flex-col items-end justify-between shrink-0 self-stretch">
+        <span className="font-mono text-[11px] text-slate-600">
+          {r.decided_at_display ?? '—'}
+        </span>
+        <div onClick={(e) => e.stopPropagation()}>
+          <ViewRecordButton id={r.id} type="roi" size="15px" />
+        </div>
       </div>
     </div>
   );
 
-  const renderSprfCard = (r) => (
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold">{r.sprf_no ?? '—'}</p>
-          <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20">
-            {r.status ?? 'APPROVED'}
-          </span>
-        </div>
-        <p className="text-xs text-slate-600 truncate mt-0.5">{r.company_sap_code ?? '—'}</p>
-        <p className="mt-1 text-[11px] text-slate-500">{r.account ?? '—'}</p>
-        <p className="mt-1 text-[11px] text-slate-500">
-          Prepared by <span className="font-medium text-slate-700">{r.preparer?.name ?? '—'}</span>
-        </p>
-        <p className="mt-1 text-[11px] text-slate-500">
-          Approved by <span className="font-medium text-slate-700">{r.decided_by_name ?? '—'}</span>
-        </p>
-      </div>
+const renderSprfCard = (r) => (
+  <div className="flex flex-col gap-2">
+    {/* Top Section: SPRF No and Decided At */}
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-sm font-semibold">{r.sprf_no ?? '—'}</p>
+      <span className="font-mono text-[11px] text-slate-500">
+        {r.decided_at_display ?? '—'}
+      </span>
+    </div>
+
+    {/* Middle Section: Status, Account, SAP Code, and Prepared By */}
+    <div>
+      <StatusBadge status={r.status ?? 'approved'} />
+      <p className="mt-2 text-[11px] text-slate-500">{r.account ?? '—'}</p>
+      <p className="text-[11px] text-slate-400 font-mono">{r.company_sap_code ?? ''}</p>
+      <p className="mt-1 text-[11px] text-slate-500">
+        Prepared by <span className="font-medium text-slate-700">{r.preparer?.name ?? '—'}</span>
+      </p>
+    </div>
+
+    {/* Bottom Section: Approved By and Action Button aligned */}
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-[11px] text-slate-500">
+        Approved by <span className="font-medium text-slate-700">{r.decided_by_name ?? '—'}</span>
+      </p>
       <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="px-3 py-1 flex flex-row justify-center gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:bg-[#B5EBA2]/50 transition-colors shadow-sm border border-[#289800]/10"
-          onClick={() => router.visit(ziggyRoute("proposals.show", { id: r.id, type: 'sprf' }))}
-        >
-          <FaFileInvoice className="text-[15px]" />
-        </button>
+        <ViewRecordButton id={r.id} type="sprf" size="15px" />
       </div>
     </div>
-  );
+  </div>
+);
 
   return (
     <ProjectListSection
       tiles={tiles}
-      tableTitle={activeTab === 'sprf' ? "Approved SPRF Projects" : "Approved ROI Projects"}
+      tableTitle={activeTab === 'sprf' ? 'Approved SPRF Projects' : 'Approved ROI Projects'}
       columns={activeColumns}
       rows={rows}
       rowKey={(r) => `${activeTab}-${r.id}`}
