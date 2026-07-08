@@ -20,11 +20,11 @@ export default function Dashboard() {
     <>
       <Head title="Customer Account Management Dashboard" />
 
-      <h1 className="text-3xl mt-2 font-semibold text-gray-800 pt-5 px-8">
+      <h1 className="text-3xl mt-2 font-semibold text-gray-800 pt-5 mx-3 lg:px-8">
         Customer Management Dashboard
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 mx-10 px-8 pt-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 lg:mx-10 mx-3 lg:px-8 pt-8 pb-5">
         {cards.map((card, index) => (
           <StatCard
             key={card.name}

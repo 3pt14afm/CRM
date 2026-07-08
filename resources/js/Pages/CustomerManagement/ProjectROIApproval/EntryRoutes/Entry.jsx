@@ -217,9 +217,11 @@ const handleGoBack = () => {
               <h1 className="font-semibold mt-3 text-xs sm:text-sm md:text-base">Project ROI Approval</h1>
               <p className="hidden md:block md:mt-3">/</p>
               <p className="text-lg sm:text-xl md:text-3xl font-semibold">
-                {routeName === 'current' || routeName === 'archive'
-                  ? `${entryProject?.company_name}`
-                  : 'Entry'}
+                {routeName === 'current' 
+                  ? 'Current' 
+                  : routeName === 'archive' 
+                    ? 'Archive' 
+                    : 'Entry'}
               </p>
             </div>
           </div>
