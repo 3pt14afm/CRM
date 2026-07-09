@@ -1229,9 +1229,9 @@ const [companyInfo, setCompanyInfo] = useState({
       {showRejectModal && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-black/10 p-5">
-            <h2 className="text-base sm:text-md md:text-lg font-bold text-[#111111]">Reject SPRF</h2>
+            <h2 className="text-base sm:text-md md:text-lg font-bold text-[#111111]">Disapprove SPRF</h2>
             <p className="text-[13px] md:text-sm text-slate-500 md:mt-1">
-              Add an optional note for the rejection.
+              Add an optional note explaining the disapproval.
             </p>
 
             <textarea
@@ -1260,7 +1260,7 @@ const [companyInfo, setCompanyInfo] = useState({
                 disabled={isSubmitting}
                 className="px-3 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl bg-red-500 text-white text-xs md:text-sm font-medium md:font-semibold disabled:opacity-50"
               >
-                Confirm Reject
+                Disapprove
               </button>
             </div>
           </div>

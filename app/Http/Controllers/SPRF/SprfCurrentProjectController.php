@@ -821,6 +821,7 @@ public function show(SprfCurrentProject $project)
             'requires_vp_ccto'               => $project->requires_vp_ccto,
             'requires_president_ceo'         => $project->requires_president_ceo,
             'requires_rebate_justification'  => $project->requires_rebate_justification,
+            'is_final_approver'              => $this->workflowService->willResolveOnAdvance($project, $viewerId),
             'last_saved_at' => $project->updated_at ? $project->updated_at->toISOString() : null,
             'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
             'approved_at' => $project->approved_at ? $project->approved_at->toISOString() : null,
