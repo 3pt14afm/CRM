@@ -951,4 +951,26 @@ class SprfCurrentWorkflowService
 
         return $firstLevel;
     }
+
+    // -------------------------------------------------------------------------
+    // Workflow – Effective final-approver check (for UI button state)
+    // -------------------------------------------------------------------------
+
+    /**
+     * True when clicking "advance" for this user will actually resolve the
+     * project (archive-as-approved) rather than move it to a genuinely new
+     * approver. This happens when the acting user is also the approver for
+     * one or more consecutive levels ahead, up to and including the terminal
+     * level (e.g. same person is both ESD Director and VP/CCTO). Mirrors the
+     * consecutive-run logic in handleAdvance() so "Approve" vs "Submit to
+     * Next Level" always matches what will actually happen.
+     */
+    public function willResolveOnAdvance(SprfCurrentProject $project, int $actingUserId): bool
+    {
+        $terminalLevel = $this->getTerminalLevel($project);
+        $autoLevels    = $this->collectAutoAdvanceLevels($project, $actingUserId, (int) $project->current_level);
+        $lastLevel     = end($autoLevels);
+
+        return $lastLevel !== false && $lastLevel >= $terminalLevel;
+    }
 }
