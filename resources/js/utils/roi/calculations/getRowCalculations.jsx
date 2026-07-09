@@ -6,16 +6,12 @@ export const getRowCalculations = (row, projectData) => {
     const rawPrice = Number(row?.price) || 0;
 
     // 2. PROJECT CONSTANTS
-    const annualInterestRate =
-        (Number(projectData?.interest?.annualInterest) || 0) / 100;
-
     const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
+    const annualInterestRate = annualInterest / 100;
+    const contractYears = Number(projectData?.companyInfo?.contractYears) || 1;
 
-    const contractYears =
-        Number(projectData?.companyInfo?.contractYears) || 1;
-
-    const percentMargin =
-        (annualInterest * contractYears) / 100;
+    // Margin rate scales with rate x years
+    const percentMargin = (annualInterest * contractYears) / 100;
 
     // 3. IDENTIFIERS
     const type = row?.type?.toLowerCase() || "";
@@ -23,15 +19,13 @@ export const getRowCalculations = (row, projectData) => {
 
     const mode = row?.mode?.toLowerCase() || "";
     const isConsumable = mode === "mono" || mode === "color";
-    const isModeOthers =
-        mode === "others" || mode === "other";
+    const isModeOthers = mode === "others" || mode === "other";
 
-    const contractType =
-        (
-            projectData?.companyInfo?.contractType ||
-            projectData?.contractType ||
-            ""
-        ).toLowerCase();
+    const contractType = (
+        projectData?.companyInfo?.contractType ||
+        projectData?.contractType ||
+        ""
+    ).toLowerCase();
 
     const isOutright = contractType.includes("outright");
     const isRentalClick = contractType.includes("rental + click");
@@ -42,63 +36,32 @@ export const getRowCalculations = (row, projectData) => {
     // --- LOGIC CONTROLLER ---
 
     let yields = rawYields;
-
-    if (isMachine) {
-        yields = isModeOthers ? rawYields : 0;
-    }
-
-    if (isMonthlyRental && isConsumable) {
-        yields = 0;
-    }
+    if (isMachine) yields = isModeOthers ? rawYields : 0;
+    if (isMonthlyRental && isConsumable) yields = 0;
 
     let price = rawPrice;
-
-    if ((isRentalClick || isFreeUseClick) && isConsumable) {
-        price = 0;
-    }
-
-    if (isNonOutright && isMachine) {
-        price = 0;
-    }
-
-    if (!isOutright && isMachine) {
-        price = 0;
-    }
-
-    if (isMonthlyRental && isConsumable) {
-        price = 0;
-        yields = 0;
-    }
+    if ((isRentalClick || isFreeUseClick) && isConsumable) price = 0;
+    if (isNonOutright && isMachine) price = 0;
+    if (!isOutright && isMachine) price = 0;
+    if (isMonthlyRental && isConsumable) { price = 0; yields = 0; }
 
     // =========================
-    // COST CALCULATION FIX
+    // COST CALCULATION
     // =========================
-
     let finalComputedCost = rawCost;
     let basePerYear = 0;
-
-    let machineMargin = 0;
     let machineMarginTotal = 0;
 
-    const isInterestModel =
-        isMachine &&
-        !isOutright; // 🚨 ONLY non-outright gets interest/margin
+    const isInterestModel = isMachine && !isOutright;
 
     if (isInterestModel && !isModeOthers) {
         basePerYear = rawCost / contractYears;
-
         const interestAmount = basePerYear * annualInterestRate;
-
-        finalComputedCost =
-            (basePerYear + interestAmount) * contractYears;
-
-        machineMargin = basePerYear * percentMargin;
-        machineMarginTotal = rawCost * percentMargin;
+        finalComputedCost = (basePerYear + interestAmount) * contractYears; // = rawCost * (1 + rate)
+        machineMarginTotal = rawCost * percentMargin; // reported separately, NOT folded into totalCost
     } else {
-        // OUTRIGHT OR MODE OTHERS
         finalComputedCost = rawCost;
         basePerYear = rawCost;
-        machineMargin = 0;
         machineMarginTotal = 0;
     }
 
@@ -107,19 +70,19 @@ export const getRowCalculations = (row, projectData) => {
         computedCost: finalComputedCost,
         basePerYear,
 
+        // FIX 1: qty now multiplies machine cost (previously ignored for machines)
+        // FIX 2: margin no longer folded into totalCost — it's a separate line item
         totalCost: isMachine
-            ? (isOutright ? finalComputedCost : finalComputedCost + machineMarginTotal)
+            ? finalComputedCost * qty
             : rawCost * qty,
 
         yields,
-
         costCpp: yields > 0 ? rawCost / yields : 0,
 
         price,
         totalSell: price * qty,
         sellCpp: yields > 0 ? price / yields : 0,
 
-        machineMargin,
-        machineMarginTotal,
+        machineMarginTotal, // reported alongside totalCost, not merged in
     };
 };

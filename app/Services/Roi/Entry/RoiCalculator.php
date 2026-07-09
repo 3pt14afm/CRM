@@ -238,7 +238,8 @@ class RoiCalculator
             }
 
             // Fallback securely to computedCost from your row calculations
-            $loadedCost = $this->toFloat($m['cost'] ?? 0);
+          
+            $loadedCost = $this->toFloat($m['cost'] ?? 0) + $this->toFloat($m['machineMarginTotal'] ?? 0);
             $unitSell   = $flags['isOutright'] ? $this->toFloat($m['price'] ?? 0) : 0.0;
 
             return array_merge($m, [

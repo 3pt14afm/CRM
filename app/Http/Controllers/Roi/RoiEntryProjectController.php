@@ -82,6 +82,7 @@ class RoiEntryProjectController extends Controller
             ->where('status', 1)
             ->whereRaw('LOWER(company_name) LIKE ?', [$search . '%'])
              ->where('id_client_mngr', $employeeId) // only companies managed by this user
+             
             ->select('id', 'company_name')
             ->limit(20)
             ->get();

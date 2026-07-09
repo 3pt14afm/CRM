@@ -141,10 +141,11 @@ export const get1YrPotential = (projectData) => {
     }
 
     const unitCost = Number(m.cost) || 0;
-    const unitMargin = Number(m.margin) || 0; 
+    const unitMargin = Number(m.machineMarginTotal) || 0; 
     
     const loadedCost = unitCost + unitMargin;
     const unitSell = isOutright ? (Number(m.price) || 0) : 0;
+    
 
     return {
       ...m,

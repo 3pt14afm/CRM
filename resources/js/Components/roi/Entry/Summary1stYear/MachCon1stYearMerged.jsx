@@ -494,7 +494,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                     <td className="border border-gray-200 text-center px-1 py-2">
                       {p ? (
                         <div className="flex flex-col gap-1">
-                          <p>{format(p.totalCost)}</p>
+                          <p>{format(p.cost)}</p>
                           {(Number(p.machineMarginTotal) || 0) !== 0 && (
                             <p className="text-[11px] text-blue-700 italic">
                               {format(p.machineMarginTotal)}
