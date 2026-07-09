@@ -31,7 +31,7 @@ export default function EditLocationModal({
             Location Name
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={editForm.name}
             onChange={(e) =>
               setEditForm((p) => ({ ...p, name: e.target.value }))
@@ -49,7 +49,7 @@ export default function EditLocationModal({
             Code
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={editForm.code}
             onChange={(e) =>
               setEditForm((p) => ({ ...p, code: e.target.value }))
@@ -67,7 +67,7 @@ export default function EditLocationModal({
           </label>
           <input
             type="text"
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={editForm.phone_number}
             onChange={(e) =>
               setEditForm((p) => ({ ...p, phone_number: e.target.value }))
@@ -85,7 +85,7 @@ export default function EditLocationModal({
           </label>
           <input
             type="text"
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={editForm.address}
             onChange={(e) =>
               setEditForm((p) => ({ ...p, address: e.target.value }))
@@ -102,7 +102,7 @@ export default function EditLocationModal({
             Delsan
           </label>
           <select
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={editForm.delsan ?? ""}
             onChange={(e) =>
               setEditForm((p) => ({ ...p, delsan: e.target.value }))
@@ -120,34 +120,36 @@ export default function EditLocationModal({
         </div>
 
         <div className="rounded-lg border border-black/10 bg-[#FBFFFA] px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col">
+          <div className="grid grid-cols-3 items-center gap-4">
+            <div className="col-span-2 flex flex-col gap-1">
               <span className="text-sm font-semibold text-slate-800">Active Status</span>
               <span className="text-xs text-slate-500">
-                Toggle whether this location is active or inactive.
+                Toggle whether this position is active or inactive.
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setEditForm((p) => ({ ...p, is_active: !Boolean(p.is_active) }))
-              }
-              className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
-                editForm.is_active ? "bg-[#289800]" : "bg-slate-300"
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                  editForm.is_active ? "translate-x-6" : "translate-x-1"
+            <div className="col-span-1 flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setEditForm((p) => ({ ...p, is_active: !Boolean(p.is_active) }))
+                }
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
+                  editForm.is_active ? "bg-[#289800]" : "bg-slate-300"
                 }`}
-              />
-            </button>
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                    editForm.is_active ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
-          <div className="mt-2">
+          <div className="mt-3">
             <span
-              className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                 editForm.is_active
                   ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
                   : "bg-red-100 text-red-600 border border-red-200"

@@ -24,7 +24,7 @@ export default function NewPositionModal({
             Position Code
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.code}
             onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
             placeholder="e.g. SM-001"
@@ -38,7 +38,7 @@ export default function NewPositionModal({
             Position Name
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.name}
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             placeholder="e.g. Sales Manager"
@@ -51,7 +51,7 @@ export default function NewPositionModal({
             Department
           </label>
           <select
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.department_id}
             onChange={(e) => setForm((p) => ({ ...p, department_id: e.target.value }))}
           >

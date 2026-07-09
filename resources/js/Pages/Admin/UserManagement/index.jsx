@@ -409,6 +409,58 @@ function UserManagement({
     ];
   }, [departmentOptionsProp, departments]);
 
+  // --- Card Rendering Logic for Mobile/Grid View ---
+  const renderUserCard = (r) => {
+    const isActive = isUserActive(r);
+    const fullName = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "—";
+
+    return (
+      <div>
+        <div className="flex justify-between items-center pb-1">
+          <span className="text-[11px] text-slate-700">{r.employee_id}</span>
+          <div className="shrink-0 flex flex-col items-end gap-1.5">
+            <span
+              className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border
+                ${isActive
+                  ? "bg-[#E9F7E7] text-[#289800] border-[#2DA300]/20"
+                  : "bg-red-100 text-red-700 border-red-200"
+                }`}
+            >
+              {isActive ? "Active" : "Inactive"}
+            </span>
+          </div>
+        
+        </div>
+
+        <div className="flex flex-col gap-1 min-w-0">
+          <p className="text-sm font-semibold leading-snug truncate">{fullName}</p>
+          <p className="text-xs text-slate-600 truncate">
+            {[r.position, r.department_name]
+              .filter(Boolean)
+              .join(" · ") || "—"}
+          </p>
+          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+            {[r.location_name, r.delsan ? r.delsan.toUpperCase() : null]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+
+        
+      </div>
+    );
+  };
+
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isMobileSearchOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isMobileSearchOpen]);
+
   const statusFilterOptions = useMemo(
     () => [
       { label: "All", value: "" },
@@ -455,25 +507,24 @@ function UserManagement({
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
-          <div className="mx-10 pt-8">
-            <div className="flex items-start justify-between gap-6">
+          <div className="mx-4 sm:mx-8 md:mx-10 pt-4 md:pt-8">
+            <div className="flex items-start justify-between sm:gap-6">
               <div className="flex flex-col gap-1">
                 <h1 className="text-lg font-semibold text-slate-900 md:text-xl lg:text-2xl">
                   User Management
                 </h1>
                 <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">
-                  Manage user accounts, assigned positions, and reporting
-                  locations.
+                  Manage user accounts, assigned positions, and reporting locations.
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <span className="text-xs text-slate-500">{formattedDate}</span>
+                <span className="text-[11px] md:text-xs text-slate-500">{formattedDate}</span>
               </div>
             </div>
 
             <div className="mt-4">
               <div className="-mx-4 md:-mx-6 lg:-mx-10">
-                <div className="-mb-2 mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-black/10 border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
+                <div className="-mb-2 mx-4 md:mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-black/10 border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-sm md:shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterPill
                       label="Status"
@@ -543,66 +594,102 @@ function UserManagement({
                   rows={userRows}
                   rowKey={(r) => String(r.id)}
                   pagination={userPagination}
+                  renderCard={renderUserCard}
+                  onRowClick={editModal.openEditModal}
                   rightControls={
-                    <div className="flex items-center gap-2">
-                      <div ref={searchBoxRef} className="relative">
-                        <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-
-                        <input
-                          className="w-64 rounded-lg border border-black/10 bg-white px-3 py-1 pl-9 text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
-                          value={searchQuery}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setSearchQuery(value);
-                            setShowSearchSuggestions(Boolean(value.trim()));
+                    <div className="flex items-center gap-1">
+                      <div ref={searchBoxRef} className="relative flex items-center justify-end">
+                        
+                        {/* Mobile Toggle Button - Swaps between Search and X */}
+                        <button
+                          type="button"
+                          className={`p-1.5 rounded-lg border border-black/10 sm:hidden transition-colors ${
+                            isMobileSearchOpen 
+                              ? "bg-slate-100 text-slate-700" 
+                              : "text-slate-500 hover:text-slate-800 bg-white"
+                          }`}
+                          onClick={() => {
+                            setIsMobileSearchOpen(!isMobileSearchOpen);
+                            if (isMobileSearchOpen) {
+                              setShowSearchSuggestions(false);
+                            }
                           }}
-                          onFocus={() => {
-                            isSearchFocusedRef.current = true;
-                            setShowSearchSuggestions(Boolean(searchQuery.trim()));
-                          }}
-                          placeholder="Type name, email, employee ID..."
-                        />
+                        >
+                          {isMobileSearchOpen ? <FiX className="h-4 w-4" /> : <FiSearch className="h-4 w-4" />}
+                        </button>
 
-                        {showSearchSuggestions && (
-                          <div className="absolute right-0 z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg">
-                            {loadingSuggestions ? (
-                              <div className="px-3 py-2 text-sm text-slate-500">
-                                Loading...
-                              </div>
-                            ) : userSuggestions.length > 0 ? (
-                              userSuggestions.map((item) => (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  className="block w-full px-3 py-2 text-left text-sm hover:bg-[#FBFFFA]"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    handleSelectSuggestion(item);
-                                  }}
-                                >
-                                  <div className="font-medium text-slate-800">
-                                    {item.label}
+                        {/* Search Input Container - Dropdown on mobile, Inline on sm+ */}
+                        <div 
+                          className={`
+                            absolute right-0 top-[calc(100%+0.5rem)] z-50 w-64 origin-top-right rounded-xl bg-white p-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-black/10 transition-all duration-200
+                            ${isMobileSearchOpen ? "scale-100 opacity-100 visible" : "scale-95 opacity-0 invisible pointer-events-none"}
+                            sm:pointer-events-auto sm:visible sm:relative sm:top-0 sm:w-auto sm:scale-100 sm:opacity-100 sm:border-none sm:bg-transparent sm:p-0 sm:shadow-none
+                          `}
+                        >
+                          <div className="relative w-full sm:w-64">
+                            <FiSearch className="pointer-events-none absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+
+                            <input
+                              ref={inputRef}
+                              className="w-full rounded-lg border border-black/10 bg-white px-3 py-0.5 sm:py-1 pl-8 sm:pl-9 text-[12px] md:text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
+                              value={searchQuery}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setSearchQuery(value);
+                                setShowSearchSuggestions(Boolean(value.trim()));
+                              }}
+                              onFocus={() => {
+                                isSearchFocusedRef.current = true;
+                                setShowSearchSuggestions(Boolean(searchQuery.trim()));
+                              }}
+                              placeholder="Type name, email, employee ID..."
+                            />
+
+                            {/* Suggestions Dropdown */}
+                            {showSearchSuggestions && (
+                              <div className="absolute right-0 z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-lg">
+                                {loadingSuggestions ? (
+                                  <div className="px-3 py-2 text-sm text-slate-500">
+                                    Loading...
                                   </div>
-                                  <div className="text-xs text-slate-500">
-                                    {item.subLabel}
-                                    {item.position ? ` • ${item.position}` : ""}
+                                ) : userSuggestions.length > 0 ? (
+                                  userSuggestions.map((item) => (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      className="block w-full px-3 py-2 text-left text-sm hover:bg-[#FBFFFA]"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleSelectSuggestion(item);
+                                        setIsMobileSearchOpen(false);
+                                        setShowSearchSuggestions(false);
+                                      }}
+                                    >
+                                      <div className="font-medium text-slate-800">
+                                        {item.label}
+                                      </div>
+                                      <div className="text-xs text-slate-500">
+                                        {item.subLabel}
+                                        {item.position ? ` • ${item.position}` : ""}
+                                      </div>
+                                    </button>
+                                  ))
+                                ) : searchQuery.trim() ? (
+                                  <div className="px-3 py-2 text-sm text-slate-500">
+                                    No matches found.
                                   </div>
-                                </button>
-                              ))
-                            ) : searchQuery.trim() ? (
-                              <div className="px-3 py-2 text-sm text-slate-500">
-                                No matches found.
+                                ) : null}
                               </div>
-                            ) : null}
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-
+                      
                       <button
                         type="button"
                         title="Add User"
                         aria-label="Add User"
-                        className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                        className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95 shrink-0"
                         onClick={assignModal.openAssignModal}
                       >
                         <BsPersonFillAdd className="w-6 h-6" />

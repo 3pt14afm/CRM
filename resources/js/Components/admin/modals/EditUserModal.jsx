@@ -237,7 +237,7 @@ useEffect(() => {
       maxWidth="2xl"
     >
       {/* Outer form: flex column, height-constrained so inner body scrolls */}
-      <form onSubmit={onSubmit} className="flex flex-col max-h-[75vh]">
+      <form onSubmit={onSubmit} className="flex flex-col max-h-[60vh] sm:max-h-[75vh]">
 
         {/* ── Scrollable body ── */}
         <div className="overflow-y-auto flex-1 space-y-4 pr-1">
@@ -316,14 +316,14 @@ useEffect(() => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-600">
                 First Name
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-1 sm:py-2 text-[13px] sm:text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
                 value={editForm.first_name ?? ""}
                 onChange={(e) =>
                   setEditForm((p) => ({ ...p, first_name: e.target.value }))
@@ -341,7 +341,7 @@ useEffect(() => {
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-1 sm:py-2 text-[13px] sm:text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
                 value={editForm.last_name ?? ""}
                 onChange={(e) =>
                   setEditForm((p) => ({ ...p, last_name: e.target.value }))
@@ -362,7 +362,7 @@ useEffect(() => {
               <input
                 type="number"
                 min="0"
-                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-1 sm:py-2 text-[13px] sm:text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
                 value={editForm.employee_id ?? ""}
                 onChange={(e) =>
                   setEditForm((p) => ({ ...p, employee_id: e.target.value }))
@@ -380,7 +380,7 @@ useEffect(() => {
               </label>
               <input
                 type="email"
-                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-1 sm:py-2 text-[13px] sm:text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
                 value={editForm.email ?? ""}
                 onChange={(e) =>
                   setEditForm((p) => ({ ...p, email: e.target.value }))
@@ -399,7 +399,7 @@ useEffect(() => {
                 Department
               </label>
               <select
-                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-1 sm:py-2 text-[13px] sm:text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
                 value={editForm.department_id ?? ""}
                 onChange={(e) =>
                   setEditForm((p) => ({
@@ -431,7 +431,7 @@ useEffect(() => {
                 Position
               </label>
               <select
-                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800] disabled:bg-slate-100"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-1 sm:py-2 text-[13px] sm:text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800] disabled:bg-slate-100"
                 value={editForm.company_position_id ?? ""}
                 onChange={(e) => {
                   const selectedPosition = filteredPositions.find(
@@ -469,7 +469,7 @@ useEffect(() => {
               Location
             </label>
             <select
-              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+              className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-1 sm:py-2 text-[13px] sm:text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
               value={editForm.primary_location_id ?? ""}
               onChange={(e) =>
                 setEditForm((p) => ({
@@ -529,7 +529,7 @@ useEffect(() => {
               </button>
             </div>
 
-            <div className="flex items-center justify-center rounded-lg px-3 py-2 md:col-span-1">
+            <div className="flex items-center justify-center rounded-lg sm:px-3 py-2 md:col-span-1">
            <button
               type="button"
               onClick={() => setShowResetConfirm(true)}
@@ -936,15 +936,15 @@ function SignatureRow({ icon, title, subtitle, action, onAction, onView, signatu
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-gray-500 ring-1 ring-black/10">
+        <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-lg bg-white text-gray-500 ring-1 ring-black/10">
           {icon}
         </div>
         <div>
-          <p className="text-xs font-semibold text-slate-700">{title}</p>
+          <p className="text-xs font-semibold text-slate-700 pb-1 sm:pb-0">{title}</p>
           <p className="text-[11px] text-slate-500">{subtitle}</p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-1 sm:gap-3">
         {signatureUrl ? (
           <button
             type="button"
@@ -966,7 +966,7 @@ function SignatureRow({ icon, title, subtitle, action, onAction, onView, signatu
         <button
           type="button"
           onClick={onAction}
-          className="text-xs font-medium text-darkgreen transition hover:text-[#2a9e00]"
+          className="flex gap-1 text-[11px] sm:text-xs font-medium text-darkgreen transition hover:text-[#2a9e00]"
         >
           {action} <span aria-hidden="true">›</span>
         </button>

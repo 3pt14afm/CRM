@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 import NewApproverMatrixModal from "@/Components/admin/modals/NewApproverMatrixModal";
@@ -9,7 +9,7 @@ import FilterPill from "@/Components/FilterPill";
 import SortHeader from "@/Components/SortHeader";
 import { MdEdit, MdOutlinePowerSettingsNew } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiX } from "react-icons/fi";
 
 function StatusPill({ children, tone = "neutral" }) {
   const classes = {
@@ -30,9 +30,13 @@ function StatusPill({ children, tone = "neutral" }) {
   );
 }
 
-function ApproverLine({ label, value, note }) {
+function ApproverLine({ label, value, note, align = "center" }) {
   return (
-    <div className="text-[11px] lg:text-xs text-slate-700 flex items-center justify-center gap-1.5">
+    <div
+      className={`text-[11px] lg:text-xs text-slate-700 flex items-center gap-1.5 ${
+        align === "start" ? "justify-start" : "justify-center"
+      }`}
+    >
       <span className="font-semibold text-slate-900">{label}</span>
       <span className="text-slate-500"> — </span>
       <span>{value && String(value).trim() !== "" ? value : "Not setup"}</span>
@@ -560,6 +564,26 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
     openCreateModal();
   };
 
+  const [isRoiMobileSearchOpen, setIsRoiMobileSearchOpen] = useState(false);
+  const roiSearchBoxRef = useRef(null);
+  const roiSearchInputRef = useRef(null);
+
+  useEffect(() => {
+    if (isRoiMobileSearchOpen && roiSearchInputRef.current) {
+      roiSearchInputRef.current.focus();
+    }
+  }, [isRoiMobileSearchOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (roiSearchBoxRef.current && !roiSearchBoxRef.current.contains(event.target)) {
+        setIsRoiMobileSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <>
       <Head title="Approver Matrix" />
@@ -616,7 +640,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
-          <div className="mx-10 pt-8">
+          <div className="mx-4 sm:mx-8 md:mx-10 pt-4 md:pt-8">
             <div className="flex items-start justify-between gap-6">
               <div className="flex flex-col gap-1">
                 <h1 className="text-lg font-semibold text-slate-900 md:text-xl lg:text-2xl">
@@ -630,7 +654,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
               </div>
 
               <div className="flex flex-col items-end gap-2">
-                <span className="text-xs text-slate-500">{formattedDate}</span>
+                <span className="text-[11px] md:text-xs text-slate-500">{formattedDate}</span>
               </div>
             </div>
 
@@ -674,7 +698,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
 
             {activeMatrixTab === "ROI" && (
               <div className="mt-2">
-                <div className="mb-3 flex flex-wrap items-center gap-1 rounded-lg border border-black/10 px-2 py-[6px] bg-white">
+                <div className="mb-3 flex flex-wrap items-center gap-0.5 sm:gap-1 rounded-lg border border-black/10 px-2 py-[6px] bg-white">
                   <FilterPill
                     label="Status"
                     value={roiFilters.status ?? ""}
@@ -694,20 +718,43 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
                     onChange={(v) => applyRoiFilters({ department: v, page: 1 })}
                   />
 
-                  <div className="relative ml-auto">
-                    <FiSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={roiSearchQuery}
-                      onChange={(e) => setRoiSearchQuery(e.target.value)}
-                      placeholder="Search location or department..."
-                      className="rounded-md border border-black/10 bg-white py-[6px] pl-8 pr-3 text-xs text-slate-700 outline-none focus:ring-0 focus:border-[#289800]"
-                    />
+                  <div ref={roiSearchBoxRef} className="relative flex items-center justify-end ml-auto">
+                    <button
+                      type="button"
+                      className={`p-1.5 rounded-lg border border-black/10 sm:hidden transition-colors ${
+                        isRoiMobileSearchOpen
+                          ? "bg-slate-100 text-slate-700"
+                          : "text-slate-500 hover:text-slate-800 bg-white"
+                      }`}
+                      onClick={() => setIsRoiMobileSearchOpen(!isRoiMobileSearchOpen)}
+                    >
+                      {isRoiMobileSearchOpen ? <FiX className="h-4 w-4" /> : <FiSearch className="h-4 w-4" />}
+                    </button>
+
+                    <div
+                      className={`
+                        absolute right-0 top-[calc(100%+0.5rem)] z-50 md:z-0 w-64 origin-top-right rounded-xl bg-white p-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-black/10 transition-all duration-200
+                        ${isRoiMobileSearchOpen ? "scale-100 opacity-100 visible" : "scale-95 opacity-0 invisible pointer-events-none"}
+                        sm:pointer-events-auto sm:visible sm:relative sm:top-0 sm:w-auto sm:scale-100 sm:opacity-100 sm:border-none sm:bg-transparent sm:p-0 sm:shadow-none
+                      `}
+                    >
+                      <div className="relative w-full sm:w-52 md:w-[240px]">
+                        <FiSearch className="pointer-events-none absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          ref={roiSearchInputRef}
+                          type="text"
+                          value={roiSearchQuery}
+                          onChange={(e) => setRoiSearchQuery(e.target.value)}
+                          placeholder="Search location or department..."
+                          className="w-full rounded-lg border border-black/10 bg-white px-3 py-0.5 sm:py-1 pl-8 sm:pl-9 text-[12px] md:text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className="hidden sm:block overflow-x-auto">
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
@@ -836,6 +883,88 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
                     </table>
                   </div>
 
+                  <div className="sm:hidden divide-y divide-slate-100">
+                    {matrixRows.length === 0 ? (
+                      <div className="px-6 py-10 text-center text-sm text-slate-500">
+                        No approver matrix rows found.
+                      </div>
+                    ) : (
+                      matrixRows.map((row, index) => {
+                        const rowKey = String(
+                          row.id ?? `${row.location_name}-${row.dept_name}-${index}-card`
+                        );
+
+                        const status = row?.status ?? null;
+                        const normalizedStatus = String(status ?? "").toLowerCase();
+
+                        return (
+                          <div key={rowKey} className="p-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-900 truncate">
+                                  {row.location_name ?? "—"}
+                                </p>
+                                <p className="text-xs text-slate-600 truncate">
+                                  {row.dept_name ?? "—"}
+                                </p>
+                              </div>
+
+                              <div className="shrink-0">
+                                {normalizedStatus === "active" ? (
+                                  <StatusPill tone="green">Active</StatusPill>
+                                ) : normalizedStatus === "inactive" ? (
+                                  <StatusPill tone="red">Inactive</StatusPill>
+                                ) : (
+                                  <StatusPill tone="gray">{status ?? "—"}</StatusPill>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex flex-col gap-1.5 pl-3">
+                              <ApproverLine
+                                align="start"
+                                label="Reviewed by"
+                                value={row?.reviewed_by_name}
+                              />
+                              <ApproverLine
+                                align="start"
+                                label="Checked by"
+                                value={row?.checked_by_name}
+                              />
+                              <ApproverLine
+                                align="start"
+                                label="Endorsed by"
+                                value={row?.endorsed_by_name}
+                              />
+                              <ApproverLine
+                                align="start"
+                                label="Confirmed by"
+                                value={row?.confirmed_by_name}
+                              />
+                              <ApproverLine
+                                align="start"
+                                label="Approved by"
+                                value={row?.approved_by_name}
+                              />
+                            </div>
+
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 py-1 px-2 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
+                                title="Edit"
+                                onClick={() => openEditModal(row)}
+                              >
+                                <MdEdit className="text-[13px]" />
+                                <span>Edit</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
                   {pagination && pagination.lastPage > 1 && (
                     <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
                       <p className="text-xs text-slate-500">
@@ -869,7 +998,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
 
             {activeMatrixTab === "SPRF" && (
               <div className="mt-2">
-                <div className="mb-3 flex flex-wrap items-center gap-1 rounded-lg border border-black/10 px-2 py-[6px] bg-white">
+                <div className="mb-3 flex flex-wrap items-center gap-1 rounded-lg border border-black/10 px-1 sm:px-2 py-[6px] bg-white">
                   <FilterPill
                     label="Status"
                     value={sprfFilters.status ?? ""}
@@ -889,20 +1018,45 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
                     onChange={(v) => applySprfFilters({ department: v })}
                   />
 
-                  <div className="relative ml-auto">
-                    <FiSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={sprfSearchQuery}
-                      onChange={(e) => setSprfSearchQuery(e.target.value)}
-                      placeholder="Search location or department..."
-                      className="rounded-md border border-black/10 bg-white py-[6px] pl-8 pr-3 text-xs text-slate-700 outline-none focus:ring-0 focus:border-[#289800]"
-                    />
+                  <div ref={roiSearchBoxRef} className="relative flex items-center justify-end ml-auto">
+                    {/* Mobile Toggle Button - Swaps between Search and X */}
+                    <button
+                      type="button"
+                      className={`p-1.5 rounded-lg border border-black/10 sm:hidden transition-colors ${
+                        isRoiMobileSearchOpen
+                          ? "bg-slate-100 text-slate-700"
+                          : "text-slate-500 hover:text-slate-800 bg-white"
+                      }`}
+                      onClick={() => setIsRoiMobileSearchOpen(!isRoiMobileSearchOpen)}
+                    >
+                      {isRoiMobileSearchOpen ? <FiX className="h-4 w-4" /> : <FiSearch className="h-4 w-4" />}
+                    </button>
+
+                    {/* Search Input Container - Dropdown on mobile, Inline on sm+ */}
+                    <div
+                      className={`
+                        absolute right-0 top-[calc(100%+0.5rem)] z-40 md:z-0 w-64 origin-top-right rounded-xl bg-white p-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-black/10 transition-all duration-200
+                        ${isRoiMobileSearchOpen ? "scale-100 opacity-100 visible" : "scale-95 opacity-0 invisible pointer-events-none"}
+                        sm:pointer-events-auto sm:visible sm:relative sm:top-0 sm:w-auto sm:scale-100 sm:opacity-100 sm:border-none sm:bg-transparent sm:p-0 sm:shadow-none
+                      `}
+                    >
+                      <div className="relative w-full sm:w-64">
+                        <FiSearch className="pointer-events-none absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          ref={roiSearchInputRef}
+                          type="text"
+                          value={roiSearchQuery}
+                          onChange={(e) => setRoiSearchQuery(e.target.value)}
+                          placeholder="Search location or department..."
+                          className="w-full rounded-lg border border-black/10 bg-white px-3 py-0.5 sm:py-1 pl-8 sm:pl-9 text-[12px] md:text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="rounded-lg bg-white shadow-md border border-black/10 overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className="hidden sm:block overflow-x-auto">
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="bg-[#efeff4] border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
@@ -1058,6 +1212,111 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  <div className="sm:hidden divide-y divide-slate-100">
+                    {sprfMatrixRows.length === 0 ? (
+                      <div className="px-6 py-10 text-center text-sm text-slate-500">
+                        No SPRF approver matrix rows found.
+                      </div>
+                    ) : (
+                      sprfMatrixRows.map((row, index) => {
+                        const rowKey = String(row.id ?? `sprf-${index}-card`);
+                        const isActive = Boolean(row.is_active);
+
+                        const selectedConditionLabel =
+                          sprfConditionFilter[rowKey] ?? "";
+                        const selectedCondition =
+                          SPRF_CONDITIONS.find((c) => c.label === selectedConditionLabel) ?? null;
+
+                        const visibleApproverKeys = selectedCondition
+                          ? selectedCondition.keys
+                          : Object.keys(SPRF_APPROVER_LABELS);
+
+                        return (
+                          <div key={rowKey} className="p-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-900 truncate">
+                                  {row.location_name ?? "—"}
+                                </p>
+                                <p className="text-xs text-slate-600 truncate">
+                                  {row.department_name ?? "—"}
+                                </p>
+                              </div>
+
+                              <div className="shrink-0">
+                                {isActive ? (
+                                  <StatusPill tone="green">Active</StatusPill>
+                                ) : (
+                                  <StatusPill tone="red">Inactive</StatusPill>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-2.5">
+                              <select
+                                value={selectedConditionLabel}
+                                onChange={(e) =>
+                                  setSprfConditionFilter((prev) => ({
+                                    ...prev,
+                                    [rowKey]: e.target.value,
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-slate-300 px-2 pr-7 py-1.5 text-xs focus:outline-none focus:ring-0 focus:border-[#4FA34E] bg-white"
+                              >
+                                <option value="">Select a condition</option>
+                                {SPRF_CONDITIONS.map((c) => (
+                                  <option key={c.label} value={c.label}>
+                                    {c.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="mt-3 flex flex-col pl-1 gap-1.5">
+                              {visibleApproverKeys.map((nameKey) => (
+                                <ApproverLine
+                                  key={nameKey}
+                                  align="start"
+                                  label={SPRF_APPROVER_LABELS[nameKey]}
+                                  value={row[nameKey]}
+                                  note={
+                                    selectedConditionLabel === "Rebate Request" &&
+                                    nameKey === "director_customer_engagement_user_name"
+                                      ? "Rebate justification required"
+                                      : null
+                                  }
+                                />
+                              ))}
+                            </div>
+
+                            <div className="mt-2 flex justify-end gap-1">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 py-1 px-2 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
+                                title="Edit"
+                                onClick={() => openEditSprfModal(row)}
+                              >
+                                <MdEdit className="text-[13px]" />
+                                <span>Edit</span>
+                              </button>
+
+                              {!isActive && (
+                                <button
+                                  type="button"
+                                  title="Activate"
+                                  onClick={() => activateSprfMatrix(row)}
+                                  className="inline-flex items-center gap-1 py-1 px-2 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
+                                >
+                                  <MdOutlinePowerSettingsNew />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </div>
