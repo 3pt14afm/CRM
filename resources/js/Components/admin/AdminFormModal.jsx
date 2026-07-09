@@ -11,7 +11,7 @@ export default function AdminFormModal({
 }) {
   return (
     <Modal show={show} maxWidth={maxWidth} closeable={!processing} onClose={onClose}>
-      <div className="p-5">
+      <div className="p-4 md:p-5">
         <div className="flex items-center justify-between pb-3 border-b border-black/10">
           <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
           <button

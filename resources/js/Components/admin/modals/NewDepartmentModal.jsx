@@ -35,7 +35,7 @@ export default function NewDepartmentModal({
               type="text"
               value={form.code}
               onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#289800] focus:outline-none"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#289800] focus:ring-0 outline-none"
               placeholder="Enter department code"
             />
             {errors.code && (
@@ -51,7 +51,7 @@ export default function NewDepartmentModal({
               type="text"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#289800] focus:outline-none"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#289800] focus:ring-0 outline-none"
               placeholder="Enter department name"
             />
             {errors.name && (
@@ -59,12 +59,12 @@ export default function NewDepartmentModal({
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
               disabled={processing}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-xs md:text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Cancel
             </button>
@@ -72,7 +72,7 @@ export default function NewDepartmentModal({
             <button
               type="submit"
               disabled={processing}
-              className="rounded-lg bg-[#289800] px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60"
+              className="rounded-lg bg-[#289800] px-4 py-2 text-xs md:text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60"
             >
               {processing ? "Saving..." : "Save"}
             </button>

@@ -208,7 +208,7 @@ function PositionMaster({ stats, positions, departments }) {
             <div className="w-full flex justify-center items-center">
               <span
                 className={`
-                  px-2 py-px rounded-full text-[10px] font-bold uppercase tracking-wider
+                  px-2 py-px rounded-full md:text-[9px] lg:text-[10px] font-bold uppercase tracking-wider
                   ${
                     isActive
                       ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
@@ -243,6 +243,42 @@ function PositionMaster({ stats, positions, departments }) {
     ],
     []
   );
+
+  const getInitials = (name) => (name || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
+
+  const renderPositionCard = (r) => {
+    const isActive = isPositionActive(r);
+    return (
+      <div className="flex items-center gap-3">
+        <div className="h-11 w-11 rounded-xl bg-[#B5EBA2]/30 flex items-center justify-center text-sm font-bold text-[#195C00] shrink-0">
+          {getInitials(r.name)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold leading-snug truncate">{r.name ?? "—"}</p>
+          <p className="text-xs text-slate-500 truncate">
+            {[r.code, r.department_name].filter(Boolean).join(" · ") || "—"}
+          </p>
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          <span
+            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border
+              ${isActive
+                ? "bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20"
+                : "bg-red-100 text-red-600 border-red-200"
+              }`}
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   const goToPage = (p) => {
     router.get(
@@ -291,7 +327,7 @@ function PositionMaster({ stats, positions, departments }) {
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
-          <div className="mx-10 pt-8">
+          <div className="mx-4 md:mx-6 lg:mx-10 pt-4 md:pt-8">
             <div className="flex items-start justify-between gap-6">
               <div className="flex flex-col gap-1">
                 <h1 className="text-lg font-semibold text-slate-900 md:text-xl lg:text-2xl">
@@ -302,7 +338,7 @@ function PositionMaster({ stats, positions, departments }) {
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <span className="text-xs text-slate-500">{formattedDate}</span>
+                <span className="text-[11px] md:text-xs text-slate-500">{formattedDate}</span>
               </div>
             </div>
 
@@ -319,6 +355,8 @@ function PositionMaster({ stats, positions, departments }) {
                 rows={positionRows}
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={positionPagination}
+                renderCard={renderPositionCard}
+                onRowClick={openEditModal}
                 rightControls={
                     <button
                       type="button"

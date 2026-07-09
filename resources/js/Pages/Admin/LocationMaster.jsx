@@ -393,6 +393,42 @@ function LocationMaster({ stats, locations, filters = {} }) {
     [filters.sortBy, filters.sortDirection, handleSort]
   );
 
+  const getInitials = (name) => (name || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
+
+  const renderLocationCard = (r) => {
+    const isActive = isLocationActive(r);
+    return (
+      <div className="flex items-center gap-3">
+        <div className="h-11 w-11 rounded-xl bg-[#B5EBA2]/30 flex items-center justify-center text-sm font-bold text-[#195C00] shrink-0">
+          {getInitials(r.name)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold leading-snug truncate">{r.name ?? "—"}</p>
+          <p className="text-xs text-slate-500 truncate">
+            {[r.code, r.delsan ? r.delsan.toUpperCase() : null, r.phone_number].filter(Boolean).join(" · ") || "—"}
+          </p>
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          <span
+            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border
+              ${isActive
+                ? "bg-[#E9F7E7] text-[#2DA300] border-[#2DA300]/20"
+                : "bg-red-100 text-red-600 border-red-200"
+              }`}
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   const goToPage = (p) => {
     applyFilters({ page: p });
   };
@@ -434,7 +470,7 @@ function LocationMaster({ stats, locations, filters = {} }) {
 
       <div className="min-h-screen flex flex-col">
         <div className="flex-1 pb-24">
-          <div className="mx-10 pt-8">
+          <div className="mx-4 md:mx-6 lg:mx-10 pt-4 md:pt-8">
             <div className="flex items-start justify-between gap-6">
               <div className="flex flex-col gap-1">
                 <h1 className="text-lg font-semibold text-slate-900 md:text-xl lg:text-2xl">
@@ -445,14 +481,14 @@ function LocationMaster({ stats, locations, filters = {} }) {
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <span className="text-xs text-slate-500">{formattedDate}</span>
+                <span className="text-[11px] md:text-xs text-slate-500">{formattedDate}</span>
               </div>
             </div>
 
             <div className="mt-4">
               <div className="-mx-4 md:-mx-6 lg:-mx-10">
                 {/* Filters Row */}
-                <div className="-mb-2 mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-black/10 border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
+                <div className="-mb-2 mx-4 md:mx-6 lg:mx-10 sticky top-5 z-30 rounded-lg border border-black/10 border-b-black/20 border-r-black/20 bg-white px-4 py-2 shadow-sm sm:shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)]">
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterPill
                       label="Status"
@@ -504,13 +540,15 @@ function LocationMaster({ stats, locations, filters = {} }) {
                   rows={locationRows}
                   rowKey={(r, i) => String(r.id ?? i)}
                   pagination={locationPagination}
+                  renderCard={renderLocationCard}
+                  onRowClick={openEditModal}
                   rightControls={
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto">
                       {/* Search Input */}
-                      <div className="relative">
-                        <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <div className="relative flex-1 sm:flex-none">
+                        <FiSearch className="pointer-events-none absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
-                          className="w-64 rounded-lg border border-black/10 bg-white px-3 py-1 pl-9 text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
+                          className="w-44 sm:w-64 rounded-lg border border-black/10 bg-white px-3 py-1 pl-7 md:pl-9 text-xs md:text-[13px] text-slate-800 shadow-inner placeholder:text-slate-300 outline-none focus:ring-0 focus:border-[#289800]"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           placeholder="Search locations..."
@@ -521,7 +559,7 @@ function LocationMaster({ stats, locations, filters = {} }) {
                         type="button"
                         title="Add Location"
                         aria-label="Add Location"
-                        className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                        className="shrink-0 rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
                         onClick={openCreateModal}
                       >
                         <MdAddLocationAlt className="w-6 h-6" />
