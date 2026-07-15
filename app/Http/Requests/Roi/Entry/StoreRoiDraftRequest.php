@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Roi\Entry;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 class StoreRoiDraftRequest extends FormRequest
@@ -57,27 +58,31 @@ class StoreRoiDraftRequest extends FormRequest
 
     protected function passedValidation(): void
     {
+
+
         $monoMonthly = (float) $this->input('yield.monoAmvpYields.monthly', 0);
         $colorMonthly = (float) $this->input('yield.colorAmvpYields.monthly', 0);
 
         if ($monoMonthly > 4000 || $colorMonthly > 2000) {
             $remarks = trim((string) $this->input('entryRemarks.remarks', ''));
-            $keptAttachmentsCount = collect($this->input('entryRemarks.attachments', []))
+           $keptAttachmentsCount = collect(
+             data_get($this->all(), 'entryRemarks.attachments', []))
                 ->filter(fn ($item) => is_array($item) && !empty($item['id']))
                 ->count();
-            $newAttachmentsCount = count($this->file('entry_remarks_attachments', []) ?? []);
+            $newAttachmentsCount = count(Arr::wrap($this->file('entry_remarks_attachments')));
             $totalAttachmentsCount = $keptAttachmentsCount + $newAttachmentsCount;
 
             $errors = [];
             if ($remarks === '') {
-                $errors['entryRemarks.remarks'] = 'Remarks are required when Mono AMVP is more than 4,000 or Color AMVP is more than 2,000.';
+                $errors['entryRemarks.remarks'] = 'Remarks are required when Mono AMPV is more than 4,000 or Color AMVP is more than 2,000.';
             }
             if ($totalAttachmentsCount < 1) {
-                $errors['entry_remarks_attachments'] = 'At least one attachment is required when Mono AMVP is more than 4,000 or Color AMVP is more than 2,000.';
+                $errors['entry_remarks_attachments'] = 'At least one attachment is required when Mono AMPV is more than 4,000 or Color AMVP is more than 2,000.';
             }
             if (!empty($errors)) {
                 throw ValidationException::withMessages($errors);
             }
         }
+
     }
 }

@@ -144,6 +144,7 @@ export function useEntryHydration(entryProject, activeTab) {
   const [showCompanyInfoErrors, setShowCompanyInfoErrors] = useState(false);
 
   const hydratedEntryIdRef = useRef(null);
+  const hydratedVersionRef = useRef(null);
 
   // Sync activeTab prop → internal tab state
   useEffect(() => {
@@ -166,19 +167,20 @@ export function useEntryHydration(entryProject, activeTab) {
   }, [entryProject, resetProject]);
 
   // Hydrate context from entryProject when it changes
-  useEffect(() => {
-    if (!entryProject?.id) return;
-    if (hydratedEntryIdRef.current === entryProject.id) return;
+useEffect(() => {
+  if (!entryProject?.id) return;
 
-    const mapped = mapEntryProjectToContext(entryProject);
+  const versionKey = `${entryProject.id}:${entryProject.version}`;
+  if (hydratedVersionRef.current === versionKey) return;
 
-    setShowCompanyInfoErrors(false);
-    setProjectData(mapped);
-    saveDraft(mapped);
+  const mapped = mapEntryProjectToContext(entryProject);
+  setShowCompanyInfoErrors(false);
+  setProjectData(mapped);
+  saveDraft(mapped);
 
-    hydratedEntryIdRef.current = entryProject.id;
-    setResetKey((k) => k + 1);
-  }, [entryProject, setProjectData, saveDraft]);
+  hydratedVersionRef.current = versionKey;
+  setResetKey((k) => k + 1);
+}, [entryProject, setProjectData, saveDraft]);
 
   return {
     tab,

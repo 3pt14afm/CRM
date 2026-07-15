@@ -99,8 +99,23 @@ export function useEntryPayload({ entryProject, formattedDate }) {
     });
 
     attachments.forEach((item) => {
+      if (item instanceof File) {
+        formData.append("entry_remarks_attachments[]", item);
+        return;
+      }
+
       if (item?.file instanceof File) {
         formData.append("entry_remarks_attachments[]", item.file);
+        return;
+      }
+
+      if (item?.originFileObj instanceof File) {
+        formData.append("entry_remarks_attachments[]", item.originFileObj);
+        return;
+      }
+
+      if (item?.raw instanceof File) {
+        formData.append("entry_remarks_attachments[]", item.raw);
       }
     });
 

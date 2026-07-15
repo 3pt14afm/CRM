@@ -272,14 +272,19 @@ export function useEntryValidation({ setTab }) {
 
   const hasRequiredEntryRemarkAttachment = () => {
     const attachments = projectData?.entryRemarks?.attachments;
+      console.log({
+    attachments,
+    isArray: Array.isArray(attachments),
+    length: attachments?.length,
+  });
     return Array.isArray(attachments) && attachments.length > 0;
   };
 
   const validateEntryRemarks = () => {
     if (!requiresEntryRemarks()) return true;
-
+ console.log("Attachments:", projectData?.entryRemarks?.attachments);
     if (!hasValidEntryRemarks()) {
-      toast.error("Remarks are required when Mono AMVP exceeds 4,000 or Color AMVP exceeds 2,000.");
+      toast.error("Remarks are required when Mono AMPV exceeds 4,000 or Color AMPV exceeds 2,000.");
       setTab(MACHINE_TAB);
       return false;
     }
