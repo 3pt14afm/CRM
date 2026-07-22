@@ -869,11 +869,10 @@ class SprfEntryProjectController extends Controller
             return $conditionCode;
         }
 
-        if ($gpPercent < 16)    return 'GP_LTE_15';
-        if ($revenue > 1000000)  return 'VALUE_GT_1M';
-        if ($gpPercent >= 16)     return 'GP_GT_15';
+        if ($gpPercent < 16)      return 'GP_LTE_15';
+        if ($revenue < 1000000)  return 'STANDARD_PRICING';
 
-        return 'STANDARD_PRICING';
+        return 'VALUE_GT_1M';
     }
 
     // ─── Matrix Resolution ────────────────────────────────────────────────────
@@ -971,15 +970,15 @@ class SprfEntryProjectController extends Controller
     private function resolveApprovalFlagsFromCondition(string $conditionCode): array
     {
         return match ($conditionCode) {
-            'STANDARD_PRICING' => [
+            'STANDARD_PRICING',
+            'GP_GT_15' => [
                 'approval_level'                => 'ESD_ONLY',
                 'requires_vp_ccto'              => false,
                 'requires_president_ceo'        => false,
                 'requires_rebate_justification' => false,
                 'final_level'                   => 3,
             ],
-            'VALUE_GT_1M',
-            'GP_GT_15' => [
+            'VALUE_GT_1M' => [
                 'approval_level'                => 'VP_AND_CCTO',
                 'requires_vp_ccto'              => true,
                 'requires_president_ceo'        => false,

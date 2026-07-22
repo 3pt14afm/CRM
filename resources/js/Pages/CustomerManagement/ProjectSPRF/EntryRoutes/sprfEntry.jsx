@@ -316,7 +316,6 @@ const [companyInfo, setCompanyInfo] = useState({
       : (
           showPresidentCeo ||
           approvalLevel === APPROVAL_LEVEL.VALUE_GT_1M ||
-          approvalLevel === APPROVAL_LEVEL.GP_GT_15 ||
           approvalLevel === APPROVAL_LEVEL.VP_AND_CCTO
         );
 
@@ -454,12 +453,46 @@ const [companyInfo, setCompanyInfo] = useState({
     });
   };
 
+  // Rebate can only be added/edited once revenue reaches 1M; below that
+  // threshold it's locked (existing values are preserved, just not editable).
+  const rebateLocked = summary.revenue < 1000000;
+
+  // If revenue drops back below 1M while a rebate value is still sitting in
+  // the row (e.g. user pushed revenue over 1M, entered a rebate, then
+  // removed items again), clear it out rather than silently keeping it
+  // locked-but-populated. Skipped on read-only views (submitted/archived
+  // records) so we never mutate historical data just by viewing it.
+  useEffect(() => {
+    if (!rebateLocked || readOnly) return;
+
+    setOtherExpenses((prev) => {
+      const idx = prev.findIndex((row) => row.expenseKey === 'rebate');
+      if (idx === -1) return prev;
+
+      const row = prev[idx];
+      const isAlreadyClear =
+        (row.qty === '' || row.qty === null || row.qty === undefined) &&
+        (row.unitPrice === '' || row.unitPrice === null || row.unitPrice === undefined) &&
+        (row.itemDescription === '' || row.itemDescription === null || row.itemDescription === undefined);
+
+      if (isAlreadyClear) return prev;
+
+      const next = [...prev];
+      next[idx] = { ...row, qty: '', unitPrice: '', itemDescription: '' };
+      return next;
+    });
+  }, [rebateLocked, readOnly]);
+
   const updateExpense = (index, field, value) => {
     setOtherExpenses((prev) =>
       prev.map((row, i) => {
         if (i !== index) return row;
 
         if (row.isFixed && field === 'productCode') {
+          return row;
+        }
+
+        if (row.expenseKey === 'rebate' && rebateLocked && field !== 'productCode') {
           return row;
         }
 
@@ -970,6 +1003,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   onRemoveExpenseRow={removeExpenseRow}
                   totalOtherExpense={summary.otherExpense}
                   readOnly={readOnly}
+                  rebateLocked={rebateLocked}
                 />
               </div>
 

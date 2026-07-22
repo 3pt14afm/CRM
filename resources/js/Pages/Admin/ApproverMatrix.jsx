@@ -59,24 +59,22 @@ function ApproverLine({ label, value, note, align = "center" }) {
 const SPRF_CONDITIONS = [
   {
     label: "Standard Pricing",
-    keys: ["director_customer_engagement_user_name", "esd_director_user_name"],
+    keys: ["esd_director_user_name"],
   },
   {
     label: "Value > 1M",
     keys: [
-      "director_customer_engagement_user_name",
       "esd_director_user_name",
       "vp_ccto_user_name",
     ],
   },
   {
-    label: "GP > 15%",
-    keys: ["director_customer_engagement_user_name", "esd_director_user_name", "vp_ccto_user_name",],
+    label: "GP ≥ 16%",
+    keys: ["esd_director_user_name", "vp_ccto_user_name",],
   },
   {
-    label: "GP ≤ 15%",
+    label: "GP < 16%",
     keys: [
-      "director_customer_engagement_user_name",
       "esd_director_user_name",
       "vp_ccto_user_name",
       "president_ceo_user_name",
