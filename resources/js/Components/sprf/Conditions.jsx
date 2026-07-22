@@ -11,7 +11,7 @@ const CONDITION_ROWS = [
     requiredApprovals: 'ESD Director + VP & CCTO',
   },
   {
-    condition: 'GP >= 16%',
+    condition: 'GP ≥ 16%',
     requiredApprovals: 'ESD Director + VP & CCTO',
   },
   {
@@ -68,7 +68,7 @@ export default function Conditions() {
         </table>
 
         <p className="my-1 pl-2 text-[10px] text-slate-500 italic print:text-[9px]">
-          Note: For Rebate requests, Value must be 100K above
+          Note: For Rebate requests, Value must be 1M above
         </p>
       </div>
     </div>

@@ -129,12 +129,17 @@ export const APPROVAL_LEVEL = {
 
 // Pure derivation only — used as a fallback when sourceProject (backend)
 // hasn't supplied approval_level yet, e.g. on a brand-new draft.
+//
+// Priority order:
+//   1. Rebate > 0                        → REBATE_REQUEST   (all approvers)
+//   2. GP < 16% (any revenue)            → GP_LTE_15         (President & CEO)
+//   3. GP >= 16% && Revenue < 1M         → STANDARD_PRICING (ESD Director only)
+//   4. GP >= 16% && Revenue >= 1M        → VALUE_GT_1M       (VP & CCTO)
 export const resolveApprovalLevelMatrix = ({ hasRebate, revenue, totalGpPercent }) => {
   if (hasRebate) return APPROVAL_LEVEL.REBATE_REQUEST;
-  if (revenue <= 0) return APPROVAL_LEVEL.STANDARD_PRICING;
   if (totalGpPercent < 16) return APPROVAL_LEVEL.GP_LTE_15;
-  if (revenue > 1000000) return APPROVAL_LEVEL.VALUE_GT_1M;
-  return APPROVAL_LEVEL.GP_GT_15;
+  if (revenue < 1000000) return APPROVAL_LEVEL.STANDARD_PRICING;
+  return APPROVAL_LEVEL.VALUE_GT_1M;
 };
 
 // ─────────────────────────────────────────────────────────────────────────

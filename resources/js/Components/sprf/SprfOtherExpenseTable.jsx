@@ -43,7 +43,7 @@ const truncateToTwoDecimals = (val) => {
 const parseCurrencyInput = (val) => {
   if (val === '' || val === null || val === undefined) return '';
   const clean = String(val).replace(/,/g, '');
-  return truncateToTwoDecimals(clean); // Enforce before returning
+  return truncateToTwoDecimals(clean);
 };
 
 export default function SprfOtherExpenseTable({
@@ -54,6 +54,7 @@ export default function SprfOtherExpenseTable({
   onRemoveExpenseRow,
   totalOtherExpense,
   readOnly = false,
+  rebateLocked = false,
 }) {
   const showActionColumn = !readOnly;
 
@@ -83,6 +84,7 @@ export default function SprfOtherExpenseTable({
         onRemoveExpenseRow={onRemoveExpenseRow}
         totalOtherExpense={totalOtherExpense}
         readOnly={readOnly}
+        rebateLocked={rebateLocked}
       />
 
       <div className="hidden md:block rounded-xl border border-[#CAD6C2] bg-white shadow-md overflow-hidden">
@@ -135,6 +137,8 @@ export default function SprfOtherExpenseTable({
             {computedExpenses.map((row, index) => {
               const sourceRow = otherExpenses[index];
               const isFixed = Boolean(sourceRow?.isFixed);
+              const isRebateRow = sourceRow?.expenseKey === 'rebate';
+              const rowLocked = isRebateRow && rebateLocked;
 
               return (
                 <tr
@@ -166,9 +170,13 @@ export default function SprfOtherExpenseTable({
                   </td>
 
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    {readOnly ? (
+                    {readOnly || rowLocked ? (
                       <div className={readonlyCellClass}>
-                        {blankIfEmpty(sourceRow?.itemDescription)}
+                        {rowLocked && !sourceRow?.itemDescription ? (
+                          <span className="text-slate-300 text-[11px] tracking-widest italic">Cannot add rebate</span>
+                        ) : (
+                          blankIfEmpty(sourceRow?.itemDescription)
+                        )}
                       </div>
                     ) : (
                       <input
@@ -184,7 +192,7 @@ export default function SprfOtherExpenseTable({
                   </td>
 
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    {readOnly ? (
+                    {readOnly || rowLocked ? (
                       <div className={readonlyAmountClass}>
                         {peso(sourceRow?.qty)}
                       </div>
@@ -209,7 +217,7 @@ export default function SprfOtherExpenseTable({
                   </td>
 
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    {readOnly ? (
+                    {readOnly || rowLocked ? (
                       <div className={readonlyAmountClass}>
                         {peso(sourceRow?.unitPrice)}
                       </div>
@@ -223,6 +231,7 @@ export default function SprfOtherExpenseTable({
                         }}
                         className={inputClass}
                         placeholder="0.00"
+                        title={rowLocked ? 'Rebate is only editable once value reaches ₱1,000,000' : undefined}
                       />
                     )}
                   </td>
@@ -241,8 +250,13 @@ export default function SprfOtherExpenseTable({
                         <button
                           type="button"
                           onClick={() => onAddExpenseRow(index)}
-                          className="w-6 h-6 px-1 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
-                          title="Add row"
+                          disabled={rowLocked}
+                          className={`w-6 h-6 px-1 rounded border ${
+                            rowLocked
+                              ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
+                              : 'bg-lightgreen/50 text-green-600 border-darkgreen/20 hover:bg-green-100'
+                          }`}
+                          title={rowLocked ? 'Rebate is only editable once value reaches ₱1,000,000' : 'Add row'}
                         >
                           +
                         </button>

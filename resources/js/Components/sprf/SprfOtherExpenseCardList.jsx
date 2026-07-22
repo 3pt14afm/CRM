@@ -66,6 +66,7 @@ export default function SprfOtherExpenseCardList({
   onRemoveExpenseRow,
   totalOtherExpense,
   readOnly = false,
+  rebateLocked = false,
 }) {
   const showActionColumn = !readOnly;
   const [isExpanded, setIsExpanded] = useState(true);
@@ -95,6 +96,8 @@ export default function SprfOtherExpenseCardList({
           {computedExpenses.map((row, index) => {
             const sourceRow = otherExpenses[index];
             const isFixed = Boolean(sourceRow?.isFixed);
+            const isRebateRow = sourceRow?.expenseKey === 'rebate';
+            const rowLocked = isRebateRow && rebateLocked;
 
             return (
               <div
@@ -123,9 +126,13 @@ export default function SprfOtherExpenseCardList({
                     <label className="block text-[9px] uppercase tracking-wide text-slate-400 mb-1">
                       Item Description
                     </label>
-                    {readOnly ? (
+                    {readOnly || rowLocked ? (
                       <div className="text-xs leading-snug pt-0.5">
-                        {blankIfEmpty(sourceRow?.itemDescription)}
+                        {rowLocked && !sourceRow?.itemDescription ? (
+                          <span className="text-slate-400 italic">Cannot add rebate</span>
+                        ) : (
+                          blankIfEmpty(sourceRow?.itemDescription)
+                        )}
                       </div>
                     ) : (
                       <input
@@ -144,7 +151,7 @@ export default function SprfOtherExpenseCardList({
                     <label className="block text-[9px] uppercase tracking-wide text-slate-400 mb-1">
                       Qty
                     </label>
-                    {readOnly ? (
+                    {readOnly || rowLocked ? (
                       <div className="text-xs pt-0.5 font-medium">{peso(sourceRow?.qty)}</div>
                     ) : (
                       <input
@@ -170,7 +177,7 @@ export default function SprfOtherExpenseCardList({
                     <label className="block text-[9px] uppercase tracking-wide text-slate-400 mb-1">
                       Unit Price
                     </label>
-                    {readOnly ? (
+                    {readOnly || rowLocked ? (
                       <div className="text-xs pt-0.5 font-medium">{peso(sourceRow?.unitPrice)}</div>
                     ) : (
                       <input
@@ -182,6 +189,7 @@ export default function SprfOtherExpenseCardList({
                         }}
                         className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-slate-400"
                         placeholder="0.00"
+                        title={rowLocked ? 'Rebate is only editable once value reaches ₱1,000,000' : undefined}
                       />
                     )}
                   </div>
