@@ -12,7 +12,7 @@ const CONDITION_ROWS = [
   },
   {
     condition: 'GP ≥ 16%',
-    requiredApprovals: 'ESD Director + VP & CCTO',
+    requiredApprovals: 'ESD Director',
   },
   {
     condition: 'GP < 16%',
