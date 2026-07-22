@@ -380,8 +380,8 @@ export default function SprfEntryPrint({
               </div>
 
               <div className="px-1 space-y-5 mx-auto">
-                <div className="grid grid-cols-[70%_30%] items-start">
-                  <div className="min-w-0 space-y-2 mr-3">
+                <div className="grid grid-cols-[69%_31%] items-start">
+                  <div className="min-w-0 space-y-2 mr-2">
                     <PrintInfoBlock
                       rows={[
                         ['SUB CATEGORY', resolved.companyInfo?.subCategory],
@@ -527,8 +527,8 @@ function PrintSummaryBlock({ summary }) {
     <div className="overflow-hidden rounded-xl bg-[#FBFFFA] border border-[#2c2c2e]/15 border-b-[#2c2c2e]/25">
       <table className="w-full table-fixed border-collapse">
         <colgroup>
-          <col className="w-[55%]" />
-          <col className="w-[45%]" />
+          <col className="w-[49%]" />
+          <col className="w-[51%]" />
         </colgroup>
 
         <tbody>
@@ -549,7 +549,7 @@ function PrintSummaryRow({ label, value, isPercent = false, isLast = false }) {
     ? isBlank(value)
       ? ''
       : `${Number(value).toFixed(4)}%`
-    : displayWholePeso(value);
+    : displayPeso(value);
 
   return (
     <tr>
@@ -562,12 +562,12 @@ function PrintSummaryRow({ label, value, isPercent = false, isLast = false }) {
       </td>
 
       <td
-        className={`border-b border-[#2c2c2e]/10 bg-white px-4 py-1 text-[10px] font-medium ${
+        className={`border-b border-[#2c2c2e]/10 bg-white pl-2 pr-3 py-1 text-[10px] font-medium ${
           isLast ? 'border-b-0' : ''
         }`}
       >
         <div className="flex items-center justify-between gap-3">
-          <span className="font-bold">
+          <span className="font-medium">
             {isPercent || isBlank(value) ? '' : '₱'}
           </span>
 
