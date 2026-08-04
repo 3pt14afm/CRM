@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // Register Customer Management Module
             Route::middleware('web')
                 ->group(base_path('routes/modules/customer-management.php'));
+            
+            // Register Contract Module
+            Route::middleware('web')
+                ->group(base_path('routes/modules/contract.php'));
 
         },
     )

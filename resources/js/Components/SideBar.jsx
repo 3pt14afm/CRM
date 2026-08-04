@@ -88,6 +88,7 @@ export default function Sidebar() {
     route().current('customerinfo.*') ||
     route().current('roi.*') ||
     route().current('sprf.*') ||
+    route().current('contract.*') || // add this
     route().current('proposals.*')
       ? 'customer'
       : route().current('machine.*')
@@ -471,19 +472,22 @@ export default function Sidebar() {
                       </button>
                     </div>
 
-                    {activeSubMenu === 'contract' && (
-                      <div className="relative ml-6 pb-2 mt-2">
-                        <NavSubLink href="#">
-                          New Contract
-                        </NavSubLink>
-                        <NavSubLink href="#">
-                          Contract Renewal
-                        </NavSubLink>
-                        <NavSubLink href="#">
-                          Business Review
-                        </NavSubLink>
-                      </div>
-                    )}
+                      {activeSubMenu === 'contract' && (
+                        <div className="relative ml-6 pb-2 mt-2">
+                          <NavSubLink href={route('contract.upload')} active={route().current('contract.upload')}>
+                            Upload Contract
+                          </NavSubLink>
+                          <NavSubLink href={route('contract.create')} active={route().current('contract.create')}>
+                            New Contract
+                          </NavSubLink>
+                          <NavSubLink href={route('contract.renewal')} active={route().current('contract.renewal')}>
+                            Contract Renewal
+                          </NavSubLink>
+                          <NavSubLink href={route('contract.review')} active={route().current('contract.review')}>
+                            Business Review
+                          </NavSubLink>
+                        </div>
+                      )}
                   </div>
                 )}
 
