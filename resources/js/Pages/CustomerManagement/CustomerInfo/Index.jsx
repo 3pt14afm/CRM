@@ -346,9 +346,15 @@ const handleSearchChange = (value) => {
             ),
             cell: (r) => {
                 const isActive = r.status == 1;
+                const branchCount = Array.isArray(r.branches) ? r.branches.length : 0;
                 return (
-                    <div className={`font-medium flex items-center min-w-52 max-w-60 ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
-                        {r.company_name ?? '—'}
+                    <div className={`font-medium w-full flex items-center justify-between gap-2 min-w-52 ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
+                        <span className="truncate">{r.company_name ?? '—'}</span>
+                        {branchCount > 0 && (
+                            <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
+                                {branchCount}
+                            </span>
+                        )}
                     </div>
                 );
             },
