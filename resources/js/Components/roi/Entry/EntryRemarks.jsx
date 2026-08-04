@@ -251,15 +251,21 @@ export default function EntryRemarks({ readOnly = false }) {
         </p>
       ) : null}
 
-      {attachmentRequiredMessage ? (
-        <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
-          {attachmentRequiredMessage}
-        </p>
-      ) : null}
-
-      {!attachmentRequiredMessage && attachmentError ? (
+      {/*
+        FIX: A concrete rejection reason (e.g. "file too big", "too many files")
+        must always take priority over the generic "add at least one attachment"
+        placeholder. Previously, attachmentRequiredMessage suppressed
+        attachmentError whenever no attachment had been successfully added yet,
+        so a 10MB+ file would get silently rejected with no visible explanation
+        to the user - it just looked like nothing happened.
+      */}
+      {attachmentError ? (
         <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
           {attachmentError}
+        </p>
+      ) : attachmentRequiredMessage ? (
+        <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
+          {attachmentRequiredMessage}
         </p>
       ) : null}
     </div>
