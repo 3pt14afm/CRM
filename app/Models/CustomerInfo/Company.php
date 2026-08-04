@@ -54,4 +54,9 @@ class Company extends Model
     {
         return $this->belongsTo(User::class, 'id_client_mngr', 'employee_id');
     }
+
+    public function mainLocation()
+    {
+        return $this->belongsTo(\App\Models\CustomerInfo\Location::class, 'main_location', 'id');
+    }
 }
