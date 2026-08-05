@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Head, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
-import ContractsModal from './ContractsModal'; // <-- Import the new component
+import ContractsModal from './ContractsModal'; 
 import { route } from 'ziggy-js';
 import { toast } from 'sonner';
 import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons/md';
@@ -36,20 +36,8 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const { auth } = usePage().props;
     const currentEmployeeId = auth?.user?.employee_id ?? null;
 
-    // Authorization now comes straight from the backend's `can_upload` flag
-    // on each row (App\Http\Controllers\Contract\ContractController::upload()),
-    // which already accounts for admin status, direct assignment, and
-    // sibling-branch assignment within the same SAP-code group. The frontend
-    // no longer re-derives this from a single row's id_client_mngr, since the
-    // company list is deduplicated to one representative row per SAP code and
-    // that row's id_client_mngr may not reflect the branch the current user
-    // actually manages.
     const canUploadFor = (row) => !!row.can_upload;
 
-    // ── Add/Edit Contract modal state ──
-    // The same modal is reused for both flows. `editingContract` is null
-    // when adding a brand-new contract, and holds the contract row being
-    // edited (with its own `can_edit` flag from the backend) otherwise.
     const [modalCompany, setModalCompany] = useState(null);
     const [editingContract, setEditingContract] = useState(null);
     const [pdfFile, setPdfFile] = useState(null);
@@ -157,6 +145,17 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
 
     const openContractsModal = (row) => setContractsModalRow(row);
     const closeContractsModal = () => setContractsModalRow(null);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const companyId = params.get('company_id');
+        const companyName = params.get('company_name');
+        const canUpload = params.get('can_upload') === '1';
+        if (companyId) {
+            openContractsModal({ id: companyId, company_name: companyName ?? '', can_upload: canUpload });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const submitContract = () => {
         if (!modalCompany) return;

@@ -36,7 +36,16 @@ export default {
                 innerRed: 'inset 0 0 5px rgba(242,115,115,0.7)',
                 innerOrange: 'inset 0 0 8px rgba(78, 30, 0, 1)',
                 innerBlue: 'inset 0 0 10px rgba(0, 36, 76, 1)'
-            }
+            },
+            keyframes: {
+                fadeIn: {
+                    '0%':   { opacity: '0' },
+                    '100%': { opacity: '1' },
+                },
+            },
+            animation: {
+                fadeIn: 'fadeIn 300ms ease-out forwards',
+            },
         },
     },
 

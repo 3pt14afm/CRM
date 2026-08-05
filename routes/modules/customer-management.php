@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Contract\ContractController;
 use App\Http\Controllers\Customer\CustomerInfoController;
 use App\Http\Controllers\Customer\CustomerManagementController;
+use App\Http\Controllers\Customer\DashboardController;
 use App\Http\Controllers\Customer\ProposalController;
 use App\Http\Controllers\Customer\RoiController;
-use App\Http\Controllers\CustomerInfo\PotentialCustomerController;
+use App\Http\Controllers\Customer\PotentialCustomerController;
 use App\Http\Controllers\Roi\RoiPrintController;
 use App\Http\Controllers\Roi\RoiArchiveController;
 use App\Http\Controllers\Roi\RoiCurrentProjectController;
@@ -13,7 +15,6 @@ use App\Http\Controllers\SPRF\SprfController;
 use App\Http\Controllers\SPRF\SprfCurrentProjectController;
 use App\Http\Controllers\SPRF\SprfEntryProjectController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 
 /*
@@ -26,11 +27,16 @@ use Inertia\Inertia;
 Route::middleware(['auth', 'verified'])
     ->prefix('customer-management')
     ->group(function () {
-        Route::get('/dashboard', [CustomerManagementController::class, 'dashboard'])
-            ->name('customers.dashboard');
+        Route::get('/dashboard', [CustomerManagementController::class, 'dashboard'])->name('customers.dashboard');
 
-        Route::get('/details', [CustomerManagementController::class, 'details'])
-            ->name('customers.details');
+        Route::get('/customer-stats', [DashboardController::class, 'customerStats'])->name('customers.stats');
+        Route::get('/pending-approvals', [DashboardController::class, 'pendingApprovals'])->name('customers.pending-approvals');
+        Route::get('/distribution-stats', [DashboardController::class, 'distributionStats'])->name('customers.distribution-stats');
+        Route::get('/entries-by-month', [DashboardController::class, 'entriesByMonth'])->name('customers.entries-by-month');
+        Route::get('/contract-status-stats', [ContractController::class, 'statusStats'])->name('customers.contract-status-stats');
+        Route::get('/expiring-contracts', [ContractController::class, 'byStatus'])->name('customers.expiring-contracts');
+
+        Route::get('/details', [CustomerManagementController::class, 'details'])->name('customers.details');
 
       
         /*

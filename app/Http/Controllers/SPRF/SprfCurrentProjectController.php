@@ -116,6 +116,10 @@ class SprfCurrentProjectController extends Controller
             $q->whereDate('updated_at', '<=', $request->input('date_to'));
         });
 
+        $query->when($request->boolean('mine'), function ($q) use ($userId) {
+            $q->where('current_approver_user_id', $userId);
+        });
+
         // ─── SORTING ──────────────────────────────────────────────────────────
         $sortBy    = $request->input('sort_by');
         $sortOrder = in_array(strtolower($request->input('sort_order', 'desc')), ['asc', 'desc'])

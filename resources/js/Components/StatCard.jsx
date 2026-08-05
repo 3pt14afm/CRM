@@ -7,6 +7,7 @@ export default function StatCard({
   percent,
   theme,
   index = 0,
+  children,
 }) {
   const clipId = `bgblur_${index}`;
 
@@ -66,22 +67,31 @@ export default function StatCard({
 
       {/* Icon */}
       <div
-        className={`w-fit mb-2 px-[5px] py-[5px] rounded border flex items-center justify-center ${theme.icon}`}
+        className={`w-fit mb-2.5 px-[5px] py-[5px] rounded border flex items-center justify-center ${theme.icon}`}
       >
         <Icon size={17} />
       </div>
 
       {/* Text */}
-      <p className="text-sm text-black font-semibold tracking-wider">
-        {title}
-      </p>
-      <p className="text-4xl font-semibold text-gray-900">
-        {Number(value).toLocaleString()}
-      </p>
+      <div className="flex h-full w-full flex-col items-start justify-between">
+        <p className="text-xs text-black font-semibold tracking-wider">
+          {title}
+        </p>
+        {children ? (
+          children
+        ) : (
+          <>
+            <p className="text-2xl font-semibold text-gray-900">
+              {Number(value).toLocaleString()}
+            </p>
 
-      {!!percent && (
-        <p className="text-[11px] text-black/70 mt-1">+{percent}% this month</p>
-      )}
+            {!!percent && (
+              <p className="text-[11px] text-black/70 mt-1">+{percent}% this month</p>
+            )}
+          </>
+        )}
+      </div>
+     
     </div>
   );
 }

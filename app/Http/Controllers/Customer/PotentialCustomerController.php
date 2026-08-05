@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\CustomerInfo;
+namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomerInfo\PotentialCustomer;
