@@ -142,6 +142,52 @@ class ContractUploadLogger
     }
 
     /**
+     * A contract was terminated/cancelled by an employee while still
+     * "live" (active / extended / expiring_soon). $previousStatus is
+     * whatever status it was in right before termination, for the diff.
+     */
+    public static function terminated(Contract $contract, string $previousStatus): void
+    {
+        $user = Auth::user();
+
+        self::log(
+            activityType: 'contract_terminate',
+            moduleType: 'Contract',
+            details: trim(($user?->first_name ?? '') . ' ' . ($user?->last_name ?? ''))
+                . " terminated contract \"{$contract->doc_num}\" for {$contract->company_name}",
+            subject: $contract,
+            oldValues: ['status' => $previousStatus],
+            newValues: [
+                'status'         => $contract->status,
+                'terminated_at'  => optional($contract->terminated_at)->format('Y-m-d H:i:s'),
+                'terminated_by'  => $contract->terminated_by,
+            ],
+        );
+    }
+
+    /**
+     * An already-expired contract was archived by an employee.
+     */
+    public static function archived(Contract $contract): void
+    {
+        $user = Auth::user();
+
+        self::log(
+            activityType: 'contract_archive',
+            moduleType: 'Contract',
+            details: trim(($user?->first_name ?? '') . ' ' . ($user?->last_name ?? ''))
+                . " archived contract \"{$contract->doc_num}\" for {$contract->company_name}",
+            subject: $contract,
+            oldValues: ['status' => Contract::STATUS_EXPIRED],
+            newValues: [
+                'status'      => $contract->status,
+                'archived_at' => optional($contract->archived_at)->format('Y-m-d H:i:s'),
+                'archived_by' => $contract->archived_by,
+            ],
+        );
+    }
+
+    /**
      * A contract was edited successfully. $before/$after should carry the
      * same set of keys (company_name, doc_num, start_date, end_date,
      * pdf_path) so the diff is easy to read in the activity log.

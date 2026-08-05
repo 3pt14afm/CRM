@@ -1,7 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { route } from 'ziggy-js';
-import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit } from 'react-icons/md';
+import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit, MdMoreVert, MdOutlineCancel, MdOutlineArchive } from 'react-icons/md';
 import { GrDocumentTime } from 'react-icons/gr';
 import { FaFileUpload } from 'react-icons/fa';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
     const [contractsList, setContractsList] = useState([]);
     const [contractBranches, setContractBranches] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('active');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDate, setSelectedDate] = useState('');
     const [isLoadingContracts, setIsLoadingContracts] = useState(false);
@@ -24,6 +24,41 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
     const [extendDateValue, setExtendDateValue] = useState('');
     const [extendError, setExtendError] = useState('');
     const [isExtending, setIsExtending] = useState(false);
+
+    // ── 3-dot action menu (Edit / Terminate / Archive) ──
+    const [openMenuId, setOpenMenuId] = useState(null);
+    const menuContainerRef = useRef(null);
+
+    // Close the open action menu on outside click or Escape.
+    useEffect(() => {
+        if (openMenuId === null) return;
+
+        const handleClickOutside = (e) => {
+            if (menuContainerRef.current && !menuContainerRef.current.contains(e.target)) {
+                setOpenMenuId(null);
+            }
+        };
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') setOpenMenuId(null);
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [openMenuId]);
+
+    // ── Terminate contract modal state ──
+    const [terminateTarget, setTerminateTarget] = useState(null);
+    const [terminateError, setTerminateError] = useState('');
+    const [isTerminating, setIsTerminating] = useState(false);
+
+    // ── Archive contract modal state ──
+    const [archiveTarget, setArchiveTarget] = useState(null);
+    const [archiveError, setArchiveError] = useState('');
+    const [isArchiving, setIsArchiving] = useState(false);
 
     // Fetches (or re-fetches) the contract list for the current modalRow
     // without touching the user's current branch/status/search/date filters
@@ -61,7 +96,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
         setContractsList([]);
         setContractBranches([]);
         setSelectedBranch(modalRow.company_name ?? '');
-        setStatusFilter('all');
+        setStatusFilter('active');
         setSearchQuery('');
         setSelectedDate('');
         setFlippedIds({});
@@ -108,6 +143,8 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
         expiring_soon:  { label: 'Expiring Soon',   badgeClass: 'bg-amber-100 text-amber-700' },
         expired:        { label: 'Expired',         badgeClass: 'bg-red-100 text-[#C40000]' },
         extended:       { label: 'Extended',        badgeClass: 'bg-blue-100 text-blue-700' },
+        terminated:     { label: 'Terminated',       badgeClass: 'bg-rose-100 text-rose-700' },
+        archived:       { label: 'Archived',         badgeClass: 'bg-slate-200 text-slate-600' },
         unknown:        { label: 'No End Date',     badgeClass: 'bg-slate-100 text-slate-500' },
     };
 
@@ -176,6 +213,8 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
             expiring_soon:  scoped.filter((c) => c.status === 'expiring_soon').length,
             expired:        scoped.filter((c) => c.status === 'expired').length,
             extended:       scoped.filter((c) => c.status === 'extended').length,
+            terminated:     scoped.filter((c) => c.status === 'terminated').length,
+            archived:       scoped.filter((c) => c.status === 'archived').length,
         };
     }, [contractsList, selectedBranch]);
 
@@ -185,17 +224,27 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
 
     // ── Edit contract handler ──
     // Only the admin or the contract's owning account manager can edit
-    // (enforced server-side via c.can_edit, computed the same way as
-    // c.can_extend). Hands the contract off to the parent, which opens the
-    // Add/Edit Contract modal pre-filled with this contract's data.
+    // (enforced server-side via c.can_edit). Hands the contract off to the
+    // parent, which opens the Add/Edit Contract modal pre-filled with this
+    // contract's data.
     const handleEditClick = (contract) => {
         if (!contract?.can_edit || !onEdit) return;
         onEdit(modalRow, contract);
     };
 
     // ── Extend Date modal handlers ──
+    // The extend button stays clickable for anyone with manage permission
+    // (c.can_edit) even once the 3-month extension window has closed
+    // (c.extension_expired) — that way clicking it surfaces a clear toast
+    // explaining why, instead of just looking greyed-out/broken.
     const openExtendModal = (contract) => {
-        if (!contract.can_extend) return;
+        if (!contract.can_edit) return; // no permission at all — nothing to do
+
+        if (contract.extension_expired) {
+            toast.error('This contract expired more than 3 months ago and can no longer be extended.');
+            return;
+        }
+
         setExtendTarget(contract);
         setExtendDateValue('');
         setExtendError('');
@@ -223,11 +272,28 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
             extended_end_date: extendDateValue,
         })
             .then((res) => {
-                const { extend_dates, status } = res.data;
+                const {
+                    extend_dates, status,
+                    can_edit, can_extend, extension_expired, can_terminate, can_archive,
+                } = res.data;
                 setContractsList((prev) =>
                     prev.map((c) =>
                         c.id === extendTarget.id
-                            ? { ...c, extend_dates, status }
+                            ? {
+                                ...c,
+                                extend_dates,
+                                status,
+                                // An expired contract that just got extended is
+                                // "extended" now, not "expired" — these flags
+                                // flip the 3-dot menu from Archive to
+                                // Terminate immediately instead of only after
+                                // the modal is reopened/refetched.
+                                can_edit,
+                                can_extend,
+                                extension_expired,
+                                can_terminate,
+                                can_archive,
+                            }
                             : c
                     )
                 );
@@ -236,6 +302,9 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                 toast.success('Contract extended successfully.');
             })
             .catch((err) => {
+                // Falls back to the same "expired more than 3 months ago..."
+                // message the server sends when this is caught late (e.g.
+                // stale data in this modal) rather than pre-empted above.
                 const message = err.response?.data?.message
                     || err.response?.data?.errors?.extended_end_date?.[0]
                     || 'Failed to extend contract. Please try again.';
@@ -243,6 +312,93 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                 toast.error(message);
             })
             .finally(() => setIsExtending(false));
+    };
+
+    // ── Terminate contract handlers ──
+    // Only offered while a contract is still "live" (active / extended /
+    // expiring_soon) — enforced server-side via c.can_terminate. Once
+    // terminated, a contract becomes final: view-only, no edit/extend/
+    // terminate/archive ever again.
+    const openTerminateModal = (contract) => {
+        if (!contract?.can_terminate) return;
+        setOpenMenuId(null);
+        setTerminateTarget(contract);
+        setTerminateError('');
+    };
+
+    const closeTerminateModal = () => {
+        if (isTerminating) return;
+        setTerminateTarget(null);
+        setTerminateError('');
+    };
+
+    const submitTerminate = () => {
+        if (!terminateTarget) return;
+        setIsTerminating(true);
+        setTerminateError('');
+
+        axios.post(route('contract.terminate', terminateTarget.id))
+            .then((res) => {
+                const { status, terminated_at, terminated_by_name } = res.data;
+                setContractsList((prev) =>
+                    prev.map((c) =>
+                        c.id === terminateTarget.id
+                            ? { ...c, status, terminated_at, terminated_by_name, can_edit: false, can_extend: false, can_terminate: false, can_archive: false }
+                            : c
+                    )
+                );
+                setTerminateTarget(null);
+                toast.success('Contract terminated.');
+            })
+            .catch((err) => {
+                const message = err.response?.data?.message || 'Failed to terminate contract. Please try again.';
+                setTerminateError(message);
+                toast.error(message);
+            })
+            .finally(() => setIsTerminating(false));
+    };
+
+    // ── Archive contract handlers ──
+    // Only offered once a contract has expired — enforced server-side via
+    // c.can_archive. Once archived, a contract becomes final: view-only,
+    // no edit/extend/terminate/archive ever again.
+    const openArchiveModal = (contract) => {
+        if (!contract?.can_archive) return;
+        setOpenMenuId(null);
+        setArchiveTarget(contract);
+        setArchiveError('');
+    };
+
+    const closeArchiveModal = () => {
+        if (isArchiving) return;
+        setArchiveTarget(null);
+        setArchiveError('');
+    };
+
+    const submitArchive = () => {
+        if (!archiveTarget) return;
+        setIsArchiving(true);
+        setArchiveError('');
+
+        axios.post(route('contract.archive', archiveTarget.id))
+            .then((res) => {
+                const { status, archived_at, archived_by_name } = res.data;
+                setContractsList((prev) =>
+                    prev.map((c) =>
+                        c.id === archiveTarget.id
+                            ? { ...c, status, archived_at, archived_by_name, can_edit: false, can_extend: false, can_terminate: false, can_archive: false }
+                            : c
+                    )
+                );
+                setArchiveTarget(null);
+                toast.success('Contract archived.');
+            })
+            .catch((err) => {
+                const message = err.response?.data?.message || 'Failed to archive contract. Please try again.';
+                setArchiveError(message);
+                toast.error(message);
+            })
+            .finally(() => setIsArchiving(false));
     };
 
     // ── Upload button handler ──
@@ -314,6 +470,8 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                         { key: 'expiring_soon',  label: 'Expiring Soon' },
                         { key: 'expired',        label: 'Expired' },
                         { key: 'extended',       label: 'Extended' },
+                        { key: 'terminated',     label: 'Terminated' },
+                        { key: 'archived',       label: 'Archived' },
                     ].map((tab) => (
                         <button
                             key={tab.key}
@@ -459,7 +617,17 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                                         <p className="text-xs text-slate-600">
                                             {formatDate(c.start_date)} - {formatDate(c.end_date)}
                                         </p>
-                                        {extensions.length > 0 ? (
+                                        {c.status === 'terminated' ? (
+                                            <p className="text-[11px] text-rose-600 font-medium">
+                                                Terminated {formatDate(c.terminated_at)}
+                                                {c.terminated_by_name ? ` by ${c.terminated_by_name}` : ''}
+                                            </p>
+                                        ) : c.status === 'archived' ? (
+                                            <p className="text-[11px] text-slate-500 font-medium">
+                                                Archived {formatDate(c.archived_at)}
+                                                {c.archived_by_name ? ` by ${c.archived_by_name}` : ''}
+                                            </p>
+                                        ) : extensions.length > 0 ? (
                                             <p className="text-[11px] text-blue-600 font-medium">
                                                 Extended to {formatDate(currentEffectiveEnd(c))}
                                             </p>
@@ -484,19 +652,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                                             )}
 
                                             <div className="flex items-center gap-2 flex-shrink-0">
-                                               <button
-                                                    type="button"
-                                                    disabled={!c.can_edit}
-                                                    onClick={() => handleEditClick(c)}
-                                                    title={c.can_edit ? 'Edit contract' : 'Only the admin or assigned account manager can edit this contract'}
-                                                    className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-                                                        c.can_edit
-                                                            ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                                            : 'text-slate-300 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    <MdOutlineEdit size={17} />
-                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleFlip(c.id)}
@@ -505,19 +660,83 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                                                 >
                                                     <MdOutlineHistory size={17} />
                                                 </button>
+                                                {/* Stays clickable for anyone with manage permission
+                                                    (c.can_edit) even when the 3-month extension window
+                                                    has closed (c.extension_expired) — clicking then
+                                                    shows a toast explaining why, instead of the button
+                                                    just being greyed out with no explanation. */}
                                                 <button
                                                     type="button"
-                                                    disabled={!c.can_extend}
+                                                    disabled={!c.can_edit}
                                                     onClick={() => openExtendModal(c)}
-                                                    title={c.can_extend ? 'Extend end date' : 'Only the assigned account manager can extend this contract'}
+                                                    title={
+                                                        !c.can_edit
+                                                            ? 'Only the assigned account manager can extend this contract'
+                                                            : c.extension_expired
+                                                                ? 'This contract expired more than 3 months ago and can no longer be extended.'
+                                                                : 'Extend end date'
+                                                    }
                                                     className={`h-7 w-7 flex items-center justify-center rounded-lg transition-colors ${
-                                                        c.can_extend
+                                                        c.can_edit
                                                             ? 'text-[#4FA34E] hover:bg-[#E9F7E7]'
                                                             : 'text-slate-300 cursor-not-allowed'
                                                     }`}
                                                 >
                                                     <GrDocumentTime size={17} />
                                                 </button>
+                                                {/* 3-dot menu: Edit + (Terminate or Archive), depending on
+                                                    the contract's current status. Once a contract is
+                                                    terminated/archived, can_edit is false and this menu
+                                                    doesn't render at all — the contract is view-only from
+                                                    then on (the "View Contract" PDF link above is
+                                                    unaffected). Kept rightmost in the row. */}
+                                                {c.can_edit && (
+                                                    <div className="relative" ref={openMenuId === c.id ? menuContainerRef : null}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
+                                                            title="More actions"
+                                                            className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                                                        >
+                                                            <MdMoreVert size={17} />
+                                                        </button>
+
+                                                        {openMenuId === c.id && (
+                                                            <div className="absolute right-0 bottom-full mb-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { setOpenMenuId(null); handleEditClick(c); }}
+                                                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                                                                >
+                                                                    <MdOutlineEdit size={15} />
+                                                                    Edit
+                                                                </button>
+
+                                                                {c.can_terminate && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openTerminateModal(c)}
+                                                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50"
+                                                                    >
+                                                                        <MdOutlineCancel size={15} />
+                                                                        Terminate
+                                                                    </button>
+                                                                )}
+
+                                                                {c.can_archive && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openArchiveModal(c)}
+                                                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                                                                    >
+                                                                        <MdOutlineArchive size={15} />
+                                                                        Archive
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -564,7 +783,14 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                                                         </p>
                                                         <p className="text-[10px] text-slate-500 mt-0.5">
                                                             Extended {formatDateTime(entry.extended_at)}
-                                                            {entry.extended_by ? ` by ${entry.extended_by}` : ''}
+                                                            {/* Show the resolved employee name when the
+                                                                backend was able to match extended_by to a
+                                                                user; fall back to the raw employee id
+                                                                (e.g. for a since-removed/inactive account)
+                                                                so the entry never shows nothing at all. */}
+                                                            {(entry.extended_by_name || entry.extended_by)
+                                                                ? ` by ${entry.extended_by_name || entry.extended_by}`
+                                                                : ''}
                                                         </p>
                                                     </li>
                                                 ))}
@@ -640,6 +866,116 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                                 className="h-9 px-4 rounded-lg text-sm font-semibold text-white bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {isExtending ? 'Saving…' : 'Save Extension'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Terminate Contract Modal ── */}
+            {terminateTarget && (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 px-4"
+                    onClick={closeTerminateModal}
+                >
+                    <div
+                        className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between mb-1">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Terminate Contract</h2>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Doc #: {terminateTarget.doc_num} · {terminateTarget.company_name}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeTerminateModal}
+                                disabled={isTerminating}
+                                className="text-slate-400 hover:text-slate-600 disabled:opacity-40"
+                            >
+                                <MdClose size={20} />
+                            </button>
+                        </div>
+
+                        <p className="text-[11px] text-rose-600 mt-3">
+                            This ends the contract immediately. Once terminated, it cannot be edited, extended, or
+                            archived — only viewed.
+                        </p>
+                        {terminateError && <p className="text-[11px] text-[#C40000] mt-2">{terminateError}</p>}
+
+                        <div className="flex items-center justify-end gap-2 mt-6">
+                            <button
+                                type="button"
+                                onClick={closeTerminateModal}
+                                disabled={isTerminating}
+                                className="h-9 px-4 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={submitTerminate}
+                                disabled={isTerminating}
+                                className="h-9 px-4 rounded-lg text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                {isTerminating ? 'Terminating…' : 'Terminate Contract'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Archive Contract Modal ── */}
+            {archiveTarget && (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 px-4"
+                    onClick={closeArchiveModal}
+                >
+                    <div
+                        className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between mb-1">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Archive Contract</h2>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Doc #: {archiveTarget.doc_num} · {archiveTarget.company_name}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeArchiveModal}
+                                disabled={isArchiving}
+                                className="text-slate-400 hover:text-slate-600 disabled:opacity-40"
+                            >
+                                <MdClose size={20} />
+                            </button>
+                        </div>
+
+                        <p className="text-[11px] text-slate-500 mt-3">
+                            This expired contract will be moved to Archived. Once archived, it cannot be edited,
+                            extended, or terminated — only viewed.
+                        </p>
+                        {archiveError && <p className="text-[11px] text-[#C40000] mt-2">{archiveError}</p>}
+
+                        <div className="flex items-center justify-end gap-2 mt-6">
+                            <button
+                                type="button"
+                                onClick={closeArchiveModal}
+                                disabled={isArchiving}
+                                className="h-9 px-4 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={submitArchive}
+                                disabled={isArchiving}
+                                className="h-9 px-4 rounded-lg text-sm font-semibold text-white bg-slate-600 hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                {isArchiving ? 'Archiving…' : 'Archive Contract'}
                             </button>
                         </div>
                     </div>

@@ -9,6 +9,7 @@ use App\Models\CustomerInfo\Company;
 use App\Models\LocationDepartment;
 use App\Models\User;
 use App\Services\ContractUploadLogger;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,13 @@ use Inertia\Inertia;
 class ContractController extends Controller
 {
     use AppliesCompanyVisibility;
+
+    /**
+     * Message shown (and returned to the frontend) when a contract can no
+     * longer be extended because it's been expired too long.
+     */
+    private const EXTENSION_WINDOW_EXPIRED_MESSAGE =
+        'This contract expired more than 3 months ago and can no longer be extended.';
 
     public function upload(Request $request)
     {
@@ -65,7 +73,15 @@ class ContractController extends Controller
                     $q->where('company_name', 'like', "%{$search}%")
                       ->orWhere('sap_code', 'like', "%{$search}%")
                       ->orWhere('address', 'like', "%{$search}%")
-                      ->orWhere('delsan_company', 'like', "%{$search}%");
+                      ->orWhere('delsan_company', 'like', "%{$search}%")
+                      // Account manager's full name — matches against the
+                      // client_managers alias already joined in above, so
+                      // e.g. searching "andre" or "jarl aniana" both find
+                      // companies managed by "Andre Jarl Aniana".
+                      ->orWhereRaw(
+                          "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) LIKE ?",
+                          ['%' . strtolower($search) . '%']
+                      );
                 });
             })
             ->when($request->input('category'), function ($query, $category) {
@@ -257,33 +273,98 @@ class ContractController extends Controller
 
         $branches = $branchCompanies->pluck('company_name')->filter()->unique()->values();
 
-        // can_extend depends on which specific branch a contract belongs to,
-        // so compute it per company row within the group rather than using a
-        // single blanket flag for every contract returned.
-        $canExtendByCompanyId = $branchCompanies->mapWithKeys(
+        // can_edit / extend permission depends on which specific branch a
+        // contract belongs to, so compute it per company row within the
+        // group rather than using a single blanket flag for every contract
+        // returned.
+        $canManageByCompanyId = $branchCompanies->mapWithKeys(
             fn ($c) => [$c->id => $this->canManageCompanyContracts($c)]
         );
 
-        $contracts = Contract::whereIn('company_id', $branchIds)
+        $contractsRaw = Contract::whereIn('company_id', $branchIds)
             ->orderByDesc('start_date')
-            ->get()
-            ->map(function ($c) use ($canExtendByCompanyId) {
+            ->get();
+
+        // Every distinct employee_id we might need to display a name for —
+        // everyone who ever extended, terminated, or archived one of these
+        // contracts — resolved once in a single query rather than
+        // per-contract.
+        $extendedByIds = $contractsRaw
+            ->flatMap(fn ($c) => collect($c->extend_dates ?? [])->pluck('extended_by'));
+
+        $employeeIdsToResolve = $extendedByIds
+            ->merge($contractsRaw->pluck('terminated_by'))
+            ->merge($contractsRaw->pluck('archived_by'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $employeeNamesById = User::query()
+            ->whereIn('employee_id', $employeeIdsToResolve)
+            ->get(['employee_id', 'first_name', 'last_name'])
+            ->keyBy('employee_id')
+            ->map(fn ($u) => trim("{$u->first_name} {$u->last_name}"));
+
+        $contracts = $contractsRaw
+            ->map(function ($c) use ($canManageByCompanyId, $employeeNamesById) {
+                // No-ops (and never overwrites the status) once a contract
+                // is terminated/archived — see Contract::refreshStatus().
                 $c->refreshStatus();
 
+                $canManage = $canManageByCompanyId[$c->company_id] ?? false;
+                $isFinal   = $c->isFinal();
+
+                // Once a contract has been expired for 3+ months (measured
+                // from its latest effective end date — the most recent
+                // extension if any, otherwise the original end_date) it can
+                // no longer be extended, even by someone who otherwise has
+                // permission to manage it.
+                $extensionWindowExpired = $this->isPastExtensionWindow($c);
+
                 return [
-                    'id'           => $c->id,
-                    'doc_num'      => $c->doc_num,
-                    'company_name' => $c->company_name,
-                    'start_date'   => optional($c->start_date)->format('Y-m-d'),
-                    'end_date'     => optional($c->end_date)->format('Y-m-d'),
-                    'extend_dates' => $c->extend_dates ?? [],
-                    'status'       => $c->status,
-                    'can_extend'   => $canExtendByCompanyId[$c->company_id] ?? false,
-                    // Editing uses the same authorization rule as extending
-                    // (admin, or the assigned account manager for this
-                    // contract's branch / sibling branches under the SAP code).
-                    'can_edit'     => $canExtendByCompanyId[$c->company_id] ?? false,
-                    'pdf_url'      => $c->pdf_path ? route('contract.pdf', $c->id) : null,
+                    'id'                 => $c->id,
+                    'doc_num'            => $c->doc_num,
+                    'company_name'       => $c->company_name,
+                    'start_date'         => optional($c->start_date)->format('Y-m-d'),
+                    'end_date'           => optional($c->end_date)->format('Y-m-d'),
+                    'extend_dates'       => collect($c->extend_dates ?? [])
+                        ->map(function ($entry) use ($employeeNamesById) {
+                            $entry['extended_by_name'] = $employeeNamesById[$entry['extended_by'] ?? null] ?? null;
+                            return $entry;
+                        })
+                        ->all(),
+                    'status'             => $c->status,
+                    // Permission AND not a final state (terminated/archived
+                    // contracts can only ever be viewed again). Used to
+                    // decide whether the edit button / 3-dot menu shows up
+                    // at all.
+                    'can_edit'           => $canManage && !$isFinal,
+                    // Permission, not final, AND still within the 3-month
+                    // extension window. Used to decide whether an extend
+                    // attempt is actually allowed to succeed.
+                    'can_extend'         => $canManage && !$isFinal && !$extensionWindowExpired,
+                    // Lets the frontend distinguish *why* extension isn't
+                    // allowed (no permission vs. window has closed) so it
+                    // can show the right message.
+                    'extension_expired'  => $extensionWindowExpired,
+                    // Employee can terminate/cancel a contract that's still
+                    // "live" in some sense — active, extended, or expiring
+                    // soon. Not offered once it's already expired (that's
+                    // what archiving is for) or already final.
+                    'can_terminate'      => $canManage && in_array($c->status, [
+                        Contract::STATUS_ACTIVE,
+                        Contract::STATUS_EXTENDED,
+                        Contract::STATUS_EXPIRING_SOON,
+                    ], true),
+                    // Employee can archive only once a contract has expired.
+                    'can_archive'        => $canManage && $c->status === Contract::STATUS_EXPIRED,
+                    'terminated_at'      => optional($c->terminated_at)->format('Y-m-d'),
+                    'terminated_by'      => $c->terminated_by,
+                    'terminated_by_name' => $employeeNamesById[$c->terminated_by] ?? null,
+                    'archived_at'        => optional($c->archived_at)->format('Y-m-d'),
+                    'archived_by'        => $c->archived_by,
+                    'archived_by_name'   => $employeeNamesById[$c->archived_by] ?? null,
+                    'pdf_url'            => $c->pdf_path ? route('contract.pdf', $c->id) : null,
                 ];
             });
 
@@ -388,6 +469,13 @@ class ContractController extends Controller
         // same SAP code) can EDIT — Approvers cannot. Same rule as store/extend.
         if (!$this->canManageCompanyContracts($company)) {
             abort(403, 'You are not authorized to edit this contract.');
+        }
+
+        // A terminated or archived contract is in a final state — nobody,
+        // including admins/managers, can edit it anymore. It can only be
+        // viewed from this point on.
+        if ($contract->isFinal()) {
+            abort(403, "This contract has been {$contract->status} and can no longer be edited.");
         }
 
         $validCompanyNames = Company::query()
@@ -503,6 +591,19 @@ class ContractController extends Controller
             abort(403, 'You are not authorized to extend this contract.');
         }
 
+        // A terminated or archived contract is in a final state and can
+        // never be extended again.
+        if ($contract->isFinal()) {
+            abort(403, "This contract has been {$contract->status} and can no longer be extended.");
+        }
+
+        // Hard server-side block: a contract that's been expired 3+ months
+        // (measured from its latest effective end date to today) can never
+        // be extended, regardless of what the frontend sent.
+        if ($this->isPastExtensionWindow($contract)) {
+            abort(403, self::EXTENSION_WINDOW_EXPIRED_MESSAGE);
+        }
+
         $employeeId = Auth::user()->employee_id ?? null;
 
         $currentEffectiveEnd = $contract->latestExtendedDate()
@@ -528,10 +629,136 @@ class ContractController extends Controller
 
         ContractUploadLogger::extended($contract, $currentEffectiveEnd, $validated['extended_end_date']);
 
+        // Attach the current user's display name to the entry we just
+        // added so the modal can show "Extended by Andre Jarl Aniana"
+        // immediately, without waiting on a refetch of the contract list.
+        $currentUser     = Auth::user();
+        $currentUserName = $currentUser ? trim("{$currentUser->first_name} {$currentUser->last_name}") : null;
+
+        $extendDatesWithNames = collect($contract->extend_dates)
+            ->map(function ($entry) use ($employeeId, $currentUserName) {
+                if (($entry['extended_by'] ?? null) === $employeeId) {
+                    $entry['extended_by_name'] = $currentUserName;
+                }
+                return $entry;
+            })
+            ->all();
+
+        // Recompute the action-menu flags from the contract's *new* status
+        // (e.g. an expired contract that just got extended is now
+        // "extended", not "expired" anymore) so the frontend can swap the
+        // 3-dot menu from Archive to Terminate immediately, without
+        // waiting on a refetch of the whole contract list.
+        $isFinal                = $contract->isFinal();
+        $extensionWindowExpired = $this->isPastExtensionWindow($contract);
+
         return response()->json([
-            'id'           => $contract->id,
-            'extend_dates' => $contract->extend_dates,
-            'status'       => $contract->status,
+            'id'                => $contract->id,
+            'extend_dates'      => $extendDatesWithNames,
+            'status'            => $contract->status,
+            'can_edit'          => !$isFinal,
+            'can_extend'        => !$isFinal && !$extensionWindowExpired,
+            'extension_expired' => $extensionWindowExpired,
+            'can_terminate'     => in_array($contract->status, [
+                Contract::STATUS_ACTIVE,
+                Contract::STATUS_EXTENDED,
+                Contract::STATUS_EXPIRING_SOON,
+            ], true),
+            'can_archive'       => $contract->status === Contract::STATUS_EXPIRED,
+        ]);
+    }
+
+    /**
+     * Employee-initiated cancellation/termination of a contract. Only
+     * allowed while the contract is still "live" — active, extended, or
+     * expiring soon. Once terminated, the contract is final: it can no
+     * longer be edited, extended, terminated again, or archived — only
+     * viewed.
+     */
+    public function terminate($contractId)
+    {
+        $contract = Contract::findOrFail($contractId);
+        $company  = Company::findOrFail($contract->company_id);
+
+        // Same permission tier as edit/extend/upload — Approvers cannot
+        // terminate a contract, only Admin or the assigned manager.
+        if (!$this->canManageCompanyContracts($company)) {
+            abort(403, 'You are not authorized to terminate this contract.');
+        }
+
+        // Make sure status reflects reality before we check it (e.g. a
+        // contract that quietly crossed into "expired" since it was last
+        // loaded). No-ops if already final.
+        $contract->refreshStatus();
+
+        if ($contract->isFinal()) {
+            abort(403, "This contract has already been {$contract->status} and cannot be terminated.");
+        }
+
+        if (!in_array($contract->status, [
+            Contract::STATUS_ACTIVE,
+            Contract::STATUS_EXTENDED,
+            Contract::STATUS_EXPIRING_SOON,
+        ], true)) {
+            abort(403, 'Only active, extended, or expiring-soon contracts can be terminated. Expired contracts should be archived instead.');
+        }
+
+        $employeeId     = Auth::user()->employee_id ?? null;
+        $previousStatus = $contract->status;
+
+        $contract->terminate($employeeId);
+
+        ContractUploadLogger::terminated($contract, $previousStatus);
+
+        $currentUser = Auth::user();
+
+        return response()->json([
+            'id'                 => $contract->id,
+            'status'             => $contract->status,
+            'terminated_at'      => optional($contract->terminated_at)->format('Y-m-d'),
+            'terminated_by_name' => $currentUser ? trim("{$currentUser->first_name} {$currentUser->last_name}") : null,
+        ]);
+    }
+
+    /**
+     * Employee-initiated archiving of an already-expired contract. Once
+     * archived, the contract is final: it can no longer be edited,
+     * extended, terminated, or archived again — only viewed.
+     */
+    public function archive($contractId)
+    {
+        $contract = Contract::findOrFail($contractId);
+        $company  = Company::findOrFail($contract->company_id);
+
+        // Same permission tier as edit/extend/upload — Approvers cannot
+        // archive a contract, only Admin or the assigned manager.
+        if (!$this->canManageCompanyContracts($company)) {
+            abort(403, 'You are not authorized to archive this contract.');
+        }
+
+        $contract->refreshStatus();
+
+        if ($contract->isFinal()) {
+            abort(403, "This contract has already been {$contract->status}.");
+        }
+
+        if ($contract->status !== Contract::STATUS_EXPIRED) {
+            abort(403, 'Only expired contracts can be archived.');
+        }
+
+        $employeeId = Auth::user()->employee_id ?? null;
+
+        $contract->archive($employeeId);
+
+        ContractUploadLogger::archived($contract);
+
+        $currentUser = Auth::user();
+
+        return response()->json([
+            'id'               => $contract->id,
+            'status'           => $contract->status,
+            'archived_at'      => optional($contract->archived_at)->format('Y-m-d'),
+            'archived_by_name' => $currentUser ? trim("{$currentUser->first_name} {$currentUser->last_name}") : null,
         ]);
     }
 
@@ -643,5 +870,25 @@ class ContractController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * True if the contract's effective end date — the latest recorded
+     * extension if any, otherwise its original end_date — is 3 or more
+     * months before today. The "interval" is computed directly between the
+     * expiry date and the current date, so it correctly accounts for
+     * variable month lengths (e.g. Jan 31 -> Apr 30 is still 3 months).
+     * Once true, the contract can no longer be extended.
+     */
+    private function isPastExtensionWindow(Contract $contract): bool
+    {
+        $effectiveEnd = $contract->latestExtendedDate()
+            ?? optional($contract->end_date)->format('Y-m-d');
+
+        if (!$effectiveEnd) {
+            return false;
+        }
+
+        return Carbon::parse($effectiveEnd)->diffInMonths(now(), false) >= 3;
     }
 }

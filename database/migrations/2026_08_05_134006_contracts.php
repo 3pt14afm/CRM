@@ -33,9 +33,22 @@ return new class extends Migration
 
             // Computed server-side (see Contract::computeStatus()) rather
             // than derived in the frontend. One of: active, expiring_soon,
-            // expired, extended.
+            // expired, extended — plus the two final, explicitly-set
+            // states below: terminated, archived.
             $table->string('status', 20)->default('active');
             $table->index('status');
+
+            // Set only when an employee explicitly terminates/cancels a
+            // still-live contract (active/extended/expiring_soon). Once
+            // set, status is final and never recomputed from dates again.
+            $table->timestamp('terminated_at')->nullable();
+            $table->string('terminated_by')->nullable(); // employee_id who terminated it
+
+            // Set only when an employee explicitly archives an already
+            // expired contract. Once set, status is final and never
+            // recomputed from dates again.
+            $table->timestamp('archived_at')->nullable();
+            $table->string('archived_by')->nullable(); // employee_id who archived it
 
             $table->string('pdf_path')->nullable();
             $table->string('uploader')->nullable(); // employee_id of the uploader
