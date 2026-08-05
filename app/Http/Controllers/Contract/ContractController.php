@@ -762,6 +762,63 @@ class ContractController extends Controller
         ]);
     }
 
+    public function statusStats(Request $request)
+    {
+        $counts = ['expiring_soon' => 0, 'active' => 0, 'expired' => 0];
+ 
+        Contract::query()->chunk(200, function ($contracts) use (&$counts) {
+            foreach ($contracts as $contract) {
+                $contract->refreshStatus();
+ 
+                if (isset($counts[$contract->status])) {
+                    $counts[$contract->status]++;
+                }
+            }
+        });
+ 
+        return response()->json($counts);
+    }
+
+    public function byStatus(Request $request)
+    {
+        $status = $request->input('status', 'expiring_soon');
+
+        if (!in_array($status, ['expiring_soon', 'active', 'expired'])) {
+            $status = 'expiring_soon';
+        }
+
+        $limit = 50;
+
+        $contracts = Contract::query()->get();
+
+        $filtered = $contracts
+            ->each(fn ($c) => $c->refreshStatus())
+            ->filter(fn ($c) => $c->status === $status)
+            ->map(function ($c) {
+                $effectiveDate = $c->latestExtendedDate() ?? optional($c->end_date)->format('Y-m-d');
+                $company = Company::find($c->company_id);
+
+                return [
+                    'id'             => $c->id,
+                    'company_id'     => $c->company_id,
+                    'company_name'   => $c->company_name,
+                    'expires_at'     => $effectiveDate,
+                    'days_remaining' => $effectiveDate
+                        ? (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($effectiveDate)->startOfDay(), false)
+                        : null,
+                    'was_extended'   => !empty($c->extend_dates),
+                    'can_upload'     => $company ? $this->canManageCompanyContracts($company) : false,
+                    'pdf_url' => $c->pdf_path ? route('contract.pdf', $c->id) : null,
+                ];
+            });
+
+        $sorted = $status === 'expired'
+            ? $filtered->sortByDesc('expires_at')
+            : $filtered->sortBy('expires_at');
+
+        return response()->json($sorted->take($limit)->values());
+    }
+
     public function viewPdf($contractId)
     {
         $contract = Contract::findOrFail($contractId);

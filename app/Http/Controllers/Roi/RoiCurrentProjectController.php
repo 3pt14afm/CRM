@@ -185,6 +185,18 @@ class RoiCurrentProjectController extends Controller
         if (!empty($dateFrom)) $query->whereDate('roi_current_projects.last_saved_at', '>=', $dateFrom);
         if (!empty($dateTo))   $query->whereDate('roi_current_projects.last_saved_at', '<=', $dateTo);
 
+        // 7. "Mine to act" filter — only projects currently sitting with this user
+        if ($request->boolean('mine')) {
+            $userId = (int) $user->id;
+            $query->where(function ($q) use ($userId) {
+                $q->where(fn($sub) => $sub->where('roi_current_projects.current_level', 2)->where('roi_current_projects.reviewed_by', $userId))
+                ->orWhere(fn($sub) => $sub->where('roi_current_projects.current_level', 3)->where('roi_current_projects.checked_by', $userId))
+                ->orWhere(fn($sub) => $sub->where('roi_current_projects.current_level', 4)->where('roi_current_projects.endorsed_by', $userId))
+                ->orWhere(fn($sub) => $sub->where('roi_current_projects.current_level', 5)->where('roi_current_projects.confirmed_by', $userId))
+                ->orWhere(fn($sub) => $sub->where('roi_current_projects.current_level', 6)->where('roi_current_projects.approved_by', $userId));
+            });
+        }
+
         $userId = (int) $user->id;
 
         // 7. Sorting

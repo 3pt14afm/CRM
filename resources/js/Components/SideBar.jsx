@@ -84,11 +84,12 @@ export default function Sidebar() {
   };
 
   const activeByRoute =
+    route().current('customers.dashboard') ||
     route().current('customers.*') ||
     route().current('customerinfo.*') ||
     route().current('roi.*') ||
     route().current('sprf.*') ||
-    route().current('contract.*') || // add this
+    route().current('contract.*') ||
     route().current('proposals.*')
       ? 'customer'
       : route().current('machine.*')
@@ -350,16 +351,29 @@ export default function Sidebar() {
             {isOpen && activeModule === 'customer' && (
               <div className="bg-lightgreen/50 rounded-b-lg pt-2 pl-4 shadow-[0px_0px_0px_rgba(0,0,0,0.10),-3px_-2px_5px_rgba(220,220,220,0.2),1px_2px_5px_rgba(0,0,0,0.3)] mb-7 lg:pl-6">
                 {!activeSubMenu && (
-                  <Link
-                    href={route('customerinfo.companies.index')}
-                    className={`block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs ${
-                      route().current('customerinfo.*')
-                        ? 'text-darkgreen font-semibold opacity-100'
-                        : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
-                    }`}
-                  >
-                    Customer Information Details
-                  </Link>
+                  <>
+                    <Link
+                      href={route('customers.dashboard')}
+                      className={`block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs ${
+                        route().current('customers.dashboard')
+                          ? 'text-darkgreen font-semibold opacity-100'
+                          : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                      }`}
+                    >
+                      Dashboard
+                    </Link>
+
+                    <Link
+                      href={route('customerinfo.companies.index')}
+                      className={`block px-8 py-2 text-[11px] font-medium hover:font-semibold lg:text-xs ${
+                        route().current('customerinfo.*')
+                          ? 'text-darkgreen font-semibold opacity-100'
+                          : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
+                      }`}
+                    >
+                      Customer Information Details
+                    </Link>
+                  </>
                 )}
 
                 {(activeSubMenu === null || activeSubMenu === 'roi') && (
