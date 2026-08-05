@@ -8,6 +8,7 @@ use App\Models\Contracts\Contract;
 use App\Models\CustomerInfo\Company;
 use App\Models\LocationDepartment;
 use App\Models\User;
+use App\Services\ContractUploadLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ class ContractController extends Controller
 
         $allowedSorts = [
             'id', 'company_name', 'sap_code',
-            'client_category', 'delsan_company', 'client_manager',
+            'client_category', 'delsan_company', 'client_manager', 'contracts_count',
         ];
 
         if (!in_array($sortBy, $allowedSorts)) {
@@ -80,6 +81,10 @@ class ContractController extends Controller
             ->groupBy(DB::raw("COALESCE({$companyTable}.sap_code, CONCAT('__id_', {$companyTable}.id))"))
             ->pluck('agg_id');
 
+        $contractTable = (new Contract())->getTable();
+
+        $qualifyTable = fn (string $table) => '`' . str_replace('.', '`.`', $table) . '`';
+
         $companies = $baseQuery
             ->whereIn("{$companyTable}.id", $representativeIds)
             ->when($sortBy === 'sap_code', function ($query) use ($sortOrder) {
@@ -93,10 +98,28 @@ class ContractController extends Controller
                     "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) {$sortOrder}"
                 );
             })
-            ->when(!in_array($sortBy, ['sap_code', 'client_manager']) && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable) {
+            ->when($sortBy === 'contracts_count', function ($query) use ($sortOrder, $companyTable, $contractTable, $qualifyTable) {
+                // Counts every contract across all branches sharing this row's
+                // SAP code (or just this row's own contracts when it has no
+                // sap_code), matching how the contracts_count sent to the
+                // frontend is computed below.
+                $query->orderByRaw("
+                    (
+                        SELECT COUNT(*)
+                        FROM {$qualifyTable($contractTable)} AS ct
+                        INNER JOIN {$qualifyTable($companyTable)} AS co ON co.id = ct.company_id
+                        WHERE co.status = 1
+                          AND (
+                              ({$companyTable}.sap_code IS NOT NULL AND co.sap_code = {$companyTable}.sap_code)
+                              OR ({$companyTable}.sap_code IS NULL AND co.id = {$companyTable}.id)
+                          )
+                    ) {$sortOrder}
+                ");
+            })
+            ->when(!in_array($sortBy, ['sap_code', 'client_manager', 'contracts_count']) && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable) {
                 $query->orderBy("{$companyTable}.{$sortBy}", $sortOrder);
             })
-            ->when(!in_array($sortBy, ['sap_code', 'client_manager']) && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable, $qualify) {
+            ->when(!in_array($sortBy, ['sap_code', 'client_manager', 'contracts_count']) && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable, $qualify) {
                 $query->orderByRaw("LOWER({$qualify($companyTable, $sortBy)}) {$sortOrder}");
             })
             ->paginate($perPage)
@@ -128,9 +151,41 @@ class ContractController extends Controller
         $isAdmin           = $this->isAdmin();
         $currentEmployeeId = Auth::user()->employee_id ?? null;
 
+        // Total contract counts for the "Contracts" column, grouped by
+        // sap_code. A company row on the page might be a stand-in (via the
+        // sap_code dedup above) for several branches, so contracts are
+        // counted across every branch sharing that SAP code — plus the row's
+        // own id when it has no sap_code.
+        $soloCompanyIds = $companies->getCollection()
+            ->filter(fn ($c) => !$c->sap_code)
+            ->pluck('id');
+
+        $branchCompaniesForCounts = Company::query()
+            ->select('id', 'sap_code')
+            ->where('status', 1)
+            ->whereIn('sap_code', $sapCodesOnPage)
+            ->get();
+
+        $companyIdsForCounts = $branchCompaniesForCounts->pluck('id')
+            ->merge($soloCompanyIds)
+            ->unique()
+            ->values();
+
+        $contractsCountByCompanyId = Contract::query()
+            ->whereIn('company_id', $companyIdsForCounts)
+            ->select('company_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('company_id')
+            ->pluck('total', 'company_id');
+
+        $contractsCountBySapCode = $branchCompaniesForCounts
+            ->groupBy('sap_code')
+            ->map(fn ($group) => $group->sum(fn ($c) => $contractsCountByCompanyId[$c->id] ?? 0));
+
         $companies->getCollection()->transform(function ($c) use (
             $nameOptionsBySapCode,
             $managerIdsBySapCode,
+            $contractsCountBySapCode,
+            $contractsCountByCompanyId,
             $isAdmin,
             $currentEmployeeId
         ) {
@@ -147,13 +202,15 @@ class ContractController extends Controller
                 'sap_code'              => $c->sap_code,
                 'client_category'       => $c->client_category,
                 'delsan_company'        => $c->delsan_company,
-                'address'               => $c->address,
                 'id_client_mngr'        => $c->id_client_mngr,
                 'client_manager'        => $c->clientManager ? $c->clientManager->first_name . ' ' . $c->clientManager->last_name : null,
                 'company_name_options'  => $c->sap_code
                     ? ($nameOptionsBySapCode[$c->sap_code] ?? collect([$c->company_name]))->values()->all()
                     : [$c->company_name],
                 'can_upload'            => $isAdmin || $isDirectManager || $isGroupManager,
+                'contracts_count'       => $c->sap_code
+                    ? ($contractsCountBySapCode[$c->sap_code] ?? 0)
+                    : ($contractsCountByCompanyId[$c->id] ?? 0),
             ];
         });
 
@@ -222,6 +279,10 @@ class ContractController extends Controller
                     'extend_dates' => $c->extend_dates ?? [],
                     'status'       => $c->status,
                     'can_extend'   => $canExtendByCompanyId[$c->company_id] ?? false,
+                    // Editing uses the same authorization rule as extending
+                    // (admin, or the assigned account manager for this
+                    // contract's branch / sibling branches under the SAP code).
+                    'can_edit'     => $canExtendByCompanyId[$c->company_id] ?? false,
                     'pdf_url'      => $c->pdf_path ? route('contract.pdf', $c->id) : null,
                 ];
             });
@@ -266,8 +327,8 @@ class ContractController extends Controller
         $path = $request->file('pdf')->store('contracts', 'local');
 
         try {
-            DB::transaction(function () use ($company, $validated, $path, $employeeId) {
-                Contract::create([
+            $contract = DB::transaction(function () use ($company, $validated, $path, $employeeId) {
+                return Contract::create([
                     'company_id'   => $company->id,
                     'company_name' => $validated['company_name'],
                     'doc_num'      => $validated['doc_num'],
@@ -283,18 +344,152 @@ class ContractController extends Controller
 
             // MySQL duplicate-entry error code (use 23505 / SQLSTATE check on Postgres).
             if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                ContractUploadLogger::uploadFailed(
+                    $validated['company_name'] ?? $company->company_name,
+                    $validated['doc_num'] ?? null,
+                    'Duplicate document number.'
+                );
+
                 return back()
                     ->withErrors(['doc_num' => 'This document number was just taken by another upload. Please use a different one.'])
                     ->withInput();
             }
 
+            ContractUploadLogger::uploadFailed(
+                $validated['company_name'] ?? $company->company_name,
+                $validated['doc_num'] ?? null,
+                $e->getMessage()
+            );
+
             throw $e;
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($path);
+
+            ContractUploadLogger::uploadFailed(
+                $validated['company_name'] ?? $company->company_name,
+                $validated['doc_num'] ?? null,
+                $e->getMessage()
+            );
+
             throw $e;
         }
 
+        ContractUploadLogger::uploaded($contract);
+
         return back()->with('success', 'Contract uploaded successfully.');
+    }
+
+    public function update(Request $request, $contractId)
+    {
+        $contract = Contract::findOrFail($contractId);
+        $company  = Company::findOrFail($contract->company_id);
+
+        // Admin or Assigned Manager (including sibling branches under the
+        // same SAP code) can EDIT — Approvers cannot. Same rule as store/extend.
+        if (!$this->canManageCompanyContracts($company)) {
+            abort(403, 'You are not authorized to edit this contract.');
+        }
+
+        $validCompanyNames = Company::query()
+            ->where('status', 1)
+            ->where(function ($q) use ($company) {
+                $q->where('id', $company->id)
+                  ->orWhere('sap_code', $company->sap_code);
+            })
+            ->pluck('company_name')
+            ->toArray();
+
+        $validated = $request->validate([
+            // The PDF is optional on edit — omit it to keep the file already
+            // on record and only change the other fields.
+            'pdf'          => ['nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
+            'doc_num'      => ['required', 'string', 'max:100', Rule::unique('contracts', 'doc_num')->ignore($contract->id)],
+            'start_date'   => ['required', 'date'],
+            'end_date'     => ['required', 'date', 'after_or_equal:start_date'],
+            'company_name' => ['required', 'string', 'max:255', Rule::in($validCompanyNames)],
+        ]);
+
+        // Snapshot pre-edit values before they get overwritten, so the log can
+        // show what actually changed (and whether the PDF file was replaced).
+        $before = [
+            'company_name' => $contract->company_name,
+            'doc_num'      => $contract->doc_num,
+            'start_date'   => optional($contract->start_date)->format('Y-m-d'),
+            'end_date'     => optional($contract->end_date)->format('Y-m-d'),
+            'pdf_path'     => $contract->pdf_path,
+        ];
+
+        $newPath = null;
+
+        if ($request->hasFile('pdf')) {
+            $newPath = $request->file('pdf')->store('contracts', 'local');
+        }
+
+        try {
+            DB::transaction(function () use ($contract, $validated, $newPath) {
+                $contract->update([
+                    'company_name' => $validated['company_name'],
+                    'doc_num'      => $validated['doc_num'],
+                    'start_date'   => $validated['start_date'],
+                    'end_date'     => $validated['end_date'],
+                    'pdf_path'     => $newPath ?? $contract->pdf_path,
+                ]);
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Clean up the newly-uploaded file since the DB write didn't take.
+            if ($newPath) {
+                Storage::disk('local')->delete($newPath);
+            }
+
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                ContractUploadLogger::editFailed(
+                    $contract,
+                    $validated['doc_num'] ?? null,
+                    'Duplicate document number.'
+                );
+
+                return back()
+                    ->withErrors(['doc_num' => 'This document number is already in use. Please use a different one.'])
+                    ->withInput();
+            }
+
+            ContractUploadLogger::editFailed(
+                $contract,
+                $validated['doc_num'] ?? null,
+                $e->getMessage()
+            );
+
+            throw $e;
+        } catch (\Throwable $e) {
+            if ($newPath) {
+                Storage::disk('local')->delete($newPath);
+            }
+
+            ContractUploadLogger::editFailed(
+                $contract,
+                $validated['doc_num'] ?? null,
+                $e->getMessage()
+            );
+
+            throw $e;
+        }
+
+        // Intentionally NOT deleting $oldPath here. Old contract PDFs are
+        // kept on disk (even after being replaced) so a prior version can
+        // still be retrieved during an audit. Only the *current* pdf_path is
+        // linked from the contract record; superseded files just become
+        // orphaned-but-recoverable on disk. If disk usage ever becomes a
+        // concern, archive/move old files elsewhere rather than deleting.
+
+        ContractUploadLogger::edited($contract, $before, [
+            'company_name' => $validated['company_name'],
+            'doc_num'      => $validated['doc_num'],
+            'start_date'   => $validated['start_date'],
+            'end_date'     => $validated['end_date'],
+            'pdf_path'     => $contract->pdf_path,
+        ]);
+
+        return back()->with('success', 'Contract updated successfully.');
     }
 
     public function extendDate(Request $request, $contractId)
@@ -331,6 +526,8 @@ class ContractController extends Controller
         $contract->extend_dates = $extendDates;
         $contract->save();
 
+        ContractUploadLogger::extended($contract, $currentEffectiveEnd, $validated['extended_end_date']);
+
         return response()->json([
             'id'           => $contract->id,
             'extend_dates' => $contract->extend_dates,
@@ -355,6 +552,8 @@ class ContractController extends Controller
         if (!Storage::disk('local')->exists($contract->pdf_path)) {
             abort(404, 'File not found on disk.');
         }
+
+        ContractUploadLogger::viewedPdf($contract);
 
         return response()->file(
             Storage::disk('local')->path($contract->pdf_path),

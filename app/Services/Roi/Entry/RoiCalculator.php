@@ -342,7 +342,12 @@ class RoiCalculator
             $qty        = 0.0;
 
             if ($flags['isMonthlyRental']) {
-                return array_merge($c, ['qty' => 0, 'yields' => 0, 'price' => 0, 'totalCost' => 0, 'totalSell' => 0]);
+                $qty = $this->toFloat($c['qty'] ?? 0);
+                $unitCost = $this->toFloat($c['cost'] ?? 0);
+                return array_merge($c, [
+                    'qty' => $qty, 'yields' => 0, 'price' => 0,
+                    'totalCost' => $qty * $unitCost, 'totalSell' => 0,
+                ]);
             }
 
             if ($mode === 'others') {

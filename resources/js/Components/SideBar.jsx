@@ -463,7 +463,7 @@ export default function Sidebar() {
                             : 'text-darkgreen/70 opacity-80 hover:text-darkgreen hover:font-medium'
                         }`}
                       >
-                        Contract Generation
+                        Contract Management
                       </Link>
                       <button onClick={() => handleSubToggle('contract')} className="px-6 py-2" type="button">
                         <span className={`inline-block transition-transform duration-300 ${activeSubMenu === 'contract' ? 'rotate-90' : 'opacity-80'}`}>

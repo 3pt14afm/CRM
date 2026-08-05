@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { route } from 'ziggy-js';
-import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory } from 'react-icons/md';
+import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit } from 'react-icons/md';
 import { GrDocumentTime } from 'react-icons/gr';
+import { FaFileUpload } from 'react-icons/fa';
 import { toast } from 'sonner';
 
-export default function ContractsModal({ modalRow, onClose }) {
+const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, onUpload, onEdit }, ref) {
     const [contractsList, setContractsList] = useState([]);
     const [contractBranches, setContractBranches] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState('');
@@ -24,21 +25,17 @@ export default function ContractsModal({ modalRow, onClose }) {
     const [extendError, setExtendError] = useState('');
     const [isExtending, setIsExtending] = useState(false);
 
-    useEffect(() => {
+    // Fetches (or re-fetches) the contract list for the current modalRow
+    // without touching the user's current branch/status/search/date filters
+    // — used both for the initial load and for silent refreshes after a
+    // new contract is uploaded from the still-open modal.
+    const fetchContracts = useCallback(() => {
         if (!modalRow) return;
-
-        setContractsList([]);
-        setContractBranches([]);
-        setSelectedBranch(modalRow.company_name ?? '');
-        setStatusFilter('all');
-        setSearchQuery('');
-        setSelectedDate('');
-        setFlippedIds({});
-        setIsLoadingContracts(true);
 
         if (contractsRequestRef.current) contractsRequestRef.current.abort();
         const controller = new AbortController();
         contractsRequestRef.current = controller;
+        setIsLoadingContracts(true);
 
         axios.get(route('contract.contracts', modalRow.id), { signal: controller.signal })
             .then((res) => {
@@ -50,6 +47,26 @@ export default function ContractsModal({ modalRow, onClose }) {
                 console.error('Failed to load contracts:', err);
             })
             .finally(() => setIsLoadingContracts(false));
+    }, [modalRow]);
+
+    // Lets the parent trigger a refresh (e.g. right after a contract is
+    // uploaded) without closing/reopening this modal.
+    useImperativeHandle(ref, () => ({
+        refresh: () => fetchContracts(),
+    }), [fetchContracts]);
+
+    useEffect(() => {
+        if (!modalRow) return;
+
+        setContractsList([]);
+        setContractBranches([]);
+        setSelectedBranch(modalRow.company_name ?? '');
+        setStatusFilter('all');
+        setSearchQuery('');
+        setSelectedDate('');
+        setFlippedIds({});
+
+        fetchContracts();
 
         return () => {
             if (contractsRequestRef.current) contractsRequestRef.current.abort();
@@ -105,7 +122,14 @@ export default function ContractsModal({ modalRow, onClose }) {
         }
 
         // 2. Filter by Status
-        if (statusFilter !== 'all') {
+        // "Active" also includes contracts whose status is "extended" — an
+        // extended contract's current effective end date is still in the
+        // future, so it's active too, just with an extension on record. The
+        // dedicated "Extended" tab remains for anyone who wants to see only
+        // the ones that have been extended specifically.
+        if (statusFilter === 'active') {
+            result = result.filter((c) => c.status === 'active' || c.status === 'extended');
+        } else if (statusFilter !== 'all') {
             result = result.filter((c) => c.status === statusFilter);
         }
 
@@ -146,7 +170,9 @@ export default function ContractsModal({ modalRow, onClose }) {
         const scoped = contractsList.filter((c) => !selectedBranch || c.company_name === selectedBranch);
         return {
             all:            scoped.length,
-            active:         scoped.filter((c) => c.status === 'active').length,
+            // Active count includes extended contracts too — see the note
+            // in filteredContracts above.
+            active:         scoped.filter((c) => c.status === 'active' || c.status === 'extended').length,
             expiring_soon:  scoped.filter((c) => c.status === 'expiring_soon').length,
             expired:        scoped.filter((c) => c.status === 'expired').length,
             extended:       scoped.filter((c) => c.status === 'extended').length,
@@ -155,6 +181,16 @@ export default function ContractsModal({ modalRow, onClose }) {
 
     const toggleFlip = (id) => {
         setFlippedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // ── Edit contract handler ──
+    // Only the admin or the contract's owning account manager can edit
+    // (enforced server-side via c.can_edit, computed the same way as
+    // c.can_extend). Hands the contract off to the parent, which opens the
+    // Add/Edit Contract modal pre-filled with this contract's data.
+    const handleEditClick = (contract) => {
+        if (!contract?.can_edit || !onEdit) return;
+        onEdit(modalRow, contract);
     };
 
     // ── Extend Date modal handlers ──
@@ -209,6 +245,17 @@ export default function ContractsModal({ modalRow, onClose }) {
             .finally(() => setIsExtending(false));
     };
 
+    // ── Upload button handler ──
+    // Fires the parent's Add Contract modal, pre-filled with whichever
+    // branch is currently selected here (or the default company name when
+    // "All branches" is selected). Closes this modal so the two overlays
+    // don't stack.
+    const handleUploadClick = () => {
+        if (!modalRow || !onUpload) return;
+        const branchName = selectedBranch || modalRow.company_name || '';
+        onUpload(modalRow, branchName);
+    };
+
     if (!modalRow) return null;
 
     return (
@@ -217,7 +264,7 @@ export default function ContractsModal({ modalRow, onClose }) {
             onClick={onClose}
         >
             <div
-                className=" w-[70%] h-[80%] bg-white rounded-2xl shadow-xl p-8 flex flex-col"
+                className=" w-[99%] lg:w-[70%] h-[80%] bg-white rounded-2xl shadow-xl p-8  flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between mb-5 flex-shrink-0">
@@ -246,7 +293,7 @@ export default function ContractsModal({ modalRow, onClose }) {
                         <select
                             value={selectedBranch}
                             onChange={(e) => setSelectedBranch(e.target.value)}
-                            className="w-[60%] h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
+                            className=" w-full lg:w-[60%] h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
                         >
                             <option value="">All branches</option>
                             {(contractBranches.length > 0
@@ -313,6 +360,22 @@ export default function ContractsModal({ modalRow, onClose }) {
                             className="w-full h-9 pl-9 pr-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
                         />
                     </div>
+
+                    {/* Upload Contract button — opens the Add Contract modal
+                        pre-filled with the branch currently selected above. */}
+                    <button
+                        type="button"
+                        disabled={!modalRow?.can_upload}
+                        onClick={handleUploadClick}
+                        title={modalRow?.can_upload ? `Upload a contract for ${selectedBranch || modalRow.company_name || 'this branch'}` : 'Only the assigned account manager can upload a contract for this company'}
+                        className={`flex items-center gap-1 h-9 px-3 rounded-lg text-[#4FA34E]  font-semibold transition-colors whitespace-nowrap flex-shrink-0 ${
+                            modalRow?.can_upload ? ' cursor-pointer' : 'cursor-not-allowed shadow-none'
+                        }`}
+                    >
+                        <FaFileUpload className="text-2xl" />
+                     
+                    </button>
+
                       {/* Green X Clear Button - No BG, only shows if date is selected */}
                     {selectedDate && (
                         <button
@@ -421,6 +484,19 @@ export default function ContractsModal({ modalRow, onClose }) {
                                             )}
 
                                             <div className="flex items-center gap-2 flex-shrink-0">
+                                               <button
+                                                    type="button"
+                                                    disabled={!c.can_edit}
+                                                    onClick={() => handleEditClick(c)}
+                                                    title={c.can_edit ? 'Edit contract' : 'Only the admin or assigned account manager can edit this contract'}
+                                                    className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
+                                                        c.can_edit
+                                                            ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                            : 'text-slate-300 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    <MdOutlineEdit size={17} />
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleFlip(c.id)}
@@ -571,4 +647,6 @@ export default function ContractsModal({ modalRow, onClose }) {
             )}
         </div>
     );
-}
+});
+
+export default ContractsModal;

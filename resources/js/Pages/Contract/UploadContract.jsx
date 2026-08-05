@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import ContractsModal from './ContractsModal'; // <-- Import the new component
 import { route } from 'ziggy-js';
+import { toast } from 'sonner';
 import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons/md';
 import { FaFileUpload } from 'react-icons/fa';
 import { TbLayoutRows } from 'react-icons/tb';
@@ -45,8 +46,12 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     // actually manages.
     const canUploadFor = (row) => !!row.can_upload;
 
-    // ── Add Contract modal state ──
+    // ── Add/Edit Contract modal state ──
+    // The same modal is reused for both flows. `editingContract` is null
+    // when adding a brand-new contract, and holds the contract row being
+    // edited (with its own `can_edit` flag from the backend) otherwise.
     const [modalCompany, setModalCompany] = useState(null);
+    const [editingContract, setEditingContract] = useState(null);
     const [pdfFile, setPdfFile] = useState(null);
     const [docNum, setDocNum] = useState('');
     const [startDate, setStartDate] = useState('');
@@ -68,9 +73,10 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         );
     }, [companyNameOptions, companyNameQuery]);
 
-    const openUploadModal = (row) => {
+    const openUploadModal = (row, preferredCompanyName) => {
         if (!canUploadFor(row)) return;
         setModalCompany(row);
+        setEditingContract(null);
         setPdfFile(null);
         setDocNum('');
         setStartDate('');
@@ -81,22 +87,73 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             ? row.company_name_options
             : [row.company_name].filter(Boolean);
         setCompanyNameOptions(uniqueNames);
-        setSelectedCompanyName(row.company_name ?? '');
-        setCompanyNameQuery(row.company_name ?? '');
+
+        // If we were told which branch to prefer (e.g. the branch selected
+        // inside the Contracts modal) and it's actually one of this row's
+        // known names, use it; otherwise fall back to the row's own name.
+        const initialName = (preferredCompanyName && uniqueNames.includes(preferredCompanyName))
+            ? preferredCompanyName
+            : (row.company_name ?? '');
+        setSelectedCompanyName(initialName);
+        setCompanyNameQuery(initialName);
+        setShowCompanyNameDropdown(false);
+    };
+
+    // Opens the same modal pre-filled with an existing contract's data.
+    // Gated on the backend's per-contract `can_edit` flag (admin or the
+    // contract's owning account manager only) — the ContractsModal already
+    // checks this before calling us, but we re-check here too since this
+    // function is reachable directly.
+    const openEditModal = (row, contract) => {
+        if (!contract?.can_edit) return;
+        setModalCompany(row);
+        setEditingContract(contract);
+        setPdfFile(null);
+        setDocNum(contract.doc_num ?? '');
+        setStartDate(contract.start_date ?? '');
+        setEndDate(contract.end_date ?? '');
+        setFormErrors({});
+
+        const uniqueNames = row.company_name_options?.length
+            ? row.company_name_options
+            : [row.company_name].filter(Boolean);
+        setCompanyNameOptions(uniqueNames);
+
+        const initialName = (contract.company_name && uniqueNames.includes(contract.company_name))
+            ? contract.company_name
+            : (row.company_name ?? '');
+        setSelectedCompanyName(initialName);
+        setCompanyNameQuery(initialName);
         setShowCompanyNameDropdown(false);
     };
 
     const closeUploadModal = () => {
         if (isUploading) return;
         setModalCompany(null);
+        setEditingContract(null);
         setCompanyNameOptions([]);
         setSelectedCompanyName('');
         setCompanyNameQuery('');
         setShowCompanyNameDropdown(false);
     };
 
+    // True when editing and at least one field (or a newly-picked PDF)
+    // actually differs from the contract's original values. Used to keep
+    // "Save Changes" disabled until there's something to save.
+    const hasEditChanges = useMemo(() => {
+        if (!editingContract) return false;
+        if (pdfFile) return true;
+        return (
+            docNum !== (editingContract.doc_num ?? '') ||
+            startDate !== (editingContract.start_date ?? '') ||
+            endDate !== (editingContract.end_date ?? '') ||
+            selectedCompanyName !== (editingContract.company_name ?? '')
+        );
+    }, [editingContract, pdfFile, docNum, startDate, endDate, selectedCompanyName]);
+
     // ── View Contracts modal state ──
     const [contractsModalRow, setContractsModalRow] = useState(null);
+    const contractsModalRef = useRef(null);
 
     const openContractsModal = (row) => setContractsModalRow(row);
     const closeContractsModal = () => setContractsModalRow(null);
@@ -106,9 +163,16 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         setIsUploading(true);
         setFormErrors({});
 
+        const isEditing = !!editingContract;
+        const url = isEditing
+            ? route('contract.update', editingContract.id)
+            : route('contract.store', modalCompany.id);
+
         router.post(
-            route('contract.store', modalCompany.id),
+            url,
             {
+                // On edit, the PDF is optional — omitting it keeps the file
+                // already on record.
                 pdf: pdfFile,
                 doc_num: docNum,
                 start_date: startDate,
@@ -120,12 +184,23 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                 preserveScroll: true,
                 onSuccess: () => {
                     setModalCompany(null);
+                    setEditingContract(null);
                     setCompanyNameOptions([]);
                     setSelectedCompanyName('');
                     setCompanyNameQuery('');
+                    // The Contracts modal (if open) stays open behind the
+                    // upload modal — refresh its list so the new/edited
+                    // contract shows up without closing/reopening it.
+                    contractsModalRef.current?.refresh();
+                    toast.success(isEditing ? 'Contract updated successfully.' : 'Contract uploaded successfully.');
                 },
                 onError: (errors) => {
                     setFormErrors(errors);
+                    const firstError = Object.values(errors ?? {})[0];
+                    const message = Array.isArray(firstError) ? firstError[0] : firstError;
+                    toast.error(message || (isEditing
+                        ? 'Failed to update contract. Please try again.'
+                        : 'Failed to upload contract. Please try again.'));
                 },
                 onFinish: () => {
                     setIsUploading(false);
@@ -157,6 +232,20 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const searchDebounceRef = useRef(null);
     const searchAbortRef = useRef(null);
 
+    // Some handlers (e.g. the sort-header onClick) end up baked into
+    // memoized JSX (existingColumns) that only recomputes when sort_by/
+    // sort_order change. If those handlers closed over `searchState`
+    // directly, they'd merge filters using a stale snapshot whenever other
+    // filters (like per_page) changed without a sort change in between —
+    // e.g. setting "Rows: 20" then clicking sort would silently revert
+    // per_page back to whatever it was the last time the memo recomputed.
+    // This ref is always current regardless of which render's closure is
+    // calling into it.
+    const searchStateRef = useRef(searchState);
+    useEffect(() => {
+        searchStateRef.current = searchState;
+    }, [searchState]);
+
     useEffect(() => {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(searchState));
@@ -180,8 +269,14 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     }, []);
 
     const updateFilters = (newFilters) => {
-        const updated = { ...searchState, ...newFilters };
+        const updated = { ...searchStateRef.current, ...newFilters };
         setSearchState(updated);
+        // Drop any stale AJAX search results so the render falls back to the
+        // `companies` prop returned by this Inertia visit — otherwise sort/
+        // filter/page changes made while `searchResults` is populated (i.e.
+        // after typing in the search box) appear to do nothing, because
+        // effectiveCompanies prefers searchResults over companies.
+        setSearchResults(null);
         router.get(route('contract.upload'), updated, {
             preserveState: true,
             replace: true,
@@ -220,7 +315,8 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     };
 
     const handleSort = (key) => {
-        const newOrder = searchState.sort_by === key && searchState.sort_order === 'asc' ? 'desc' : 'asc';
+        const current = searchStateRef.current;
+        const newOrder = current.sort_by === key && current.sort_order === 'asc' ? 'desc' : 'asc';
         updateFilters({ sort_by: key, sort_order: newOrder });
     };
 
@@ -268,7 +364,6 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                         }`}
                     >
                         <FaFileUpload className="text-xs" />
-                        Add Contract
                     </button>
                 </div>
                 <div className="flex flex-col gap-1 min-w-0">
@@ -304,9 +399,9 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             cell: (r) => <span className="font-medium flex min-w-28 items-center">{r.client_category ?? '—'}</span>,
         },
         {
-            key: 'address',
-            header: "ADDRESS",
-            cell: (r) => <span className="text-xs flex items-center min-w-52 max-w-60 py-1 text-slate-600">{r.address ?? '—'}</span>,
+            key: 'contracts_count',
+            header: <SortHeader label="CONTRACTS" sortKey="contracts_count" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => <span className="text-xs flex items-center justify-start min-w-16 py-1 text-slate-600">{r.contracts_count ?? 0}</span>,
         },
         {
             key: 'client_manager',
@@ -339,7 +434,8 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     ], [searchState.sort_by, searchState.sort_order]);
 
     const goToPage = (p) => {
-        router.get(route('contract.upload'), { ...searchState, page: p }, { preserveState: true, preserveScroll: true });
+        setSearchResults(null);
+        router.get(route('contract.upload'), { ...searchStateRef.current, page: p }, { preserveState: true, preserveScroll: true });
     };
 
     const effectiveCompanies = searchResults?.companies ?? companies ?? { data: [] };
@@ -465,11 +561,13 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
 
             {/* ── Add Contract Modal ── */}
             {modalCompany && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4" onClick={closeUploadModal}>
-                    <div className="w-[40%] bg-white rounded-2xl shadow-xl p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4" onClick={closeUploadModal}>
+                    <div className="lg:w-[40%] bg-white rounded-2xl shadow-xl p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-start justify-between mb-1">
                             <div>
-                                <h2 className="text-lg font-semibold text-slate-900">Add Contract</h2>
+                                <h2 className="text-lg font-semibold text-slate-900">
+                                    {editingContract ? 'Edit Contract' : 'Add Contract'}
+                                </h2>
                                 <p className="text-xs text-slate-500 mt-0.5">{modalCompany.company_name}</p>
                             </div>
                             <button type="button" onClick={closeUploadModal} disabled={isUploading} className="text-slate-400 hover:text-slate-600 disabled:opacity-40">
@@ -479,7 +577,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
 
                         <div className="mt-4 flex flex-col gap-3">
                             {/* Searchable Company name dropdown */}
-                            <div className="relative w-[80%]">
+                            <div className="relative lg:w-[80%]">
                                 <label className="block text-xs font-medium text-slate-600 mb-1">Company Name</label>
                                 <input
                                     type="text"
@@ -519,13 +617,32 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">Contract PDF</label>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Contract PDF{editingContract ? ' (optional)' : ''}
+                                </label>
+                                {editingContract && (
+                                    editingContract.pdf_url ? (
+                                        <a
+                                            href={editingContract.pdf_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-block text-xs font-semibold text-[#4FA34E] hover:text-[#3d8f3c] mb-1.5"
+                                        >
+                                            View current PDF
+                                        </a>
+                                    ) : (
+                                        <p className="text-[11px] text-slate-400 mb-1.5">No PDF currently on file.</p>
+                                    )
+                                )}
                                 <input
                                     type="file"
                                     accept="application/pdf"
                                     onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
                                     className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#E9F7E7] file:text-[#2DA300] hover:file:bg-[#dcf3d8] border border-gray-200 rounded-lg px-2 py-1.5"
                                 />
+                                {editingContract && !pdfFile && (
+                                    <p className="text-[11px] text-slate-400 mt-1">Leave blank to keep the current file.</p>
+                                )}
                                 {formErrors.pdf && <p className="text-[11px] text-[#C40000] mt-1">{formErrors.pdf}</p>}
                             </div>
 
@@ -572,10 +689,18 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                             <button
                                 type="button"
                                 onClick={submitContract}
-                                disabled={isUploading || !pdfFile || !docNum || !startDate || !endDate || !selectedCompanyName}
+                                disabled={
+                                    isUploading ||
+                                    (!editingContract && !pdfFile) ||
+                                    !docNum || !startDate || !endDate || !selectedCompanyName ||
+                                    (editingContract && !hasEditChanges)
+                                }
+                                title={editingContract && !hasEditChanges && !isUploading ? 'No changes to save' : undefined}
                                 className="h-9 px-4 rounded-lg text-sm font-semibold text-white bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                                {isUploading ? 'Uploading…' : 'Upload'}
+                                {isUploading
+                                    ? (editingContract ? 'Saving…' : 'Uploading…')
+                                    : (editingContract ? 'Save Changes' : 'Upload')}
                             </button>
                         </div>
                     </div>
@@ -583,7 +708,13 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             )}
 
             {/* ── View Contracts Modal ── */}
-            <ContractsModal modalRow={contractsModalRow} onClose={closeContractsModal} />
+            <ContractsModal
+                ref={contractsModalRef}
+                modalRow={contractsModalRow}
+                onClose={closeContractsModal}
+                onUpload={(row, branchName) => openUploadModal(row, branchName)}
+                onEdit={(row, contract) => openEditModal(row, contract)}
+            />
         </>
     );
 }
