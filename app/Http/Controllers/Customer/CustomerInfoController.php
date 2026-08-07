@@ -32,6 +32,8 @@ class CustomerInfoController extends Controller
         $userId      = (int) ($currentUser->id ?? 0);
         $employeeId  = $currentUser->employee_id ?? null;
         $isAdmin     = $userId === 1;
+        $isPrivileged = $employeeId !== null
+            && in_array((string) $employeeId, config('access.privileged_employee_ids', []), true);
 
         $approverLocationDepts = $isAdmin
             ? collect()
@@ -190,6 +192,19 @@ class CustomerInfoController extends Controller
                 ->get(['id', 'sap_code', 'company_name', 'address', 'main_location', 'contact_no', 'status'])
                 ->groupBy('sap_code');
 
+        // Sibling branches can grant upload permission through a shared
+        // sap_code — a manager assigned to any branch in the group can
+        // upload for every branch in that group. Mirrors the same rule
+        // used by ContractController::upload().
+        $managerIdsBySapCode = $sapCodesOnPage->isEmpty()
+            ? collect()
+            : Company::query()
+                ->select('sap_code', 'id_client_mngr')
+                ->whereIn('sap_code', $sapCodesOnPage)
+                ->get()
+                ->groupBy('sap_code')
+                ->map(fn ($group) => $group->pluck('id_client_mngr')->filter()->unique()->values());
+
         $contractCompanyIds = $companiesForPage->pluck('id')
             ->merge($siblingsBySap->flatten(1)->pluck('id'))
             ->unique()
@@ -232,7 +247,11 @@ class CustomerInfoController extends Controller
                     : ($statuses->contains('expiring_soon') ? 'expiring_soon' : 'ok')];
             });
 
-        $companies->getCollection()->transform(function ($c) use ( $siblingsBySap, $contractsCountBySapCode, $contractsCountByCompanyId, $statusBySapCode, $statusByCompanyId) {
+        $companies->getCollection()->transform(function ($c) use (
+            $siblingsBySap, $contractsCountBySapCode, $contractsCountByCompanyId,
+            $statusBySapCode, $statusByCompanyId,
+            $managerIdsBySapCode, $isAdmin, $isPrivileged, $employeeId
+        ) {
             $branchGroups = [];
 
             if ($c->sap_code && $siblingsBySap->has($c->sap_code)) {
@@ -259,6 +278,13 @@ class CustomerInfoController extends Controller
                     ->all();
             }
 
+            $isDirectManager = $employeeId
+                && (string) $c->id_client_mngr === (string) $employeeId;
+
+            $isGroupManager = $employeeId && $c->sap_code
+                && ($managerIdsBySapCode[$c->sap_code] ?? collect())
+                    ->contains(fn ($id) => (string) $id === (string) $employeeId);
+
             return [
                 'id'                 => $c->id,
                 'company_name'       => $c->company_name,
@@ -279,6 +305,7 @@ class CustomerInfoController extends Controller
                 'contracts_status'  => $c->sap_code
                     ? ($statusBySapCode[$c->sap_code] ?? 'ok')
                     : ($statusByCompanyId[$c->id] ?? 'ok'),
+                'can_upload'         => $isAdmin || $isPrivileged || $isDirectManager || $isGroupManager,
                     ];
         });
 

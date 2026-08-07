@@ -248,6 +248,32 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const [perPageInput, setPerPageInput] = useState(String(searchState.per_page));
     const perPagePickerRef = useRef(null);
 
+    // UI-only grouping: the backend still returns one row per branch, but
+    // rows sharing a sap_code are collapsed into a single row here and can
+    // be expanded to reveal the sibling branches underneath it.
+    const [expandedSapCodes, setExpandedSapCodes] = useState(() => new Set());
+    const toggleGroup = (sapCode) => {
+        if (!sapCode) return;
+        setExpandedSapCodes((prev) => {
+            const next = new Set(prev);
+            if (next.has(sapCode)) next.delete(sapCode); else next.add(sapCode);
+            return next;
+        });
+    };
+
+    // Collapsed group parent: first click expands the branches instead of
+    // opening the modal. Once expanded (or for any non-group / child row),
+    // a click opens the Contracts modal as usual.
+    const handleRowClick = (r) => {
+        const groupCount = r._groupCount ?? 1;
+        const isExpanded = r.sap_code && expandedSapCodes.has(r.sap_code);
+        if (!r._isGroupChild && groupCount > 1 && !isExpanded) {
+            toggleGroup(r.sap_code);
+            return;
+        }
+        openContractsModal(r);
+    };
+
     const [searchResults, setSearchResults] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const searchDebounceRef = useRef(null);
@@ -374,16 +400,29 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     // healthy (active/extended), no color when there are no contracts at all.
     const CONTRACT_STATUS_CLASSES = {
         expired: 'text-red-600',
-        warning: 'text-amber-400',
+        warning: 'text-amber-500',
         good:    'text-lime-500',
+        default: 'text-slate-500',
     };
+
+    // Used to pick the "worst" status across a collapsed group's branches
+    // (e.g. one expired contract should still show red even if the other
+    // branches are fine).
+    const STATUS_SEVERITY = { expired: 3, warning: 2, good: 1, default: 0 };
 
     const renderExistingCard = (r) => {
         const allowed = canUploadFor(r);
-        const count = r.contracts_count ?? 0;
-        const countColorClass = count > 0 ? (CONTRACT_STATUS_CLASSES[r.contracts_status] ?? '') : '';
+        const groupCount = r._groupCount ?? 1;
+        const isExpanded = r.sap_code && expandedSapCodes.has(r.sap_code);
+        const showGroupTotal = !r._isGroupChild && groupCount > 1 && !isExpanded;
+        const count = showGroupTotal ? (r._groupTotalContracts ?? 0) : (r.contracts_count ?? 0);
+        const countStatus = showGroupTotal ? r._groupContractsStatus : r.contracts_status;
+        const countColorClass = count > 0 ? (CONTRACT_STATUS_CLASSES[countStatus] ?? '') : '';
         return (
-            <div className="flex flex-col gap-1 cursor-pointer" onClick={() => openContractsModal(r)}>
+            <div
+                className={`flex flex-col gap-1 cursor-pointer ${r._isGroupChild ? 'pl-4 border-l-2 border-[#195c00]/15' : ''}`}
+                onClick={() => handleRowClick(r)}
+            >
                 <div className="flex items-center justify-between">
                     <span className="font-mono text-slate-600 text-xs">{r.sap_code}</span>
                     <button
@@ -399,7 +438,24 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                     </button>
                 </div>
                 <div className="flex flex-col gap-1 min-w-0">
-                    <p className="text-xs font-semibold leading-snug truncate text-[#0f3800]">{r.company_name ?? '—'}</p>
+                    <div className="flex items-center gap-1.5">
+                        {!r._isGroupChild && groupCount > 1 && (
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleGroup(r.sap_code); }}
+                                title={isExpanded ? 'Collapse branches' : `Show ${groupCount - 1} more branch${groupCount - 1 !== 1 ? 'es' : ''}`}
+                                className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <MdExpandMore size={16} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                        )}
+                        <p className="text-xs font-semibold leading-snug truncate text-[#0f3800]">{r.company_name ?? '—'}</p>
+                        {!r._isGroupChild && groupCount > 1 && (
+                            <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
+                                {groupCount}
+                            </span>
+                        )}
+                    </div>
                     <p className="text-[11px] font-medium truncate uppercase">
                         {[r.client_category, r.delsan_company].filter(Boolean).join(' · ') || '—'}
                     </p>
@@ -418,31 +474,79 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         {
             key: 'sap_code',
             header: <SortHeader label="SAP CODE" sortKey="sap_code" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
-            cell: (r) => <span className="font-mono text-sm flex items-center text-slate-500">{r.sap_code ?? '—'}</span>,
+            cell: (r) => (
+                <span className={`font-mono text-sm flex items-center ${r._isGroupChild ? 'text-slate-300' : 'text-slate-500'}`}>
+                    {r._isGroupChild ? '' : (r.sap_code ?? '—')}
+                </span>
+            ),
         },
         {
             key: 'delsan_company',
             header: <SortHeader label="DELSAN" sortKey="delsan_company" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
-            cell: (r) => <span className="font-medium flex items-center uppercase">{r.delsan_company ?? '—'}</span>,
+            cell: (r) => (
+                <span className={`font-medium flex items-center uppercase ${r._isGroupChild ? 'text-slate-600 font-normal' : ''}`}>
+                    {r.delsan_company ?? '—'}
+                </span>
+            ),
         },
         {
             key: 'company_name',
             header: <SortHeader label="COMPANY NAME" sortKey="company_name" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
-            cell: (r) => <div className="font-medium flex items-center min-w-52 max-w-60 text-[#0f3800]">{r.company_name ?? '—'}</div>,
+            cell: (r) => {
+                if (r._isGroupChild) {
+                    return (
+                        <div className="relative flex items-center gap-1.5 pl-6">
+                            <span className="absolute left-2 -top-2.5 bottom-1/2 w-px bg-slate-300" />
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 w-2.5 h-px bg-slate-300" />
+                            <span className="truncate text-slate-600 font-normal italic">{r.company_name ?? '—'}</span>
+                        </div>
+                    );
+                }
+                const groupCount = r._groupCount ?? 1;
+                const isExpanded = r.sap_code && expandedSapCodes.has(r.sap_code);
+                return (
+                    <div className="font-medium flex items-center justify-between gap-1.5 text-[#0f3800]">
+                        <span className="truncate">{r.company_name ?? '—'}</span>
+                        {groupCount > 1 && (
+                            <div className="flex items-center gap-5 flex-shrink-0">
+                                <span className="text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
+                                    {groupCount}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); toggleGroup(r.sap_code); }}
+                                    title={isExpanded ? 'Collapse branches' : `Show ${groupCount - 1} more branch${groupCount - 1 !== 1 ? 'es' : ''}`}
+                                    className="bg-white border shadow-sm rounded-md"
+                                >
+                                    <MdExpandMore size={20} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             key: 'client_category',
             header: <SortHeader label="CATEGORY" sortKey="client_category" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
-            cell: (r) => <span className="font-medium flex min-w-28 items-center">{r.client_category ?? '—'}</span>,
+            cell: (r) => (
+                <span className={`font-medium flex min-w-28 items-center ${r._isGroupChild ? 'text-slate-600 font-normal' : ''}`}>
+                    {r.client_category ?? '—'}
+                </span>
+            ),
         },
         {
             key: 'contracts_count',
             header: <SortHeader label="CONTRACTS" sortKey="contracts_count" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
             cell: (r) => {
-                const count = r.contracts_count ?? 0;
-                const pillClass = count > 0 ? (CONTRACT_STATUS_CLASSES[r.contracts_status] ?? '') : '';
+                const isExpanded = r.sap_code && expandedSapCodes.has(r.sap_code);
+                const groupCount = r._groupCount ?? 1;
+                const showGroupTotal = !r._isGroupChild && groupCount > 1 && !isExpanded;
+                const count = showGroupTotal ? (r._groupTotalContracts ?? 0) : (r.contracts_count ?? 0);
+                const countStatus = showGroupTotal ? r._groupContractsStatus : r.contracts_status;
+                const pillClass = count > 0 ? (CONTRACT_STATUS_CLASSES[countStatus] ?? '') : '';
                 return (
-                    <span className={`text-xs flex items-center justify-start min-w-16 py-1 ${
+                    <span className={`text-xs flex items-center justify-start py-1 ${
                         pillClass ? `${pillClass} font-semibold` : 'text-slate-600'
                     }`}>
                         {count > 0 ? count : ''}
@@ -453,7 +557,11 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         {
             key: 'client_manager',
             header: <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
-            cell: (r) => <span className="font-medium flex items-center">{r.client_manager ?? r.id_client_mngr ?? '—'}</span>,
+            cell: (r) => (
+                <span className={`font-medium flex items-center ${r._isGroupChild ? 'text-slate-600 font-normal' : ''}`}>
+                    {r.client_manager ?? r.id_client_mngr ?? '—'}
+                </span>
+            ),
         },
         {
             key: 'action',
@@ -478,7 +586,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                 );
             },
         },
-    ], [searchState.sort_by, searchState.sort_order]);
+    ], [searchState.sort_by, searchState.sort_order, expandedSapCodes]);
 
     const goToPage = (p) => {
         setSearchResults(null);
@@ -490,6 +598,54 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const pagination = effectiveCompanies && typeof effectiveCompanies.current_page === 'number'
         ? { page: effectiveCompanies.current_page, perPage: effectiveCompanies.per_page ?? 12, total: effectiveCompanies.total ?? rows.length, onPageChange: goToPage }
         : null;
+
+    const displayRows = useMemo(() => {
+        const groupsBySapCode = new Map();
+        const order = [];
+
+        rows.forEach((r) => {
+            if (!r.sap_code) {
+                order.push({ rep: r, siblings: [] });
+                return;
+            }
+            const existing = groupsBySapCode.get(r.sap_code);
+            if (existing) {
+                existing.siblings.push(r);
+            } else {
+                const group = { rep: r, siblings: [] };
+                groupsBySapCode.set(r.sap_code, group);
+                order.push(group);
+            }
+        });
+
+        const flat = [];
+        order.forEach(({ rep, siblings }) => {
+            // Collapsed view shows the sum of every branch's contracts;
+            // expanded view shows each branch's own exact count. The
+            // "worst" status among the group (expired > warning > good)
+            // drives the pill color when collapsed, so a red count isn't
+            // hidden behind a green total.
+            const groupMembers = [rep, ...siblings];
+            const groupTotalContracts = groupMembers.reduce((sum, m) => sum + (m.contracts_count ?? 0), 0);
+            const groupContractsStatus = groupMembers.reduce((worst, m) => {
+                if (!(m.contracts_count > 0)) return worst;
+                const s = m.contracts_status ?? 'default';
+                return (STATUS_SEVERITY[s] ?? 0) > (STATUS_SEVERITY[worst] ?? -1) ? s : worst;
+            }, 'default');
+
+            flat.push({
+                ...rep,
+                _groupCount: siblings.length + 1,
+                _isGroupChild: false,
+                _groupTotalContracts: groupTotalContracts,
+                _groupContractsStatus: groupContractsStatus,
+            });
+            if (rep.sap_code && siblings.length > 0 && expandedSapCodes.has(rep.sap_code)) {
+                siblings.forEach((s) => flat.push({ ...s, _isGroupChild: true }));
+            }
+        });
+        return flat;
+    }, [rows, expandedSapCodes]);
 
     const searchControl = (
         <div className="relative h-7 md:h-8 flex items-center min-w-0 flex-shrink-0">
@@ -593,9 +749,9 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                     <ProjectListSection
                         tableTitle="Existing Customers"
                         columns={existingColumns}
-                        rows={rows}
-                        rowKey={(r) => String(r.id)}
-                        onRowClick={openContractsModal}
+                        rows={displayRows}
+                        rowKey={(r) => r._isGroupChild ? `sibling-${r.id}` : String(r.id)}
+                        onRowClick={handleRowClick}
                         pagination={pagination}
                         searchControl={searchControl}
                         filterControl={filterToolbar}
