@@ -4,9 +4,9 @@ import { Link } from "@inertiajs/react";
 import { LuClockAlert, LuEye } from "react-icons/lu";
 
 const TABS = [
-  { key: "expiring_soon", label: "Expiring", activeClass: "text-white bg-red-500 shadow-inner", },
+  { key: "expiring_soon", label: "Expiring", activeClass: "text-white bg-amber-500 shadow-inner", },
   { key: "active", label: "Active", activeClass: "text-white bg-emerald-500 shadow-inner", },
-  { key: "expired", label: "Expired", activeClass: "text-white bg-gray-500 shadow-inner", },
+  { key: "expired", label: "Expired", activeClass: "text-white bg-red-500 shadow-inner", },
 ];
 
 export default function ExpiringContractsPanel({ activeTab: controlledTab, onTabChange, onReady }) {
@@ -73,9 +73,9 @@ export default function ExpiringContractsPanel({ activeTab: controlledTab, onTab
           <div className="flex flex-col divide-y divide-gray-100 overflow-y-auto pr-1">
             {contracts.map((c) => (
               <Link
-                href={`${route("contract.upload")}?company_id=${c.company_id}&company_name=${encodeURIComponent(c.company_name)}&sap_code=${encodeURIComponent(c.sap_code ?? '')}&can_upload=${c.can_upload ? 1 : 0}`}
+                href={`${route("contract.upload")}?company_id=${c.company_id}&company_name=${encodeURIComponent(c.company_name)}&sap_code=${encodeURIComponent(c.sap_code ?? '')}&can_upload=${c.can_upload ? 1 : 0}&contract_id=${c.id}`}
                 key={c.id}
-                className="flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors hover:border hover:border-red-300"
+                className="flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors hover:bg-slate-50 hover:font-bold"
               >
                 <span className="text-xs text-gray-700 truncate w-[55%]" title={c.company_name}>
                   {c.company_name}
@@ -128,7 +128,7 @@ function formatDaysRemaining(days) {
 
 function daysRemainingClass(days) {
   if (days === null || days === undefined) return "text-gray-400";
-  if (days < 0) return "text-gray-500";
-  if (days <= 30) return "text-red-600";
+  if (days < 0) return "text-red-500";
+  if (days <= 180) return "text-amber-600";
   return "text-emerald-600";
 }

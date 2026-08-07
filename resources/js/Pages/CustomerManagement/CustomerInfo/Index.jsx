@@ -4,7 +4,7 @@ import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { route } from 'ziggy-js';
-import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons/md';
+import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose, MdOutlineFileUpload } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { usePage } from '@inertiajs/react';
 import CompanyDetailsSidebar from './CompanyDetailsSidebar';
@@ -66,6 +66,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
 
     const [contractsCompany,     setContractsCompany]     = useState(null);
     const [isContractsSidebarOpen, setIsContractsSidebarOpen] = useState(false);
+    const [pendingUploadRow, setPendingUploadRow] = useState(null);
 
     // Per-page popup
     const [showPerPagePicker, setShowPerPagePicker] = useState(false);
@@ -385,27 +386,47 @@ const handleSearchChange = (value) => {
         {
             key: 'contracts',
             header: "CONTRACTS",
-            cell: (r) => (
-                r.contracts ? (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setContractsCompany(r);
-                            setIsContractsSidebarOpen(true);
-                        }}
-                        className={`text-[11px] flex items-center min-w-6 min-h-6 py-0.5 px-2 rounded-lg font-bold shadow hover:shadow-inner border ${CONTRACTS_STATUS_COLOR[r.contracts_status] || 'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20 hover:shadow-inner hover:bg-[#2da300]/20'}`}
-                    >
-                        {r.contracts}
-                    </button>
-                ) : null
-            ),
+            cell: (r) => {
+                if (r.contracts) {
+                    return (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setContractsCompany(r);
+                                setIsContractsSidebarOpen(true);
+                            }}
+                            className={`text-[11px] flex items-center min-w-6 min-h-6 py-0.5 px-2 rounded-lg font-bold shadow hover:shadow-inner border ${CONTRACTS_STATUS_COLOR[r.contracts_status] || 'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20 hover:shadow-inner hover:bg-[#2da300]/20'}`}
+                        >
+                            {r.contracts}
+                        </button>
+                    );
+                }
+
+                if (r.can_upload) {
+                    return (
+                        <button
+                            type="button"
+                            title="View contracts / upload for this company"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setContractsCompany(r);
+                                setIsContractsSidebarOpen(true);
+                            }}
+                            className="flex items-center justify-center w-full h-6 rounded-lg"
+                        >
+                        </button>
+                    );
+                }
+
+                return null;
+            },
         },
         {
             key: 'address',
             header: "ADDRESS",
             cell: (r) => (
-                <span className="text-xs flex items-center min-w-52 max-w-60 py-1 text-slate-600">
+                <span className="text-[11px] flex items-center min-w-52 max-w-60 py-1 text-slate-600">
                     {r.address ?? '—'}
                 </span>
             ),

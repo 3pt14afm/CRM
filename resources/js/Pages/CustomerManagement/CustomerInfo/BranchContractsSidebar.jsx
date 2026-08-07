@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { MdClose, MdDescription, MdCalendarToday, MdPictureAsPdf, MdEdit, MdOutlineFileUpload } from 'react-icons/md';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { MdClose, MdDescription, MdCalendarToday, MdPictureAsPdf, MdEdit, MdOutlineFileUpload, MdSwapVert, MdFilterList, MdExpandMore } from 'react-icons/md';
 import { createPortal } from 'react-dom';
 import { Link } from '@inertiajs/react';
 import { route } from 'ziggy-js';
@@ -12,6 +12,16 @@ const STATUS_STYLES = {
     terminated:     { label: 'Terminated',     classes: 'bg-slate-200 text-slate-600 border-slate-300' },
     archived:       { label: 'Archived',       classes: 'bg-slate-200 text-slate-600 border-slate-300' },
 };
+
+const STATUS_FILTER_OPTIONS = [
+    { value: 'all',            label: 'All statuses' },
+    { value: 'active',         label: 'Active' },
+    { value: 'extended',       label: 'Extended' },
+    { value: 'expiring_soon',  label: 'Expiring Soon' },
+    { value: 'expired',        label: 'Expired' },
+    { value: 'terminated',     label: 'Terminated' },
+    { value: 'archived',       label: 'Archived' },
+];
 
 function StatusBadge({ status }) {
     const style = STATUS_STYLES[status] || { label: status || 'Unknown', classes: 'bg-slate-100 text-slate-500 border-slate-200' };
@@ -63,6 +73,40 @@ export default function BranchContractsSidebar({
 
     const contracts = branch?.contracts ?? [];
 
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [sortOrder, setSortOrder] = useState('desc'); 
+    useEffect(() => {
+        setStatusFilter('all');
+        setSortOrder('desc');
+    }, [branch?.name]);
+
+    const filteredContracts = useMemo(() => {
+        const filtered = statusFilter === 'all'
+            ? contracts
+            : contracts.filter((c) => c.status === statusFilter);
+
+        return [...filtered].sort((a, b) => {
+            const aDate = a.start_date || '';
+            const bDate = b.start_date || '';
+            if (aDate === bDate) return 0;
+            return sortOrder === 'asc'
+                ? aDate.localeCompare(bDate)
+                : bDate.localeCompare(aDate);
+        });
+    }, [contracts, statusFilter, sortOrder]);
+
+    const [showStatusPicker, setShowStatusPicker] = useState(false);
+    const statusPickerRef = useRef(null);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (statusPickerRef.current && !statusPickerRef.current.contains(e.target))
+                setShowStatusPicker(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
     return createPortal(
         <div className="fixed inset-0 z-[45] flex items-end justify-center sm:items-stretch sm:justify-end pointer-events-none">
             <div
@@ -77,7 +121,7 @@ export default function BranchContractsSidebar({
                         <h3 className="text-sm md:text-base font-extrabold text-slate-800 leading-tight">
                             Branch Contracts
                         </h3>
-                        <div className="text-[10px] md:text-[11px] font-medium text-slate-500 leading-tight">
+                        <div className="text-[10px] md:text-[11px] pt-1 font-medium text-slate-500 leading-snug">
                             {branch?.name || 'Unnamed branch'}
                         </div>
                     </div>
@@ -94,14 +138,73 @@ export default function BranchContractsSidebar({
                 <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-0 pb-8 [&::-webkit-scrollbar]:w-0 hover:[&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#195c0059]">
                     {branch ? (
                         <div className="flex flex-col">
-                            <div className="flex items-start gap-3 mb-3">
-                                <span className="shrink-0 mt-1 px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider border bg-[#195c00]/10 text-[#195c00] border-[#195c00]/20">
-                                    {contracts.length} contract{contracts.length !== 1 ? 's' : ''}
+                            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                                <span className="shrink-0 px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider border bg-[#195c00]/10 text-[#195c00] border-[#195c00]/20">
+                                    {filteredContracts.length} of {contracts.length} contract{contracts.length !== 1 ? 's' : ''}
                                 </span>
+
+                                {contracts.length > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="relative" ref={statusPickerRef}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowStatusPicker((p) => !p)}
+                                                className="flex items-center gap-1 h-6 px-1.5 text-[9px] font-semibold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-100 transition-colors"
+                                            >
+                                                <MdFilterList size={12} />
+                                                {STATUS_FILTER_OPTIONS.find((o) => o.value === statusFilter)?.label ?? 'All statuses'}
+                                                <MdExpandMore size={12} className="text-slate-400" />
+                                            </button>
+
+                                            {showStatusPicker && (
+                                                <div className="absolute left-0 top-7 z-50 w-36 bg-white border border-gray-200 rounded-xl shadow-lg py-1">
+                                                    {STATUS_FILTER_OPTIONS.map((opt) => (
+                                                        <div
+                                                            key={opt.value}
+                                                            onClick={() => {
+                                                                setStatusFilter(opt.value);
+                                                                setShowStatusPicker(false);
+                                                            }}
+                                                            className={`px-3 py-1.5 text-[11px] font-medium cursor-pointer hover:bg-[#E9F7E7] hover:text-[#195c00] transition-colors ${
+                                                                statusFilter === opt.value ? 'text-[#195c00] font-bold' : 'text-slate-600'
+                                                            }`}
+                                                        >
+                                                            {opt.label}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'))}
+                                            title={sortOrder === 'asc' ? 'Coverage start: oldest first' : 'Coverage start: newest first'}
+                                            className="flex items-center gap-1 h-6 px-1.5 text-[9px] font-semibold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-100 transition-colors"
+                                        >
+                                            <MdSwapVert size={12} />
+                                            {sortOrder === 'asc' ? 'Oldest' : 'Newest'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col gap-2.5">
-                                {contracts.length > 0 ? contracts.map((c) => (
+                                {contracts.length > 0 && filteredContracts.length === 0 && (
+                                    <div className="flex flex-col items-center gap-2 py-6 text-center">
+                                        <span className="text-slate-400 text-xs font-medium">
+                                            No contracts match this filter
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStatusFilter('all')}
+                                            className="text-[11px] font-semibold text-[#195c00] hover:underline"
+                                        >
+                                            Clear filter
+                                        </button>
+                                    </div>
+                                )}
+                                {filteredContracts.length > 0 ? filteredContracts.map((c) => (
                                     <div
                                         key={c.id}
                                         className="border border-[#00000010] border-b-black/20 border-r-black/20 shadow-sm rounded-2xl bg-[#F2FAEE] backdrop-blur-sm overflow-hidden"
@@ -159,7 +262,7 @@ export default function BranchContractsSidebar({
                                                 )}
                                                 {c.can_edit && (
                                                     <Link
-                                                        href={`${route('contract.upload')}?company_id=${companyId}&company_name=${encodeURIComponent(companyName ?? '')}&sap_code=${encodeURIComponent(sapCode ?? '')}&can_upload=1&contract_id=${c.id}`}
+                                                        href={`${route('contract.upload')}?company_id=${companyId}&company_name=${encodeURIComponent(branch.name ?? companyName ?? '')}&sap_code=${encodeURIComponent(sapCode ?? '')}&can_upload=1&contract_id=${c.id}`}
                                                         className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-md border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-100 hover:shadow-inner transition-colors"
                                                     >
                                                         <MdEdit size={14} /> Edit
@@ -168,14 +271,14 @@ export default function BranchContractsSidebar({
                                             </div>
                                         </div>
                                     </div>
-                                )) : (
+                                )) : (contracts.length === 0 && (
                                     <Link
                                         href={`${route('contract.upload')}?company_id=${companyId}&company_name=${encodeURIComponent(branch.name ?? companyName ?? '')}&sap_code=${encodeURIComponent(sapCode ?? '')}&can_upload=1&open_upload=1`}
-                                        className="flex items-center justify-center gap-2 w-full h-10 rounded-md border border-dashed border-[#195c00]/40 text-[#195c00] text-xs font-semibold hover:bg-[#d6f1d6] hover:border-[#195c00] transition-colors"
+                                        className="flex items-center justify-center gap-2 w-full h-10 rounded-md border border-dashed border-[#195c00]/40 text-[#195c00] text-xs font-medium hover:bg-[#d6f1d6] hover:border-[#195c00] transition-colors"
                                     >
                                         <MdOutlineFileUpload size={13} /> Upload a contract for this branch
                                     </Link>
-                                )}
+                                ))}
                             </div>
                         </div>
                     ) : (

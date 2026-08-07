@@ -192,15 +192,13 @@ class ContractController extends Controller
             // 'warning' -> no expired, but at least one expiring soon
             // 'good'    -> active/extended (and no expired or expiring
             //              soon), or none of the above
-            return match (true) {
-                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRED) => 'expired',
-                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRING_SOON) => 'warning',
-                $contracts->contains(fn ($ct) => in_array($ct->status, [
-                    Contract::STATUS_ACTIVE,
-                    Contract::STATUS_EXTENDED,
-                ], true)) => 'good',
-                default => 'good',
-            };
+            return match (true) { 
+                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRED) => 'expired', 
+                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRING_SOON) => 'warning', 
+                $contracts->contains(fn ($ct) => in_array($ct->status, [ Contract::STATUS_ACTIVE, Contract::STATUS_EXTENDED, ], true)) => 'good', 
+                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_ARCHIVED) => 'default', 
+                default => 'good', 
+            }; 
         };
 
         $contractsCountByRowId  = collect();
@@ -267,23 +265,54 @@ class ContractController extends Controller
 
     public function contracts($companyId)
     {
-        $company = Company::findOrFail($companyId);
+        $company = Company::with('mainLocation')->findOrFail($companyId);
 
         // Admin, Assigned Manager, Approver, or Privileged Employee can VIEW
         if (!$this->canAccessCompanyContracts($company)) {
             abort(403, 'You are not authorized to view contracts for this company.');
         }
 
-        // Scoped to this exact branch, not every sibling sharing its SAP
-        // code — the row the user clicked already tells us which branch
-        // they mean, so there's no group to disambiguate anymore. Matched
-        // by company_name first (contracts across a sap_code group can
-        // share a company_id, since it's whichever branch's id was used at
-        // store time — see the note in CustomerInfoController), falling
-        // back to company_id only for companies with no sap_code at all.
+        $siblingCompanies = collect([$company]);
+
+        if ($company->sap_code) {
+            $siblingCompanies = Company::query()
+                ->where('sap_code', $company->sap_code)
+                ->where('status', 1)
+                ->with('mainLocation')
+                ->get();
+        }
+
+        $siblingCompanyNames = $siblingCompanies
+            ->pluck('company_name')
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Group siblings by their main_location — same shape as the
+        // "Branches" grouping on CompanyDetailsSidebar, but here each
+        // group's "companies" are just the plain company_names living at
+        // that location; the frontend nests each name's own contracts
+        // under it.
+        $locationGroups = $siblingCompanies
+            ->groupBy('main_location')
+            ->map(function ($group) {
+                $first = $group->first();
+                return [
+                    'main_location_id'   => $first->main_location,
+                    'main_location_name' => $first->mainLocation->branch_name ?? null,
+                    'companies'          => $group->pluck('company_name')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values()
+            ->all();
+
         $contractsRaw = Contract::query()
-            ->where(function ($q) use ($company) {
-                $q->where('company_name', $company->company_name);
+            ->where(function ($q) use ($company, $siblingCompanyNames) {
+                $q->whereIn('company_name', $siblingCompanyNames);
 
                 if (!$company->sap_code) {
                     $q->orWhere('company_id', $company->id);
@@ -292,14 +321,8 @@ class ContractController extends Controller
             ->orderByDesc('start_date')
             ->get();
 
-        // Single flag for the whole list — every contract returned belongs
-        // to this one branch, so there's no per-row group to vary by.
         $canManage = $this->canManageCompanyContracts($company);
 
-        // Every distinct employee_id we might need to display a name for —
-        // everyone who ever extended, terminated, or archived one of these
-        // contracts — resolved once in a single query rather than
-        // per-contract.
         $extendedByIds = $contractsRaw
             ->flatMap(fn ($c) => collect($c->extend_dates ?? [])->pluck('extended_by'));
 
@@ -381,6 +404,7 @@ class ContractController extends Controller
         return response()->json([
             'sap_code'     => $company->sap_code,
             'company_name' => $company->company_name,
+            'branches'     => $locationGroups,
             'contracts'    => $contracts,
         ]);
     }
@@ -402,6 +426,13 @@ class ContractController extends Controller
             'doc_num'    => ['required', 'string', 'max:100', Rule::unique('contracts', 'doc_num')],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+            'company_name' => ['required', 'string',
+                Rule::in(
+                    $company->sap_code
+                        ? Company::where('sap_code', $company->sap_code)->pluck('company_name')
+                        : [$company->company_name]
+                ),
+            ],
         ]);
 
         $path = $request->file('pdf')->store('contracts', 'local');
@@ -410,10 +441,7 @@ class ContractController extends Controller
             $contract = DB::transaction(function () use ($company, $validated, $path, $employeeId) {
                 return Contract::create([
                     'company_id'   => $company->id,
-                    // Always this exact branch's own name now — the row the
-                    // user clicked already identifies which branch, so
-                    // there's no dropdown to pick a sibling from anymore.
-                    'company_name' => $company->company_name,
+                    'company_name' => $validated['company_name'],
                     'doc_num'      => $validated['doc_num'],
                     'start_date'   => $validated['start_date'],
                     'end_date'     => $validated['end_date'],
@@ -563,7 +591,6 @@ class ContractController extends Controller
         // concern, archive/move old files elsewhere rather than deleting.
 
         ContractUploadLogger::edited($contract, $before, [
-            'company_name' => $validated['company_name'],
             'doc_num'      => $validated['doc_num'],
             'start_date'   => $validated['start_date'],
             'end_date'     => $validated['end_date'],
@@ -919,11 +946,6 @@ class ContractController extends Controller
             ->exists();
     }
 
-    /**
-     * True if the logged-in user's employee ID is in the privileged list
-     * (config/access.php) — grants admin-equivalent access to all
-     * companies' contracts (view + manage), regardless of assignment.
-     */
     private function isPrivilegedEmployee(): bool
     {
         $employeeId = Auth::user()->employee_id ?? null;
@@ -932,9 +954,6 @@ class ContractController extends Controller
             && in_array((string) $employeeId, config('access.privileged_employee_ids', []), true);
     }
 
-    /**
-     * VIEW access: Admin, Assigned Manager, Approver, or Privileged Employee.
-     */
     private function canAccessCompanyContracts(Company $company): bool
     {
         if ($this->isAdmin()) {
@@ -954,13 +973,6 @@ class ContractController extends Controller
         return $this->isApproverForCompany($company);
     }
 
-    /**
-     * UPLOAD / EXTEND access: Admin, Privileged Employee, or the manager
-     * assigned to this company's own row, or the manager assigned to any
-     * sibling branch sharing the same SAP code. Approvers are deliberately
-     * excluded here — they can view contracts but never upload or extend
-     * them.
-     */
     private function canManageCompanyContracts(Company $company): bool
     {
         if ($this->isAdmin()) {
@@ -991,14 +1003,6 @@ class ContractController extends Controller
         return false;
     }
 
-    /**
-     * True if the contract's effective end date — the latest recorded
-     * extension if any, otherwise its original end_date — is 3 or more
-     * months before today. The "interval" is computed directly between the
-     * expiry date and the current date, so it correctly accounts for
-     * variable month lengths (e.g. Jan 31 -> Apr 30 is still 3 months).
-     * Once true, the contract can no longer be extended.
-     */
     private function isPastExtensionWindow(Contract $contract): bool
     {
         $effectiveEnd = $contract->latestExtendedDate()

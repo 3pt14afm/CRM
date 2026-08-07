@@ -4,9 +4,9 @@ import { BsExclamationOctagonFill } from "react-icons/bs";
 import StatCard from "@/Components/StatCard";
 
 const STATUS_STYLES = {
-  expiring_soon: { label: "Expiring", labelClass: "text-red-500", valueClass: "text-red-500" },
+  expiring_soon: { label: "Expiring", labelClass: "text-amber-500", valueClass: "text-amber-500" },
   active: { label: "Active", labelClass: "text-emerald-500", valueClass: "text-emerald-500" },
-  expired: { label: "Expired", labelClass: "text-gray-500", valueClass: "text-gray-900" },
+  expired: { label: "Expired", labelClass: "text-red-500", valueClass: "text-red-500" },
 };
 
 export default function ContractStatusCard({ theme, index = 0, onStatusClick, selectedStatus, onReady }) {

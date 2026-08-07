@@ -223,7 +223,7 @@ export default function CompanyDetailsSidebar({ isOpen, company, onClose, isPote
             <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end pointer-events-none">
 
                 {/* Panel - Slides in on desktop, fades/scales in as a modal on mobile */}
-                <div ref={panelRef} className={`relative w-full max-h-[80vh] sm:max-h-none sm:w-[80%] md:max-w-[500px] sm:my-5 sm:mr-4 bg-[#f5f5f7]/80 backdrop-blur animate-moving-gradient shadow-[-10px_0_20px_rgba(0,0,0,0.05)] border border-b border-black/15 flex flex-col rounded-t-3xl sm:rounded-3xl transform transition-transform duration-700 md:duration-500 ease-out ${ isOpen ? 'translate-y-0 sm:translate-x-0 pointer-events-auto' : 'translate-y-full sm:translate-y-0 sm:translate-x-[120%] pointer-events-none' }`}>
+                <div ref={panelRef} className={`relative w-full max-h-[80vh] sm:max-h-none sm:w-[80%] md:max-w-[500px] sm:my-5 sm:mr-4 bg-[#f5f5f7]/90 backdrop-blur animate-moving-gradient shadow-[-10px_0_20px_rgba(0,0,0,0.05)] border border-b border-black/15 flex flex-col rounded-t-3xl sm:rounded-3xl transform transition-transform duration-700 md:duration-500 ease-out ${ isOpen ? 'translate-y-0 sm:translate-x-0 pointer-events-auto' : 'translate-y-full sm:translate-y-0 sm:translate-x-[120%] pointer-events-none' }`}>
 
                     {/* Floating close tab - sidebar style, sm and up only */}
                     <div className="hidden sm:block absolute -left-5 top-9">
