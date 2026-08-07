@@ -161,13 +161,20 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         const sapCode = params.get('sap_code');
         const canUpload = params.get('can_upload') === '1';
         const contractId = params.get('contract_id');
+        const openUpload = params.get('open_upload') === '1';
+
         if (companyId) {
-            openContractsModal({
+            const row = {
                 id: companyId,
                 company_name: companyName ?? '',
                 sap_code: sapCode || null,
                 can_upload: canUpload,
-            }, contractId);
+            };
+            if (openUpload && canUpload) {
+                openUploadModal(row, companyName ?? '');
+            } else {
+                openContractsModal(row, contractId);
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

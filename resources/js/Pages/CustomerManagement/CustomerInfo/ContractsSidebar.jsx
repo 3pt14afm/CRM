@@ -322,8 +322,8 @@ export default function ContractsSidebar({ isOpen, companyId, companyName, onClo
                                                 <div className="text-xs md:text-[13px] font-semibold text-slate-700 truncate">
                                                     {group.name}
                                                 </div>
-                                                <div className={`text-[11px] leading-snug font-medium ${branchCountColor(group.contracts)}`}>
-                                                    {group.contracts.length} contract{group.contracts.length !== 1 ? 's' : ''}
+                                                <div className={`text-[11px] leading-snug font-medium ${group.contracts.length === 0 ? 'text-slate-400 italic' : branchCountColor(group.contracts)}`}>
+                                                    {group.contracts.length === 0 ? 'No contracts' : `${group.contracts.length} contract${group.contracts.length !== 1 ? 's' : ''}`}
                                                 </div>
                                             </div>
                                         </button>
