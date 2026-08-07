@@ -372,6 +372,15 @@ const handleSearchChange = (value) => {
             ),
         },
         {
+            key: 'contracts',
+            header: "CONTRACTS",
+            cell: (r) => (
+                <span className="text-xs flex items-center max-w-20 py-1 text-slate-600">
+                    {r.contracts ?? '—'}
+                </span>
+            ),
+        },
+        {
             key: 'address',
             header: "ADDRESS",
             cell: (r) => (

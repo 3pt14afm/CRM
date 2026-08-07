@@ -72,6 +72,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const [dateTo,         setDateTo]         = useState(() => LS.get('date_to',        filters?.date_to        ?? ""));
   const [preparedBy,     setPreparedBy]     = useState(() => LS.get('prepared_by',    filters?.prepared_by    ?? ""));
   const [approvalLevel,  setApprovalLevel]  = useState(() => LS.get('approval_level', filters?.approval_level ?? ""));
+  const [scope, setScope] = useState(() => (filters?.mine ? "mine" : "all"));
+  const [preparedByUserId, setPreparedByUserId] = useState(() => filters?.prepared_by_user_id ?? "");
 
   const [perPage, setPerPage] = useState(() => {
     const stored = LS.get('per_page', "");
@@ -129,23 +131,27 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     currentApprovalLevel = approvalLevel,
     currentSortBy        = sortBy,
     currentSortOrder     = sortOrder,
+    currentScope         = scope,
+    currentPreparedByUserId = preparedByUserId,
   } = {}) => {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
       const response = await axios.get(ziggyRoute('sprf.current'), {
         params: {
-          page:            targetPage,
-          search:          currentSearch        || undefined,
-          status:          currentStatus        || undefined,
-          per_page:        currentPerPage,
-          date_from:       currentDateFrom      || undefined,
-          date_to:         currentDateTo        || undefined,
-          prepared_by:     currentPreparedBy    || undefined,
-          approval_level:  currentApprovalLevel || undefined,
-          sort_by:         currentSortBy        || undefined,
-          sort_order:      currentSortOrder     || undefined,
-          type:            currentType !== "" ? currentType : undefined,
+          page:                targetPage,
+          search:              currentSearch        || undefined,
+          status:              currentStatus        || undefined,
+          per_page:            currentPerPage,
+          date_from:           currentDateFrom      || undefined,
+          date_to:             currentDateTo        || undefined,
+          prepared_by:         currentPreparedBy    || undefined,
+          prepared_by_user_id: currentPreparedByUserId || undefined,
+          approval_level:      currentApprovalLevel || undefined,
+          sort_by:             currentSortBy        || undefined,
+          sort_order:          currentSortOrder     || undefined,
+          type:                currentType !== "" ? currentType : undefined,
+          mine:                currentScope === "mine" ? 1 : undefined,
         },
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
@@ -187,6 +193,11 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+  const handleScopeChange = (val) => {
+    setScope(val);
+    fetchCurrentData({ currentScope: val, targetPage: 1 });
+  };
+
   // ── Sort handler ──
   const handleSort = (key) => {
     const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
@@ -222,7 +233,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const handleDateClear = () => {
     setDateFrom('');
     setDateTo('');
-    fetchCurrentData({ currentDateFrom: undefined, currentDateTo: undefined, targetPage: 1 });
+    fetchCurrentData({ currentDateFrom: "", currentDateTo: "", targetPage: 1 });
   };
 
   const handlePerPageInputApply = () => {
@@ -243,6 +254,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     setDateFrom("");
     setDateTo("");
     setPreparedBy("");
+    setPreparedByUserId("");
     setApprovalLevel("");
     setPerPage(10);
     setPerPageInput("10");
@@ -270,9 +282,14 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
 
   const hasActiveFilters = !!(
     search || statusFilter || typeFilter !== "" || dateFrom || dateTo ||
-    preparedBy || approvalLevel || perPage !== 10 ||
+    preparedBy || preparedByUserId || approvalLevel || perPage !== 10 ||
     sortBy !== "" || sortOrder !== ""
   );
+
+  const clearPreparedByUserIdFilter = () => {
+    setPreparedByUserId("");
+    fetchCurrentData({ currentPreparedByUserId: "", targetPage: 1 });
+  };
 
   const tiles = useMemo(() => {
     const totalCurrentProjects = localStats?.totalCurrentProjects ?? localCurrentProjects?.total ?? 0;
@@ -444,6 +461,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         cell: (r) => (
           <div className="flex justify-center items-center gap-2">
             <button
+              title="View Details"
               className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
               onClick={() => router.visit(ziggyRoute('sprf.current.show', r.id))}
             >
@@ -529,6 +547,28 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     />
   );
 
+  const scopeControl = (
+    <div className="inline-flex gap-1 rounded-full bg-gray-100 p-0.5 flex-shrink-0">
+      {[
+        { key: "mine", label: "My Approvals" },
+        { key: "all",  label: "All" },
+      ].map((opt) => (
+        <button
+          key={opt.key}
+          type="button"
+          onClick={() => handleScopeChange(opt.key)}
+          className={`text-[10px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors ${
+            scope === opt.key
+              ? "bg-[#B5EBA2]/50 text-emerald-900 font-semibold shadow"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+
   const filterToolbar = (
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}
@@ -604,10 +644,27 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         <div className="flex-1 pb-24">
 
           <div className="px-4 sm:px-6 lg:px-10 pt-2 md:pt-8 pb-3 flex justify-between items-end">
-            <div className="flex items-baseline gap-1">
-              <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project SPRF Approval</h1>
-              <p className="text-slate-400 hidden sm:block">/</p>
-              <p className="text-2xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Current</p>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-baseline gap-1">
+                <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project SPRF Approval</h1>
+                <p className="text-slate-400 hidden sm:block">/</p>
+                <p className="text-2xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Current</p>
+                {preparedByUserId && (
+                <span className="inline-flex items-center gap-1 w-fit text-[11px] font-bold px-2 py-0.5 text-[#195c00] ">
+                  (MY PROJECTS ONLY)
+                  <button
+                    type="button"
+                    onClick={clearPreparedByUserIdFilter}
+                    className="ml-0.5 leading-none hover:text-sky-900"
+                    aria-label="Clear my-projects filter"
+                  >
+                    
+                  </button>
+                </span>
+              )}
+              </div>
+
+              
             </div>
             <div className="flex flex-col gap-1 items-end">
               <h1 className="text-[10px] md:text-xs text-slate-500">{formattedDate}</h1>
@@ -621,6 +678,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             rows={rows}
             rowKey={(r) => String(r.id)}
             pagination={pagination}
+            titleControl={scopeControl}
             searchControl={searchControl}
             filterControl={filterToolbar}
             loading={loading}

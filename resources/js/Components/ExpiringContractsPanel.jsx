@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Link } from "@inertiajs/react";
 import { LuClockAlert, LuEye } from "react-icons/lu";
@@ -9,13 +9,14 @@ const TABS = [
   { key: "expired", label: "Expired", activeClass: "text-white bg-gray-500 shadow-inner", },
 ];
 
-export default function ExpiringContractsPanel({ activeTab: controlledTab, onTabChange }) {
+export default function ExpiringContractsPanel({ activeTab: controlledTab, onTabChange, onReady }) {
   const [internalTab, setInternalTab] = useState("expiring_soon");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = onTabChange ?? setInternalTab;
 
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const firedRef = useRef(false);
 
   useEffect(() => {
     setLoading(true);
@@ -23,11 +24,17 @@ export default function ExpiringContractsPanel({ activeTab: controlledTab, onTab
       .get(route("customers.expiring-contracts", { status: activeTab }))
       .then((res) => setContracts(res.data))
       .catch((err) => console.error("Failed to load contracts", err))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        if (!firedRef.current) {
+          firedRef.current = true;
+          onReady?.();
+        }
+      });
   }, [activeTab]);
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-6 py-5 flex flex-col min-h-[380px]">
+    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-6 py-5 flex flex-col h-[445px]">
       <div className="flex items-center justify-between mb-3 pb-3">
         <h2 className="flex items-center gap-2.5 text-sm font-semibold text-gray-800">
           <LuClockAlert />Contracts

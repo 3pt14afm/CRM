@@ -130,12 +130,12 @@ class Contract extends Model
             return self::STATUS_EXPIRED;
         }
 
-        if (!empty($this->extend_dates)) {
-            return self::STATUS_EXTENDED;
-        }
-
         if ($end->lte($today->copy()->addMonths(self::EXPIRING_SOON_MONTHS))) {
             return self::STATUS_EXPIRING_SOON;
+        }
+
+        if (!empty($this->extend_dates)) {
+            return self::STATUS_EXTENDED;
         }
 
         return self::STATUS_ACTIVE;

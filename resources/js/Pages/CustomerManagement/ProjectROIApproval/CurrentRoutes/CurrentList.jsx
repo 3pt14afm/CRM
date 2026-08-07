@@ -60,7 +60,8 @@ const LS = {
 function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters, locations = [] }) {
   const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
   const [localStats, setLocalStats] = useState(initialStats);
-
+  const [scope, setScope] = useState(() => (filters?.mine ? "mine" : "all"));
+  const [preparedByUserId, setPreparedByUserId] = useState(() => filters?.prepared_by_user_id ?? "");
   const [search,       setSearch]       = useState(() => LS.get('search',      filters?.search      ?? ""));
   const [statusFilter, setStatusFilter] = useState(() => LS.get('status',      filters?.status      ?? ""));
   const [typeFilter,   setTypeFilter]   = useState(() => LS.get('type',        filters?.type        ?? ""));
@@ -150,6 +151,11 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
     return () => clearInterval(interval);
   }, []);
 
+  const handleScopeChange = (val) => {
+    setScope(val);
+    fetchCurrentData({ currentScope: val, targetPage: 1 });
+  };
+
   // ── Sort handler ──
   const handleSort = (key) => {
     const newOrder = sortBy === key && sortOrder === 'desc' ? 'asc' : 'desc';
@@ -166,8 +172,8 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
 
   const hasActiveFilters = !!(
     search || statusFilter || typeFilter !== "" || dateFrom || dateTo ||
-    preparedBy || locationId || perPage !== 10 ||
-    sortBy !== "" || sortOrder !== ""   // ← include sort
+    preparedBy || preparedByUserId || locationId || perPage !== 10 ||
+    sortBy !== "" || sortOrder !== ""
   );
 
   const tiles = useMemo(() => {
@@ -372,6 +378,7 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
       cell: (r) => (
         <div className="flex justify-center items-center gap-2">
           <button
+            title="View Details"
             className="px-1.5 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
             onClick={() => router.visit(route("roi.current.show", r.id))}
           >
@@ -395,25 +402,29 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
     currentDateTo     = dateTo,
     currentPreparedBy = preparedBy,
     currentLocationId = locationId,
-    currentSortBy     = "",      // ← was hardcoded "last_saved_at"
+    currentSortBy     = "",
     currentSortOrder  = "",
+    currentScope      = scope,
+    currentPreparedByUserId = preparedByUserId,
   } = {}) => {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
       const response = await axios.get(route("roi.current"), {
         params: {
-          page:        targetPage,
-          search:      currentSearch     || undefined,
-          status:      currentStatus     || undefined,
-          per_page:    currentPerPage,
-          date_from:   currentDateFrom   || undefined,
-          date_to:     currentDateTo     || undefined,
-          prepared_by: currentPreparedBy || undefined,
-          location_id: currentLocationId || undefined,
-          sort_by:     currentSortBy     || undefined,  // ← dynamic
-          sort_order:  currentSortOrder  || undefined,
-          type:        currentType !== "" ? currentType : undefined,
+          page:                targetPage,
+          search:              currentSearch     || undefined,
+          status:              currentStatus     || undefined,
+          per_page:            currentPerPage,
+          date_from:           currentDateFrom   || undefined,
+          date_to:             currentDateTo     || undefined,
+          prepared_by:         currentPreparedBy || undefined,
+          prepared_by_user_id: currentPreparedByUserId || undefined,
+          location_id:         currentLocationId || undefined,
+          sort_by:             currentSortBy     || undefined,
+          sort_order:          currentSortOrder  || undefined,
+          type:                currentType !== "" ? currentType : undefined,
+          mine:                currentScope === "mine" ? 1 : undefined,
         },
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
@@ -445,11 +456,11 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
   const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchCurrentData({ currentPreparedBy: val, targetPage: 1 }); };
   const handleLocationApply   = (val) => { setLocationId(val);   fetchCurrentData({ currentLocationId: val, targetPage: 1 }); };
   const handleDateApply       = ()    => { setShowDatePicker(false); fetchCurrentData({ targetPage: 1 }); };
-  const handleDateClear       = ()    => {
+  const handleDateClear = () => {
     setDateFrom("");
     setDateTo("");
     setShowDatePicker(false);
-    fetchCurrentData({ currentDateFrom: undefined, currentDateTo: undefined, targetPage: 1 });
+    fetchCurrentData({ currentDateFrom: "", currentDateTo: "", targetPage: 1 });
   };
   const handlePerPageInputApply = () => {
     const raw = parseInt(perPageInput, 10);
@@ -468,6 +479,7 @@ const handleClearAllFilters = () => {
   setDateFrom("");
   setDateTo("");
   setPreparedBy("");
+  setPreparedByUserId("");
   setLocationId("");
   setPerPage(10);
   setPerPageInput("10");
@@ -477,13 +489,10 @@ const handleClearAllFilters = () => {
   setShowPreparedBy(false);
   setShowLocation(false);
 
-  // Call axios directly instead of fetchCurrentData
-  // so we're not at the mercy of stale state
   axios.get(route("roi.current"), {
     params: {
       page:     1,
       per_page: 10,
-      // intentionally omit sort_by and sort_order entirely
     },
     headers: {
       'X-Requested-With': 'XMLHttpRequest',
@@ -498,6 +507,11 @@ const handleClearAllFilters = () => {
   }).catch((error) => {
     console.error("Failed to fetch current projects:", error);
   });
+};
+
+const clearPreparedByUserIdFilter = () => {
+  setPreparedByUserId("");
+  fetchCurrentData({ currentPreparedByUserId: "", targetPage: 1 });
 };
 
   const goToPage = (p) => fetchCurrentData({ targetPage: p });
@@ -592,6 +606,28 @@ const handleClearAllFilters = () => {
     </div>
   );
 
+  const scopeControl = (
+    <div className="inline-flex gap-1 rounded-full bg-gray-100 p-0.5 flex-shrink-0">
+      {[
+        { key: "mine", label: "My Approvals" },
+        { key: "all",  label: "All" },
+      ].map((opt) => (
+        <button
+          key={opt.key}
+          type="button"
+          onClick={() => handleScopeChange(opt.key)}
+          className={`text-[10px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors ${
+            scope === opt.key
+              ? "bg-[#B5EBA2]/50 text-emerald-900 font-semibold shadow"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+
   const filterToolbar = (
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}
@@ -677,6 +713,11 @@ const handleClearAllFilters = () => {
             <h1 className="font-semibold text-[13px] sm:text-sm text-slate-500">Project ROI Approval</h1>
             <span className="text-slate-400 hidden sm:block">/</span>
             <p className="text-2xl sm:text-3xl font-semibold text-slate-900 hidden sm:block">Current</p>
+            {preparedByUserId && (
+              <span className="inline-flex items-center gap-1 w-fit text-[11px] font-bold px-2 py-0.5 text-[#195c00]">
+                (MY PROJECTS ONLY)
+              </span>
+            )}
           </div>
           <span className="text-[10px] md:text-xs text-slate-500">{formattedDate}</span>
         </div>
@@ -684,6 +725,7 @@ const handleClearAllFilters = () => {
         <ProjectListSection
           tiles={tiles}
           tableTitle="Current Projects"
+          titleControl={scopeControl}
           columns={columns}
           rows={rows}
           rowKey={(r) => String(r.id)}

@@ -97,14 +97,15 @@ class RoiCurrentProjectController extends Controller
     {
         $user = $this->getAuthenticatedUser();
 
-        $search     = $request->input('search');
-        $status     = $request->input('status');
-        $type       = $request->input('type');
-        $dateFrom   = $request->input('date_from');
-        $dateTo     = $request->input('date_to');
-        $preparedBy = $request->input('prepared_by');
-        $locationId = $request->input('location_id');
-        $perPage    = (int) $request->input('per_page', 10);
+        $search           = $request->input('search');
+        $status           = $request->input('status');
+        $type             = $request->input('type');
+        $dateFrom         = $request->input('date_from');
+        $dateTo           = $request->input('date_to');
+        $preparedBy       = $request->input('prepared_by');
+        $preparedByUserId = $request->input('prepared_by_user_id');
+        $locationId       = $request->input('location_id');
+        $perPage          = (int) $request->input('per_page', 10);
 
         $query = RoiCurrentProject::with([
             'items', 'fees', 'user',
@@ -168,7 +169,9 @@ class RoiCurrentProjectController extends Controller
         }
 
         // 4. Prepared By filter
-        if (!empty($preparedBy)) {
+        if (!empty($preparedByUserId)) {
+            $query->where('roi_current_projects.user_id', '=', (int) $preparedByUserId);
+        } elseif (!empty($preparedBy)) {
             $query->whereHas('user', function ($q) use ($preparedBy) {
                 $q->where('first_name', 'like', "%{$preparedBy}%")
                 ->orWhere('last_name', 'like', "%{$preparedBy}%")
@@ -285,16 +288,18 @@ class RoiCurrentProjectController extends Controller
             'viewerId'        => (int) $user->id,
             'locations'       => $locations,
             'filters'         => [
-                'search'      => $search,
-                'status'      => $status,
-                'date_from'   => $dateFrom,
-                'date_to'     => $dateTo,
-                'prepared_by' => $preparedBy,
-                'location_id' => $locationId,
-                'per_page'    => $perPage,
-                'sort_by'     => $sortByKey,    // ← added
-                'sort_order'  => $sortOrder,
-                'type'        => $type,
+                'search'              => $search,
+                'status'              => $status,
+                'date_from'           => $dateFrom,
+                'date_to'             => $dateTo,
+                'prepared_by'         => $preparedBy,
+                'prepared_by_user_id' => $preparedByUserId,
+                'location_id'         => $locationId,
+                'per_page'            => $perPage,
+                'sort_by'             => $sortByKey,
+                'sort_order'          => $sortOrder,
+                'type'                => $type,
+                'mine'                => $request->boolean('mine'),
             ],
         ]);
     }

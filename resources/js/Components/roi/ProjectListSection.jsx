@@ -104,6 +104,7 @@ function getPageNumbers(currentPage, totalPages, maxVisible = 5) {
 export default function ProjectListSection({
   tiles = [],
   tableTitle = "",
+  titleControl = null, 
   columns = [],
   rows = [],
   rowKey = (r) => r.id,
@@ -242,9 +243,12 @@ export default function ProjectListSection({
       <div className="mt-4 bg-white rounded-xl border border-black/15 md:border-black/10 md:border-b-black/20 md:border-r-black/20 md:shadow-[-2px_-2px_10px_rgba(245,245,245,1),0px_0px_0_rgba(255,255,255,1),2px_2px_4px_rgba(0,0,0,0.2)] overflow-hidden">
 
         <div className="flex gap-2 items-center justify-between py-2.5 md:py-3 border-b border-black/10 px-3 lg:px-4 xl:px-6 min-w-0">
-          <h2 className="font-semibold text-[13px] lg:text-sm xl:text-lg text-slate-800 flex-shrink-0">
-            {tableTitle}
-          </h2>
+          <div className="flex items-center gap-3 flex-shrink-0 min-w-0">
+            <h2 className="font-semibold text-[13px] lg:text-sm xl:text-lg text-slate-800 flex-shrink-0">
+              {tableTitle}
+            </h2>
+            {titleControl}
+          </div>
 
           {(searchControl || rightControls) && (
             <div className="flex items-center justify-end gap-2 min-w-0 flex-1">

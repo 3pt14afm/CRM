@@ -762,20 +762,54 @@ class ContractController extends Controller
         ]);
     }
 
+    private function visibleCompanyIds()
+    {
+        $employeeId = Auth::user()->employee_id ?? null;
+
+        if ($this->isAdmin() || $employeeId === '0283') {
+            return Company::query()->where('status', 1)->pluck('id');
+        }
+
+        $companyTable = (new Company())->getTable();
+
+        $query = Company::query()
+            ->leftJoin('users as client_managers', function ($join) use ($companyTable) {
+                $join->on(
+                    DB::raw("{$companyTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
+                    '=',
+                    DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
+                );
+            })
+            ->where("{$companyTable}.status", 1) 
+            ->select("{$companyTable}.id");
+
+        $this->applyCompanyVisibility($query);
+
+        return $query->pluck('id');
+    }
+
     public function statusStats(Request $request)
     {
         $counts = ['expiring_soon' => 0, 'active' => 0, 'expired' => 0];
- 
-        Contract::query()->chunk(200, function ($contracts) use (&$counts) {
-            foreach ($contracts as $contract) {
-                $contract->refreshStatus();
- 
-                if (isset($counts[$contract->status])) {
-                    $counts[$contract->status]++;
+
+        $visibleCompanyIds = $this->visibleCompanyIds();
+
+        Contract::query()
+            ->whereIn('company_id', $visibleCompanyIds)
+            ->chunk(200, function ($contracts) use (&$counts) {
+                foreach ($contracts as $contract) {
+                    $contract->refreshStatus();
+
+                    $bucket = $contract->status === Contract::STATUS_EXTENDED
+                        ? Contract::STATUS_ACTIVE
+                        : $contract->status;
+
+                    if (isset($counts[$bucket])) {
+                        $counts[$bucket]++;
+                    }
                 }
-            }
-        });
- 
+            });
+
         return response()->json($counts);
     }
 
@@ -789,11 +823,21 @@ class ContractController extends Controller
 
         $limit = 50;
 
-        $contracts = Contract::query()->get();
+        $visibleCompanyIds = $this->visibleCompanyIds();
+
+        $contracts = Contract::query()
+            ->whereIn('company_id', $visibleCompanyIds)
+            ->get();
 
         $filtered = $contracts
             ->each(fn ($c) => $c->refreshStatus())
-            ->filter(fn ($c) => $c->status === $status)
+            ->filter(function ($c) use ($status) {
+                // Same "extended folds into active" rollup as statusStats().
+                if ($status === Contract::STATUS_ACTIVE) {
+                    return in_array($c->status, [Contract::STATUS_ACTIVE, Contract::STATUS_EXTENDED], true);
+                }
+                return $c->status === $status;
+            })
             ->map(function ($c) {
                 $effectiveDate = $c->latestExtendedDate() ?? optional($c->end_date)->format('Y-m-d');
                 $company = Company::find($c->company_id);

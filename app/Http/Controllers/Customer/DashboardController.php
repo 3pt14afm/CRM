@@ -11,6 +11,7 @@ use App\Models\RoiArchiveProject;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\SPRF\SprfCurrentProject;
 use App\Models\SPRF\SprfArchiveProject;
+use App\Models\LocationDepartment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -51,23 +52,70 @@ class DashboardController extends Controller
 
     /**
      * GET /customer-management/pending-approvals
-     * Returns the actual projects sitting in the logged-in user's approval
-     * queue — not just a count — so the dashboard can list them directly.
+     * Approvers get the actual projects sitting in their approval queue.
+     * Non-approvers get their own entries that are still in the current
+     * (not-yet-archived) tables instead — there's nothing for them to
+     * approve, so "pending" means "still in progress" for their own work.
      */
     public function pendingApprovals(Request $request)
     {
         $userId = (int) Auth::id();
 
-        $roiPending = \App\Models\RoiCurrentProject::query()
-            ->with('user:id,first_name,last_name')
+        $isApprover = LocationDepartment::query()
             ->where(function ($q) use ($userId) {
-                $q->where(fn($sub) => $sub->where('current_level', 2)->where('reviewed_by', $userId))
-                  ->orWhere(fn($sub) => $sub->where('current_level', 3)->where('checked_by', $userId))
-                  ->orWhere(fn($sub) => $sub->where('current_level', 4)->where('endorsed_by', $userId))
-                  ->orWhere(fn($sub) => $sub->where('current_level', 5)->where('confirmed_by', $userId))
-                  ->orWhere(fn($sub) => $sub->where('current_level', 6)->where('approved_by', $userId));
+                $q->where('reviewed_by', $userId)
+                ->orWhere('checked_by', $userId)
+                ->orWhere('endorsed_by', $userId)
+                ->orWhere('confirmed_by', $userId)
+                ->orWhere('approved_by', $userId);
             })
-            ->whereNotIn('status', ['Withdrawn', 'Cancelled', 'Approved', 'Rejected'])
+            ->exists();
+
+        $roiPending = collect();
+        $sprfPending = collect();
+
+        if ($isApprover) {
+            $roiPending = \App\Models\RoiCurrentProject::query()
+                ->with('user:id,first_name,last_name')
+                ->where(function ($q) use ($userId) {
+                    $q->where(fn($sub) => $sub->where('current_level', 2)->where('reviewed_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 3)->where('checked_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 4)->where('endorsed_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 5)->where('confirmed_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 6)->where('approved_by', $userId));
+                })
+                ->whereNotIn('status', ['Withdrawn', 'Cancelled', 'Approved', 'Rejected'])
+                ->orderByDesc('last_saved_at')
+                ->get()
+                ->map(fn ($p) => [
+                    'id'           => $p->id,
+                    'prepared_by'  => trim(($p->user->first_name ?? '') . ' ' . ($p->user->last_name ?? '')) ?: '—',
+                    'company_name' => $p->company_name,
+                    'status'       => $p->status,
+                    'href'         => route('roi.current.show', $p->id),
+                ]);
+
+            $sprfPending = \App\Models\SPRF\SprfCurrentProject::query()
+                ->with('preparer:id,first_name,last_name')
+                ->where('current_approver_user_id', $userId)
+                ->whereIn('status', ['for_review', 'under_review', 'Sent Back'])
+                ->orderByDesc('updated_at')
+                ->get()
+                ->map(fn ($p) => [
+                    'id'           => $p->id,
+                    'prepared_by'  => trim(($p->preparer->first_name ?? '') . ' ' . ($p->preparer->last_name ?? '')) ?: '—',
+                    'company_name' => $p->account,
+                    'status'       => $p->status,
+                    'href'         => route('sprf.current.show', $p->id),
+                ]);
+        }
+
+        // Own in-progress entries — fetched unconditionally now (not just for
+        // non-approvers) so the "My Projects" sub-tab has data for approvers
+        // who also prepare their own ROI/SPRF entries.
+        $roiMine = \App\Models\RoiCurrentProject::query()
+            ->with('user:id,first_name,last_name')
+            ->where('user_id', $userId)
             ->orderByDesc('last_saved_at')
             ->get()
             ->map(fn ($p) => [
@@ -78,10 +126,9 @@ class DashboardController extends Controller
                 'href'         => route('roi.current.show', $p->id),
             ]);
 
-        $sprfPending = \App\Models\SPRF\SprfCurrentProject::query()
+        $sprfMine = \App\Models\SPRF\SprfCurrentProject::query()
             ->with('preparer:id,first_name,last_name')
-            ->where('current_approver_user_id', $userId)
-            ->whereIn('status', ['for_review', 'under_review', 'Sent Back'])
+            ->where('prepared_by_user_id', $userId)
             ->orderByDesc('updated_at')
             ->get()
             ->map(fn ($p) => [
@@ -93,8 +140,11 @@ class DashboardController extends Controller
             ]);
 
         return response()->json([
+            'is_approver'  => $isApprover,
             'roi_pending'  => $roiPending,
             'sprf_pending' => $sprfPending,
+            'roi_mine'     => $roiMine,
+            'sprf_mine'    => $sprfMine,
         ]);
     }
 
@@ -113,33 +163,45 @@ class DashboardController extends Controller
         $userId  = (int) Auth::id();
         $isAdmin = $userId === 1 || (Auth::user()->employee_id ?? null) === '0283';
 
+        $isApprover = LocationDepartment::query()
+            ->where(function ($q) use ($userId) {
+                $q->where('reviewed_by', $userId)
+                  ->orWhere('checked_by', $userId)
+                  ->orWhere('endorsed_by', $userId)
+                  ->orWhere('confirmed_by', $userId)
+                  ->orWhere('approved_by', $userId);
+            })
+            ->exists();
+
         return response()->json([
-            'roi'  => $this->buildRoiDistribution($userId, $isAdmin, $start, $end),
-            'sprf' => $this->buildSprfDistribution($userId, $isAdmin, $start, $end),
+            'is_approver' => $isApprover,
+            'roi'  => $this->buildRoiDistribution($userId, $isAdmin, $isApprover, $start, $end),
+            'sprf' => $this->buildSprfDistribution($userId, $isAdmin, $isApprover, $start, $end),
         ]);
     }
 
-    /**
-     * "pending" = Pending Approvals — items sitting in this user's own
-     * approval queue right now (mirrors pendingApprovals()'s ROI matching).
-     *
-     * rejected/cancelled/completed = archived projects this user has access
-     * to view, mirroring RoiArchiveController::ensureCanViewArchive() —
-     * owner or anywhere in the approval chain. Admin (id 1) sees all.
-     */
-    private function buildRoiDistribution(int $userId, bool $isAdmin, $start, $end): array
+    private function buildRoiDistribution(int $userId, bool $isAdmin, bool $isApprover, $start, $end): array
     {
-        $pendingApprovals = RoiCurrentProject::query()
-            ->whereBetween('created_at', [$start, $end])
-            ->where(function ($q) use ($userId) {
-                $q->where(fn($sub) => $sub->where('current_level', 2)->where('reviewed_by', $userId))
-                ->orWhere(fn($sub) => $sub->where('current_level', 3)->where('checked_by', $userId))
-                ->orWhere(fn($sub) => $sub->where('current_level', 4)->where('endorsed_by', $userId))
-                ->orWhere(fn($sub) => $sub->where('current_level', 5)->where('confirmed_by', $userId))
-                ->orWhere(fn($sub) => $sub->where('current_level', 6)->where('approved_by', $userId));
-            })
-            ->whereNotIn('status', ['Withdrawn', 'Cancelled', 'Approved', 'Rejected'])
-            ->count();
+        $pendingApprovals = $isApprover
+            ? RoiCurrentProject::query()
+                ->where(function ($q) use ($userId) {
+                    $q->where(fn($sub) => $sub->where('current_level', 2)->where('reviewed_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 3)->where('checked_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 4)->where('endorsed_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 5)->where('confirmed_by', $userId))
+                    ->orWhere(fn($sub) => $sub->where('current_level', 6)->where('approved_by', $userId));
+                })
+                ->whereNotIn('status', ['Withdrawn', 'Cancelled', 'Approved', 'Rejected'])
+                ->count()
+            : RoiCurrentProject::query()
+                ->where('user_id', $userId)
+                ->count();
+
+        $pendingProjects = $isApprover
+            ? RoiCurrentProject::query()
+                ->where('user_id', $userId)
+                ->count()
+            : 0;
 
         $archiveCounts = RoiArchiveProject::query()
             ->whereRaw('COALESCE(approved_at, rejected_at, cancelled_at, created_at) BETWEEN ? AND ?', [$start, $end])
@@ -159,20 +221,30 @@ class DashboardController extends Controller
             ->pluck('total', 'status');
 
         return [
-            'pending'   => $pendingApprovals,
-            'rejected'  => (int) ($archiveCounts['rejected'] ?? 0),
-            'cancelled' => (int) ($archiveCounts['cancelled'] ?? 0),
-            'completed' => (int) ($archiveCounts['approved'] ?? 0),
+            'pending'          => $pendingApprovals,
+            'pending_projects' => $pendingProjects,
+            'rejected'         => (int) ($archiveCounts['rejected'] ?? 0),
+            'cancelled'        => (int) ($archiveCounts['cancelled'] ?? 0),
+            'completed'        => (int) ($archiveCounts['approved'] ?? 0),
         ];
     }
 
-    private function buildSprfDistribution(int $userId, bool $isAdmin, $start, $end): array
+    private function buildSprfDistribution(int $userId, bool $isAdmin, bool $isApprover, $start, $end): array
     {
-        $pendingApprovals = SprfCurrentProject::query()
-            ->whereBetween('created_at', [$start, $end])
-            ->where('current_approver_user_id', $userId)
-            ->whereIn('status', ['for_review', 'under_review', 'Sent Back'])
-            ->count();
+        $pendingApprovals = $isApprover
+            ? SprfCurrentProject::query()
+                ->where('current_approver_user_id', $userId)
+                ->whereIn('status', ['for_review', 'under_review', 'Sent Back'])
+                ->count()
+            : SprfCurrentProject::query()
+                ->where('prepared_by_user_id', $userId)
+                ->count();
+
+        $pendingProjects = $isApprover
+            ? SprfCurrentProject::query()
+                ->where('prepared_by_user_id', $userId)
+                ->count()
+            : 0;
 
         $archiveCounts = SprfArchiveProject::query()
             ->whereRaw('COALESCE(approved_at, rejected_at, created_at) BETWEEN ? AND ?', [$start, $end])
@@ -190,19 +262,14 @@ class DashboardController extends Controller
             ->pluck('total', 'status');
 
         return [
-            'pending'   => $pendingApprovals,
-            'rejected'  => (int) ($archiveCounts['rejected'] ?? 0),
-            'cancelled' => (int) ($archiveCounts['cancelled'] ?? 0),
-            'completed' => (int) ($archiveCounts['approved'] ?? 0),
+            'pending'          => $pendingApprovals,
+            'pending_projects' => $pendingProjects,
+            'rejected'         => (int) ($archiveCounts['rejected'] ?? 0),
+            'cancelled'        => (int) ($archiveCounts['cancelled'] ?? 0),
+            'completed'        => (int) ($archiveCounts['approved'] ?? 0),
         ];
     }
 
-    /**
-     * Scoped to entries this user prepared themselves — excludes anything
-     * where they're only in the approval chain.
-     * TODO: confirm RoiEntryProject's owner column is 'user_id' (matches
-     * RoiCurrentProject/RoiArchiveProject) — not directly verified here.
-     */
     public function entriesByMonth(Request $request)
     {
         $userId = (int) Auth::id();
