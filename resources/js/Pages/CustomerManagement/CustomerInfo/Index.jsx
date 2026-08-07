@@ -8,8 +8,10 @@ import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons
 import { TbLayoutRows } from 'react-icons/tb';
 import { usePage } from '@inertiajs/react';
 import CompanyDetailsSidebar from './CompanyDetailsSidebar';
+import ContractsSidebar from './ContractsSidebar';
 import { FaRegClock } from 'react-icons/fa';
 import SortHeader from '@/Components/SortHeader';
+
 
 const STORAGE_KEY = 'customerinfo_filters';
 
@@ -21,6 +23,12 @@ const DEFAULT_FILTERS = {
     per_page:       12,
     sort_by:        'company_name',
     sort_order:     'asc',
+};
+
+const CONTRACTS_STATUS_COLOR = {
+    expired:        'text-red-600 bg-red-50 border-red-200 hover:bg-red-200/70',
+    expiring_soon:  'text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-200/70',
+    ok:             'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20 hover:bg-[#2da300]/20',
 };
 
 function loadPersistedFilters() {
@@ -55,6 +63,9 @@ function Index({ companies, potentials, filters, categories = [] }) {
 
     const [selectedCompany, setSelectedCompany] = useState(null);
     const [isSidebarOpen,   setIsSidebarOpen]   = useState(false);
+
+    const [contractsCompany,     setContractsCompany]     = useState(null);
+    const [isContractsSidebarOpen, setIsContractsSidebarOpen] = useState(false);
 
     // Per-page popup
     const [showPerPagePicker, setShowPerPagePicker] = useState(false);
@@ -375,9 +386,19 @@ const handleSearchChange = (value) => {
             key: 'contracts',
             header: "CONTRACTS",
             cell: (r) => (
-                <span className="text-xs flex items-center max-w-20 py-1 text-slate-600">
-                    {r.contracts ?? '—'}
-                </span>
+                r.contracts ? (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setContractsCompany(r);
+                            setIsContractsSidebarOpen(true);
+                        }}
+                        className={`text-[11px] flex items-center min-w-6 min-h-6 py-0.5 px-2 rounded-lg font-bold shadow hover:shadow-inner border ${CONTRACTS_STATUS_COLOR[r.contracts_status] || 'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20 hover:shadow-inner hover:bg-[#2da300]/20'}`}
+                    >
+                        {r.contracts}
+                    </button>
+                ) : null
             ),
         },
         {
@@ -794,6 +815,12 @@ const handleSearchChange = (value) => {
                 onClose={() => setIsSidebarOpen(false)}
                 isPotential={activeTab === 'Potentials'}
                 onSave={handleSaveCompanyFields}
+            />
+            <ContractsSidebar
+                isOpen={isContractsSidebarOpen}
+                companyId={contractsCompany?.id}
+                companyName={contractsCompany?.company_name}
+                onClose={() => setIsContractsSidebarOpen(false)}
             />
         </>
     );

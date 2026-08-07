@@ -10,7 +10,7 @@ export default function FilterToolbar({ children, hasActiveFilters, onClearAll }
           <button
             type="button"
             onClick={onClearAll}
-            className="flex-shrink-0 flex items-center gap-0.5 md:gap-1 text-[11px] md:text-xs font-medium text-[#4FA34E] hover:text-red-400 transition-colors duration-150"
+            className="flex items-center gap-0.5 md:gap-1 text-[11px] md:text-xs font-medium bg-[#B5EBA2]/50 text-emerald-900 hover:bg-red-100 hover:text-red-400 hover:shadow-inner shadow p-1 px-2 rounded-lg transition-colors duration-150"
           >
             <MdClose size={13} />
             <span>Clear</span>

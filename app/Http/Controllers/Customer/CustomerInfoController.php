@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contracts\Contract;
 use App\Models\CustomerInfo\Company;
 use App\Models\CustomerInfo\PotentialCustomer;
 use App\Models\LocationDepartment;
@@ -189,7 +190,49 @@ class CustomerInfoController extends Controller
                 ->get(['id', 'sap_code', 'company_name', 'address', 'main_location', 'contact_no', 'status'])
                 ->groupBy('sap_code');
 
-        $companies->getCollection()->transform(function ($c) use ($siblingsBySap) {
+        $contractCompanyIds = $companiesForPage->pluck('id')
+            ->merge($siblingsBySap->flatten(1)->pluck('id'))
+            ->unique()
+            ->values();
+
+        $contractsRaw = Contract::query()
+            ->whereIn('company_id', $contractCompanyIds)
+            ->get();
+
+        $contractsRaw->each(fn ($c) => $c->refreshStatus());
+
+        $contractsByCompanyId = $contractsRaw->groupBy('company_id');
+
+        $contractsCountByCompanyId = $contractsByCompanyId->map->count();
+
+        $statusByCompanyId = $contractsByCompanyId->map(function ($group) {
+            if ($group->contains(fn ($c) => $c->status === Contract::STATUS_EXPIRED)) {
+                return 'expired';
+            }
+            if ($group->contains(fn ($c) => $c->status === Contract::STATUS_EXPIRING_SOON)) {
+                return 'expiring_soon';
+            }
+            return 'ok';
+        });
+
+        $contractsCountBySapCode = $companiesForPage
+            ->filter(fn ($c) => $c->sap_code)
+            ->mapWithKeys(function ($c) use ($siblingsBySap, $contractsCountByCompanyId) {
+                $allIds = ($siblingsBySap[$c->sap_code] ?? collect())->pluck('id')->push($c->id)->unique();
+                return [$c->sap_code => $allIds->sum(fn ($id) => $contractsCountByCompanyId[$id] ?? 0)];
+            });
+
+        $statusBySapCode = $companiesForPage
+            ->filter(fn ($c) => $c->sap_code)
+            ->mapWithKeys(function ($c) use ($siblingsBySap, $statusByCompanyId) {
+                $allIds = ($siblingsBySap[$c->sap_code] ?? collect())->pluck('id')->push($c->id)->unique();
+                $statuses = $allIds->map(fn ($id) => $statusByCompanyId[$id] ?? 'ok');
+                return [$c->sap_code => $statuses->contains('expired')
+                    ? 'expired'
+                    : ($statuses->contains('expiring_soon') ? 'expiring_soon' : 'ok')];
+            });
+
+        $companies->getCollection()->transform(function ($c) use ( $siblingsBySap, $contractsCountBySapCode, $contractsCountByCompanyId, $statusBySapCode, $statusByCompanyId) {
             $branchGroups = [];
 
             if ($c->sap_code && $siblingsBySap->has($c->sap_code)) {
@@ -230,7 +273,13 @@ class CustomerInfoController extends Controller
                 'id_client_mngr'     => $c->id_client_mngr,
                 'client_manager'     => $c->clientManager ? $c->clientManager->first_name . ' ' . $c->clientManager->last_name : null,
                 'status'             => $c->status,
-            ];
+                'contracts'        => $c->sap_code
+                    ? ($contractsCountBySapCode[$c->sap_code] ?? 0)
+                    : ($contractsCountByCompanyId[$c->id] ?? 0),
+                'contracts_status'  => $c->sap_code
+                    ? ($statusBySapCode[$c->sap_code] ?? 'ok')
+                    : ($statusByCompanyId[$c->id] ?? 'ok'),
+                    ];
         });
 
         $categories = Company::query()
