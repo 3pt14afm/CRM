@@ -83,12 +83,14 @@ class SprfCurrentProjectController extends Controller
             $q->where('type', (int) $request->input('type'));
         });
 
-        $query->when(filled($request->input('prepared_by')), function ($q) use ($request) {
+        if (filled($request->input('prepared_by_user_id'))) {
+            $query->where('prepared_by_user_id', (int) $request->input('prepared_by_user_id'));
+        } elseif (filled($request->input('prepared_by'))) {
             $preparedBy = trim($request->input('prepared_by'));
-            $q->whereHas('preparer', function ($sub) use ($preparedBy) {
+            $query->whereHas('preparer', function ($sub) use ($preparedBy) {
                 $sub->whereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$preparedBy}%"]);
             });
-        });
+        }
 
         $query->when(filled($request->input('approval_level')), function ($q) use ($request) {
             $q->where('approval_level', $request->input('approval_level'));
@@ -207,10 +209,12 @@ class SprfCurrentProjectController extends Controller
             'account_manager',
             'sub_category',
             'prepared_by',
+            'prepared_by_user_id',
             'approval_level',
             'type',
             'sort_by',
             'sort_order',
+            'mine',
         ]);
 
         if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {

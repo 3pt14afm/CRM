@@ -7,6 +7,7 @@ export default function StatCard({
   percent,
   theme,
   index = 0,
+  loading = false,
   children,
 }) {
   const clipId = `bgblur_${index}`;
@@ -79,6 +80,8 @@ export default function StatCard({
         </p>
         {children ? (
           children
+        ) : loading ? (
+          <div className="h-7 w-16 bg-black/10 rounded animate-pulse mt-0.5" />
         ) : (
           <>
             <p className="text-2xl font-semibold text-gray-900">

@@ -9,7 +9,7 @@ const STATUS_STYLES = {
   expired: { label: "Expired", labelClass: "text-gray-500", valueClass: "text-gray-900" },
 };
 
-export default function ContractStatusCard({ theme, index = 0, onStatusClick, selectedStatus }) {
+export default function ContractStatusCard({ theme, index = 0, onStatusClick, selectedStatus, onReady }) {
   const [counts, setCounts] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,7 +18,10 @@ export default function ContractStatusCard({ theme, index = 0, onStatusClick, se
       .get(route("customers.contract-status-stats"))
       .then((res) => setCounts(res.data))
       .catch((err) => console.error("Failed to load contract status stats", err))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        onReady?.();
+      });
   }, []);
 
   return (

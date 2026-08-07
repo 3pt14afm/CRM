@@ -1,4 +1,4 @@
-import { useEffect, useState, } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, Link, usePage } from "@inertiajs/react";
@@ -13,23 +13,17 @@ import { cardThemes, defaultCardTheme } from "@/Config/cardThemes";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
-  const [approvals, setApprovals] = useState(null);
-  const [loading, setLoading] = useState(true);
   const { auth } = usePage().props;
   const [contractsTab, setContractsTab] = useState("expiring_soon");
 
   useEffect(() => {
-    Promise.all([
-      axios.get(route("customers.stats")),
-      axios.get(route("customers.pending-approvals")),
-    ])
-      .then(([statsRes, approvalsRes]) => {
-        setStats(statsRes.data);
-        setApprovals(approvalsRes.data);
-      })
-      .catch((err) => console.error("Failed to load dashboard data", err))
-      .finally(() => setLoading(false));
+    axios
+      .get(route("customers.stats"))
+      .then((res) => setStats(res.data))
+      .catch((err) => console.error("Failed to load dashboard stats", err));
   }, []);
+
+  const statsLoading = stats === null;
 
   const cards = [
     { icon: MdGroups, name: "Total Customer", value: stats?.total_customers },
@@ -38,10 +32,10 @@ export default function Dashboard() {
   ];
 
   const [now, setNow] = useState(new Date());
-    useEffect(() => {
-      const interval = setInterval(() => setNow(new Date()), 1000);
-      return () => clearInterval(interval);
-    }, []);
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -51,14 +45,13 @@ export default function Dashboard() {
         <div className="flex items-center justify-between py-5 mt-2">
           <h1 className="text-md font-medium text-gray-800">
           </h1>
-          
+
           <span className="text-xs text-gray-500 tabular-nums">
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             {" · "}
             {now.toLocaleTimeString("en-US")}
           </span>
         </div>
-        
 
         <div className="flex items-center justify-between">
           <div className="flex flex-col items-start gap-1">
@@ -76,22 +69,22 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Row 1: Stat cards */}
+        {/* Row 1: Stat cards. Each card renders immediately and shows its own
+            shaped skeleton (icon/title stay visible, value placeholder pulses)
+            until its data arrives — no whole-page gate. */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5 pt-6">
-          {cards.map((card, index) =>
-            loading ? (
-              <SkeletonCard key={card.name} />
-            ) : (
-              <StatCard
-                key={card.name}
-                icon={card.icon}
-                title={card.name}
-                value={card.value ?? 0}
-                theme={cardThemes[card.name] ?? defaultCardTheme}
-                index={index}
-              />
-            )
-          )}
+          {cards.map((card, index) => (
+            <StatCard
+              key={card.name}
+              icon={card.icon}
+              title={card.name}
+              value={card.value ?? 0}
+              loading={statsLoading}
+              theme={cardThemes[card.name] ?? defaultCardTheme}
+              index={index}
+            />
+          ))}
+
           <ContractStatusCard
             theme={cardThemes["At-Risk Accounts"] ?? defaultCardTheme}
             index={cards.length}
@@ -100,38 +93,19 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Row 2: Pending approvals + expiring contracts */}
+        {/* Row 2: Pending approvals + expiring contracts. Both panels already
+            manage their own internal skeleton state and render their chrome
+            (header, tabs) immediately, so they're mounted directly here. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-5 pb-5">
-          {loading ? (
-            <>
-              <SkeletonCard className="min-h-[380px]" />
-              <SkeletonCard className="min-h-[380px]" />
-            </>
-          ) : (
-            <>
-              <PendingApprovalsPanel
-                sections={[
-                  { label: "ROI", href: route("roi.current"), items: approvals?.roi_pending ?? [] },
-                  { label: "SPRF", href: route("sprf.current"), items: approvals?.sprf_pending ?? [] },
-                ]}
-              />
-              <ExpiringContractsPanel
-                activeTab={contractsTab}
-                onTabChange={setContractsTab}
-              />
-            </>
-          )}
+          <PendingApprovalsPanel />
+          <ExpiringContractsPanel
+            activeTab={contractsTab}
+            onTabChange={setContractsTab}
+          />
         </div>
       </div>
     </>
   );
 }
 
-function SkeletonCard({ className = "" }) {
-  return (
-    <div className={`bg-gray-100 rounded-lg animate-pulse h-[120px] ${className}`} />
-  );
-}
-
-// Wrap in sidebar layout
 Dashboard.layout = (page) => <AuthenticatedLayout children={page} />;

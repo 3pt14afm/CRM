@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import axios from "axios";
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { FaRegFileAlt } from "react-icons/fa";
 import { MdDonutLarge, MdShowChart, MdChecklist } from "react-icons/md";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Sector } from "recharts";
@@ -8,25 +8,37 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, L
 const MAX_VISIBLE = 3;
 
 const STATUS_COLORS = {
-  pending: "#fcd34d",   // amber-300
-  rejected: "#fca5a5",  // red-300
-  cancelled: "#d1d5db", // gray-300
-  completed: "#6ee7b7", // emerald-300
+  pending: "#fcd34d",
+  pending_projects: "#93c5fd",
+  rejected: "#fca5a5",
+  cancelled: "#d1d5db",
+  completed: "#6ee7b7",
 };
 
 const STATUS_GRADIENTS = {
-  pending:   ["#fde68a", "#fcd34d"], // amber-200 → amber-300
-  rejected:  ["#fecaca", "#fca5a5"], // red-200 → red-300
-  cancelled: ["#e5e7eb", "#d1d5db"], // gray-200 → gray-300
-  completed: ["#a7f3d0", "#6ee7b7"], // emerald-200 → emerald-300
+  pending:           ["#fde68a", "#fcd34d"],
+  pending_projects:  ["#bfdbfe", "#93c5fd"],
+  rejected:          ["#fecaca", "#fca5a5"],
+  cancelled:         ["#e5e7eb", "#d1d5db"],
+  completed:         ["#a7f3d0", "#6ee7b7"],
 };
 
 const STATUS_LABELS = {
   pending: "Pending Approvals",
+  pending_projects: "Your Pending Projects",
   rejected: "Rejected",
   cancelled: "Cancelled",
   completed: "Completed",
 };
+
+function getStatusLabels(isApprover) {
+  const labels = { ...STATUS_LABELS, pending: isApprover ? "Pending Approvals" : "Pending" };
+  if (!isApprover) {
+    const { pending_projects, ...rest } = labels;
+    return rest;
+  }
+  return labels;
+}
 
 const PERIODS = [
   { key: "week", label: "W" },
@@ -34,10 +46,15 @@ const PERIODS = [
   { key: "year", label: "Y" },
 ];
 
+const PENDING_SUBTABS = [
+  { key: "approvals", label: "Approvals" },
+  { key: "mine", label: "My Projects" },
+];
+
 const TABS = [
   { key: "distribution", label: "Distribution", icon: MdDonutLarge },
   { key: "trend", label: "Entries by Month", icon: MdShowChart },
-  { key: "approvals", label: "Pending Approvals", icon: MdChecklist },
+  { key: "approvals", label: "Pending", icon: MdChecklist },
 ];
 
 const renderActiveShape = (props) => {
@@ -48,7 +65,7 @@ const renderActiveShape = (props) => {
         cx={cx}
         cy={cy}
         innerRadius={innerRadius}
-        outerRadius={outerRadius + 6} 
+        outerRadius={outerRadius + 6}
         startAngle={startAngle}
         endAngle={endAngle}
         cornerRadius={6}
@@ -74,13 +91,7 @@ const CustomTooltip = ({ active, payload }) => {
           outline: "none",
         }}
       >
-        <span 
-          style={{ 
-            fontSize: "12px", 
-            fontWeight: "600",
-            textTransform: "capitalize"
-          }}
-        >
+        <span style={{ fontSize: "12px", fontWeight: "600", textTransform: "capitalize" }}>
           {dataPoint.name} : {dataPoint.value}
         </span>
       </div>
@@ -89,19 +100,18 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-function DistributionDonut({ title, bucket, loading, onSliceClick  }) {
-
+function DistributionDonut({ title, bucket, loading, onSliceClick, statusLabels }) {
   const data = useMemo(() => {
     if (!bucket) return [];
-    return Object.keys(STATUS_LABELS)
+    return Object.keys(statusLabels)
       .map((key) => ({
         key,
-        name: STATUS_LABELS[key],
+        name: statusLabels[key],
         value: bucket[key] ?? 0,
         fill: `url(#grad-${key})`,
       }))
       .filter((d) => d.value > 0);
-  }, [bucket]);
+  }, [bucket, statusLabels]);
 
   const total = useMemo(() => data.reduce((sum, d) => sum + d.value, 0), [data]);
 
@@ -109,7 +119,7 @@ function DistributionDonut({ title, bucket, loading, onSliceClick  }) {
     <div className="flex flex-col items-center flex-1">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{title}</p>
 
-      <div className="relative w-full h-[160px] [&_.recharts-surface]:outline-none [&_.recharts-pie-sector]:outline-none">
+      <div className="relative w-full h-[200px] [&_.recharts-surface]:outline-none [&_.recharts-pie-sector]:outline-none">
         {!loading && total > 0 && (
           <PieChart style={{ width: "100%", height: "100%" }} responsive>
             <defs>
@@ -129,8 +139,8 @@ function DistributionDonut({ title, bucket, loading, onSliceClick  }) {
               data={data}
               dataKey="value"
               nameKey="name"
-              innerRadius={47}
-              outerRadius={68}
+              innerRadius={60}
+              outerRadius={85}
               paddingAngle={8}
               cornerRadius={6}
               stroke="none"
@@ -143,7 +153,7 @@ function DistributionDonut({ title, bucket, loading, onSliceClick  }) {
               onClick={(entry) => onSliceClick?.(entry.key)}
               style={{ cursor: onSliceClick ? "pointer" : "default" }}
             />
-            
+
             <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 9999, outline: "none" }} />
           </PieChart>
         )}
@@ -166,27 +176,52 @@ function DistributionDonut({ title, bucket, loading, onSliceClick  }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 w-full px-3">
-        {Object.keys(STATUS_LABELS).map((key) => (
-          <div key={key} className="flex items-center justify-center gap-1.5">
-            <span
-              className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: STATUS_COLORS[key] }}
-            />
-            <span className="text-[11px] text-gray-600">
-              {STATUS_LABELS[key]} <span className="text-gray-400">({bucket?.[key] ?? 0})</span>
-            </span>
+      {(() => {
+        const { completed, ...restLabels } = statusLabels;
+        const restKeys = Object.keys(restLabels);
+
+        return (
+          <div className="flex flex-col gap-1 mt-2 w-full px-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {restKeys.map((key) => (
+                <div key={key} className="flex items-center justify-center gap-1.5">
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: STATUS_COLORS[key] }}
+                  />
+                  <span className="text-[11px] text-gray-600">
+                    {statusLabels[key]} <span className="text-gray-400">({bucket?.[key] ?? 0})</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {completed && (
+              <div className="flex items-center justify-center gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: STATUS_COLORS.completed }}
+                />
+                <span className="text-[11px] text-gray-600">
+                  {completed} <span className="text-gray-400">({bucket?.completed ?? 0})</span>
+                </span>
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+        );
+      })()}
     </div>
   );
 }
 
-function DistributionTab() {
+function DistributionTab({ onReady }) {
   const [period, setPeriod] = useState("month");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const firedRef = useRef(false);
+  const isApprover = data?.is_approver ?? true;
+  const statusLabels = getStatusLabels(isApprover);
+  const { auth } = usePage().props;
 
   useEffect(() => {
     setLoading(true);
@@ -194,20 +229,40 @@ function DistributionTab() {
       .get(route("customers.distribution-stats"), { params: { period } })
       .then((res) => setData(res.data))
       .catch((err) => console.error("Failed to load distribution stats", err))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        if (!firedRef.current) {
+          firedRef.current = true;
+          onReady?.();
+        }
+      });
   }, [period]);
 
   const goToRoi = (key) => {
-    const url = key === "pending"
-      ? route("roi.current", { mine: 1 })
-      : route("roi.archive", { status: key === "completed" ? "approved" : key });
+    let url;
+    if (key === "pending") {
+      url = isApprover ? route("roi.current", { mine: 1 }) : route("roi.current");
+    } else if (key === "pending_projects") {
+      url = auth?.user?.id
+        ? route("roi.current", { prepared_by_user_id: auth.user.id })
+        : route("roi.current");
+    } else {
+      url = route("roi.archive", { status: key === "completed" ? "approved" : key });
+    }
     router.visit(url);
   };
 
   const goToSprf = (key) => {
-    const url = key === "pending"
-      ? route("sprf.current", { mine: 1 })
-      : route("sprf.archive", { status: key === "completed" ? "approved" : key });
+    let url;
+    if (key === "pending") {
+      url = isApprover ? route("sprf.current", { mine: 1 }) : route("sprf.current");
+    } else if (key === "pending_projects") {
+      url = auth?.user?.id
+        ? route("sprf.current", { prepared_by_user_id: auth.user.id })
+        : route("sprf.current");
+    } else {
+      url = route("sprf.archive", { status: key === "completed" ? "approved" : key });
+    }
     router.visit(url);
   };
 
@@ -234,11 +289,11 @@ function DistributionTab() {
 
       <div className="flex flex-1 divide-x divide-gray-300">
         <div className="flex-1 px-2">
-          <DistributionDonut title="ROI" bucket={data?.roi} loading={loading} onSliceClick={goToRoi} />
+          <DistributionDonut title="ROI" bucket={data?.roi} loading={loading} onSliceClick={goToRoi} statusLabels={statusLabels} />
         </div>
 
         <div className="flex-1 px-2">
-          <DistributionDonut title="SPRF" bucket={data?.sprf} loading={loading} onSliceClick={goToSprf} />
+          <DistributionDonut title="SPRF" bucket={data?.sprf} loading={loading} onSliceClick={goToSprf} statusLabels={statusLabels} />
         </div>
       </div>
     </div>
@@ -260,9 +315,9 @@ function TrendTab() {
   return (
     <div className="flex flex-col flex-1 mt-8">
       {loading ? (
-        <div className="h-[235px] bg-gray-100 rounded-lg animate-pulse" />
+        <div className="h-[275px] bg-gray-100 rounded-lg animate-pulse" />
       ) : (
-        <ResponsiveContainer width="100%" height={235}>
+        <ResponsiveContainer width="100%" height={285}>
           <LineChart data={series} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
@@ -278,9 +333,29 @@ function TrendTab() {
   );
 }
 
-function ApprovalsTab({ sections }) {
+function ApprovalsTab({ approvals, loading, subTab }) {
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-3 mt-6">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  const sections = subTab === "approvals"
+    ? [
+        { label: "ROI", href: route("roi.current"), items: approvals?.roi_pending ?? [] },
+        { label: "SPRF", href: route("sprf.current"), items: approvals?.sprf_pending ?? [] },
+      ]
+    : [
+        { label: "ROI", href: route("roi.current", { mine: 1 }), items: approvals?.roi_mine ?? [] },
+        { label: "SPRF", href: route("sprf.current", { mine: 1 }), items: approvals?.sprf_mine ?? [] },
+      ];
+
   return (
-    <div className="flex flex-col gap-5 mt-6">
+    <div className="flex flex-col gap-5 mt-4">
       {sections.map((section) => {
         const items = Array.isArray(section.items) ? section.items : [];
         const visibleItems = items.slice(0, MAX_VISIBLE);
@@ -299,10 +374,7 @@ function ApprovalsTab({ sections }) {
               </div>
 
               {hasMore && (
-                <Link
-                  href={section.href}
-                  className="text-xs font-medium text-blue-600 hover:underline"
-                >
+                <Link href={section.href} className="text-xs font-medium text-blue-600 hover:underline">
                   Show all
                 </Link>
               )}
@@ -336,23 +408,55 @@ function ApprovalsTab({ sections }) {
   );
 }
 
-export default function PendingApprovalsPanel({ sections }) {
+export default function PendingApprovalsPanel({ onReady }) {
   const [activeTab, setActiveTab] = useState("distribution");
+  const [pendingSubTab, setPendingSubTab] = useState("approvals");
+  const [approvals, setApprovals] = useState(null);
+  const [approvalsLoading, setApprovalsLoading] = useState(true);
+
+  useEffect(() => {
+    axios
+      .get(route("customers.pending-approvals"))
+      .then((res) => setApprovals(res.data))
+      .catch((err) => console.error("Failed to load pending approvals", err))
+      .finally(() => setApprovalsLoading(false));
+  }, []);
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-6 py-5 flex flex-col h-[400px]">
+    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-6 py-5 flex flex-col h-[445px]">
       <h2 className="flex items-center gap-2.5 text-sm font-semibold text-gray-800">
         <FaRegFileAlt />ROI & SPRF Action Center
       </h2>
 
       <div className="flex flex-col flex-1">
-        {activeTab === "distribution" && <DistributionTab />}
+        {activeTab === "distribution" && <DistributionTab onReady={onReady} />}
         {activeTab === "trend" && <TrendTab />}
-        {activeTab === "approvals" && <ApprovalsTab sections={sections} />}
+        {activeTab === "approvals" && (
+          <>
+            <div className="flex justify-end -mt-3">
+              <div className="inline-flex gap-1 rounded-full">
+                {PENDING_SUBTABS.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setPendingSubTab(t.key)}
+                    className={`text-[11px] font-medium px-2 py-1 border rounded-full transition-colors ${
+                      pendingSubTab === t.key
+                        ? "bg-sky-500 text-white font-semibold shadow"
+                        : "text-gray-500 hover:text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ApprovalsTab approvals={approvals} loading={approvalsLoading} subTab={pendingSubTab} />
+          </>
+        )}
       </div>
-      
+
       <div className="relative grid grid-cols-3 p-1 shadow-inner mt-8 border w-fit mx-auto border-gray-100 rounded-2xl bg-white">
-        {/* Sliding background pill now carries the shadow */}
         {(() => {
           const activeIndex = TABS.findIndex((t) => t.key === activeTab);
           return (
