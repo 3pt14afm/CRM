@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { MdClose, MdDescription, MdCalendarToday, MdPictureAsPdf, MdEdit } from 'react-icons/md';
+import { MdClose, MdDescription, MdCalendarToday, MdPictureAsPdf, MdEdit, MdOutlineFileUpload } from 'react-icons/md';
 import { createPortal } from 'react-dom';
 import { Link } from '@inertiajs/react';
 import { route } from 'ziggy-js';
@@ -169,10 +169,12 @@ export default function BranchContractsSidebar({
                                         </div>
                                     </div>
                                 )) : (
-                                    <div className="flex items-center gap-2 bg-[#F6F7F8] shadow-inner border border-gray-300 px-3 py-1.5 rounded-md text-xs md:text-[13px] font-medium text-slate-400 italic">
-                                        <div className="size-1.5 rounded-full bg-slate-300"></div>
-                                        No contracts for this branch
-                                    </div>
+                                    <Link
+                                        href={`${route('contract.upload')}?company_id=${companyId}&company_name=${encodeURIComponent(branch.name ?? companyName ?? '')}&sap_code=${encodeURIComponent(sapCode ?? '')}&can_upload=1&open_upload=1`}
+                                        className="flex items-center justify-center gap-2 w-full h-10 rounded-md border border-dashed border-[#195c00]/40 text-[#195c00] text-xs font-semibold hover:bg-[#d6f1d6] hover:border-[#195c00] transition-colors"
+                                    >
+                                        <MdOutlineFileUpload size={13} /> Upload a contract for this branch
+                                    </Link>
                                 )}
                             </div>
                         </div>
