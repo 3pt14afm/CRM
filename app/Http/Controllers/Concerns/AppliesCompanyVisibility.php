@@ -10,12 +10,13 @@ use Illuminate\Support\Facades\Auth;
  *
  * A row (joined against `client_managers`, i.e. users aliased via
  * id_client_mngr = client_managers.employee_id) is visible to a
- * non-admin user if:
+ * non-admin, non-privileged user if:
  *   - they are the client manager themselves, OR
  *   - they are an approver (per LocationDepartment) for the client
  *     manager's own (primary_location_id, department_id) combo.
  *
- * Admin (user id === 1) sees everything.
+ * Admin (user id === 1) and privileged employees (see config/access.php)
+ * see everything.
  */
 trait AppliesCompanyVisibility
 {
@@ -26,7 +27,10 @@ trait AppliesCompanyVisibility
         $employeeId  = $currentUser->employee_id ?? null;
         $isAdmin     = $userId === 1;
 
-        if ($isAdmin) {
+        $isPrivileged = $employeeId !== null
+            && in_array((string) $employeeId, config('access.privileged_employee_ids', []), true);
+
+        if ($isAdmin || $isPrivileged) {
             return;
         }
 

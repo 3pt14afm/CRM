@@ -369,8 +369,19 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat('en-US', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(today);
 
+    // Same color rule used on the Customer Info "Existing Customers" table:
+    // red for any expired contract, amber for expiring-soon, green for
+    // healthy (active/extended), no color when there are no contracts at all.
+    const CONTRACT_STATUS_CLASSES = {
+        expired: 'text-red-600',
+        warning: 'text-amber-400',
+        good:    'text-lime-500',
+    };
+
     const renderExistingCard = (r) => {
         const allowed = canUploadFor(r);
+        const count = r.contracts_count ?? 0;
+        const countColorClass = count > 0 ? (CONTRACT_STATUS_CLASSES[r.contracts_status] ?? '') : '';
         return (
             <div className="flex flex-col gap-1 cursor-pointer" onClick={() => openContractsModal(r)}>
                 <div className="flex items-center justify-between">
@@ -392,7 +403,12 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                     <p className="text-[11px] font-medium truncate uppercase">
                         {[r.client_category, r.delsan_company].filter(Boolean).join(' · ') || '—'}
                     </p>
-                    <p className="text-[11px] font-medium text-slate-700">{r.client_manager ?? r.id_client_mngr ?? '—'}</p>
+                    <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-medium text-slate-700">{r.client_manager ?? r.id_client_mngr ?? '—'}</p>
+                        {count > 0 && (
+                            <span className={`text-[11px] font-semibold ${countColorClass}`}>{count} contract{count === 1 ? '' : 's'}</span>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -422,7 +438,17 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         {
             key: 'contracts_count',
             header: <SortHeader label="CONTRACTS" sortKey="contracts_count" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
-            cell: (r) => <span className="text-xs flex items-center justify-start min-w-16 py-1 text-slate-600">{r.contracts_count ?? 0}</span>,
+            cell: (r) => {
+                const count = r.contracts_count ?? 0;
+                const pillClass = count > 0 ? (CONTRACT_STATUS_CLASSES[r.contracts_status] ?? '') : '';
+                return (
+                    <span className={`text-xs flex items-center justify-start min-w-16 py-1 ${
+                        pillClass ? `${pillClass} font-semibold` : 'text-slate-600'
+                    }`}>
+                        {count > 0 ? count : ''}
+                    </span>
+                );
+            },
         },
         {
             key: 'client_manager',
