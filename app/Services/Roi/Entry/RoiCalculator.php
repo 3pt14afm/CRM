@@ -56,6 +56,12 @@ class RoiCalculator
         return [
             'normalized'      => $n,
             'isOutright'      => str_contains($n, 'outright'),
+            // Three outright variants exist — "Outright + Click Charge",
+            // "Outright + Per Cartridge", and "Outright Only (1 year)" — and
+            // only the last makes consumable qty user-entered / machine
+            // optional. Match on "outright" + "only" together, since that
+            // combination is unique to it.
+            'isOutrightOnly'  => str_contains($n, 'outright') && str_contains($n, 'only'),
             'isMonthlyRental' => $n === 'fixed monthly only',
             'isRentalClick'   => str_contains($n, 'rental + click'),
             'isFreeUseClick'  => str_contains($n, 'free use + click'),
@@ -195,6 +201,9 @@ class RoiCalculator
                 $qty = $this->hasValidYield($itemYields)
                     ? ($base > 0 ? $this->getQtyFromYields($base, $itemYields) : $this->toFloat($c['qty'] ?? 1, 1))
                     : $this->toFloat($c['qty'] ?? 1, 1);
+            } elseif ($flags['isOutrightOnly'] && in_array($mode, ['mono', 'color'])) {
+                // Outright (1yr): consumable qty is user-entered, not derived from yields.
+                $qty = $this->toFloat($c['qty'] ?? 1, 1);
             } elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
                 $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
                 $qty  = $this->getQtyFromYields($base, $itemYields);
@@ -355,6 +364,9 @@ class RoiCalculator
                 $qty  = $this->hasValidYield($itemYields) && $base > 0
                     ? $this->getQtyFromYields($base, $itemYields)
                     : $this->toFloat($c['qty'] ?? 1, 1);
+            } elseif ($flags['isOutrightOnly'] && in_array($mode, ['mono', 'color'])) {
+                // Outright (1yr): consumable qty is user-entered, not derived from yields.
+                $qty = $this->toFloat($c['qty'] ?? 1, 1);
             } elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
                 $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
                 $qty  = $this->getQtyFromYields($base, $itemYields);

@@ -1,10 +1,12 @@
 import React, { forwardRef, useImperativeHandle, useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { route } from 'ziggy-js';
-import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit, MdMoreVert, MdOutlineCancel, MdOutlineArchive } from 'react-icons/md';
+import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit, MdMoreVert, MdOutlineCancel, MdOutlineArchive, MdOutlinePictureAsPdf,  MdBlock,
+  MdInbox, MdSchedule } from 'react-icons/md';
 import { GrDocumentTime } from 'react-icons/gr';
 import { FaFileUpload } from 'react-icons/fa';
 import { toast } from 'sonner';
+
 
 const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, onUpload, onEdit }, ref) {
     const [contractsList, setContractsList] = useState([]);
@@ -17,7 +19,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
     const contractsRequestRef = useRef(null);
 
     // Which cards are currently showing their back (extension history) face.
-    const [flippedIds, setFlippedIds] = useState({});
+    const [flippedIds, setFlippedIds] = useState(null);
 
     // ── Extend Date modal state ──
     const [extendTarget, setExtendTarget] = useState(null); // the contract being extended
@@ -219,9 +221,8 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
     }, [contractsList, selectedBranch]);
 
     const toggleFlip = (id) => {
-        setFlippedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+        setFlippedIds((prevId) => (prevId === id ? null : id));
     };
-
     // ── Edit contract handler ──
     // Only the admin or the contract's owning account manager can edit
     // (enforced server-side via c.can_edit). Hands the contract off to the
@@ -416,11 +417,11 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-4"
             onClick={onClose}
         >
             <div
-                className=" w-[99%] lg:w-[70%] h-[80%] bg-white rounded-2xl shadow-xl p-8  flex flex-col"
+                className=" w-[99%] lg:w-[70%] h-[80%] bg-[#f5f5f7] rounded-2xl shadow-xl p-8  flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between mb-5 flex-shrink-0">
@@ -463,7 +464,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                 )}
 
                 {/* Status filter tabs */}
-                <div className="mt-5 flex items-center gap-2 flex-shrink-0 overflow-x-auto py-2">
+                <div className="mt-5 flex items-center gap-3 flex-shrink-0 overflow-x-auto py-2">
                     {[
                         { key: 'all',            label: 'All' },
                         { key: 'active',         label: 'Active' },
@@ -477,7 +478,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                             key={tab.key}
                             type="button"
                             onClick={() => setStatusFilter(tab.key)}
-                            className={`relative h-7 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                            className={`relative h-7 px-3 rounded-lg text-[12px] font-semibold whitespace-nowrap transition-colors ${
                                 statusFilter === tab.key
                                     ? 'bg-[#4FA34E] text-white'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -573,234 +574,250 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, onClose, o
                         </p>
                     )}
 
-                    {!isLoadingContracts && filteredContracts.map((c) => {
-                        const meta = getMeta(c.status);
-                        const isFlipped = !!flippedIds[c.id];
-                        const extensions = c.extend_dates ?? [];
+{!isLoadingContracts && filteredContracts.map((c) => {
+    const meta = getMeta(c.status);
+  const isFlipped = flippedIds === c.id; // <-- CHANGED THIS LINE
+    const extensions = c.extend_dates ?? [];
 
-                        return (
-                            <div
-                                key={c.id}
-                                className="relative"
-                                style={{ perspective: '1200px' }}
+    return (
+        <div
+            key={c.id}
+            className="relative group h-full"
+            style={{ perspective: '1200px' }}
+        >
+            <div
+                className="relative w-full h-full transition-transform duration-700 ease-in-out"
+                style={{
+                    transformStyle: 'preserve-3d',
+                    transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                }}
+            >
+                {/* ── Front face ── */}
+                {/* Changed gap-4 to gap-3 to tighten vertical spacing */}
+                <div
+                    className="relative bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 shadow-sm transition-all duration-300 group-hover:shadow-md group-hover:border-slate-200 h-full"
+                    style={{ backfaceVisibility: 'hidden' }}
+                >
+                    {/* Header: Company & Status Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-base font-semibold text-[#0f3800] leading-tight tracking-tight truncate">
+                            {c.company_name ?? '—'}
+                        </h3>
+                        <span className={`flex-shrink-0 text-[9px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-3xl ${meta.badgeClass}`}>
+                            {meta.label}
+                        </span>
+                    </div>
+
+                    {/* Meta Information */}
+                    <div className="flex flex-col gap-2 ">
+                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                            <span className="flex items-center gap-1.5">
+                                <span className="text-slate-400">SAP:</span> 
+                                <span className="font-mono text-slate-700">{modalRow.sap_code ?? '—'}</span>
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="text-slate-400">Doc #:</span> 
+                                <span className="font-mono text-slate-700">{c.doc_num ?? '—'}</span>
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                            <span className="text-slate-400">Validity:</span>
+                            <span>{formatDate(c.start_date)}</span>
+                            <span className="text-slate-300 text-base">→</span>
+                            <span>{formatDate(c.end_date)}</span>
+                        </div>
+                    </div>
+
+                    {/* Status / Extension Message */}
+                    {/* Decreased min-h to 16px and added py-0 to reduce height */}
+                    <div className="min-h-[16px] flex items-center py-0">
+                        {c.status === 'terminated' ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] text-red-600 font-medium">
+                                <MdOutlineCancel title='Terminated' size={13} /> 
+                                 {formatDate(c.terminated_at)}
+                                {c.terminated_by_name ? ` by ${c.terminated_by_name}` : ''}
+                            </span>
+                        ) : c.status === 'archived' ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+                                <MdOutlineArchive title='Archived' size={13} /> 
+                                {formatDate(c.archived_at)}
+                                {c.archived_by_name ? ` by ${c.archived_by_name}` : ''}
+                            </span>
+                        ) : extensions.length > 0 ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] text-blue-600 font-medium">
+                                <MdOutlineHistory title='Extended' size={13} /> 
+                                to {formatDate(currentEffectiveEnd(c))}
+                            </span>
+                        ) : null}
+                    </div>
+
+                    {/* Footer: Actions */}
+                    <div className="mt-auto pt-2 flex items-center justify-between gap-2">
+                        {c.pdf_url ? (
+                            <a
+                                href={c.pdf_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#4FA34E]  hover:text-emerald-700 transition-colors"
                             >
-                                <div
-                                    className="relative w-full transition-transform duration-500"
-                                    style={{
-                                        transformStyle: 'preserve-3d',
-                                        transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                                    }}
-                                >
-                                    {/* Front face stays in normal flow so it — and it alone —
-                                        determines the card's height, same as the original card.
-                                        The "Extended to..." line is always rendered (invisible
-                                        when unused) so cards without an extension don't end up
-                                        shorter than ones that have one. */}
-                                    <div
-                                        className="relative border border-gray-200 rounded-xl p-5 flex flex-col gap-1.5 bg-white"
-                                        style={{ backfaceVisibility: 'hidden' }}
+                                <MdOutlinePictureAsPdf size={16} className="text-[#4FA34E] " />
+                                View Contract
+                            </a>
+                        ) : (
+                            <p className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+                                <MdBlock size={14} />
+                                No PDF available
+                            </p>
+                        )}
+
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => toggleFlip(c.id)}
+                                title="View extension history"
+                                className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all duration-200 hover:scale-105"
+                            >
+                                <MdOutlineHistory size={16} />
+                            </button>
+                            
+                            <button
+                                type="button"
+                                disabled={!c.can_edit}
+                                onClick={() => openExtendModal(c)}
+                                title={
+                                    !c.can_edit
+                                        ? 'Only the assigned account manager can extend this contract'
+                                        : c.extension_expired
+                                            ? 'This contract expired more than 3 months ago and can no longer be extended.'
+                                            : 'Extend end date'
+                                }
+                                className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 ${
+                                                    c.can_edit
+                                                        ? 'text-emerald-600 hover:bg-emerald-50'
+                                                        : 'text-slate-300 cursor-not-allowed'
+                                                }`}
+                            >
+                                <GrDocumentTime size={16} />
+                            </button>
+
+                            {c.can_edit && (
+                                <div className="relative" ref={openMenuId === c.id ? menuContainerRef : null}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
+                                        title="More actions"
+                                        className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all duration-200 hover:scale-105"
                                     >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <p className="text-sm font-semibold text-[#0f3800] truncate">
-                                                {c.company_name ?? '—'}
-                                            </p>
-                                            <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${meta.badgeClass}`}>
-                                                {meta.label}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs font-mono text-slate-500">
-                                            SAP: {modalRow.sap_code ?? '—'}
-                                        </p>
-                                        <p className="text-xs text-slate-600">
-                                            <span className="font-medium text-slate-700">Doc #:</span> {c.doc_num ?? '—'}
-                                        </p>
-                                        <p className="text-xs text-slate-600">
-                                            {formatDate(c.start_date)} - {formatDate(c.end_date)}
-                                        </p>
-                                        {c.status === 'terminated' ? (
-                                            <p className="text-[11px] text-rose-600 font-medium">
-                                                Terminated {formatDate(c.terminated_at)}
-                                                {c.terminated_by_name ? ` by ${c.terminated_by_name}` : ''}
-                                            </p>
-                                        ) : c.status === 'archived' ? (
-                                            <p className="text-[11px] text-slate-500 font-medium">
-                                                Archived {formatDate(c.archived_at)}
-                                                {c.archived_by_name ? ` by ${c.archived_by_name}` : ''}
-                                            </p>
-                                        ) : extensions.length > 0 ? (
-                                            <p className="text-[11px] text-blue-600 font-medium">
-                                                Extended to {formatDate(currentEffectiveEnd(c))}
-                                            </p>
-                                        ) : (
-                                            <p className="text-[11px] font-medium invisible" aria-hidden="true">
-                                                Extended to placeholder
-                                            </p>
-                                        )}
-                                        {/* PDF link + action buttons — same row, bottom of card */}
-                                        <div className="mt-auto pt-2 flex items-center justify-between gap-2">
-                                            {c.pdf_url ? (
-                                                <a
-                                                    href={c.pdf_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-xs  font-semibold text-[#4FA34E] "
-                                                >
-                                                    View Contract
-                                                </a>
-                                            ) : (
-                                                <p className="text-[11px] text-slate-400">No PDF available</p>
-                                            )}
+                                        <MdMoreVert size={16} />
+                                    </button>
 
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleFlip(c.id)}
-                                                    title="View extension history"
-                                                    className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                                                >
-                                                    <MdOutlineHistory size={17} />
-                                                </button>
-                                                {/* Stays clickable for anyone with manage permission
-                                                    (c.can_edit) even when the 3-month extension window
-                                                    has closed (c.extension_expired) — clicking then
-                                                    shows a toast explaining why, instead of the button
-                                                    just being greyed out with no explanation. */}
-                                                <button
-                                                    type="button"
-                                                    disabled={!c.can_edit}
-                                                    onClick={() => openExtendModal(c)}
-                                                    title={
-                                                        !c.can_edit
-                                                            ? 'Only the assigned account manager can extend this contract'
-                                                            : c.extension_expired
-                                                                ? 'This contract expired more than 3 months ago and can no longer be extended.'
-                                                                : 'Extend end date'
-                                                    }
-                                                    className={`h-7 w-7 flex items-center justify-center rounded-lg transition-colors ${
-                                                        c.can_edit
-                                                            ? 'text-[#4FA34E] hover:bg-[#E9F7E7]'
-                                                            : 'text-slate-300 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    <GrDocumentTime size={17} />
-                                                </button>
-                                                {/* 3-dot menu: Edit + (Terminate or Archive), depending on
-                                                    the contract's current status. Once a contract is
-                                                    terminated/archived, can_edit is false and this menu
-                                                    doesn't render at all — the contract is view-only from
-                                                    then on (the "View Contract" PDF link above is
-                                                    unaffected). Kept rightmost in the row. */}
-                                                {c.can_edit && (
-                                                    <div className="relative" ref={openMenuId === c.id ? menuContainerRef : null}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
-                                                            title="More actions"
-                                                            className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                                                        >
-                                                            <MdMoreVert size={17} />
-                                                        </button>
-
-                                                        {openMenuId === c.id && (
-                                                            <div className="absolute right-0 bottom-full mb-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => { setOpenMenuId(null); handleEditClick(c); }}
-                                                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
-                                                                >
-                                                                    <MdOutlineEdit size={15} />
-                                                                    Edit
-                                                                </button>
-
-                                                                {c.can_terminate && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => openTerminateModal(c)}
-                                                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50"
-                                                                    >
-                                                                        <MdOutlineCancel size={15} />
-                                                                        Terminate
-                                                                    </button>
-                                                                )}
-
-                                                                {c.can_archive && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => openArchiveModal(c)}
-                                                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
-                                                                    >
-                                                                        <MdOutlineArchive size={15} />
-                                                                        Archive
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* ── Back face — extension history ── */}
-                                    <div
-                                        className="absolute inset-0 border border-gray-200 rounded-xl p-5 flex flex-col gap-2 bg-white overflow-y-auto"
-                                        style={{
-                                            backfaceVisibility: 'hidden',
-                                            transform: 'rotateY(180deg)',
-                                        }}
-                                    >
-                                        <div className="flex items-center justify-between gap-2 flex-shrink-0">
-                                            <p className="text-xs font-semibold text-slate-700">
-                                                Extension History
-                                            </p>
+                                    {openMenuId === c.id && (
+                                        <div className="absolute right-0 bottom-full mb-2 w-44 bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/60 py-1.5 z-10 overflow-hidden">
                                             <button
                                                 type="button"
-                                                onClick={() => toggleFlip(c.id)}
-                                                title="Back to contract"
-                                                className="h-6 w-6 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                                onClick={() => { setOpenMenuId(null); handleEditClick(c); }}
+                                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 transition-colors"
                                             >
-                                                <MdClose size={14} />
+                                                <MdOutlineEdit size={15} className="text-slate-400" />
+                                                Edit
                                             </button>
+
+                                            {c.can_terminate && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openTerminateModal(c)}
+                                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 transition-colors"
+                                                >
+                                                    <MdOutlineCancel size={15} />
+                                                    Terminate
+                                                </button>
+                                            )}
+
+                                            {c.can_archive && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openArchiveModal(c)}
+                                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+                                                >
+                                                    <MdOutlineArchive size={15} className="text-slate-400" />
+                                                    Archive
+                                                </button>
+                                            )}
                                         </div>
-
-                                        <p className="text-[11px] text-slate-500 -mt-1">
-                                            Original end date: {formatDate(c.end_date)}
-                                        </p>
-
-                                        {extensions.length === 0 ? (
-                                            <p className="text-xs text-slate-400 flex-1 flex items-center justify-center text-center">
-                                                No extensions have been made on this contract yet.
-                                            </p>
-                                        ) : (
-                                            <ul className="flex flex-col gap-2 mt-1">
-                                                {[...extensions].reverse().map((entry, idx) => (
-                                                    <li
-                                                        key={`${entry.date}-${idx}`}
-                                                        className="text-xs border border-gray-100 rounded-lg px-2.5 py-1.5 bg-slate-50"
-                                                    >
-                                                        <p className="font-semibold text-[#0f3800]">
-                                                            New end date: {formatDate(entry.date)}
-                                                        </p>
-                                                        <p className="text-[10px] text-slate-500 mt-0.5">
-                                                            Extended {formatDateTime(entry.extended_at)}
-                                                            {/* Show the resolved employee name when the
-                                                                backend was able to match extended_by to a
-                                                                user; fall back to the raw employee id
-                                                                (e.g. for a since-removed/inactive account)
-                                                                so the entry never shows nothing at all. */}
-                                                            {(entry.extended_by_name || entry.extended_by)
-                                                                ? ` by ${entry.extended_by_name || entry.extended_by}`
-                                                                : ''}
-                                                        </p>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
-                            </div>
-                        );
-                    })}
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Back face — extension history ── */}
+                <div
+                    className="absolute inset-0 bg-white border border-slate-100 rounded-2xl p-5 flex flex-col gap-3 shadow-md overflow-hidden"
+                    style={{
+                        backfaceVisibility: 'hidden',
+                        transform: 'rotateY(180deg)',
+                    }}
+                >
+                    <div className="flex items-start justify-between gap-2 flex-shrink-0 pb-3 border-b border-slate-100">
+                        <div className="flex flex-col">
+                            <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <MdOutlineHistory size={16} className="text-emerald-500" />
+                                Extension History
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                                Original end date: <span className="text-slate-600 font-medium">{formatDate(c.end_date)}</span>
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => toggleFlip(c.id)}
+                            title="Back to contract"
+                            className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                        >
+                            <MdClose size={16} />
+                        </button>
+                    </div>
+
+                    {extensions.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 text-slate-400 py-4">
+                            <MdInbox size={32} className="text-slate-200" />
+                            <p className="text-xs font-medium">No extensions have been made on this contract yet.</p>
+                        </div>
+                    ) : (
+                        <ul className="flex flex-col gap-3 overflow-y-auto pr-1 custom-scrollbar">
+                            {[...extensions].reverse().map((entry, idx) => (
+                                <li
+                                    key={`${entry.date}-${idx}`}
+                                    className="relative pl-5 text-xs group/li"
+                                >
+                                    {/* Timeline Dot & Line */}
+                                    <span className="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white z-10"></span>
+                                    <span className="absolute left-[4px] top-2 bottom-[-12px] w-px bg-slate-200"></span>
+                                    
+                                    <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100 transition-all duration-200 group-hover/li:border-emerald-200 group-hover/li:bg-emerald-50/50">
+                                        <p className="font-semibold text-slate-800">
+                                            New end date: <span className="text-emerald-600">{formatDate(entry.date)}</span>
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1.5">
+                                            <MdSchedule size={11} />
+                                            Extended {formatDateTime(entry.extended_at)}
+                                            {(entry.extended_by_name || entry.extended_by)
+                                                ? ` by ${entry.extended_by_name || entry.extended_by}`
+                                                : ''}
+                                        </p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+})}
+
+
                 </div>
             </div>
 

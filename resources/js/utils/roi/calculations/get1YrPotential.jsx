@@ -11,6 +11,11 @@ export const get1YrPotential = (projectData) => {
   const isOutright = normalizedContractType.includes("outright");
   const isMonthlyRental = normalizedContractType === "fixed monthly only";
   const isPerCartridge = normalizedContractType.includes("per cartridge");
+  // There are three outright variants — "Outright + Click Charge",
+  // "Outright + Per Cartridge", and "Outright Only (1 year)" — and only the
+  // last one makes consumable qty user-entered / machine optional. Match on
+  // "outright" + "only" together, since that combination is unique to it.
+  const isOutrightOnly = normalizedContractType.includes("outright") && normalizedContractType.includes("only");
 
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
@@ -88,6 +93,9 @@ export const get1YrPotential = (projectData) => {
       } else {
         qty = getSafeNumber(c.qty, 1);
       }
+    } else if (isOutrightOnly && (mode === 'mono' || mode === 'color')) {
+      // Outright (1yr): consumable qty is user-entered, not derived from yields.
+      qty = getSafeNumber(c.qty, 1);
     } else if ((mode === 'mono' || mode === 'color') && hasValidYield(itemYields)) {
       const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
       qty = getQtyFromYields(baseYields, itemYields);

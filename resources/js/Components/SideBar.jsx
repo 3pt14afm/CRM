@@ -164,6 +164,12 @@ export default function Sidebar() {
       return;
     }
 
+    // Collapse the menu if it is already the active module and open
+    if (activeModule === moduleName) {
+      setActiveModule(null);
+      return;
+    }
+
     setActiveModule(moduleName);
 
     if (isActive) return;

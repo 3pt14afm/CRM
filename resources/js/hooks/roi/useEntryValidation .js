@@ -38,7 +38,7 @@ export function useEntryValidation({ setTab }) {
     return {
       contractType,
       isOutright       : contractType.includes("outright"),
-      isOutrightOnly   : contractType === "outright only",
+      isOutrightOnly   : contractType === "outright only (1 year)",
       isRentalClick    : contractType.includes("rental + click"),
       isFreeUseClick   : contractType.includes("free use + click"),
       isClick          : contractType.includes("click"),
@@ -167,18 +167,20 @@ export function useEntryValidation({ setTab }) {
     }
 
             // --- MANDATORY PRINTER ROW VALIDATION ---
-      const mandatoryPrinter = machines.find((m) => m.id === '__mandatory_printer__');
-      if (!mandatoryPrinter || !String(mandatoryPrinter.sku ?? '').trim()) {
-        toast.error("A printer is required. Please select a printer in the Machine Configuration.");
-        setTab(MACHINE_TAB);
-        return false;
+// Skip mandatory printer check if it's an outright 1-year contract
+      if (!isOutrightOnly) {
+        const mandatoryPrinter = machines.find((m) => m.id === '__mandatory_printer__');
+        if (!mandatoryPrinter || !String(mandatoryPrinter.sku ?? '').trim()) {
+          toast.error("A printer is required. Please select a printer in the Machine Configuration.");
+          setTab(MACHINE_TAB);
+          return false;
+        }
+        if (parseFloat(mandatoryPrinter.cost ?? 0) <= 0) {
+          toast.error("The mandatory printer must have a Unit Cost.");
+          setTab(MACHINE_TAB);
+          return false;
+        }
       }
-      if (parseFloat(mandatoryPrinter.cost ?? 0) <= 0) {
-        toast.error("The mandatory printer must have a Unit Cost.");
-        setTab(MACHINE_TAB);
-        return false;
-      }
-
     // --- FEE VALIDATION ---
     const companyFees  = projectData?.additionalFees?.company  || [];
     const customerFees = projectData?.additionalFees?.customer || [];

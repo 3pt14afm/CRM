@@ -1,7 +1,7 @@
 import React from 'react';
 import { usePage } from '@inertiajs/react';
 import { useProjectData } from '@/Context/ProjectContext';
-import { useMachineRows, MANDATORY_ROW_ID } from '@/hooks/roi/useMachineRows';
+import { useMachineRows, MANDATORY_ROW_ID, isOutrightOnlyContract } from '@/hooks/roi/useMachineRows';
 import { getRowDisplayFlags } from '@/utils/roi/machineconfig/rowLogic';
 import { getRowCalculations } from '@/utils/roi/calculations/getRowCalculations';
 import { format2dpWithCommas, formatIntWithCommas, formatNum, sanitizeInt, sanitize2dp, normalize2dp } from '@/utils/roi/machineconfig/formatter';
@@ -269,8 +269,9 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
       <td className="border-b border-r border-darkgreen/15 p-1">
         {(() => {
           const isFixedMonthly = contractType.toLowerCase() === 'fixed monthly only';
+          const isOutrightOnly = isOutrightOnlyContract(contractType);
           const isMonoColor = modeStr === MODE.MONO || modeStr === MODE.COLOR;
-          const qtyEditable = isFixedMonthly && !isMachineRow && isMonoColor;
+          const qtyEditable = (isFixedMonthly || isOutrightOnly) && !isMachineRow && isMonoColor;
           return (
             <input
               type="text"
@@ -357,8 +358,9 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
           {!isMandatory && (
             <button
               onClick={() => removeRow(row.id)}
-              disabled={readOnly}
-              className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly ? 'cursor-not-allowed' : ''}`}
+              disabled={readOnly || handlers.rows.length <= 1}
+              title={handlers.rows.length <= 1 ? 'At least one row is required' : undefined}
+              className={`w-6 h-6 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly || handlers.rows.length <= 1 ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               -
             </button>
@@ -406,8 +408,9 @@ function MachineRowCard({ row, readOnly, canEditRemarks, activeSearchRowId, focu
   } = useRowRenderData({ row, contractType, errors, showOutrightErrors, showModeErrors, focusedField, handlers });
 
   const isFixedMonthly  = contractType.toLowerCase() === 'fixed monthly only';
+  const isOutrightOnly  = isOutrightOnlyContract(contractType);
   const isMonoColorMode = modeStr === MODE.MONO || modeStr === MODE.COLOR;
-  const qtyEditable     = isFixedMonthly && !isMachineRow && isMonoColorMode;
+  const qtyEditable     = (isFixedMonthly || isOutrightOnly) && !isMachineRow && isMonoColorMode;
 
   return (
     <div
@@ -475,8 +478,9 @@ function MachineRowCard({ row, readOnly, canEditRemarks, activeSearchRowId, focu
           {!isMandatory && (
             <button
               onClick={() => removeRow(row.id)}
-              disabled={readOnly}
-              className={`w-7 h-7 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly ? 'cursor-not-allowed' : ''}`}
+              disabled={readOnly || handlers.rows.length <= 1}
+              title={handlers.rows.length <= 1 ? 'At least one row is required' : undefined}
+              className={`w-7 h-7 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 ${readOnly || handlers.rows.length <= 1 ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               -
             </button>

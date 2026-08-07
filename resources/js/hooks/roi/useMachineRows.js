@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 import { getRowCalculations } from '@/utils/roi/calculations/getRowCalculations';
-import { ROW_TYPE, MODE } from '@/utils/roi/machineconfig/const';
+import { ROW_TYPE, MODE, CONTRACT_TYPE } from '@/utils/roi/machineconfig/const';
 
 
 // ── Stable ID generator ────────────────────────────────────────────────────
@@ -12,6 +12,31 @@ const genId = () =>
 
 // ── Mandatory printer row ──────────────────────────────────────────────────
 export const MANDATORY_ROW_ID = '__mandatory_printer__';
+
+// "Outright Only" (1yr) is the only contract type where a machine is
+// optional and consumable qty is user-entered instead of derived from
+// yields. There are three outright variants — "Outright + Click Charge",
+// "Outright + Per Cartridge", and "Outright Only (1 year)" — and only the
+// last one gets this behavior. There's no dedicated constant for it in
+// const.js, so match on "outright" + "only" together, which is the one
+// combination none of the other outright (or "fixed monthly only") types
+// share.
+export const isOutrightOnlyContract = (ct) => {
+  const n = String(ct || '').trim().toLowerCase();
+  return n.includes(CONTRACT_TYPE.OUTRIGHT) && n.includes('only');
+};
+
+// Has the user actually typed anything into this (would-be-mandatory) row?
+// Used to tell a genuinely-configured machine apart from the untouched
+// blank row that gets auto-created before we know the real contract type.
+const isRowMandatoryDataEntered = (row) =>
+  !!(
+    String(row?.sku || '').trim() ||
+    String(row?.cost ?? row?.inputtedCost ?? '').trim() ||
+    String(row?.price || '').trim() ||
+    String(row?.yields || '').trim() ||
+    String(row?.remarks || '').trim()
+  );
 
 const makeMandatoryRow = (overrides = {}) => ({
   id:                   MANDATORY_ROW_ID,
@@ -92,11 +117,17 @@ const makeAutoConsumableRow = (machineRowId, consumable) => ({
 // ── Qty enforcement ────────────────────────────────────────────────────────
 // Machine rows are always qty 1.
 // Consumable mono/color rows are free to have user-defined qty when contract
-// is "fixed monthly only"; everything else is locked to 1.
-const isQtyEditable = (row, contractType = '') =>
-  (contractType || '').toLowerCase() === 'fixed monthly only' &&
-  row.type === ROW_TYPE.CONSUMABLE &&
-  (row.mode === MODE.MONO || row.mode === MODE.COLOR);
+// is "fixed monthly only" OR exact "Outright" (1yr); everything else is
+// locked to 1.
+const isQtyEditable = (row, contractType = '') => {
+  const ct = (contractType || '').toLowerCase().trim();
+  const qtyEditableContract = ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
+  return (
+    qtyEditableContract &&
+    row.type === ROW_TYPE.CONSUMABLE &&
+    (row.mode === MODE.MONO || row.mode === MODE.COLOR)
+  );
+};
 
 const enforceRowQty = (row, contractType = '') =>
   isQtyEditable(row, contractType) ? row : { ...row, qty: 1 };
@@ -104,19 +135,41 @@ const enforceRowQty = (row, contractType = '') =>
 // ── Hydration ──────────────────────────────────────────────────────────────
 function buildHydratedRows(
   { machine = [], consumable = [] },
-  { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable }
+  { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable, includeMandatory = true }
 ) {
   const persistedMandatory = machine.find((r) => r.id === MANDATORY_ROW_ID);
   const otherMachines      = machine.filter((r) => r.id !== MANDATORY_ROW_ID);
 
-  const mandatoryRow = makeMandatoryRow({
-    sku:               persistedMandatory?.sku ?? '',
-    cost:              persistedMandatory?.inputtedCost ?? persistedMandatory?.cost ?? '',
-    price:             persistedMandatory?.price ?? '',
-    yields:            persistedMandatory?.yields ?? '',
-    remarks:           persistedMandatory?.remarks ?? '',
-    selectedMachineId: persistedMandatory?.selectedMachineId ?? '',
-  });
+  const mandatoryRow = includeMandatory
+    ? makeMandatoryRow({
+        sku:               persistedMandatory?.sku ?? '',
+        cost:              persistedMandatory?.inputtedCost ?? persistedMandatory?.cost ?? '',
+        price:             persistedMandatory?.price ?? '',
+        yields:            persistedMandatory?.yields ?? '',
+        remarks:           persistedMandatory?.remarks ?? '',
+        selectedMachineId: persistedMandatory?.selectedMachineId ?? '',
+      })
+    : null;
+
+  // Not required for this contract type (e.g. Outright), but a mandatory
+  // row was previously saved (project created under a different contract
+  // type) — keep the data, just demote it to an ordinary, removable,
+  // editable machine row instead of discarding it. A blank one is dropped
+  // entirely rather than left sitting there with nothing in it.
+  const demotedMandatoryRow = (!includeMandatory && persistedMandatory && isRowMandatoryDataEntered(persistedMandatory))
+    ? hydrateMachineFields({
+        ...persistedMandatory,
+        id:                   persistedMandatory.id ?? genId(),
+        cost:                 persistedMandatory.inputtedCost ?? persistedMandatory.cost ?? '',
+        mode:                 persistedMandatory.mode || '',
+        selectedMachineId:    persistedMandatory.selectedMachineId || '',
+        selectedConsumableId: '',
+        linkedMachineRowId:   null,
+        autoAdded:            false,
+        isMandatory:          false,
+        qty:                  1,
+      })
+    : null;
 
   const hydratedMachines = otherMachines.map((r) => {
     const base = {
@@ -159,14 +212,25 @@ function buildHydratedRows(
     return base;
   });
 
-  return [mandatoryRow, ...hydratedMachines, ...hydratedConsumables];
+  const combined = [
+    ...(mandatoryRow ? [mandatoryRow] : []),
+    ...(demotedMandatoryRow ? [demotedMandatoryRow] : []),
+    ...hydratedMachines,
+    ...hydratedConsumables,
+  ];
+
+  // Always leave at least one row on screen — a plain blank row (not
+  // pinned as machine or consumable) if nothing else was hydrated in.
+  return combined.length > 0 ? combined : [makeBlankRow()];
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────
 export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, canEditRemarks }) {
   const { setProjectData, projectData } = useProjectData();
 
-  const [rows, setRows] = useState([makeMandatoryRow()]);
+  const [rows, setRows] = useState(() =>
+    isOutrightOnlyContract(projectData.companyInfo?.contractType) ? [makeBlankRow()] : [makeMandatoryRow()]
+  );
   const [focusedField, setFocusedField] = useState(null);
   const [activeSearchRowId, setActiveSearchRowId] = useState(null);
   const [manuallyEdited, setManuallyEdited] = useState({});
@@ -214,7 +278,12 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     const mc = projectData.machineConfiguration || {};
     const combined = buildHydratedRows(
       { machine: mc.machine || [], consumable: mc.consumable || [] },
-      { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable }
+      {
+        hydrateMachineFields,
+        inferSelectedConsumableId,
+        isPersistedAutoConsumable,
+        includeMandatory: !isOutrightOnlyContract(projectData.companyInfo?.contractType),
+      }
     );
 
     setRows(combined);
@@ -224,9 +293,11 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
-  // ── Reset consumable qty when contract type changes away from fixed monthly ─
+  // ── Reset consumable qty when contract type changes to one where qty isn't user-editable ─
   useEffect(() => {
-    if (contractType.toLowerCase() !== 'fixed monthly only') {
+    const ct = contractType.toLowerCase().trim();
+    const qtyIsUserEditable = ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
+    if (!qtyIsUserEditable) {
       setRows((prev) =>
         prev.map((row) => {
           if (row.type === ROW_TYPE.CONSUMABLE && (row.mode === MODE.MONO || row.mode === MODE.COLOR)) {
@@ -236,6 +307,43 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
         })
       );
     }
+  }, [contractType]);
+
+  // ── Toggle the mandatory printer row in/out when contract type flips ────────
+  // to/from exact "Outright" (1yr). Outright is the only contract type where
+  // a machine is optional; every other type still requires one.
+  //
+  // NOTE: contractType can briefly be '' on first render (before the real
+  // project data has hydrated in), which would look like a non-Outright
+  // contract for one tick and auto-add the mandatory row. Once the real
+  // contract type ("outright") arrives, if that row is still blank we drop
+  // it outright rather than leaving a demoted-but-visible empty row behind.
+  // If the user had actually typed something into it, we keep it (demoted
+  // to optional/removable) so we never silently discard real data.
+  useEffect(() => {
+    const requiresMandatoryMachine = !isOutrightOnlyContract(contractType);
+    setRows((prev) => {
+      const mandatoryIdx = prev.findIndex((r) => r.id === MANDATORY_ROW_ID && r.isMandatory);
+      const hasMandatory = mandatoryIdx !== -1;
+
+      if (requiresMandatoryMachine && !hasMandatory) {
+        return [makeMandatoryRow(), ...prev];
+      }
+
+      if (!requiresMandatoryMachine && hasMandatory) {
+        const row = prev[mandatoryIdx];
+        const isBlank = !isRowMandatoryDataEntered(row);
+        if (isBlank) {
+          const remaining = prev.filter((_, i) => i !== mandatoryIdx);
+          // Never leave the table with zero rows — swap the blank
+          // mandatory row out for a plain blank one instead of removing it.
+          return remaining.length > 0 ? remaining : [makeBlankRow()];
+        }
+        return prev.map((r, i) => (i === mandatoryIdx ? { ...r, isMandatory: false } : r));
+      }
+
+      return prev;
+    });
   }, [contractType]);
 
   // ── Sync to ProjectContext ───────────────────────────────────────────────
@@ -419,7 +527,8 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   };
 
   const toggleMachine = (id, isMachine) => {
-    if (id === MANDATORY_ROW_ID) return;
+    const target = rows.find((r) => r.id === id);
+    if (target?.isMandatory) return;
 
     setRows((prev) => {
       const withoutLinked = prev.filter(
@@ -441,7 +550,8 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   };
 
 const setMode = (id, mode) => {
-  if (id === MANDATORY_ROW_ID) return;
+  const target = rows.find((r) => r.id === id);
+  if (target?.isMandatory) return;
 
   setManuallyEdited((prev) => {
     const next = { ...prev };
@@ -469,18 +579,19 @@ const setMode = (id, mode) => {
   const addRow = () => setRows((prev) => [...prev, makeBlankRow()]);
 
   const removeRow = (id) => {
-    if (id === MANDATORY_ROW_ID) return;
-    const nonMandatoryRows = rows.filter((r) => r.id !== MANDATORY_ROW_ID);
-    if (nonMandatoryRows.length <= 0) return;
+    const target = rows.find((r) => r.id === id);
+    if (!target || target.isMandatory) return;
 
-    setRows((prev) => {
-      const target = prev.find((r) => r.id === id);
-      return prev.filter((r) => {
-        if (r.id === id) return false;
-        if (target?.type === ROW_TYPE.MACHINE && String(r.linkedMachineRowId) === String(id)) return false;
-        return true;
+    const idsToRemove = new Set([id]);
+    if (target.type === ROW_TYPE.MACHINE) {
+      rows.forEach((r) => {
+        if (String(r.linkedMachineRowId) === String(id)) idsToRemove.add(r.id);
       });
-    });
+    }
+    // Always keep at least one row on screen.
+    if (rows.length - idsToRemove.size <= 0) return;
+
+    setRows((prev) => prev.filter((r) => !idsToRemove.has(r.id)));
   };
 
   // ── Search suggestions ───────────────────────────────────────────────────
