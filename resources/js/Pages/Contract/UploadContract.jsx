@@ -143,16 +143,31 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const [contractsModalRow, setContractsModalRow] = useState(null);
     const contractsModalRef = useRef(null);
 
-    const openContractsModal = (row) => setContractsModalRow(row);
-    const closeContractsModal = () => setContractsModalRow(null);
+    const [highlightContractId, setHighlightContractId] = useState(null);
+
+    const openContractsModal = (row, contractIdToHighlight = null) => {
+        setContractsModalRow(row);
+        if (contractIdToHighlight) setHighlightContractId(String(contractIdToHighlight));
+    };
+    const closeContractsModal = () => {
+        setContractsModalRow(null);
+        setHighlightContractId(null);
+    };
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const companyId = params.get('company_id');
         const companyName = params.get('company_name');
+        const sapCode = params.get('sap_code');
         const canUpload = params.get('can_upload') === '1';
+        const contractId = params.get('contract_id');
         if (companyId) {
-            openContractsModal({ id: companyId, company_name: companyName ?? '', can_upload: canUpload });
+            openContractsModal({
+                id: companyId,
+                company_name: companyName ?? '',
+                sap_code: sapCode || null,
+                can_upload: canUpload,
+            }, contractId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -710,6 +725,8 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             <ContractsModal
                 ref={contractsModalRef}
                 modalRow={contractsModalRow}
+                highlightContractId={highlightContractId}
+                onHighlightConsumed={() => setHighlightContractId(null)}
                 onClose={closeContractsModal}
                 onUpload={(row, branchName) => openUploadModal(row, branchName)}
                 onEdit={(row, contract) => openEditModal(row, contract)}

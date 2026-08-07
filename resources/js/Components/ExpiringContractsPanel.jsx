@@ -73,7 +73,7 @@ export default function ExpiringContractsPanel({ activeTab: controlledTab, onTab
           <div className="flex flex-col divide-y divide-gray-100 overflow-y-auto pr-1">
             {contracts.map((c) => (
               <Link
-                href={`${route("contract.upload")}?company_id=${c.company_id}&company_name=${encodeURIComponent(c.company_name)}&can_upload=${c.can_upload ? 1 : 0}`}
+                href={`${route("contract.upload")}?company_id=${c.company_id}&company_name=${encodeURIComponent(c.company_name)}&sap_code=${encodeURIComponent(c.sap_code ?? '')}&can_upload=${c.can_upload ? 1 : 0}`}
                 key={c.id}
                 className="flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors hover:border hover:border-red-300"
               >

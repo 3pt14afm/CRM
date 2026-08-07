@@ -846,6 +846,7 @@ class ContractController extends Controller
                     'id'             => $c->id,
                     'company_id'     => $c->company_id,
                     'company_name'   => $c->company_name,
+                    'sap_code'       => $company->sap_code ?? null,
                     'expires_at'     => $effectiveDate,
                     'days_remaining' => $effectiveDate
                         ? (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($effectiveDate)->startOfDay(), false)

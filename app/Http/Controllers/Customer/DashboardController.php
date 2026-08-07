@@ -36,8 +36,6 @@ class DashboardController extends Controller
             ->get()
             ->count();
 
-        // TODO: confirm which PotentialCustomer status value(s) actually mean
-        // "still a prospect" (vs converted/lost) — counting all rows for now.
         $prospectCustomers = PotentialCustomer::count();
 
         // Total Customer excludes inactive companies: active accounts + prospects.
