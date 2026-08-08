@@ -714,10 +714,10 @@ const handleSearchChange = (value) => {
                 <button
                     type="button"
                     onClick={clearAllFilters}
-                    className="h-7 md:h-9 flex items-center gap-1 px-1 text-[11px] md:text-[13px] text-[#4FA34E] hover:text-slate-600 transition-colors flex-shrink-0"
+                    className="flex items-center gap-0.5 md:gap-1 text-[11px] md:text-xs font-medium bg-[#B5EBA2]/50 text-emerald-900 hover:bg-red-100 hover:text-red-400 hover:shadow-inner shadow p-1 px-2 pr-2.5 rounded-lg transition-colors duration-150"
                 >
-                    <MdClose className="md:size-4" />
-                    <span>Clear all</span>
+                    <MdClose className="md:size-3" />
+                    <span>Clear</span>
                 </button>
             )}
 
