@@ -227,7 +227,17 @@ class ContractController extends Controller
 
             return [
                 'id'                    => $c->id,
-                'company_name'          => $c->company_name,
+                // Trimmed for display/consumption — the underlying
+                // companies.company_name column has stray leading/trailing
+                // whitespace (even literal tab characters) on a lot of
+                // rows, which is exactly what caused the "selected company
+                // name is invalid" validation bug: a value trimmed on one
+                // page and compared untrimmed on another would never
+                // match. Trimming it here, once, at the source, means
+                // every consumer downstream (this list, deep-link URLs,
+                // the upload/edit modal, dropdown options) works with the
+                // same clean string.
+                'company_name'          => trim($c->company_name ?? ''),
                 'sap_code'              => $c->sap_code,
                 'client_category'       => $c->client_category,
                 'delsan_company'        => $c->delsan_company,
@@ -357,7 +367,14 @@ class ContractController extends Controller
                 return [
                     'id'                 => $c->id,
                     'doc_num'            => $c->doc_num,
-                    'company_name'       => $c->company_name,
+                    // Trimmed to match modalRow.company_name (also trimmed
+                    // now — see upload()/contracts() above), since
+                    // ContractsModal.jsx filters this list with a strict
+                    // `c.company_name === selectedBranch` comparison. Left
+                    // untrimmed here, a contract whose company_name has
+                    // stray whitespace would never match and would just
+                    // silently vanish from the modal.
+                    'company_name'       => trim($c->company_name ?? ''),
                     'start_date'         => optional($c->start_date)->format('Y-m-d'),
                     'end_date'           => optional($c->end_date)->format('Y-m-d'),
                     'extend_dates'       => collect($c->extend_dates ?? [])
@@ -403,7 +420,10 @@ class ContractController extends Controller
 
         return response()->json([
             'sap_code'     => $company->sap_code,
-            'company_name' => $company->company_name,
+            // Trimmed for the same reason as in upload() above — this is
+            // the value shown in the modal header and pre-filled into the
+            // Add Contract modal via handleUploadClick().
+            'company_name' => trim($company->company_name ?? ''),
             'branches'     => $locationGroups,
             'contracts'    => $contracts,
         ]);
@@ -426,14 +446,42 @@ class ContractController extends Controller
             'doc_num'    => ['required', 'string', 'max:100', Rule::unique('contracts', 'doc_num')],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
-            'company_name' => ['required', 'string',
-                Rule::in(
-                    $company->sap_code
-                        ? Company::where('sap_code', $company->sap_code)->pluck('company_name')
-                        : [$company->company_name]
-                ),
-            ],
+            // Deliberately NOT validated with Rule::in() here anymore.
+            // companies.company_name has stray leading/trailing whitespace
+            // (even literal tab characters) on a lot of rows, and any
+            // trimming that happens on the way in from the frontend (a
+            // deep-link URL, a table cell's displayed value, etc.) used to
+            // make an otherwise-correct selection fail an exact-string
+            // Rule::in() check with "The selected company name is
+            // invalid." We now just require a non-empty string here and
+            // resolve + verify it against the DB with whitespace ignored
+            // immediately below, so the *canonical* DB value always ends
+            // up stored regardless of what whitespace the client sent.
+            'company_name' => ['required', 'string'],
         ]);
+
+        $candidateNames = $company->sap_code
+            ? Company::where('sap_code', $company->sap_code)->pluck('company_name')
+            : collect([$company->company_name]);
+
+        $submittedName = trim($validated['company_name']);
+
+        $matchedName = $candidateNames->first(
+            fn ($name) => trim($name ?? '') === $submittedName
+        );
+
+        if ($matchedName === null) {
+            return back()
+                ->withErrors(['company_name' => 'The selected company name is invalid.'])
+                ->withInput();
+        }
+
+        // Store the exact, canonical value from the database (whitespace
+        // and all) rather than whatever the client sent, so this contract's
+        // company_name keeps matching the same branch consistently
+        // everywhere else it's looked up by company_name (contracts(),
+        // statusStats(), byStatus(), etc.).
+        $validated['company_name'] = $matchedName;
 
         $path = $request->file('pdf')->store('contracts', 'local');
 
@@ -867,7 +915,10 @@ class ContractController extends Controller
                 return [
                     'id'             => $c->id,
                     'company_id'     => $c->company_id,
-                    'company_name'   => $c->company_name,
+                    // Trimmed for the same reason as contracts() above —
+                    // keeps this consistent with the trimmed company_name
+                    // the frontend gets everywhere else.
+                    'company_name'   => trim($c->company_name ?? ''),
                     'sap_code'       => $company->sap_code ?? null,
                     'expires_at'     => $effectiveDate,
                     'days_remaining' => $effectiveDate
