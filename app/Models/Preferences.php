@@ -11,6 +11,7 @@ class Preferences extends Model
     protected $fillable = [
         'settings_id',
         'settings_key',
+        'description',
         'setting_value',
         'entity_attribute',
         'value_type',

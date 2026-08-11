@@ -16,6 +16,7 @@ function Preferences({ stats, preferences, users }) {
   const [createForm, setCreateForm] = useState({
     settings_id: "",
     settings_key: "",
+    description: "",
     value_type: "numeric",
     setting_value: "",
     entity_attribute: "",
@@ -30,6 +31,7 @@ function Preferences({ stats, preferences, users }) {
   const [editForm, setEditForm] = useState({
     settings_id: "",
     settings_key: "",
+    description: "",
     value_type: "numeric",
     setting_value: "",
     entity_attribute: "",
@@ -61,8 +63,11 @@ function Preferences({ stats, preferences, users }) {
     setCreateForm({
       settings_id: "",
       settings_key: "",
+      description: "",
+      value_type: "numeric",
       setting_value: "",
       entity_attribute: "",
+      employee_ids: [],
     });
     setShowCreateModal(true);
   };
@@ -80,6 +85,7 @@ function Preferences({ stats, preferences, users }) {
     setEditForm({
       settings_id: preference?.settings_id ?? "",
       settings_key: preference?.settings_key ?? "",
+      description: preference?.description ?? "",
       value_type: preference?.value_type ?? "numeric",
       setting_value: preference?.setting_value ?? "",
       entity_attribute: preference?.entity_attribute ?? "",
@@ -103,12 +109,22 @@ function Preferences({ stats, preferences, users }) {
 
     router.post(
       route("admin.preferences.store"),
-      {
-        settings_id: createForm.settings_id,
-        settings_key: createForm.settings_key,
-        setting_value: createForm.setting_value,
-        entity_attribute: createForm.entity_attribute,
-      },
+      createForm.value_type === "employee_list"
+        ? {
+            settings_id: createForm.settings_id,
+            settings_key: createForm.settings_key,
+            description: createForm.description,
+            value_type: createForm.value_type,
+            employee_ids: createForm.employee_ids,
+          }
+        : {
+            settings_id: createForm.settings_id,
+            settings_key: createForm.settings_key,
+            description: createForm.description,
+            value_type: createForm.value_type,
+            setting_value: createForm.setting_value,
+            entity_attribute: createForm.entity_attribute,
+          },
       {
         preserveScroll: true,
         onSuccess: () => {
@@ -135,10 +151,11 @@ function Preferences({ stats, preferences, users }) {
     router.put(
       route("admin.preferences.update", editingPreference.id),
       editForm.value_type === "employee_list"
-        ? { employee_ids: editForm.employee_ids }
+        ? { description: editForm.description, employee_ids: editForm.employee_ids }
         : {
             settings_key: editForm.settings_key,
             setting_value: editForm.setting_value,
+            description: editForm.description,
             entity_attribute: editForm.entity_attribute,
           },
       {
@@ -197,8 +214,19 @@ function Preferences({ stats, preferences, users }) {
         header: <div className="text-center w-full">SETTINGS KEY</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm">
+            <span className="text-[11px] md:text-xs lg:text-[13px]">
               {r.settings_key ?? "—"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "description",
+        header: <div className="text-center w-full">DESCRIPTION</div>,
+        cell: (r) => (
+          <div className="w-full flex justify-center items-center">
+            <span className="text-[11px] md:text-xs lg:text-[13px]">
+              {r.description ?? ""}
             </span>
           </div>
         ),
@@ -208,8 +236,8 @@ function Preferences({ stats, preferences, users }) {
         header: <div className="text-center w-full">SETTING VALUE</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm">
-              {r.setting_value ?? "—"}
+            <span className="text-[11px] md:text-xs lg:text-[13px]">
+              {r.setting_value ?? ""}
             </span>
           </div>
         ),
@@ -219,8 +247,8 @@ function Preferences({ stats, preferences, users }) {
         header: <div className="text-center w-full">ENTITY ATTRIBUTE</div>,
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
-            <span className="text-[11px] lg:text-sm capitalize">
-              {r.entity_attribute ?? "—"}
+            <span className="text-[11px] md:text-xs lg:text-[13px] capitalize">
+              {r.entity_attribute ?? ""}
             </span>
           </div>
         ),
@@ -235,7 +263,7 @@ function Preferences({ stats, preferences, users }) {
             <div className="w-full flex justify-center items-center">
               <span
                 className={`
-                  px-2 py-px rounded-full text-[10px] font-bold uppercase tracking-wider
+                  px-2 py-px rounded-full text-[9px] font-bold uppercase tracking-wider
                   ${
                     isActive
                       ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
