@@ -1,7 +1,5 @@
 export const succeedingYears = (projectData) => {
-  // CALCULATES THE SUCCEEDING YEARS AFTER 1ST YEAR POTENTIAL
-
-  // 1. DATA DESTRUCTURING with defaults
+  // 1. DATA DESTRUCTURING
   const config = projectData?.machineConfiguration || {};
   const rawMachines = config.machine || [];
   const rawConsumables = config.consumable || [];
@@ -11,16 +9,12 @@ export const succeedingYears = (projectData) => {
   const succeedingYearCount = Math.max(contractYears - 1, 0);
 
   const normalizedContractType = String(contractType).trim().toLowerCase();
-  
   const isMonthlyRental = normalizedContractType === "fixed monthly only";
-  const isRentalClick = normalizedContractType === "rental + click charge";
-  const isFixClick = normalizedContractType === "free use + click charge";
-  const isOutrightClick = normalizedContractType === "outright + click charge";
-  const usesExactClickQty = isRentalClick || isFixClick || isOutrightClick;
   const isPerCartridge = normalizedContractType.includes("per cartridge");
   const isOutright = normalizedContractType.includes("outright");
+  const isOutrightOnly = normalizedContractType.includes("outright") && normalizedContractType.includes("only");
+  const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
 
-  // --- NEW: INTEREST / MARGIN CONSTANTS ---
   const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
   const percentMargin = (annualInterest * contractYears) / 100;
 
@@ -28,59 +22,49 @@ export const succeedingYears = (projectData) => {
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
-    
-  // --- REPLACE YOUR OLD FILTER LINES WITH THIS ---
   const companyFees = (addFeesObj.company || []).map(f => ({
       ...f,
       total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
       qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
   }));
-
   const customerFees = (addFeesObj.customer || []).map(f => ({
       ...f,
       total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
       qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
   }));
 
-  // EARLY RETURN — no succeeding years when contract is only 1 year
   if (succeedingYearCount === 0) {
     return {
-      totalMachineQty: 0,
-      totalMachineCost: 0,
-      totalMachineSales: 0,
-      totalMachineMargin: 0, // Added
-      totalConsumableQty: 0,
-      totalConsumableCost: 0,
-      totalConsumableSales: 0,
-      totalFeesQty: 0,
-      totalCompanyFeesAmount: 0,
-      totalCustomerFeesAmount: 0,
-      grandtotalCost: 0,
-      grandtotalSell: 0,
-      grossProfit: 0,
-      roiPercentage: 0,
-      config,
-      machines: [],
-      consumables: [],
-      addFeesObj,
-      companyFees: [],
-      customerFees: [],
-      succeedingYearsTotalCost: 0,
-      succeedingYearsTotalSales: 0,
+      totalMachineQty: 0, totalMachineCost: 0, totalMachineSales: 0, totalMachineMargin: 0,
+      totalConsumableQty: 0, totalConsumableCost: 0, totalConsumableSales: 0,
+      totalFeesQty: 0, totalCompanyFeesAmount: 0, totalCustomerFeesAmount: 0,
+      grandtotalCost: 0, grandtotalSell: 0, grossProfit: 0, roiPercentage: 0,
+      config, machines: [], consumables: [], addFeesObj, companyFees: [], customerFees: [],
+      succeedingYearsTotalCost: 0, succeedingYearsTotalSales: 0,
     };
   }
+
+  const printerMachineQty = rawMachines
+    .filter(m => (m.mode?.toLowerCase() || '') !== 'others')
+    .reduce((sum, m) => sum + (Number(m.qty) || 0), 0);
 
   // 2. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
     const unitSell = 0;
     const fixedQty = 1;
+    let machineQty = fixedQty;
     
     const mType = (m.type || "").toLowerCase();
     const isMachineRow = mType === "machine";
     const mode = (m.mode || "").toLowerCase();
     const isModeOthers = mode === "others" || mode === "other";
 
-    // Calculate unit margin exactly like 1st year so UI doesn't break
+    if (isModeOthers) {
+      if (shouldEnforcePrinterQty) {
+        machineQty = Math.round(fixedQty * (printerMachineQty || 1) * 100) / 100;
+      }
+    }
+
     let unitMargin = 0;
     if (!isOutright && isMachineRow && !isModeOthers) {
       const rawCost = Number(m.inputtedCost || m.cost) || 0;
@@ -89,126 +73,67 @@ export const succeedingYears = (projectData) => {
 
     return {
       ...m,
-      qty: fixedQty,
+      qty: machineQty,
       price: unitSell,
-      machineMarginTotal: unitMargin, // Available for UI if needed
-      totalMachineMargin: 0, // Explicitly 0 because cost is 0 in succeeding years
+      machineMarginTotal: unitMargin,
+      totalMachineMargin: 0,
       totalCost: 0, // Machines already paid for in Year 1
-      totalSell: fixedQty * unitSell
+      totalSell: machineQty * unitSell
     };
   });
 
- const getQtyFromYields = (annualYields, itemYields) => {
-  const safeItemYields = Number(itemYields);
-
-  // 🚫 Prevent division by 0 or invalid yields
-  if (!safeItemYields || safeItemYields <= 0) {
-    return 0;
-  }
-
-  const exactQty = annualYields / safeItemYields;
-
-  // Capped at max 2 decimal points
-  return Math.round(exactQty * 100) / 100; 
-};
-
-const getSafeNumber = (val, fallback = 0) => {
-  const num = Number(val);
-  return isNaN(num) ? fallback : num;
-};
-
-const hasValidYield = (y) => {
-  const num = Number(y);
-  return !isNaN(num) && num > 0;
-};
-
-   const applyPerCartridgeRounding = (qty) => {
-    return isPerCartridge ? Math.ceil(qty) : qty;
+  const getQtyFromYields = (annualYields, itemYields) => {
+    const safeItemYields = Number(itemYields);
+    if (!safeItemYields || safeItemYields <= 0) return 0;
+    return Math.round((annualYields / safeItemYields) * 100) / 100; 
   };
+  const getSafeNumber = (val, fallback = 0) => isNaN(Number(val)) ? fallback : Number(val);
+  const hasValidYield = (y) => !isNaN(Number(y)) && Number(y) > 0;
+  const applyPerCartridgeRounding = (qty) => isPerCartridge ? Math.ceil(qty) : qty;
 
-  // Printer machine qty — pulled from rawMachines (the actual entered qty),
-  // not processedMachines, since processedMachines locks every row's
-  // displayed qty to 1 for succeeding years (machines already paid for /
-  // no new cost applies). Same "printer row" definition as get1YrPotential:
-  // any machine row that isn't 'others' mode — includes the mandatory row,
-  // whose mode is always ''.
-  const printerMachineQty = rawMachines
-    .filter(m => (m.mode?.toLowerCase() || '') !== 'others')
-    .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
-
-const processedConsumables = rawConsumables.map(c => {
-  const mode = c.mode?.toLowerCase();
-  const itemYields = Number(c.yields);
-
-  let qty = 0;
+  // 3. PROCESS CONSUMABLES
+  const processedConsumables = rawConsumables.map(c => {
+    const mode = c.mode?.toLowerCase();
+    const isModeOthers = mode === 'others' || mode === 'other';
+    const itemYields = Number(c.yields);
+    let qty = 0;
 
     if (isMonthlyRental) {
-    // Exception — untouched: monthly rental consumable qty stays user-entered.
-    qty = getSafeNumber(c.qty, 0);
-    const unitCost = getSafeNumber(c.cost);
-    return {
-      ...c,
-      qty,
-      yields: 0,
-      price: 0,
-      totalCost: qty * unitCost,
-      totalSell: 0,
-    };
-  }
+      qty = getSafeNumber(c.qty, 0);
+      const unitCost = getSafeNumber(c.cost);
+      return { ...c, qty, yields: 0, price: 0, totalCost: qty * unitCost, totalSell: 0 };
+    }
 
-  // ✅ CASE 1: OTHERS → calculated based on Mono (default) or Color.
-  // Exception — untouched: no printer multiplier (mirrors get1YrPotential).
-  if (mode === 'others') {
-    if (hasValidYield(itemYields)) {
-      const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
-      if (baseYields > 0) {
-        qty = getQtyFromYields(baseYields, itemYields);
+    if (mode === 'mono' || mode === 'color' || isModeOthers) {
+      if (hasValidYield(itemYields)) {
+        let baseYields = mode === 'color' ? annualColorYields : annualMonoYields;
+        if (isModeOthers) {
+          baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        }
+        qty = baseYields > 0 ? getQtyFromYields(baseYields, itemYields) : getSafeNumber(c.qty, 1);
       } else {
         qty = getSafeNumber(c.qty, 1);
+      }
+
+      if (shouldEnforcePrinterQty || (mode === 'mono' || mode === 'color')) {
+        qty = Math.round(qty * (printerMachineQty || 1) * 100) / 100;
       }
     } else {
       qty = getSafeNumber(c.qty, 1);
     }
-  }
 
-  // ✅ CASE 2: MONO / COLOR with valid yields → computed, then scaled by
-  // printer machine qty (mirrors get1YrPotential's mono/color multiplier
-  // so consumable usage keeps scaling with printer count in later years).
-  else if ((mode === 'mono' || mode === 'color') && hasValidYield(itemYields)) {
-    const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
-    qty = getQtyFromYields(baseYields, itemYields);
-    qty = Math.round(qty * printerMachineQty * 100) / 100;
-  }
+    qty = applyPerCartridgeRounding(qty);
+    const unitCost = getSafeNumber(c.cost);
+    const unitSell = getSafeNumber(c.price);
 
-  // 🚫 CASE 3: MONO / COLOR but ZERO/INVALID yields → FORCE 0
-  else if (mode === 'mono' || mode === 'color') {
-    qty = 0;
-  }
+    return { ...c, qty, totalCost: qty * unitCost, totalSell: qty * unitSell };
+  });
 
-  // ✅ CASE 4: UNKNOWN mode → safe fallback, untouched
-  else {
-    qty = getSafeNumber(c.qty, 1);
-  }
-
-  // Apply ceil rounding for "per cartridge" contract types
-  qty = applyPerCartridgeRounding(qty);
-
-
-  const unitCost = getSafeNumber(c.cost);
-  const unitSell = getSafeNumber(c.price);
-
-  return {
-    ...c,
-    qty,
-    totalCost: qty * unitCost,
-    totalSell: qty * unitSell
-  };
-});
-  // 4. CALCULATION LOGIC
+  // 4. TOTALS
   const totalMachineQty = processedMachines.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalMachineCost = processedMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
   const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
-  const totalMachineMargin = processedMachines.reduce((sum, m) => sum + (Number(m.totalMachineMargin) || 0), 0); // Will sum to 0
+  const totalMachineMargin = processedMachines.reduce((sum, m) => sum + (Number(m.totalMachineMargin) || 0), 0);
 
   const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
@@ -220,36 +145,18 @@ const processedConsumables = rawConsumables.map(c => {
 
   const grandtotalCost = Number(totalMachineCost) + Number(totalConsumableCost) + Number(totalCompanyFeesAmount);
   const grandtotalSell = Number(totalMachineSales) + Number(totalConsumableSales) + Number(totalCustomerFeesAmount);
-
   const grossProfit = Number(grandtotalSell) - Number(grandtotalCost);
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-  const succeedingYearsTotalCost = Number(totalMachineCost) + Number(totalConsumableCost);
-  const succeedingYearsTotalSales = Number(totalMachineSales) + Number(totalConsumableSales);
-
-  // 5. RETURN ALL VALUES
   return {
-    totalMachineQty,
-    totalMachineCost,
-    totalMachineSales,
-    totalMachineMargin, // Added to return payload
-    totalConsumableQty,
-    totalConsumableCost,
-    totalConsumableSales,
-    totalFeesQty,
-    totalCompanyFeesAmount,
-    totalCustomerFeesAmount,
-    grandtotalCost: Number(grandtotalCost) || 0,
-    grandtotalSell: Number(grandtotalSell) || 0,
-    grossProfit: Number(grossProfit) || 0,
-    roiPercentage,
-    config,
-    machines: processedMachines,
-    consumables: processedConsumables,
-    addFeesObj,
-    companyFees,
-    customerFees,
-    succeedingYearsTotalCost,
-    succeedingYearsTotalSales
+    totalMachineQty, totalMachineCost, totalMachineSales, totalMachineMargin,
+    totalConsumableQty, totalConsumableCost, totalConsumableSales,
+    totalFeesQty, totalCompanyFeesAmount, totalCustomerFeesAmount,
+    grandtotalCost: Number(grandtotalCost) || 0, grandtotalSell: Number(grandtotalSell) || 0,
+    grossProfit: Number(grossProfit) || 0, roiPercentage,
+    config, machines: processedMachines, consumables: processedConsumables,
+    addFeesObj, companyFees, customerFees,
+    succeedingYearsTotalCost: Number(totalMachineCost) + Number(totalConsumableCost),
+    succeedingYearsTotalSales: Number(totalMachineSales) + Number(totalConsumableSales)
   };
 };

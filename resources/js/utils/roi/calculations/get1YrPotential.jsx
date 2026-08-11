@@ -7,16 +7,16 @@ export const get1YrPotential = (projectData) => {
   const contractType = projectData?.companyInfo?.contractType || "";
   const normalizedContractType = String(contractType).trim().toLowerCase();
 
-  // Rule: Only Outright contracts allow a Machine selling price
   const isOutright = normalizedContractType.includes("outright");
   const isMonthlyRental = normalizedContractType === "fixed monthly only";
   const isPerCartridge = normalizedContractType.includes("per cartridge");
   const isOutrightOnly = normalizedContractType.includes("outright") && normalizedContractType.includes("only");
+  const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
 
   // --- INTEREST / MARGIN CONSTANTS ---
   const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
   const contractYears = Number(projectData?.companyInfo?.contractYears) || 1;
-  const percentMargin = (annualInterest * contractYears) / 100; // E.g., (12 * 3) / 100 = 0.36
+  const percentMargin = (annualInterest * contractYears) / 100;
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
   const bundleDeduction = (isMonthlyRental && isBundleChecked)
@@ -30,13 +30,11 @@ export const get1YrPotential = (projectData) => {
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
 
-  // Helper to ensure clean 2 decimal points everywhere
   const to2Decimals = (num) => {
     const parsed = Number(num);
     return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
   };
 
-  // --- HELPER FUNCTIONS ---
   const getQtyFromYields = (annualYields, itemYields) => {
     const safeItemYields = Number(itemYields);
     if (!safeItemYields || safeItemYields <= 0) return 0;
@@ -57,19 +55,29 @@ export const get1YrPotential = (projectData) => {
     return isPerCartridge ? Math.ceil(qty) : qty;
   };
 
+  const printerMachineQty = rawMachines
+    .filter(m => (m.mode?.toLowerCase() || '') !== 'others')
+    .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
+
   // 2. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
     const mode = m.mode?.toLowerCase();
     const machineYields = Number(m.yields);
+    const isModeOthers = mode === 'others' || mode === 'other';
 
     let machineQty = getSafeNumber(m.qty, 0);
 
-    if (mode === 'others') {
-      if (hasValidYield(machineYields)) {
-        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
-        machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : getSafeNumber(m.qty, 1);
+    if (isModeOthers) {
+      if (shouldEnforcePrinterQty) {
+        const baseQty = getSafeNumber(m.qty, 1);
+        machineQty = to2Decimals(baseQty * (printerMachineQty || 1));
       } else {
-        machineQty = getSafeNumber(m.qty, 1);
+        if (hasValidYield(machineYields)) {
+          const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+          machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : getSafeNumber(m.qty, 1);
+        } else {
+          machineQty = getSafeNumber(m.qty, 1);
+        }
       }
     } else if (!machineQty || machineQty <= 0) {
       if (hasValidYield(machineYields)) {
@@ -80,13 +88,10 @@ export const get1YrPotential = (projectData) => {
       }
     }
 
-    // FIX: Use inputtedCost to avoid compounding interest markup
     const unitCost = Number(m.inputtedCost || m.cost) || 0; 
     const mType = (m.type || "").toLowerCase();
     const isMachineRow = mType === "machine";
-    const isModeOthers = mode === "others" || mode === "other";
 
-    // --- MACHINE MARGIN CALCULATION ---
     let unitMargin = 0;
     if (!isOutright && isMachineRow && !isModeOthers) {
       unitMargin = unitCost * percentMargin; 
@@ -110,14 +115,11 @@ export const get1YrPotential = (projectData) => {
     };
   });
 
-  const printerMachineQty = processedMachines
-    .filter(m => m.mode !== 'others')
-    .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
-
   // 3. PROCESS CONSUMABLES
   const processedConsumables = rawConsumables.map(c => {
     const mode = c.mode?.toLowerCase();
     const itemYields = Number(c.yields);
+    const isModeOthers = mode === 'others' || mode === 'other';
     
     let qty = getSafeNumber(c.qty, 0);
 
@@ -134,23 +136,22 @@ export const get1YrPotential = (projectData) => {
       };
     }
 
-    if (isOutrightOnly && (mode === 'mono' || mode === 'color')) {
+    if (isOutrightOnly && (mode === 'mono' || mode === 'color' || isModeOthers)) {
       qty = getSafeNumber(c.qty, 1);
-    } else if (mode === 'others') {
+    } else if (mode === 'mono' || mode === 'color' || isModeOthers) {
       if (hasValidYield(itemYields)) {
-        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        let baseYields = mode === 'color' ? annualColorYields : annualMonoYields;
+        if (isModeOthers) {
+          baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        }
         qty = baseYields > 0 ? getQtyFromYields(baseYields, itemYields) : getSafeNumber(c.qty, 1);
       } else {
         qty = getSafeNumber(c.qty, 1);
       }
-    } else if (mode === 'mono' || mode === 'color') {
-      if (hasValidYield(itemYields)) {
-        const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
-        qty = getQtyFromYields(baseYields, itemYields);
-      } else {
-        qty = 0;
+
+      if (shouldEnforcePrinterQty || (mode === 'mono' || mode === 'color')) {
+        qty = to2Decimals(qty * (printerMachineQty || 1));
       }
-      qty = to2Decimals(qty * printerMachineQty);
     } else {
       qty = getSafeNumber(c.qty, 1);
     }
@@ -187,7 +188,6 @@ export const get1YrPotential = (projectData) => {
   const grossProfit = grandtotalSell - grandtotalCost;
   const roiPercentage = grandtotalCost > 0 ? (grossProfit / grandtotalCost) * 100 : 0;
 
-  // 5. RETURN ALL VALUES
   return {
     totalMachineQty: to2Decimals(totalMachineQty),
     totalMachineCost: to2Decimals(totalMachineCost),

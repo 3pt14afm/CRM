@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { usePage } from '@inertiajs/react';
 import { useProjectData } from '@/Context/ProjectContext';
 import { useMachineRows, MANDATORY_ROW_ID } from '@/hooks/roi/useMachineRows';
@@ -15,8 +15,6 @@ const cls = {
     'w-full min-w-0 h-8 text-xs print:text-[10px] rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white pl-2 pr-6 text-center leading-tight',
   readonly:
     'w-full h-8 text-[13px] print:text-xs text-center px-1 flex items-center justify-center',
-  // Left-aligned variants — used in the mobile card view so field values
-  // read naturally under their labels instead of sitting centered.
   inputLeft:
     'w-full min-w-0 h-8 text-xs text-left rounded-sm border border-slate-200 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-white px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
   selectLeft:
@@ -36,47 +34,62 @@ const onlyNumericKeys = (allowDot) => (e) => {
   e.preventDefault();
 };
 
-// A row "requires" a Type/mode choice unless it's:
-//   - the locked mandatory printer row (fixed "Printer" badge, no select), or
-//   - a row currently checked as a Machine (H checkbox on — user identifies
-//     it via the printer search box instead of the Type dropdown).
-// Every other row — including a completely blank freshly-added row — is
-// required to have a Type selected before submit.
 const rowRequiresMode = (row) =>
   !row?.isMandatory && row?.type !== ROW_TYPE.MACHINE;
 
 const isRowMissingMode = (row) => rowRequiresMode(row) && !String(row?.mode || '').trim();
 
-// Only flag rows once a submit/save-draft attempt has actually been made —
-// no live "while typing" highlighting.
 const shouldHighlightModeError = (row, showModeErrors) =>
   showModeErrors && isRowMissingMode(row);
 
 // ── useRowRenderData ─────────────────────────────────────────────────────
-// Shared calc/flag derivation used by both the desktop table row and the
-// mobile card, so the two views never drift out of sync.
 function useRowRenderData({ row, contractType, errors, showOutrightErrors, showModeErrors, focusedField, handlers }) {
   const { projectData } = useProjectData();
   const { enforceRowQty, isQtyEditable, computePrinterQtyTotal, rows } = handlers;
 
   const printerQtyTotal = computePrinterQtyTotal(rows);
-  const calcs = getRowCalculations(enforceRowQty(row, contractType, printerQtyTotal), projectData);
+  
+  const modeStr = String(row.mode || '').toLowerCase();
+  const isOthers = modeStr === MODE.OTHERS;
+
+  // Contract exclusions
+  const normalizedContractType = String(contractType).trim().toLowerCase();
+  const isMonthlyRental = normalizedContractType === 'fixed monthly only';
+  const isOutrightOnly = normalizedContractType.includes('outright') && normalizedContractType.includes('only');
+  const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
+
+  let rowForCalcs = row;
+  let displayQty = row.qty || 1;
+  let qtyEditable = isQtyEditable(row, contractType);
+
+  // Handle 'Others' mode: lock input and multiply qty by printerQtyTotal
+  if (isOthers && shouldEnforcePrinterQty) {
+    const baseQty = Number(row.qty) || 1;
+    const effectiveQty = Math.round(baseQty * (printerQtyTotal || 1) * 100) / 100;
+    
+    rowForCalcs = { ...row, qty: effectiveQty };
+    displayQty = effectiveQty;
+    qtyEditable = false; // Lock input so it behaves exactly like Mono/Color
+  } else {
+    rowForCalcs = enforceRowQty(row, contractType, printerQtyTotal);
+  }
+
+  const calcs = getRowCalculations(rowForCalcs, projectData);
   const flags = getRowDisplayFlags(row, contractType, errors, showOutrightErrors);
   const { isYieldDisabled, isPriceProhibited, isYieldError, isPriceError } = flags;
 
   const isMachineRow      = row.type === ROW_TYPE.MACHINE;
-  const modeStr           = String(row.mode || '').toLowerCase();
-  const isAutoOrMonoColor = !!row.autoAdded || modeStr === MODE.MONO || modeStr === MODE.COLOR;
+  const isAutoOrMonoColor = !!row.autoAdded || modeStr === MODE.MONO || modeStr === MODE.COLOR || isOthers;
   const isMandatory       = !!row.isMandatory;
   const keyOf             = (field) => `${row.id}:${field}`;
   const isFocused         = (field) => focusedField === keyOf(field);
   const modeError         = shouldHighlightModeError(row, showModeErrors);
-  const qtyEditable       = isQtyEditable(row, contractType);
 
   return {
     calcs, isYieldDisabled, isPriceProhibited, isYieldError, isPriceError,
     isMachineRow, modeStr, isAutoOrMonoColor, isMandatory, keyOf, isFocused, modeError,
     qtyEditable,
+    displayQty,
   };
 }
 
@@ -113,7 +126,6 @@ function SKUCell({ row, readOnly, activeSearchRowId, handlers, align = 'center' 
     </div>
   );
 
-  // Machine rows (including mandatory printer) that are not mono/color → searchable machine input
   if (isMachine && mode !== MODE.MONO && mode !== MODE.COLOR) {
     return (
       <div className="relative">
@@ -178,13 +190,13 @@ function SKUCell({ row, readOnly, activeSearchRowId, handlers, align = 'center' 
 function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedField, contractType, errors, showOutrightErrors, showModeErrors, handlers }) {
   const {
     handleInputChange, toggleMachine, setMode, addRow, removeRow,
-    setFocusedField, onBlurNormalize, enforceRowQty,
+    setFocusedField, onBlurNormalize,
   } = handlers;
 
   const {
     calcs, isYieldDisabled, isPriceProhibited, isYieldError, isPriceError,
     isMachineRow, modeStr, isAutoOrMonoColor, isMandatory, keyOf, isFocused, modeError,
-    qtyEditable,
+    qtyEditable, displayQty,
   } = useRowRenderData({ row, contractType, errors, showOutrightErrors, showModeErrors, focusedField, handlers });
 
   return (
@@ -195,8 +207,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
         isMandatory ? 'bg-green-50/60' : '',
       ].join(' ')}
     >
-
-      {/* H — checkbox: always checked & locked for mandatory row */}
+      {/* H — checkbox */}
       <td className="border-r border-b border-darkgreen/15 text-center px-3 py-2">
         {isMandatory ? (
           <input
@@ -218,7 +229,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
         )}
       </td>
 
-      {/* T — mode: locked badge for mandatory row, select for others */}
+      {/* T — mode */}
       <td className="border-r border-b border-darkgreen/15 px-1">
         <div className="flex items-center justify-center">
           {isMandatory ? (
@@ -274,7 +285,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
         <input
           type="text"
           inputMode="numeric"
-          value={isFocused('qty') ? row.qty || '' : row.qty || 1}
+          value={isFocused('qty') ? row.qty || '' : displayQty}
           disabled={readOnly || !qtyEditable}
           onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
           onBlur={() => {
@@ -290,11 +301,11 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
       </td>
 
       {/* Total cost */}
- <td className="border-b border-r border-darkgreen/15 p-1">
-  <div className={cls.readonly}>
-    {formatNum(Number(calcs.totalCost) || 0)}
-  </div>
-</td>
+      <td className="border-b border-r border-darkgreen/15 p-1">
+        <div className={cls.readonly}>
+          {formatNum(Number(calcs.totalCost) || 0)}
+        </div>
+      </td>
 
       {/* Yields */}
       <td className={`border-b border-r border-darkgreen/15 p-1 ${isYieldError ? 'bg-red-50' : ''}`}>
@@ -341,7 +352,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
         <div className={cls.readonly}>{formatNum(calcs.sellCpp)}</div>
       </td>
 
-      {/* +/- — mandatory row: show + but no - */}
+      {/* +/- */}
       <td className="border-b border-r border-darkgreen/15 p-1">
         <div className="flex gap-1 justify-center">
           <button
@@ -361,7 +372,6 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
               -
             </button>
           )}
-          {/* Keep column width consistent when minus is absent */}
           {isMandatory && <span className="w-6 h-6 inline-block" />}
         </div>
       </td>
@@ -401,7 +411,7 @@ function MachineRowCard({ row, readOnly, canEditRemarks, activeSearchRowId, focu
   const {
     calcs, isYieldDisabled, isPriceProhibited, isYieldError, isPriceError,
     isMachineRow, modeStr, isAutoOrMonoColor, isMandatory, keyOf, isFocused, modeError,
-    qtyEditable,
+    qtyEditable, displayQty,
   } = useRowRenderData({ row, contractType, errors, showOutrightErrors, showModeErrors, focusedField, handlers });
 
   return (
@@ -504,7 +514,7 @@ function MachineRowCard({ row, readOnly, canEditRemarks, activeSearchRowId, focu
           <input
             type="text"
             inputMode="numeric"
-            value={isFocused('qty') ? row.qty || '' : row.qty || 1}
+            value={isFocused('qty') ? row.qty || '' : displayQty}
             disabled={readOnly || !qtyEditable}
             onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
             onBlur={() => {
@@ -605,8 +615,6 @@ function ConfigTableFooter({ totals }) {
 }
 
 // ── MobileTotalsFooter ──────────────────────────────────────────────────────
-// A single totals summary shown once, below all cards — never duplicated
-// per card — and pinned to the bottom of the screen while scrolling.
 function MobileTotalsFooter({ totals }) {
   const t = { ...EMPTY_TOTALS, ...totals };
   const items = [
@@ -636,14 +644,6 @@ function MobileTotalsFooter({ totals }) {
 }
 
 // ── MachineConfig ──────────────────────────────────────────────────────────
-// `showModeErrors` is driven from useEntryValidation's validateBusinessLogic
-// (same pattern as showOutrightErrors / showCompanyInfoErrors) — it flips to
-// true when a Save Draft / Submit attempt hits a row with no Type selected,
-// which is also what actually blocks that action from proceeding.
-//
-// Layout: desktop keeps the original table (unchanged). On mobile the table
-// is swapped for a stacked list of cards, one per row, with a single totals
-// footer shown once at the end of the list rather than inside each card.
 function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
   const { auth, entryProject, project: inertiaProject, machineCatalog = [], consumableCatalog = {}, errors } = usePage().props;
   const { projectData } = useProjectData();
@@ -654,10 +654,61 @@ function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
   const canEditRemarks = !readOnly && isEntryOwner;
   const contractType   = projectData.companyInfo?.contractType || '';
 
-  // The hook now owns the mandatory row — no extra logic needed here
-  const handlers = useMachineRows({ machineCatalog, consumableCatalog, canEditRemarks });
+  const baseHandlers = useMachineRows({ machineCatalog, consumableCatalog, canEditRemarks });
+  
+  // Intercept toggleMachine to reset all values when a row becomes a machine
+  const handlers = useMemo(() => ({
+    ...baseHandlers,
+    toggleMachine: (id, isMachine) => {
+      baseHandlers.toggleMachine(id, isMachine);
+      if (isMachine) {
+        baseHandlers.handleInputChange(id, 'yields', '0');
+        baseHandlers.handleInputChange(id, 'cost', '0');
+        baseHandlers.handleInputChange(id, 'price', '0');
+        baseHandlers.handleInputChange(id, 'sku', '');
+      }
+    }
+  }), [baseHandlers]);
+
   const { rows, focusedField, activeSearchRowId } = handlers;
-  const totals = projectData.machineConfiguration?.totals;
+
+  // Calculate dynamic totals directly from rows to ensure 100% accuracy in the UI
+  const totals = useMemo(() => {
+    if (!rows || rows.length === 0) return EMPTY_TOTALS;
+    
+    const printerQtyTotal = handlers.computePrinterQtyTotal(rows);
+    const normalizedContractType = String(contractType).trim().toLowerCase();
+    const isMonthlyRental = normalizedContractType === 'fixed monthly only';
+    const isOutrightOnly = normalizedContractType.includes('outright') && normalizedContractType.includes('only');
+    const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
+
+    return rows.reduce((acc, row) => {
+      const modeStr = String(row.mode || '').toLowerCase();
+      const isOthers = modeStr === MODE.OTHERS;
+      let rowForCalcs = row;
+      
+      if (isOthers && shouldEnforcePrinterQty) {
+          const baseQty = Number(row.qty) || 1;
+          const effectiveQty = Math.round(baseQty * (printerQtyTotal || 1) * 100) / 100;
+          rowForCalcs = { ...row, qty: effectiveQty };
+      } else {
+          rowForCalcs = handlers.enforceRowQty(row, contractType, printerQtyTotal);
+      }
+      
+      const calcs = getRowCalculations(rowForCalcs, projectData);
+      
+      acc.unitCost += Number(row.cost) || 0;
+      acc.qty += Number(rowForCalcs.qty) || 0;
+      acc.totalCost += Number(calcs.totalCost) || 0;
+      acc.yields += Number(row.yields) || 0;
+      acc.costCpp += Number(calcs.costCpp) || 0;
+      acc.sellingPrice += Number(row.price) || 0;
+      acc.totalSell += Number(calcs.totalSell) || 0;
+      acc.sellCpp += Number(calcs.sellCpp) || 0;
+      
+      return acc;
+    }, { ...EMPTY_TOTALS });
+  }, [rows, handlers, contractType, projectData]);
 
   const hasInvalidRows = showModeErrors && rows.some(isRowMissingMode);
 
@@ -674,7 +725,7 @@ function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
           <h2 className="text-[14px] font-bold tracking-wider uppercase">Machine Configuration</h2>
         </div>
 
-        {/* Desktop: table, unchanged */}
+        {/* Desktop: table */}
         <div className="hidden md:block w-full">
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>

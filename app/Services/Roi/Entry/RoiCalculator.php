@@ -168,7 +168,6 @@ class RoiCalculator
 
         $flags = $this->getContractFlags($projectData['companyInfo']['contractType'] ?? '');
 
-        // --- INTEREST / MARGIN CONSTANTS ---
         $annualInterest = $this->toFloat($projectData['interest']['annualInterest'] ?? 0);
         $contractYears  = $this->orFallback($projectData['companyInfo']['contractYears'] ?? 1, 1.0);
         $percentMargin  = ($annualInterest * $contractYears) / 100;
@@ -185,19 +184,32 @@ class RoiCalculator
         $companyFees  = $addFeesObj['company']  ?? [];
         $customerFees = $addFeesObj['customer'] ?? [];
 
-        // --- PROCESS MACHINES (processed first — consumables now depend on printer machine qty) ---
+        $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'];
+
+        $printerMachineQty = array_sum(array_map(
+            fn($m) => $this->toFloat($m['qty'] ?? 0),
+            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others')
+        ));
+
+        // --- PROCESS MACHINES ---
         $processedMachines = array_map(function (array $m) use (
-            $flags, $annualMonoYields, $annualColorYields, $percentMargin
+            $flags, $annualMonoYields, $annualColorYields, $percentMargin, $printerMachineQty, $shouldEnforcePrinterQty
         ): array {
             $mode          = strtolower($m['mode'] ?? '');
             $machineYields = $this->toFloat($m['yields'] ?? 0);
             $machineQty    = $this->toFloat($m['qty']    ?? 0);
+            $isModeOthers  = in_array($mode, ['others', 'other']);
 
-            if ($mode === 'others') {
-                $base       = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
-                $machineQty = $this->hasValidYield($machineYields) && $base > 0
-                    ? $this->getQtyFromYields($base, $machineYields)
-                    : $this->toFloat($m['qty'] ?? 1, 1);
+            if ($isModeOthers) {
+                if ($shouldEnforcePrinterQty) {
+                    $baseQty = $this->toFloat($m['qty'] ?? 1, 1);
+                    $machineQty = $this->to2Decimals($baseQty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
+                } else {
+                    $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
+                    $machineQty = $this->hasValidYield($machineYields) && $base > 0
+                        ? $this->getQtyFromYields($base, $machineYields)
+                        : $this->toFloat($m['qty'] ?? 1, 1);
+                }
             } elseif ($machineQty <= 0) {
                 $base       = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
                 $machineQty = $this->hasValidYield($machineYields) && $base > 0
@@ -205,14 +217,10 @@ class RoiCalculator
                     : 1;
             }
 
-            // FIX: Use inputtedCost to avoid compounding interest markup
             $rawCost = $this->toFloat($m['inputtedCost'] ?? $m['cost'] ?? 0);
-            
             $mType = strtolower($m['type'] ?? '');
             $isMachineRow = $mType === 'machine';
-            $isModeOthers = in_array($mode, ['others', 'other']);
 
-            // Dynamically calculate margin to guarantee it matches raw cost
             $unitMargin = 0.0;
             if (!$flags['isOutright'] && $isMachineRow && !$isModeOthers) {
                 $unitMargin = $rawCost * $percentMargin;
@@ -232,16 +240,12 @@ class RoiCalculator
             ]);
         }, $rawMachines);
 
-        $printerMachineQty = array_sum(array_map(
-            fn($m) => $this->toFloat($m['qty'] ?? 0),
-            array_filter($processedMachines, fn($m) => ($m['mode'] ?? '') !== 'others')
-        ));
-
         // --- PROCESS CONSUMABLES ---
         $processedConsumables = array_map(function (array $c) use (
-            $flags, $annualMonoYields, $annualColorYields, $printerMachineQty
+            $flags, $annualMonoYields, $annualColorYields, $printerMachineQty, $shouldEnforcePrinterQty
         ): array {
             $mode       = strtolower($c['mode'] ?? '');
+            $isModeOthers = in_array($mode, ['others', 'other']);
             $itemYields = $this->toFloat($c['yields'] ?? 0);
             $qty        = 0.0;
 
@@ -257,19 +261,20 @@ class RoiCalculator
                 ]);
             }
 
-            if ($flags['isOutrightOnly'] && in_array($mode, ['mono', 'color'])) {
+            if ($flags['isOutrightOnly'] && (in_array($mode, ['mono', 'color']) || $isModeOthers)) {
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
-            } elseif ($mode === 'others') {
-                $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
+            } elseif (in_array($mode, ['mono', 'color']) || $isModeOthers) {
+                $base = $mode === 'color' ? $annualColorYields : $annualMonoYields;
+                if ($isModeOthers) {
+                    $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
+                }
                 $qty = $this->hasValidYield($itemYields)
                     ? ($base > 0 ? $this->getQtyFromYields($base, $itemYields) : $this->toFloat($c['qty'] ?? 1, 1))
                     : $this->toFloat($c['qty'] ?? 1, 1);
-            } elseif (in_array($mode, ['mono', 'color'])) {
-                $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
-                $qty  = $this->hasValidYield($itemYields)
-                    ? $this->getQtyFromYields($base, $itemYields)
-                    : 0.0;
-                $qty = $this->to2Decimals($qty * $printerMachineQty);
+
+                if ($shouldEnforcePrinterQty || in_array($mode, ['mono', 'color'])) {
+                    $qty = $this->to2Decimals($qty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
+                }
             } else {
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             }
@@ -343,7 +348,6 @@ class RoiCalculator
 
         $flags = $this->getContractFlags($projectData['companyInfo']['contractType'] ?? '');
 
-        // --- INTEREST / MARGIN CONSTANTS ---
         $annualInterest = $this->toFloat($projectData['interest']['annualInterest'] ?? 0);
         $percentMargin  = ($annualInterest * $contractYears) / 100;
 
@@ -371,17 +375,27 @@ class RoiCalculator
 
         if ($succeedingYearCount === 0) return $emptyReturn;
 
+        $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'];
+
+        $printerMachineQty = array_sum(array_map(
+            fn($m) => $this->toFloat($m['qty'] ?? 0),
+            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others')
+        ));
+
         // --- PROCESS MACHINES ---
-        $processedMachines = array_map(function(array $m) use ($flags, $percentMargin): array {
+        $processedMachines = array_map(function(array $m) use ($flags, $percentMargin, $printerMachineQty, $shouldEnforcePrinterQty): array {
             $unitSell = 0.0;
             $fixedQty = 1;
-            
+            $machineQty = $fixedQty;
             $mType = strtolower($m['type'] ?? '');
             $isMachineRow = $mType === 'machine';
             $mode = strtolower($m['mode'] ?? '');
             $isModeOthers = in_array($mode, ['others', 'other']);
 
-            // Calculate unit margin exactly like 1st year so UI doesn't break
+            if ($isModeOthers && $shouldEnforcePrinterQty) {
+                $machineQty = $this->to2Decimals($fixedQty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
+            }
+
             $unitMargin = 0.0;
             if (!$flags['isOutright'] && $isMachineRow && !$isModeOthers) {
                 $rawCost = $this->toFloat($m['inputtedCost'] ?? $m['cost'] ?? 0);
@@ -389,25 +403,21 @@ class RoiCalculator
             }
 
             return array_merge($m, [
-                'qty'                 => $fixedQty,
+                'qty'                 => $machineQty,
                 'price'               => $unitSell,
-                'machineMarginTotal'  => $unitMargin, // Available for UI if needed
-                'totalMachineMargin'  => 0.0, // Explicitly 0 because cost is 0 in succeeding years
-                'totalCost'           => 0.0, // Machines already paid for in Year 1
-                'totalSell'           => $fixedQty * $unitSell
+                'machineMarginTotal'  => $unitMargin,
+                'totalMachineMargin'  => 0.0,
+                'totalCost'           => 0.0,
+                'totalSell'           => $machineQty * $unitSell
             ]);
         }, $rawMachines);
 
-        $printerMachineQty = array_sum(array_map(
-            fn($m) => $this->toFloat($m['qty'] ?? 0),
-            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others')
-        ));
-
         // --- PROCESS CONSUMABLES ---
         $processedConsumables = array_map(function (array $c) use (
-            $flags, $annualMonoYields, $annualColorYields, $printerMachineQty
+            $flags, $annualMonoYields, $annualColorYields, $printerMachineQty, $shouldEnforcePrinterQty
         ): array {
             $mode       = strtolower($c['mode'] ?? '');
+            $isModeOthers = in_array($mode, ['others', 'other']);
             $itemYields = $this->toFloat($c['yields'] ?? 0);
             $qty        = 0.0;
 
@@ -420,18 +430,25 @@ class RoiCalculator
                 ]);
             }
 
-            if ($mode === 'others') {
-                $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
-                $qty  = $this->hasValidYield($itemYields) && $base > 0
-                    ? $this->getQtyFromYields($base, $itemYields)
-                    : $this->toFloat($c['qty'] ?? 1, 1);
-            } elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
-                $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
-                $qty  = $this->getQtyFromYields($base, $itemYields);
-                $qty  = round($qty * $printerMachineQty * 100) / 100;
-            } elseif (in_array($mode, ['mono', 'color'])) {
-                $qty = 0;
-            } else {
+            if ((in_array($mode, ['mono', 'color']) || $isModeOthers) && $this->hasValidYield($itemYields)) {
+                $base = $mode === 'color' ? $annualColorYields : $annualMonoYields;
+                if ($isModeOthers) {
+                    $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
+                }
+                $qty = ($base > 0) ? $this->getQtyFromYields($base, $itemYields) : $this->toFloat($c['qty'] ?? 1, 1);
+                
+                if ($shouldEnforcePrinterQty || in_array($mode, ['mono', 'color'])) {
+                    $qty = round($qty * ($printerMachineQty > 0 ? $printerMachineQty : 1) * 100) / 100;
+                }
+            }
+            elseif (in_array($mode, ['mono', 'color']) || $isModeOthers) {
+                $qty = $this->toFloat($c['qty'] ?? 1, 1);
+                
+                if ($shouldEnforcePrinterQty || in_array($mode, ['mono', 'color'])) {
+                    $qty = round($qty * ($printerMachineQty > 0 ? $printerMachineQty : 1) * 100) / 100;
+                }
+            }
+            else {
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             }
 
@@ -451,7 +468,7 @@ class RoiCalculator
         $totalMachineQty    = array_sum(array_column($processedMachines, 'qty'));
         $totalMachineCost   = array_sum(array_column($processedMachines, 'totalCost'));
         $totalMachineSales  = array_sum(array_column($processedMachines, 'totalSell'));
-        $totalMachineMargin = array_sum(array_column($processedMachines, 'totalMachineMargin')); // Will sum to 0
+        $totalMachineMargin = array_sum(array_column($processedMachines, 'totalMachineMargin')); 
 
         $totalConsumableQty   = array_sum(array_column($processedConsumables, 'qty'));
         $totalConsumableCost  = array_sum(array_column($processedConsumables, 'totalCost'));
@@ -471,7 +488,7 @@ class RoiCalculator
             'totalMachineQty'          => $totalMachineQty,
             'totalMachineCost'         => $totalMachineCost,
             'totalMachineSales'        => $totalMachineSales,
-            'totalMachineMargin'       => $totalMachineMargin, 
+            'totalMachineMargin'       => $totalMachineMargin,
             'totalConsumableQty'       => $totalConsumableQty,
             'totalConsumableCost'      => $totalConsumableCost,
             'totalConsumableSales'     => $totalConsumableSales,
@@ -492,7 +509,7 @@ class RoiCalculator
             'succeedingYearsTotalSales'=> $totalMachineSales + $totalConsumableSales,
         ];
     }
-
+    
     // =========================================================================
     // calculateProjectPotentials
     // =========================================================================
