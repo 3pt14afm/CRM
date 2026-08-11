@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -13,6 +12,10 @@ return new class extends Migration
             $table->string('value_type')
                 ->default('numeric')
                 ->after('settings_id');
+
+            $table->string('description')
+                ->nullable()
+                ->after('value_type');
 
             $table->json('employee_ids')
                 ->nullable()
@@ -26,41 +29,14 @@ return new class extends Migration
                 ->nullable()
                 ->change();
         });
-
-        DB::table('preferences')->insert([
-            [
-                'settings_id'  => 'CONTRACT_UPLOAD_ACCESS',
-                'settings_key' => 'Contract Upload Access',
-                'value_type'   => 'employee_list',
-                'employee_ids' => json_encode(['0283']),
-                'is_active'    => true,
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ],
-            [
-                'settings_id'  => 'COMPANY_VISIBILITY_ACCESS',
-                'settings_key' => 'Company Visibility Access',
-                'value_type'   => 'employee_list',
-                'employee_ids' => json_encode(config('access.privileged_employee_ids', [])),
-                'is_active'    => true,
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ],
-        ]);
     }
 
     public function down(): void
     {
-        DB::table('preferences')
-            ->whereIn('settings_id', [
-                'CONTRACT_UPLOAD_ACCESS',
-                'COMPANY_VISIBILITY_ACCESS',
-            ])
-            ->delete();
-
         Schema::table('preferences', function (Blueprint $table) {
             $table->dropColumn([
                 'value_type',
+                'description',
                 'employee_ids',
             ]);
 

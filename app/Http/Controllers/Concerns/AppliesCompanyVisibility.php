@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Auth;
  */
 trait AppliesCompanyVisibility
 {
+    use ChecksPreferenceAccess;
+
     protected function applyCompanyVisibility($query): void
     {
         $currentUser = Auth::user();
@@ -27,17 +29,7 @@ trait AppliesCompanyVisibility
         $employeeId  = $currentUser->employee_id ?? null;
         $isAdmin     = $userId === 1;
 
-        $isPrivileged = $employeeId !== null && in_array(
-            (string) $employeeId,
-            cache()->remember('preference_access_COMPANY_VISIBILITY_ACCESS', now()->addMinutes(10), function () {
-                $pref = \App\Models\Preferences::where('settings_id', 'COMPANY_VISIBILITY_ACCESS')
-                    ->where('is_active', true)->first();
-                return $pref?->employee_ids ?? [];
-            }),
-            true
-        );
-
-        if ($isAdmin || $isPrivileged) {
+        if ($isAdmin || $this->isCompanyVisibilityPrivileged()) {
             return;
         }
 

@@ -43,6 +43,23 @@ export default function NewPreferenceModal({
 
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">
+            Description
+          </label>
+          <input
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+            value={form.description}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, description: e.target.value }))
+            }
+            placeholder="e.g. Number of days before a record is purged"
+          />
+          {errors.description ? (
+            <p className="mt-1 text-xs text-red-600">{errors.description}</p>
+          ) : null}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">
             Settings Key
           </label>
           <input

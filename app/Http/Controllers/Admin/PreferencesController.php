@@ -17,6 +17,7 @@ class PreferencesController extends Controller
             ->when($search, function ($q) use ($search) {
                 $q->where('settings_id', 'like', "%{$search}%")
                   ->orWhere('settings_key', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('entity_attribute', 'like', "%{$search}%");
             })
             ->orderBy('settings_id')
@@ -54,6 +55,7 @@ class PreferencesController extends Controller
         $request->validate([
             'settings_id'  => 'required|string|max:50|unique:preferences,settings_id',
             'settings_key' => 'required|string|max:255',
+            'description'  => 'nullable|string|max:255',
             'value_type'   => 'required|in:numeric,employee_list',
         ]);
 
@@ -66,6 +68,7 @@ class PreferencesController extends Controller
             Preferences::create([
                 'settings_id'  => strtoupper($request->settings_id),
                 'settings_key' => $request->settings_key,
+                'description'  => $request->description,
                 'value_type'   => 'employee_list',
                 'employee_ids' => $request->employee_ids ?? [],
                 'is_active'    => true,
@@ -79,6 +82,7 @@ class PreferencesController extends Controller
             Preferences::create([
                 'settings_id'      => strtoupper($request->settings_id),
                 'settings_key'     => $request->settings_key,
+                'description'      => $request->description,
                 'value_type'       => 'numeric',
                 'setting_value'    => $request->setting_value,
                 'entity_attribute' => strtolower($request->entity_attribute),
@@ -93,21 +97,27 @@ class PreferencesController extends Controller
     {
         if ($preference->value_type === 'employee_list') {
             $request->validate([
+                'description'    => 'nullable|string|max:255',
                 'employee_ids'   => 'array',
                 'employee_ids.*' => 'string|exists:users,employee_id',
             ]);
 
-            $preference->update(['employee_ids' => $request->employee_ids ?? []]);
+            $preference->update([
+                'description'  => $request->description,
+                'employee_ids' => $request->employee_ids ?? []
+            ]);
             cache()->forget("preference_access_{$preference->settings_id}");
         } else {
             $request->validate([
                 'settings_key'     => 'required|string|max:255',
+                'description'      => 'nullable|string|max:255',
                 'setting_value'    => 'required|integer|min:0',
                 'entity_attribute' => 'required|in:day,week,month,year',
             ]);
 
             $preference->update([
                 'settings_key'     => $request->settings_key,
+                'description'      => $request->description,
                 'setting_value'    => $request->setting_value,
                 'entity_attribute' => strtolower($request->entity_attribute),
             ]);

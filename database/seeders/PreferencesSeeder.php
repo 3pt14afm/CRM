@@ -13,8 +13,30 @@ class PreferencesSeeder extends Seeder
             ['settings_id' => 'PWX'],
             [
                 'settings_key' => 'Password Expiry',
-                'setting_value' => 60,
+                'setting_value' => 90,
                 'entity_attribute' => 'day',
+                'is_active' => true,
+            ]
+        );
+
+        Preferences::updateOrCreate(
+            ['settings_id' => 'CONTRACT_UPLOAD_ACCESS'],
+            [
+                'settings_key' => 'Contract Upload Access',
+                'description' => 'Employees allowed to upload contracts.',
+                'value_type' => 'employee_list',
+                'employee_ids' => [],
+                'is_active' => true,
+            ]
+        );
+
+        Preferences::updateOrCreate(
+            ['settings_id' => 'COMPANY_VISIBILITY_ACCESS'],
+            [
+                'settings_key' => 'Company Visibility Access',
+                'description' => 'Employees allowed to view all companies.',
+                'value_type' => 'employee_list',
+                'employee_ids' => [],
                 'is_active' => true,
             ]
         );

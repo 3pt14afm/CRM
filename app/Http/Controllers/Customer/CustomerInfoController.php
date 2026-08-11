@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Customer;
 
+use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Contracts\Contract;
 use App\Models\CustomerInfo\Company;
@@ -14,6 +15,8 @@ use Inertia\Inertia;
 
 class CustomerInfoController extends Controller
 {
+    use ChecksPreferenceAccess;
+
     public function index(Request $request)
     {
         $perPage = $request->integer('per_page', 12);
@@ -32,8 +35,7 @@ class CustomerInfoController extends Controller
         $userId      = (int) ($currentUser->id ?? 0);
         $employeeId  = $currentUser->employee_id ?? null;
         $isAdmin     = $userId === 1;
-        $isPrivileged = $employeeId !== null
-            && in_array((string) $employeeId, config('access.privileged_employee_ids', []), true);
+        $isPrivileged = $this->isCompanyVisibilityPrivileged();
 
         $approverLocationDepts = $isAdmin
             ? collect()
@@ -47,8 +49,8 @@ class CustomerInfoController extends Controller
                 })
                 ->get(['location_id', 'department_id']);
 
-        $applyVisibility = function ($query) use ($isAdmin, $employeeId, $approverLocationDepts) {
-            if ($isAdmin) {
+        $applyVisibility = function ($query) use ($isAdmin, $isPrivileged, $employeeId, $approverLocationDepts) {
+            if ($isAdmin || $isPrivileged) {
                 return;
             }
 
