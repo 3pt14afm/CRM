@@ -8,7 +8,7 @@ import { MdEdit } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
 import { RiSettingsFill } from "react-icons/ri";
 
-function Preferences({ stats, preferences }) {
+function Preferences({ stats, preferences, users }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createProcessing, setCreateProcessing] = useState(false);
   const [createErrors, setCreateErrors] = useState({});
@@ -16,8 +16,10 @@ function Preferences({ stats, preferences }) {
   const [createForm, setCreateForm] = useState({
     settings_id: "",
     settings_key: "",
+    value_type: "numeric",
     setting_value: "",
     entity_attribute: "",
+    employee_ids: [],
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -28,8 +30,10 @@ function Preferences({ stats, preferences }) {
   const [editForm, setEditForm] = useState({
     settings_id: "",
     settings_key: "",
+    value_type: "numeric",
     setting_value: "",
     entity_attribute: "",
+    employee_ids: [],
     is_active: true,
   });
 
@@ -76,8 +80,10 @@ function Preferences({ stats, preferences }) {
     setEditForm({
       settings_id: preference?.settings_id ?? "",
       settings_key: preference?.settings_key ?? "",
+      value_type: preference?.value_type ?? "numeric",
       setting_value: preference?.setting_value ?? "",
       entity_attribute: preference?.entity_attribute ?? "",
+      employee_ids: preference?.employee_ids ?? [],
       is_active: isPreferenceActive(preference),
     });
 
@@ -128,11 +134,13 @@ function Preferences({ stats, preferences }) {
 
     router.put(
       route("admin.preferences.update", editingPreference.id),
-      {
-        settings_key: editForm.settings_key,
-        setting_value: editForm.setting_value,
-        entity_attribute: editForm.entity_attribute,
-      },
+      editForm.value_type === "employee_list"
+        ? { employee_ids: editForm.employee_ids }
+        : {
+            settings_key: editForm.settings_key,
+            setting_value: editForm.setting_value,
+            entity_attribute: editForm.entity_attribute,
+          },
       {
         preserveScroll: true,
         onSuccess: () => {
@@ -293,6 +301,7 @@ function Preferences({ stats, preferences }) {
         form={createForm}
         setForm={setCreateForm}
         onSubmit={submitCreate}
+        users={users}
       />
 
       <EditPreferenceModal
@@ -304,6 +313,7 @@ function Preferences({ stats, preferences }) {
         editForm={editForm}
         setEditForm={setEditForm}
         onSubmit={submitEdit}
+        users={users}
       />
 
       <div className="min-h-screen flex flex-col">

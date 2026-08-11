@@ -14,7 +14,7 @@ export default function StatCard({
 
   return (
     <div
-      className={`relative overflow-hidden px-5 py-3 ${theme.bg} rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] flex flex-col items-start`}
+      className={`relative overflow-hidden px-3 lg:px-5 py-3 ${theme.bg} rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] flex flex-col items-start`}
     >
       {/* Decoration */}
       <div className="absolute top-0 right-0 w-full h-full overflow-hidden pointer-events-none">
@@ -70,12 +70,12 @@ export default function StatCard({
       <div
         className={`w-fit mb-2.5 px-[5px] py-[5px] rounded border flex items-center justify-center ${theme.icon}`}
       >
-        <Icon size={17} />
+        <Icon className="w-[13px] h-[13px] sm:w-[17px] sm:h-[17px]" />
       </div>
 
       {/* Text */}
       <div className="flex h-full w-full flex-col items-start justify-between">
-        <p className="text-xs text-black font-semibold tracking-wider">
+        <p className="text-[10px] lg:text-xs text-black font-semibold tracking-wider">
           {title}
         </p>
         {children ? (
@@ -84,7 +84,7 @@ export default function StatCard({
           <div className="h-7 w-16 bg-black/10 rounded animate-pulse mt-0.5" />
         ) : (
           <>
-            <p className="text-2xl font-semibold text-gray-900">
+            <p className="text-lg lg:text-2xl font-semibold text-gray-900">
               {Number(value).toLocaleString()}
             </p>
 

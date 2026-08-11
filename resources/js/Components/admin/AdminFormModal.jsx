@@ -6,6 +6,7 @@ export default function AdminFormModal({
   onClose,
   processing = false,
   title,
+  icon,
   maxWidth = "2xl",
   children,
 }) {
@@ -13,7 +14,10 @@ export default function AdminFormModal({
     <Modal show={show} maxWidth={maxWidth} closeable={!processing} onClose={onClose}>
       <div className="p-4 md:p-5">
         <div className="flex items-center justify-between pb-3 border-b border-black/10">
-          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            {icon}
+            {title}
+          </h3>
           <button
             type="button"
             onClick={onClose}

@@ -13,11 +13,14 @@ class Preferences extends Model
         'settings_key',
         'setting_value',
         'entity_attribute',
+        'value_type',
+        'employee_ids',
         'is_active',
     ];
 
     protected $casts = [
         'setting_value' => 'integer',
+        'employee_ids' => 'array',
         'is_active' => 'boolean',
     ];
 }

@@ -17,11 +17,6 @@ use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
-    /**
-     * GET /api/dashboard/customer-stats
-     * Total / Active customer counts use the same sap_code dedup grouping
-     * as CustomerInfoController::index() so numbers stay consistent across pages.
-     */
     public function customerStats(Request $request)
     {
         $companyTable = (new Company())->getTable();
@@ -29,6 +24,7 @@ class DashboardController extends Controller
         $groupKeyExpr = "CASE WHEN {$companyTable}.sap_code IS NULL OR {$companyTable}.sap_code = '' "
             . "THEN CONCAT('__row_', {$companyTable}.id) ELSE {$companyTable}.sap_code END";
 
+        // Active Accounts: dedup by sap_code (one sap_code can have many branches).
         $activeCustomers = Company::query()
             ->where("{$companyTable}.status", 1)
             ->selectRaw("MIN({$companyTable}.id) as rep_id")
@@ -36,10 +32,12 @@ class DashboardController extends Controller
             ->get()
             ->count();
 
-        $prospectCustomers = PotentialCustomer::count();
+        // Total Customer: all active branches, ungrouped, prospects excluded.
+        $totalCustomers = Company::query()
+            ->where("{$companyTable}.status", 1)
+            ->count();
 
-        // Total Customer excludes inactive companies: active accounts + prospects.
-        $totalCustomers = $activeCustomers + $prospectCustomers;
+        $prospectCustomers = PotentialCustomer::count();
 
         return response()->json([
             'total_customers'    => $totalCustomers,
@@ -48,13 +46,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * GET /customer-management/pending-approvals
-     * Approvers get the actual projects sitting in their approval queue.
-     * Non-approvers get their own entries that are still in the current
-     * (not-yet-archived) tables instead — there's nothing for them to
-     * approve, so "pending" means "still in progress" for their own work.
-     */
     public function pendingApprovals(Request $request)
     {
         $userId = (int) Auth::id();

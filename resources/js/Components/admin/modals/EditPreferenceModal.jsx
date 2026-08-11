@@ -1,4 +1,6 @@
 import AdminFormModal from "@/Components/admin/AdminFormModal";
+import ScrollableMultiSelect from "@/Components/ScrollableMultiSelect";
+import ScrollableSelect from "@/Components/ScrollableSelect";
 
 export default function EditPreferenceModal({
   show,
@@ -9,6 +11,7 @@ export default function EditPreferenceModal({
   editForm,
   setEditForm,
   onSubmit,
+  users = [],
 }) {
   return (
     <AdminFormModal
@@ -44,8 +47,14 @@ export default function EditPreferenceModal({
             Settings Key
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className={`w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none ${
+              editForm.value_type === "employee_list"
+                ? "bg-slate-100 text-slate-500 cursor-not-allowed"
+                : "bg-[#FBFFFA] text-slate-800 focus:ring-2 focus:ring-[#289800]/30"
+            }`}
             value={editForm.settings_key}
+            readOnly={editForm.value_type === "employee_list"}
+            disabled={editForm.value_type === "employee_list"}
             onChange={(e) =>
               setEditForm((p) => ({ ...p, settings_key: e.target.value }))
             }
@@ -56,49 +65,64 @@ export default function EditPreferenceModal({
           ) : null}
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">
-            Setting Value
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={editForm.setting_value}
-            onChange={(e) =>
-              setEditForm((p) => ({ ...p, setting_value: e.target.value }))
-            }
-            placeholder="e.g. 30"
-          />
-          {errors.setting_value ? (
-            <p className="mt-1 text-xs text-red-600">{errors.setting_value}</p>
-          ) : null}
-        </div>
+        {editForm.value_type === "employee_list" ? (
+          <div>
+            <ScrollableMultiSelect
+              label="Authorized Employees"
+              values={editForm.employee_ids}
+              onChange={(ids) =>
+                setEditForm((p) => ({ ...p, employee_ids: ids }))
+              }
+              options={users}
+            />
+            {errors.employee_ids ? (
+              <p className="mt-1 text-xs text-red-600">{errors.employee_ids}</p>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Setting Value
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+                value={editForm.setting_value}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, setting_value: e.target.value }))
+                }
+                placeholder="e.g. 30"
+              />
+              {errors.setting_value ? (
+                <p className="mt-1 text-xs text-red-600">{errors.setting_value}</p>
+              ) : null}
+            </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">
-            Entity Attribute
-          </label>
-          <select
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={editForm.entity_attribute}
-            onChange={(e) =>
-              setEditForm((p) => ({ ...p, entity_attribute: e.target.value }))
-            }
-          >
-            <option value="">Select entity attribute</option>
-            <option value="day">Day</option>
-            <option value="week">Week</option>
-            <option value="month">Month</option>
-            <option value="year">Year</option>
-          </select>
-          {errors.entity_attribute ? (
-            <p className="mt-1 text-xs text-red-600">
-              {errors.entity_attribute}
-            </p>
-          ) : null}
-        </div>
+            <div>
+              <ScrollableSelect
+                label="Entity Attribute"
+                value={editForm.entity_attribute}
+                onChange={(value) => setEditForm((p) => ({ ...p, entity_attribute: value }))}
+                options={[
+                  { id: "day", name: "Day" },
+                  { id: "week", name: "Week" },
+                  { id: "month", name: "Month" },
+                  { id: "year", name: "Year" },
+                ]}
+                placeholder="Select entity attribute"
+              />
+
+              {errors.entity_attribute ? (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.entity_attribute}
+                </p>
+              ) : null}
+            </div>
+          </>
+        )}
 
         <div className="rounded-lg border border-black/10 bg-[#FBFFFA] px-4 py-3">
           <div className="flex items-center justify-between gap-4">

@@ -1,4 +1,7 @@
 import AdminFormModal from "@/Components/admin/AdminFormModal";
+import ScrollableMultiSelect from "@/Components/ScrollableMultiSelect";
+import ScrollableSelect from "@/Components/ScrollableSelect";
+import { LuSettings2 } from "react-icons/lu";
 
 export default function NewPreferenceModal({
   show,
@@ -8,6 +11,7 @@ export default function NewPreferenceModal({
   form,
   setForm,
   onSubmit,
+  users = [],
 }) {
   return (
     <AdminFormModal
@@ -15,6 +19,7 @@ export default function NewPreferenceModal({
       onClose={onClose}
       processing={processing}
       title="New Preference"
+      icon={<LuSettings2 className="text-base" />}
       maxWidth="lg"
     >
       <form onSubmit={onSubmit} className="space-y-4">
@@ -23,7 +28,7 @@ export default function NewPreferenceModal({
             Settings ID
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.settings_id}
             onChange={(e) =>
               setForm((p) => ({ ...p, settings_id: e.target.value }))
@@ -41,7 +46,7 @@ export default function NewPreferenceModal({
             Settings Key
           </label>
           <input
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
+            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
             value={form.settings_key}
             onChange={(e) =>
               setForm((p) => ({ ...p, settings_key: e.target.value }))
@@ -54,48 +59,74 @@ export default function NewPreferenceModal({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">
-            Setting Value
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={form.setting_value}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, setting_value: e.target.value }))
-            }
-            placeholder="e.g. 30"
+          <ScrollableSelect
+            label="Value Type"
+            value={form.value_type}
+            onChange={(value) => setForm((p) => ({ ...p, value_type: value }))}
+            options={[
+              { id: "numeric", name: "Numeric" },
+              { id: "employee_list", name: "Employee List" },
+            ]}
           />
-          {errors.setting_value ? (
-            <p className="mt-1 text-xs text-red-600">{errors.setting_value}</p>
-          ) : null}
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">
-            Entity Attribute
-          </label>
-          <select
-            className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#289800]/30"
-            value={form.entity_attribute}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, entity_attribute: e.target.value }))
-            }
-          >
-            <option value="">Select entity attribute</option>
-            <option value="day">Day</option>
-            <option value="week">Week</option>
-            <option value="month">Month</option>
-            <option value="year">Year</option>
-          </select>
-          {errors.entity_attribute ? (
-            <p className="mt-1 text-xs text-red-600">
-              {errors.entity_attribute}
-            </p>
-          ) : null}
-        </div>
+        {form.value_type === "employee_list" ? (
+          <div>
+            <ScrollableMultiSelect
+              label="Authorized Employees"
+              values={form.employee_ids}
+              onChange={(ids) =>
+                setForm((p) => ({ ...p, employee_ids: ids }))
+              }
+              options={users}
+            />
+            {errors.employee_ids ? (
+              <p className="mt-1 text-xs text-red-600">{errors.employee_ids}</p>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Setting Value
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className="w-full rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-sm text-slate-800 outline-none focus:ring-0 focus:border-[#289800]"
+                value={form.setting_value}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, setting_value: e.target.value }))
+                }
+                placeholder="e.g. 30"
+              />
+              {errors.setting_value ? (
+                <p className="mt-1 text-xs text-red-600">{errors.setting_value}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <ScrollableSelect
+                label="Entity Attribute"
+                value={form.entity_attribute}
+                onChange={(value) => setForm((p) => ({ ...p, entity_attribute: value }))}
+                options={[
+                  { id: "day", name: "Day" },
+                  { id: "week", name: "Week" },
+                  { id: "month", name: "Month" },
+                  { id: "year", name: "Year" },
+                ]}
+                placeholder="Select entity attribute"
+              />
+              {errors.entity_attribute ? (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.entity_attribute}
+                </p>
+              ) : null}
+            </div>
+          </>
+        )}
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-black/10">
           <button
