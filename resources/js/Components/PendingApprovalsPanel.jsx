@@ -3,7 +3,7 @@ import axios from "axios";
 import { Link, router, usePage } from "@inertiajs/react";
 import { FaRegFileAlt } from "react-icons/fa";
 import { MdDonutLarge, MdShowChart, MdChecklist } from "react-icons/md";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Sector } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, XAxis, YAxis, CartesianGrid, Sector, BarChart, Bar, matchByDataKey } from "recharts";
 
 const MAX_VISIBLE = 3;
 
@@ -40,6 +40,23 @@ function getStatusLabels(isApprover) {
   return labels;
 }
 
+// Per-entity route/label config — the panel is generic, this is what makes
+// one instance "ROI" and another "SPRF".
+const ENTITY_CONFIG = {
+  roi: {
+    label: "ROI",
+    color: "#10b981",
+    routeCurrent: "roi.current",
+    routeArchive: "roi.archive",
+  },
+  sprf: {
+    label: "SPRF",
+    color: "#f59e0b",
+    routeCurrent: "sprf.current",
+    routeArchive: "sprf.archive",
+  },
+};
+
 const PERIODS = [
   { key: "week", label: "W" },
   { key: "month", label: "M" },
@@ -52,8 +69,8 @@ const PENDING_SUBTABS = [
 ];
 
 const TABS = [
-  { key: "distribution", label: "Distribution", icon: MdDonutLarge },
-  { key: "trend", label: "Entries by Month", icon: MdShowChart },
+  { key: "distribution", label: "Summary", icon: MdDonutLarge },
+  { key: "trend", label: "Monthly Entries", icon: MdShowChart },
   { key: "approvals", label: "Pending", icon: MdChecklist },
 ];
 
@@ -119,7 +136,7 @@ function DistributionDonut({ title, bucket, loading, onSliceClick, statusLabels 
     <div className="flex flex-col items-center flex-1">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{title}</p>
 
-      <div className="relative w-full h-[200px] [&_.recharts-surface]:outline-none [&_.recharts-pie-sector]:outline-none">
+      <div className="relative w-full h-[150px] sm:h-[170px] xl:h-[200px] [&_.recharts-surface]:outline-none [&_.recharts-pie-sector]:outline-none">
         {!loading && total > 0 && (
           <PieChart style={{ width: "100%", height: "100%" }} responsive>
             <defs>
@@ -139,8 +156,8 @@ function DistributionDonut({ title, bucket, loading, onSliceClick, statusLabels 
               data={data}
               dataKey="value"
               nameKey="name"
-              innerRadius={60}
-              outerRadius={85}
+              innerRadius="55%"
+              outerRadius="80%"
               paddingAngle={8}
               cornerRadius={6}
               stroke="none"
@@ -170,8 +187,8 @@ function DistributionDonut({ title, bucket, loading, onSliceClick, statusLabels 
 
         {!loading && total > 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-lg font-semibold text-gray-800">{total}</span>
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Total</span>
+            <span className="text-base sm:text-lg font-semibold text-gray-800">{total}</span>
+            <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wide">Total</span>
           </div>
         )}
       </div>
@@ -181,15 +198,15 @@ function DistributionDonut({ title, bucket, loading, onSliceClick, statusLabels 
         const restKeys = Object.keys(restLabels);
 
         return (
-          <div className="flex flex-col gap-1 mt-2 w-full px-3">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <div className="flex flex-col gap-1 mt-1 sm:mt-2 w-full">
+            <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-1">
               {restKeys.map((key) => (
-                <div key={key} className="flex items-center justify-center gap-1.5">
+                <div key={key} className="flex items-center justify-center gap-1 sm:gap-1.5">
                   <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: STATUS_COLORS[key] }}
                   />
-                  <span className="text-[11px] text-gray-600">
+                  <span className="text-[10px] sm:text-[11px] text-gray-600 truncate">
                     {statusLabels[key]} <span className="text-gray-400">({bucket?.[key] ?? 0})</span>
                   </span>
                 </div>
@@ -197,12 +214,12 @@ function DistributionDonut({ title, bucket, loading, onSliceClick, statusLabels 
             </div>
 
             {completed && (
-              <div className="flex items-center justify-center gap-1.5">
+              <div className="flex items-center justify-center gap-1 sm:gap-1.5">
                 <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: STATUS_COLORS.completed }}
                 />
-                <span className="text-[11px] text-gray-600">
+                <span className="text-[10px] sm:text-[11px] text-gray-600">
                   {completed} <span className="text-gray-400">({bucket?.completed ?? 0})</span>
                 </span>
               </div>
@@ -214,7 +231,7 @@ function DistributionDonut({ title, bucket, loading, onSliceClick, statusLabels 
   );
 }
 
-function DistributionTab({ onReady }) {
+function DistributionTab({ entity, onReady }) {
   const [period, setPeriod] = useState("month");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -222,6 +239,7 @@ function DistributionTab({ onReady }) {
   const isApprover = data?.is_approver ?? true;
   const statusLabels = getStatusLabels(isApprover);
   const { auth } = usePage().props;
+  const cfg = ENTITY_CONFIG[entity];
 
   useEffect(() => {
     setLoading(true);
@@ -238,30 +256,16 @@ function DistributionTab({ onReady }) {
       });
   }, [period]);
 
-  const goToRoi = (key) => {
+  const goToEntity = (key) => {
     let url;
     if (key === "pending") {
-      url = isApprover ? route("roi.current", { mine: 1 }) : route("roi.current");
+      url = isApprover ? route(cfg.routeCurrent, { mine: 1 }) : route(cfg.routeCurrent);
     } else if (key === "pending_projects") {
       url = auth?.user?.id
-        ? route("roi.current", { prepared_by_user_id: auth.user.id })
-        : route("roi.current");
+        ? route(cfg.routeCurrent, { prepared_by_user_id: auth.user.id })
+        : route(cfg.routeCurrent);
     } else {
-      url = route("roi.archive", { status: key === "completed" ? "approved" : key });
-    }
-    router.visit(url);
-  };
-
-  const goToSprf = (key) => {
-    let url;
-    if (key === "pending") {
-      url = isApprover ? route("sprf.current", { mine: 1 }) : route("sprf.current");
-    } else if (key === "pending_projects") {
-      url = auth?.user?.id
-        ? route("sprf.current", { prepared_by_user_id: auth.user.id })
-        : route("sprf.current");
-    } else {
-      url = route("sprf.archive", { status: key === "completed" ? "approved" : key });
+      url = route(cfg.routeArchive, { status: key === "completed" ? "approved" : key });
     }
     router.visit(url);
   };
@@ -275,7 +279,7 @@ function DistributionTab({ onReady }) {
               key={p.key}
               type="button"
               onClick={() => setPeriod(p.key)}
-              className={`text-[11px] font-medium px-2 py-1 border rounded-full transition-colors ${
+              className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 border rounded-full transition-colors ${
                 period === p.key
                   ? "bg-sky-500 text-white font-semibold shadow"
                   : "text-gray-500 hover:text-gray-600 hover:bg-gray-200"
@@ -287,22 +291,23 @@ function DistributionTab({ onReady }) {
         </div>
       </div>
 
-      <div className="flex flex-1 divide-x divide-gray-300">
-        <div className="flex-1 px-2">
-          <DistributionDonut title="ROI" bucket={data?.roi} loading={loading} onSliceClick={goToRoi} statusLabels={statusLabels} />
-        </div>
-
-        <div className="flex-1 px-2">
-          <DistributionDonut title="SPRF" bucket={data?.sprf} loading={loading} onSliceClick={goToSprf} statusLabels={statusLabels} />
-        </div>
+      <div className="flex flex-1">
+        <DistributionDonut
+          title={cfg.label}
+          bucket={data?.[entity]}
+          loading={loading}
+          onSliceClick={goToEntity}
+          statusLabels={statusLabels}
+        />
       </div>
     </div>
   );
 }
 
-function TrendTab() {
+function TrendTab({ entity }) {
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const cfg = ENTITY_CONFIG[entity];
 
   useEffect(() => {
     axios
@@ -313,27 +318,39 @@ function TrendTab() {
   }, []);
 
   return (
-    <div className="flex flex-col flex-1 mt-8">
-      {loading ? (
-        <div className="h-[275px] bg-gray-100 rounded-lg animate-pulse" />
-      ) : (
-        <ResponsiveContainer width="100%" height={285}>
-          <LineChart data={series} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+    <div className="flex flex-col flex-1 mt-5 sm:mt-6 xl:mt-8">
+      <div className="relative w-full h-[235px] sm:h-[250px] xl:h-[275px]">
+        {loading ? (
+          <div className="absolute inset-0 bg-gray-100 rounded-lg animate-pulse" />
+        ) : (
+          <BarChart
+            style={{ width: "100%", height: "100%" }}
+            responsive
+            data={series}
+            margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Line type="monotone" dataKey="roi" name="ROI" stroke="#10b981" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="sprf" name="SPRF" stroke="#f59e0b" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      )}
+            <Bar
+              dataKey={entity}
+              name={cfg.label}
+              fill={cfg.color}
+              radius={[4, 4, 0, 0]}
+              animationDuration={900}
+              animationMatchBy={matchByDataKey("month")}
+            />
+          </BarChart>
+        )}
+      </div>
     </div>
   );
 }
 
-function ApprovalsTab({ approvals, loading, subTab }) {
+function ApprovalsTab({ entity, approvals, loading, subTab }) {
+  const cfg = ENTITY_CONFIG[entity];
+
   if (loading) {
     return (
       <div className="flex flex-col gap-3 mt-6">
@@ -344,75 +361,67 @@ function ApprovalsTab({ approvals, loading, subTab }) {
     );
   }
 
-  const sections = subTab === "approvals"
-    ? [
-        { label: "ROI", href: route("roi.current"), items: approvals?.roi_pending ?? [] },
-        { label: "SPRF", href: route("sprf.current"), items: approvals?.sprf_pending ?? [] },
-      ]
-    : [
-        { label: "ROI", href: route("roi.current", { mine: 1 }), items: approvals?.roi_mine ?? [] },
-        { label: "SPRF", href: route("sprf.current", { mine: 1 }), items: approvals?.sprf_mine ?? [] },
-      ];
+  const items = subTab === "approvals"
+    ? approvals?.[`${entity}_pending`] ?? []
+    : approvals?.[`${entity}_mine`] ?? [];
+
+  const href = subTab === "approvals"
+    ? route(cfg.routeCurrent)
+    : route(cfg.routeCurrent, { mine: 1 });
+
+  const visibleItems = Array.isArray(items) ? items.slice(0, MAX_VISIBLE) : [];
+  const hasMore = Array.isArray(items) && items.length > MAX_VISIBLE;
 
   return (
     <div className="flex flex-col gap-5 mt-4">
-      {sections.map((section) => {
-        const items = Array.isArray(section.items) ? section.items : [];
-        const visibleItems = items.slice(0, MAX_VISIBLE);
-        const hasMore = items.length > MAX_VISIBLE;
-
-        return (
-          <div key={section.label}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  {section.label}
-                </p>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-600">
-                  {items.length}
-                </span>
-              </div>
-
-              {hasMore && (
-                <Link href={section.href} className="text-xs font-medium text-blue-600 hover:underline">
-                  Show all
-                </Link>
-              )}
-            </div>
-
-            {visibleItems.length === 0 ? (
-              <p className="text-xs text-center text-black/40 italic">Nothing pending</p>
-            ) : (
-              <div className="flex flex-col px-2.5">
-                {visibleItems.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={item.href}
-                    className="flex items-center justify-between py-1.5 -mx-2 px-2 rounded-2xl transition-colors border border-transparent hover:border-emerald-700"
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-800 font-medium">{item.company_name}</span>
-                      <span className="text-[11px] text-black/50">{item.prepared_by}</span>
-                    </div>
-                    <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap">
-                      {item.status}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            
+            <span className="text-[9px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-100 text-amber-600">
+              {items.length} Pending
+            </span>
           </div>
-        );
-      })}
+
+          {hasMore && (
+            <Link href={href} className="text-xs font-medium text-blue-600 hover:underline">
+              Show all
+            </Link>
+          )}
+        </div>
+
+        {visibleItems.length === 0 ? (
+          <p className="text-xs text-center text-black/40 italic"></p>
+        ) : (
+          <div className="flex flex-col px-1 sm:px-2.5">
+            {visibleItems.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="flex items-center justify-between gap-2 py-1.5 -mx-2 px-2 rounded-2xl transition-colors border border-transparent hover:border-emerald-700"
+              >
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] sm:text-xs text-gray-800 font-medium truncate">{item.company_name}</span>
+                  <span className="text-[10px] sm:text-[11px] text-black/50 truncate">{item.prepared_by}</span>
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-medium px-2 sm:px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap flex-shrink-0">
+                  {item.status}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export default function PendingApprovalsPanel({ onReady }) {
+export default function PendingApprovalsPanel({ entity = "roi", onReady }) {
   const [activeTab, setActiveTab] = useState("distribution");
   const [pendingSubTab, setPendingSubTab] = useState("approvals");
   const [approvals, setApprovals] = useState(null);
   const [approvalsLoading, setApprovalsLoading] = useState(true);
+  const cfg = ENTITY_CONFIG[entity];
 
   useEffect(() => {
     axios
@@ -423,24 +432,24 @@ export default function PendingApprovalsPanel({ onReady }) {
   }, []);
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-6 py-5 flex flex-col h-[445px]">
-      <h2 className="flex items-center gap-2.5 text-sm font-semibold text-gray-800">
-        <FaRegFileAlt />ROI & SPRF Action Center
+    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-3 py-4 sm:p-4 xl:p-5 flex flex-col h-auto min-h-[345px] sm:h-[420px] xl:h-[445px]">
+      <h2 className="flex items-center gap-2 sm:gap-2.5 text-xs sm:text-sm font-semibold text-gray-800">
+        <FaRegFileAlt />{cfg.label} Action Center
       </h2>
 
       <div className="flex flex-col flex-1">
-        {activeTab === "distribution" && <DistributionTab onReady={onReady} />}
-        {activeTab === "trend" && <TrendTab />}
+        {activeTab === "distribution" && <DistributionTab entity={entity} onReady={onReady} />}
+        {activeTab === "trend" && <TrendTab entity={entity} />}
         {activeTab === "approvals" && (
           <>
-            <div className="flex justify-end -mt-3">
+            <div className="flex justify-end -mt-4 lg:-mt-6">
               <div className="inline-flex gap-1 rounded-full">
                 {PENDING_SUBTABS.map((t) => (
                   <button
                     key={t.key}
                     type="button"
                     onClick={() => setPendingSubTab(t.key)}
-                    className={`text-[11px] font-medium px-2 py-1 border rounded-full transition-colors ${
+                    className={`text-[9px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 border rounded-full transition-colors ${
                       pendingSubTab === t.key
                         ? "bg-sky-500 text-white font-semibold shadow"
                         : "text-gray-500 hover:text-gray-600 hover:bg-gray-200"
@@ -451,12 +460,12 @@ export default function PendingApprovalsPanel({ onReady }) {
                 ))}
               </div>
             </div>
-            <ApprovalsTab approvals={approvals} loading={approvalsLoading} subTab={pendingSubTab} />
+            <ApprovalsTab entity={entity} approvals={approvals} loading={approvalsLoading} subTab={pendingSubTab} />
           </>
         )}
       </div>
 
-      <div className="relative grid grid-cols-3 p-1 shadow-inner mt-8 border w-fit mx-auto border-gray-100 rounded-2xl bg-white">
+      <div className="relative grid grid-cols-3 p-1 shadow-inner mt-4 sm:mt-6 xl:mt-8 border w-fit mx-auto border-gray-100 rounded-2xl bg-white">
         {(() => {
           const activeIndex = TABS.findIndex((t) => t.key === activeTab);
           return (
@@ -478,7 +487,7 @@ export default function PendingApprovalsPanel({ onReady }) {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`relative z-10 flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-2xl transition-colors duration-300 ${
+              className={`relative z-10 flex items-center justify-center gap-1 text-[9px] sm:text-[10px] font-medium px-1 sm:px-1.5 py-1 sm:py-1.5 rounded-2xl transition-colors duration-300 ${
                 isActive ? "text-emerald-800 font-semibold" : "text-gray-500 hover:text-gray-800"
               }`}
             >

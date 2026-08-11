@@ -7,7 +7,7 @@ import ContractsModal from './ContractsModal';
 import { route } from 'ziggy-js';
 import { toast } from 'sonner';
 import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons/md';
-import { FaFileUpload } from 'react-icons/fa';
+import { FaFileUpload, FaRegFileAlt } from 'react-icons/fa';
 import { TbLayoutRows } from 'react-icons/tb';
 import SortHeader from '@/Components/SortHeader';
 
@@ -405,9 +405,6 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         default: 'text-slate-500',
     };
 
-    // Used to pick the "worst" status across a collapsed group's branches
-    // (e.g. one expired contract should still show red even if the other
-    // branches are fine).
     const STATUS_SEVERITY = { expired: 3, warning: 2, good: 1, default: 0 };
 
     const renderExistingCard = (r) => {
@@ -420,11 +417,18 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         const countColorClass = count > 0 ? (CONTRACT_STATUS_CLASSES[countStatus] ?? '') : '';
         return (
             <div
-                className={`flex flex-col gap-1 cursor-pointer ${r._isGroupChild ? 'pl-4 border-l-2 border-[#195c00]/15' : ''}`}
+                className={`flex flex-col gap-3 cursor-pointer ${r._isGroupChild ? 'pl-4 pr-2 py-1.5 border-l-2 border-[#195c00]/15' : ''}`}
                 onClick={() => handleRowClick(r)}
             >
                 <div className="flex items-center justify-between">
-                    <span className="font-mono text-slate-600 text-xs">{r.sap_code}</span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-slate-600 text-xs">{r.sap_code}</span>
+                        {!r._isGroupChild && groupCount > 1 && (
+                            <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
+                                {groupCount} Branches
+                            </span>
+                        )}
+                    </div>
                     <button
                         type="button"
                         disabled={!allowed}
@@ -438,28 +442,23 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                     </button>
                 </div>
                 <div className="flex flex-col gap-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold truncate text-[#0f3800]">{r.company_name ?? '—'}</p>
                         {!r._isGroupChild && groupCount > 1 && (
                             <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); toggleGroup(r.sap_code); }}
                                 title={isExpanded ? 'Collapse branches' : `Show ${groupCount - 1} more branch${groupCount - 1 !== 1 ? 'es' : ''}`}
-                                className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+                                className="flex-shrink-0 text-slate-600 hover:text-slate-800 transition-colors"
                             >
-                                <MdExpandMore size={16} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                <MdExpandMore size={20} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                             </button>
-                        )}
-                        <p className="text-xs font-semibold leading-snug truncate text-[#0f3800]">{r.company_name ?? '—'}</p>
-                        {!r._isGroupChild && groupCount > 1 && (
-                            <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
-                                {groupCount}
-                            </span>
                         )}
                     </div>
                     <p className="text-[11px] font-medium truncate uppercase">
                         {[r.client_category, r.delsan_company].filter(Boolean).join(' · ') || '—'}
                     </p>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mt-1">
                         <p className="text-[11px] font-medium text-slate-700">{r.client_manager ?? r.id_client_mngr ?? '—'}</p>
                         {count > 0 && (
                             <span className={`text-[11px] font-semibold ${countColorClass}`}>{count} contract{count === 1 ? '' : 's'}</span>
@@ -475,7 +474,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             key: 'sap_code',
             header: <SortHeader label="SAP CODE" sortKey="sap_code" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
             cell: (r) => (
-                <span className={`font-mono text-sm flex items-center ${r._isGroupChild ? 'text-slate-300' : 'text-slate-500'}`}>
+                <span className={`font-mono text-xs lg:text-sm flex items-center ${r._isGroupChild ? 'text-slate-300' : 'text-slate-500'}`}>
                     {r._isGroupChild ? '' : (r.sap_code ?? '—')}
                 </span>
             ),
@@ -620,11 +619,6 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
 
         const flat = [];
         order.forEach(({ rep, siblings }) => {
-            // Collapsed view shows the sum of every branch's contracts;
-            // expanded view shows each branch's own exact count. The
-            // "worst" status among the group (expired > warning > good)
-            // drives the pill color when collapsed, so a red count isn't
-            // hidden behind a green total.
             const groupMembers = [rep, ...siblings];
             const groupTotalContracts = groupMembers.reduce((sum, m) => sum + (m.contracts_count ?? 0), 0);
             const groupContractsStatus = groupMembers.reduce((worst, m) => {
@@ -722,9 +716,9 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             </div>
 
             {isFiltered && (
-                <button type="button" onClick={clearAllFilters} className="h-7 md:h-9 flex items-center gap-1 px-1 text-[11px] md:text-[13px] text-[#4FA34E] hover:text-slate-600 transition-colors flex-shrink-0">
-                    <MdClose className="md:size-4" />
-                    <span>Clear all</span>
+                <button type="button" onClick={clearAllFilters} className="flex items-center gap-0.5 md:gap-1 text-[11px] md:text-xs font-medium bg-[#B5EBA2]/50 text-emerald-900 hover:bg-red-100 hover:text-red-400 hover:shadow-inner shadow p-1 px-2 pr-2.5 rounded-lg transition-colors duration-150">
+                    <MdClose className="md:size-3" />
+                    <span>Clear</span>
                 </button>
             )}
         </div>
@@ -765,22 +759,22 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             {/* ── Add Contract Modal ── */}
             {modalCompany && (
                 <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4" onClick={closeUploadModal}>
-                    <div className="lg:w-[40%] bg-white rounded-2xl shadow-xl p-6" onClick={(e) => e.stopPropagation()}>
+                    <div className="lg:w-[50%] bg-white rounded-2xl shadow-xl p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-start justify-between mb-1">
                             <div>
-                                <h2 className="text-lg font-semibold text-slate-900">
-                                    {editingContract ? 'Edit Contract' : 'Add Contract'}
+                                <h2 className="flex items-center gap-2 text-md md:text-lg font-semibold text-slate-900">
+                                   <FaRegFileAlt size={17}/> {editingContract ? 'Edit Contract' : 'Add Contract'}
                                 </h2>
-                                <p className="text-xs text-slate-500 mt-0.5">{modalCompany.company_name}</p>
+                                <p className="text-xs text-slate-500 mt-3">{modalCompany.company_name}</p>
                             </div>
                             <button type="button" onClick={closeUploadModal} disabled={isUploading} className="text-slate-400 hover:text-slate-600 disabled:opacity-40">
                                 <MdClose size={20} />
                             </button>
                         </div>
 
-                        <div className="mt-4 flex flex-col gap-3">
+                        <div className="mt-5 flex flex-col gap-5">
                             {/* Searchable Company name dropdown */}
-                            <div className="relative lg:w-[80%]">
+                            {/* <div className="relative lg:w-[80%]">
                                 <label className="block text-xs font-medium text-slate-600 mb-1">Company Name</label>
                                 <input
                                     type="text"
@@ -789,12 +783,6 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                                     onBlur={() => setTimeout(() => setShowCompanyNameDropdown(false), 150)}
                                     onChange={(e) => {
                                         setCompanyNameQuery(e.target.value);
-                                        // Don't commit the raw typed text as the
-                                        // selection — only a real click on one of
-                                        // the dropdown options (below) should set
-                                        // selectedCompanyName, since that's what
-                                        // actually gets submitted and validated
-                                        // against the company's known names.
                                         setSelectedCompanyName('');
                                     }}
                                     placeholder="Search company name..."
@@ -823,68 +811,70 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                                         )}
                                     </div>
                                 )}
-                            </div>
+                            </div> */}
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">
-                                    Contract PDF{editingContract ? ' (optional)' : ''}
-                                </label>
-                                {editingContract && (
-                                    editingContract.pdf_url ? (
-                                        <a
-                                            href={editingContract.pdf_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-block text-xs font-semibold text-[#4FA34E] hover:text-[#3d8f3c] mb-1.5"
-                                        >
-                                            View current PDF
-                                        </a>
-                                    ) : (
-                                        <p className="text-[11px] text-slate-400 mb-1.5">No PDF currently on file.</p>
-                                    )
-                                )}
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block text-[11px] md:text-xs font-medium text-slate-600">
+                                        Contract PDF{editingContract ? ' (optional)' : ''}
+                                    </label>
+                                    {editingContract && (
+                                        editingContract.pdf_url ? (
+                                            
+                                            <a    href={editingContract.pdf_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-[11px] md:text-xs font-semibold text-[#4FA34E] hover:text-[#3d8f3c]"
+                                            >
+                                                View current PDF
+                                            </a>
+                                        ) : (
+                                            <p className="text-[11px] text-slate-400">No PDF currently on file.</p>
+                                        )
+                                    )}
+                                </div>
                                 <input
                                     type="file"
                                     accept="application/pdf"
                                     onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-                                    className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#E9F7E7] file:text-[#2DA300] hover:file:bg-[#dcf3d8] border border-gray-200 rounded-lg px-2 py-1.5"
+                                    className="block w-full text-[11px] md:text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] md:file:text-xs file:font-semibold file:bg-[#E9F7E7] file:text-[#2DA300] hover:file:bg-[#dcf3d8] border border-gray-200 rounded-lg px-2 py-1.5"
                                 />
                                 {editingContract && !pdfFile && (
-                                    <p className="text-[11px] text-slate-400 mt-1">Leave blank to keep the current file.</p>
+                                    <p className="text-[10px] md:text-[11px] text-slate-400 mt-1">Leave blank to keep the current file.</p>
                                 )}
                                 {formErrors.pdf && <p className="text-[11px] text-[#C40000] mt-1">{formErrors.pdf}</p>}
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">Document Number</label>
+                                <label className="block text-[11px] md:text-xs font-medium text-slate-600 mb-1.5">Document Number</label>
                                 <input
                                     type="text"
                                     value={docNum}
                                     onChange={(e) => setDocNum(e.target.value)}
                                     placeholder="e.g. CNT-2026-0001"
-                                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
+                                    className="w-full h-9 px-3 text-xs md:text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
                                 />
                                 {formErrors.doc_num && <p className="text-[11px] text-[#C40000] mt-1">{formErrors.doc_num}</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-600 mb-1">Start Date</label>
+                                    <label className="block text-[11px] md:text-xs font-medium text-slate-600 mb-1.5">Start Date</label>
                                     <input
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
-                                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
+                                        className="w-full h-9 px-3 text-xs md:text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
                                     />
                                     {formErrors.start_date && <p className="text-[11px] text-[#C40000] mt-1">{formErrors.start_date}</p>}
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-600 mb-1">End Date</label>
+                                    <label className="block text-[11px] md:text-xs font-medium text-slate-600 mb-1.5">End Date</label>
                                     <input
                                         type="date"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}
-                                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
+                                        className="w-full h-9 px-3 text-xs md:text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
                                     />
                                     {formErrors.end_date && <p className="text-[11px] text-[#C40000] mt-1">{formErrors.end_date}</p>}
                                 </div>
@@ -892,7 +882,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                         </div>
 
                         <div className="flex items-center justify-end gap-2 mt-6">
-                            <button type="button" onClick={closeUploadModal} disabled={isUploading} className="h-9 px-4 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40">
+                            <button type="button" onClick={closeUploadModal} disabled={isUploading} className="h-9 px-4 rounded-lg text-xs md:text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40">
                                 Cancel
                             </button>
                             <button
@@ -905,7 +895,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                                     (editingContract && !hasEditChanges)
                                 }
                                 title={editingContract && !hasEditChanges && !isUploading ? 'No changes to save' : undefined}
-                                className="h-9 px-4 rounded-lg text-sm font-semibold text-white bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="h-9 px-4 rounded-lg text-xs md:text-sm font-semibold text-white bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {isUploading
                                     ? (editingContract ? 'Saving…' : 'Uploading…')

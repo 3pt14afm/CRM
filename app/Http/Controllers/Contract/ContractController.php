@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Contracts\Contract;
 use App\Models\CustomerInfo\Company;
 use App\Models\LocationDepartment;
+use App\Models\Preferences;
 use App\Models\User;
 use App\Services\ContractUploadLogger;
 use Carbon\Carbon;
@@ -21,10 +22,6 @@ class ContractController extends Controller
 {
     use AppliesCompanyVisibility;
 
-    /**
-     * Message shown (and returned to the frontend) when a contract can no
-     * longer be extended because it's been expired too long.
-     */
     private const EXTENSION_WINDOW_EXPIRED_MESSAGE =
         'This contract expired more than 3 months ago and can no longer be extended.';
 
@@ -74,10 +71,6 @@ class ContractController extends Controller
                       ->orWhere('sap_code', 'like', "%{$search}%")
                       ->orWhere('address', 'like', "%{$search}%")
                       ->orWhere('delsan_company', 'like', "%{$search}%")
-                      // Account manager's full name — matches against the
-                      // client_managers alias already joined in above, so
-                      // e.g. searching "andre" or "jarl aniana" both find
-                      // companies managed by "Andre Jarl Aniana".
                       ->orWhereRaw(
                           "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) LIKE ?",
                           ['%' . strtolower($search) . '%']
@@ -95,9 +88,6 @@ class ContractController extends Controller
 
         $qualifyTable = fn (string $table) => '`' . str_replace('.', '`.`', $table) . '`';
 
-        // NOTE: every company row (branch) is now shown individually —
-        // no more deduping to one representative row per sap_code group.
-        // Clicking a row is unambiguous: it's that exact branch.
         $companies = $baseQuery
             ->when($sortBy === 'sap_code', function ($query) use ($sortOrder) {
                 $query->orderByRaw(
@@ -111,10 +101,7 @@ class ContractController extends Controller
                 );
             })
             ->when($sortBy === 'contracts_count', function ($query) use ($sortOrder, $companyTable, $contractTable, $qualifyTable) {
-                // Counts this specific branch's own contracts — matched by
-                // company_name the same way the contracts_count sent to the
-                // frontend is computed below (with an id fallback for
-                // companies that have no sap_code at all).
+
                 $query->orderByRaw("
                     (
                         SELECT COUNT(*)
@@ -135,10 +122,6 @@ class ContractController extends Controller
 
         $sapCodesOnPage = $companies->getCollection()->pluck('sap_code')->filter()->unique()->values();
 
-        // Sibling branches can still share upload permission through a
-        // common SAP code even though they're no longer merged into one
-        // display row — a manager assigned to any branch in the group can
-        // upload for every branch in that group.
         $managerIdsBySapCode = Company::query()
             ->select('sap_code', 'id_client_mngr')
             ->where('status', 1)
@@ -148,18 +131,9 @@ class ContractController extends Controller
             ->map(fn ($group) => $group->pluck('id_client_mngr')->filter()->unique()->values());
 
         $isAdmin           = $this->isAdmin();
-        $isPrivileged      = $this->isPrivilegedEmployee();
+        $isPrivileged = $this->isContractUploadPrivileged();
         $currentEmployeeId = Auth::user()->employee_id ?? null;
 
-        // ── Per-branch contract counts + status color coding ──────────────
-        // Same resolution rule as CustomerInfoController: a contract's
-        // company_id can be shared across an entire sap_code group (it's
-        // whichever branch's id was used at store time), so company_name is
-        // the field that actually identifies which specific branch a
-        // contract belongs to. Match by company_name first; fall back to
-        // company_id only for companies with no sap_code (a true 1:1
-        // mapping) — that fallback is unsafe for grouped companies since
-        // their id is shared with siblings.
         $companyIdsOnPage   = $companies->getCollection()->pluck('id');
         $companyNamesOnPage = $companies->getCollection()->pluck('company_name')->filter()->unique()->values();
 
@@ -227,16 +201,6 @@ class ContractController extends Controller
 
             return [
                 'id'                    => $c->id,
-                // Trimmed for display/consumption — the underlying
-                // companies.company_name column has stray leading/trailing
-                // whitespace (even literal tab characters) on a lot of
-                // rows, which is exactly what caused the "selected company
-                // name is invalid" validation bug: a value trimmed on one
-                // page and compared untrimmed on another would never
-                // match. Trimming it here, once, at the source, means
-                // every consumer downstream (this list, deep-link URLs,
-                // the upload/edit modal, dropdown options) works with the
-                // same clean string.
                 'company_name'          => trim($c->company_name ?? ''),
                 'sap_code'              => $c->sap_code,
                 'client_category'       => $c->client_category,
@@ -298,11 +262,6 @@ class ContractController extends Controller
             ->unique()
             ->values();
 
-        // Group siblings by their main_location — same shape as the
-        // "Branches" grouping on CompanyDetailsSidebar, but here each
-        // group's "companies" are just the plain company_names living at
-        // that location; the frontend nests each name's own contracts
-        // under it.
         $locationGroups = $siblingCompanies
             ->groupBy('main_location')
             ->map(function ($group) {
@@ -351,29 +310,15 @@ class ContractController extends Controller
 
         $contracts = $contractsRaw
             ->map(function ($c) use ($canManage, $employeeNamesById) {
-                // No-ops (and never overwrites the status) once a contract
-                // is terminated/archived — see Contract::refreshStatus().
                 $c->refreshStatus();
 
                 $isFinal = $c->isFinal();
 
-                // Once a contract has been expired for 3+ months (measured
-                // from its latest effective end date — the most recent
-                // extension if any, otherwise the original end_date) it can
-                // no longer be extended, even by someone who otherwise has
-                // permission to manage it.
                 $extensionWindowExpired = $this->isPastExtensionWindow($c);
 
                 return [
                     'id'                 => $c->id,
                     'doc_num'            => $c->doc_num,
-                    // Trimmed to match modalRow.company_name (also trimmed
-                    // now — see upload()/contracts() above), since
-                    // ContractsModal.jsx filters this list with a strict
-                    // `c.company_name === selectedBranch` comparison. Left
-                    // untrimmed here, a contract whose company_name has
-                    // stray whitespace would never match and would just
-                    // silently vanish from the modal.
                     'company_name'       => trim($c->company_name ?? ''),
                     'start_date'         => optional($c->start_date)->format('Y-m-d'),
                     'end_date'           => optional($c->end_date)->format('Y-m-d'),
@@ -384,29 +329,14 @@ class ContractController extends Controller
                         })
                         ->all(),
                     'status'             => $c->status,
-                    // Permission AND not a final state (terminated/archived
-                    // contracts can only ever be viewed again). Used to
-                    // decide whether the edit button / 3-dot menu shows up
-                    // at all.
                     'can_edit'           => $canManage && !$isFinal,
-                    // Permission, not final, AND still within the 3-month
-                    // extension window. Used to decide whether an extend
-                    // attempt is actually allowed to succeed.
                     'can_extend'         => $canManage && !$isFinal && !$extensionWindowExpired,
-                    // Lets the frontend distinguish *why* extension isn't
-                    // allowed (no permission vs. window has closed) so it
-                    // can show the right message.
                     'extension_expired'  => $extensionWindowExpired,
-                    // Employee can terminate/cancel a contract that's still
-                    // "live" in some sense — active, extended, or expiring
-                    // soon. Not offered once it's already expired (that's
-                    // what archiving is for) or already final.
                     'can_terminate'      => $canManage && in_array($c->status, [
                         Contract::STATUS_ACTIVE,
                         Contract::STATUS_EXTENDED,
                         Contract::STATUS_EXPIRING_SOON,
                     ], true),
-                    // Employee can archive only once a contract has expired.
                     'can_archive'        => $canManage && $c->status === Contract::STATUS_EXPIRED,
                     'terminated_at'      => optional($c->terminated_at)->format('Y-m-d'),
                     'terminated_by'      => $c->terminated_by,
@@ -420,9 +350,6 @@ class ContractController extends Controller
 
         return response()->json([
             'sap_code'     => $company->sap_code,
-            // Trimmed for the same reason as in upload() above — this is
-            // the value shown in the modal header and pre-filled into the
-            // Add Contract modal via handleUploadClick().
             'company_name' => trim($company->company_name ?? ''),
             'branches'     => $locationGroups,
             'contracts'    => $contracts,
@@ -446,17 +373,6 @@ class ContractController extends Controller
             'doc_num'    => ['required', 'string', 'max:100', Rule::unique('contracts', 'doc_num')],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
-            // Deliberately NOT validated with Rule::in() here anymore.
-            // companies.company_name has stray leading/trailing whitespace
-            // (even literal tab characters) on a lot of rows, and any
-            // trimming that happens on the way in from the frontend (a
-            // deep-link URL, a table cell's displayed value, etc.) used to
-            // make an otherwise-correct selection fail an exact-string
-            // Rule::in() check with "The selected company name is
-            // invalid." We now just require a non-empty string here and
-            // resolve + verify it against the DB with whitespace ignored
-            // immediately below, so the *canonical* DB value always ends
-            // up stored regardless of what whitespace the client sent.
             'company_name' => ['required', 'string'],
         ]);
 
@@ -476,11 +392,6 @@ class ContractController extends Controller
                 ->withInput();
         }
 
-        // Store the exact, canonical value from the database (whitespace
-        // and all) rather than whatever the client sent, so this contract's
-        // company_name keeps matching the same branch consistently
-        // everywhere else it's looked up by company_name (contracts(),
-        // statusStats(), byStatus(), etc.).
         $validated['company_name'] = $matchedName;
 
         $path = $request->file('pdf')->store('contracts', 'local');
@@ -498,7 +409,6 @@ class ContractController extends Controller
                 ]);
             });
         } catch (\Illuminate\Database\QueryException $e) {
-            // Clean up the orphaned file since the DB write didn't take.
             Storage::disk('local')->delete($path);
 
             // MySQL duplicate-entry error code (use 23505 / SQLSTATE check on Postgres).
@@ -543,33 +453,21 @@ class ContractController extends Controller
         $contract = Contract::findOrFail($contractId);
         $company  = Company::findOrFail($contract->company_id);
 
-        // Admin, Privileged Employee, or Assigned Manager (including sibling
-        // branches under the same SAP code) can EDIT — Approvers cannot.
-        // Same rule as store/extend.
         if (!$this->canManageCompanyContracts($company)) {
             abort(403, 'You are not authorized to edit this contract.');
         }
 
-        // A terminated or archived contract is in a final state — nobody,
-        // including admins/managers, can edit it anymore. It can only be
-        // viewed from this point on.
         if ($contract->isFinal()) {
             abort(403, "This contract has been {$contract->status} and can no longer be edited.");
         }
 
         $validated = $request->validate([
-            // The PDF is optional on edit — omit it to keep the file already
-            // on record and only change the other fields.
             'pdf'        => ['nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
             'doc_num'    => ['required', 'string', 'max:100', Rule::unique('contracts', 'doc_num')->ignore($contract->id)],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
         ]);
 
-        // Snapshot pre-edit values before they get overwritten, so the log can
-        // show what actually changed (and whether the PDF file was replaced).
-        // company_name is no longer editable — a contract's branch never
-        // changes after upload — so it isn't part of the diff.
         $before = [
             'doc_num'    => $contract->doc_num,
             'start_date' => optional($contract->start_date)->format('Y-m-d'),
@@ -593,7 +491,6 @@ class ContractController extends Controller
                 ]);
             });
         } catch (\Illuminate\Database\QueryException $e) {
-            // Clean up the newly-uploaded file since the DB write didn't take.
             if ($newPath) {
                 Storage::disk('local')->delete($newPath);
             }
@@ -631,12 +528,6 @@ class ContractController extends Controller
             throw $e;
         }
 
-        // Intentionally NOT deleting $oldPath here. Old contract PDFs are
-        // kept on disk (even after being replaced) so a prior version can
-        // still be retrieved during an audit. Only the *current* pdf_path is
-        // linked from the contract record; superseded files just become
-        // orphaned-but-recoverable on disk. If disk usage ever becomes a
-        // concern, archive/move old files elsewhere rather than deleting.
 
         ContractUploadLogger::edited($contract, $before, [
             'doc_num'      => $validated['doc_num'],
@@ -836,7 +727,7 @@ class ContractController extends Controller
     {
         $employeeId = Auth::user()->employee_id ?? null;
 
-        if ($this->isAdmin() || $this->isPrivilegedEmployee() || $employeeId === '0283') {
+        if ($this->isAdmin() || $this->isCompanyVisibilityPrivileged()) {
             return Company::query()->where('status', 1)->pluck('id');
         }
 
@@ -997,12 +888,27 @@ class ContractController extends Controller
             ->exists();
     }
 
-    private function isPrivilegedEmployee(): bool
+    private function isContractUploadPrivileged(): bool
+    {
+        return $this->hasPreferenceAccess('CONTRACT_UPLOAD_ACCESS');
+    }
+
+    private function isCompanyVisibilityPrivileged(): bool
+    {
+        return $this->hasPreferenceAccess('COMPANY_VISIBILITY_ACCESS');
+    }
+
+    private function hasPreferenceAccess(string $settingsId): bool
     {
         $employeeId = Auth::user()->employee_id ?? null;
+        if (!$employeeId) return false;
 
-        return $employeeId !== null
-            && in_array((string) $employeeId, config('access.privileged_employee_ids', []), true);
+        $ids = cache()->remember("preference_access_{$settingsId}", now()->addMinutes(10), function () use ($settingsId) {
+            $pref = Preferences::where('settings_id', $settingsId)->where('is_active', true)->first();
+            return $pref?->employee_ids ?? [];
+        });
+
+        return in_array((string) $employeeId, $ids, true);
     }
 
     private function canAccessCompanyContracts(Company $company): bool
@@ -1011,7 +917,7 @@ class ContractController extends Controller
             return true;
         }
 
-        if ($this->isPrivilegedEmployee()) {
+        if ($this->isCompanyVisibilityPrivileged()) {
             return true;
         }
 
@@ -1030,7 +936,7 @@ class ContractController extends Controller
             return true;
         }
 
-        if ($this->isPrivilegedEmployee()) {
+        if ($this->isContractUploadPrivileged()) {
             return true;
         }
 

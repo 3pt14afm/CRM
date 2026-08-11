@@ -3,7 +3,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import { Head, useForm } from '@inertiajs/react';
 import { useState, useRef } from "react";
-import { FaUser, FaArrowLeft } from "react-icons/fa"; // Added FaArrowLeft
+import { FaUser, FaArrowLeft } from "react-icons/fa";
 import { MdLock } from "react-icons/md";
 import { LuEye, LuEyeClosed } from "react-icons/lu";
 import GuestLayout from '@/Layouts/GuestLayout'; 
@@ -54,12 +54,12 @@ export default function Login({ status, canResetPassword }) {
             <form onSubmit={submit}>
                 <Head title="Log in" />
 
-                <div className="min-h-screen w-full flex items-center justify-center bg-gray-200 font-sans p-4">
-                    <div className="flex shadow-2xl w-full max-w-5xl min-h-[600px] rounded-3xl overflow-hidden bg-white">
+                <div className="min-h-screen w-full flex items-center justify-center bg-gray-200 font-sans p-6 sm:p-10 md:p-4">
+                    <div className="flex shadow-2xl w-full max-w-5xl lg:min-h-[600px] rounded-3xl overflow-hidden bg-white">
                         
                         {/* Left Side: Branding */}
-                        <div className="hidden md:flex w-[55%] bg-[#2D7813] p-8 flex-col justify-between items-center text-white">
-                            <div className="w-[237px] h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
+                        <div className="hidden md:flex w-[55%] bg-[#2D7813] py-4 lg:p-8 flex-col gap-2 justify-center items-center text-white">
+                            <div className="w-[170px] h-[70px] lg:w-[237px] lg:h-[88.79px] flex items-center justify-center bg-[linear-gradient(0deg,#CDCDCD_0%,#FFFFFF_100%)]">
                                 <img src="/images/logo.webp" alt="Logo" />
                             </div>
                             
@@ -69,11 +69,11 @@ export default function Login({ status, canResetPassword }) {
                         </div>
 
                         {/* Right Side: Form */}
-                        <div className="flex flex-col justify-center items-start flex-1 p-8 md:p-12">
-                            <img className=" w-[500px] mx-auto block" src="/images/derms4.png" alt="" />
+                        <div className="flex flex-col justify-center items-start flex-1 p-5 py-7 sm:p-8 md:p-6 lg:p-12">
+                            <img className="w-[300px] lg:w-[500px] mx-auto block" src="/images/derms4.png" alt="" />
 
                             <div className="mb-4 w-full">
-                                <p className="text-sm text-darkgreen text-center opacity-55">
+                                <p className="text-xs md:text-sm text-darkgreen text-center opacity-55">
                                 Please enter your credentials.
                                 </p>
                             </div>
@@ -84,7 +84,7 @@ export default function Login({ status, canResetPassword }) {
                                     <InputLabel
                                         htmlFor="login"
                                         value="Email"
-                                        className="text-text-secondary font-bold text-sm mb-2 ml-1"
+                                        className="text-text-secondary font-bold text-xs md:text-sm mb-2 ml-1"
                                     />
 
                                     <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.login ? 'border-red-500' : ''}`}>
@@ -96,7 +96,7 @@ export default function Login({ status, canResetPassword }) {
                                             value={data.login}
                                             onChange={(e) => setData('login', e.target.value)}
                                             placeholder="Enter ID No. / Email"
-                                            className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
+                                            className="flex-1 bg-transparent border-none text-xs md:text-sm placeholder:text-darkgreen/50 focus:ring-0"
                                             autoComplete="username"
                                         />
                                     </div>
@@ -106,7 +106,7 @@ export default function Login({ status, canResetPassword }) {
 
                                 {/* Password Field */}
                                 <div className="mb-2">
-                                    <InputLabel htmlFor="password" value="Password" className="text-text-secondary font-bold text-sm mb-2 ml-1" />
+                                    <InputLabel htmlFor="password" value="Password" className="text-text-secondary font-bold text-xs md:text-sm mb-2 ml-1" />
 
                                     <div className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl bg-[#d9d9d9]/30 border border-darkgreen/20 transition focus-within:border-darkgreen focus-within:bg-white group ${errors.password ? 'border-red-500' : ''}`}>
                                         <MdLock className="text-darkgreen/50 group-focus-within:text-darkgreen w-5 h-5 ml-3" />
@@ -118,7 +118,7 @@ export default function Login({ status, canResetPassword }) {
                                             value={data.password}
                                             onChange={(e) => setData('password', e.target.value)}
                                             placeholder="••••••••"
-                                            className="flex-1 bg-transparent border-none text-sm placeholder:text-darkgreen/50 focus:ring-0"
+                                            className="flex-1 bg-transparent border-none text-xs md:text-sm placeholder:text-darkgreen/50 focus:ring-0"
                                             autoComplete="current-password"
                                         />
 
@@ -141,7 +141,7 @@ export default function Login({ status, canResetPassword }) {
                                         <button
                                             type="button"
                                             onClick={() => setShowForgotModal(true)}
-                                            className="text-darkgreen opacity-65 font-medium text-xs hover:opacity-100 transition"
+                                            className="text-darkgreen opacity-65 font-medium text-[11px] md:text-xs hover:opacity-100 transition"
                                         >
                                             Forgot Credentials?
                                         </button>
@@ -149,7 +149,7 @@ export default function Login({ status, canResetPassword }) {
                                 </div>
 
                                 <PrimaryButton
-                                    className="w-full h-[53px] rounded-xl justify-center mt-6"
+                                    className="w-full h-[45px] md:h-[53px] text-xs md:text-sm rounded-xl justify-center mt-6"
                                     disabled={processing}
                                 >
                                     {processing ? 'AUTHORIZING...' : 'AUTHORIZE LOGIN'}

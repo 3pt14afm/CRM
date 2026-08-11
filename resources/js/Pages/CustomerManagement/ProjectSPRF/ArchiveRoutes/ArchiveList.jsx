@@ -29,6 +29,7 @@ const approvalLevelLabel = (value) => {
   if (value === 'VP_AND_CCTO') return 'VP & CCTO';
   if (value === 'ESD_DIRECTOR') return 'ESD Director';
   if (value === 'DIRECTOR_CUSTOMER_ENGAGEMENT') return 'Director - Customer Engagement';
+  if (value === 'ESD_ONLY') return 'ESD Director';
   return '—';
 };
 
@@ -350,7 +351,7 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       >
         <option value="">All Levels</option>
         <option value="DIRECTOR_CUSTOMER_ENGAGEMENT">Director - Customer Engagement</option>
-        <option value="ESD_DIRECTOR">ESD Director</option>
+        <option value="ESD_ONLY">ESD Director</option>
         <option value="VP_AND_CCTO">VP &amp; CCTO</option>
         <option value="PRESIDENT_AND_CEO">President &amp; CEO</option>
       </select>

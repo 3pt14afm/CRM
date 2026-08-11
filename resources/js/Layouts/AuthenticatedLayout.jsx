@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import FlashMessages from '@/Components/FlashMessages';
 import Sidebar from '@/Components/Sidebar';
 import MobileTopNav from '@/Components/MobileTopNav';
 import ForceChangePasswordModal from '@/Components/ForceChangePasswordModal';
+import ScrollToTopButton from '@/Components/ScrollToTopButton';
 import ChatBox from '@/Components/ai/Chatbot';
 
 export default function AuthenticatedLayout({ children }) {
     const [isOpen, setIsOpen] = useState(true);
+    const mainRef = useRef(null);
 
     return (
         <>
@@ -18,7 +20,7 @@ export default function AuthenticatedLayout({ children }) {
                 <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
                     <MobileTopNav />
 
-                    <main className="flex-1 overflow-y-auto bg-[#f5f5f7] md:rounded-2xl min-w-0">
+                    <main ref={mainRef} className="flex-1 overflow-y-auto bg-[#f5f5f7] md:rounded-2xl min-w-0">
                         <FlashMessages />
                         {children}
                         {/* <ChatBox /> */}
@@ -26,6 +28,7 @@ export default function AuthenticatedLayout({ children }) {
                 </div>
             </div>
 
+            <ScrollToTopButton containerRef={mainRef} />
             <ForceChangePasswordModal />
         </>
     );
