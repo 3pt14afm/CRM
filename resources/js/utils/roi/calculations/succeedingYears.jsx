@@ -18,24 +18,29 @@ export const succeedingYears = (projectData) => {
   const isOutrightClick = normalizedContractType === "outright + click charge";
   const usesExactClickQty = isRentalClick || isFixClick || isOutrightClick;
   const isPerCartridge = normalizedContractType.includes("per cartridge");
+  const isOutright = normalizedContractType.includes("outright");
+
+  // --- NEW: INTEREST / MARGIN CONSTANTS ---
+  const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
+  const percentMargin = (annualInterest * contractYears) / 100;
 
   const annualMonoYields = (Number(projectData?.yield?.monoAmvpYields?.monthly) || 0) * 12;
   const annualColorYields = (Number(projectData?.yield?.colorAmvpYields?.monthly) || 0) * 12;
 
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
     
-    // --- REPLACE YOUR OLD FILTER LINES WITH THIS ---
-    const companyFees = (addFeesObj.company || []).map(f => ({
-        ...f,
-        total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
-        qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
-    }));
+  // --- REPLACE YOUR OLD FILTER LINES WITH THIS ---
+  const companyFees = (addFeesObj.company || []).map(f => ({
+      ...f,
+      total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
+      qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
+  }));
 
-    const customerFees = (addFeesObj.customer || []).map(f => ({
-        ...f,
-        total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
-        qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
-    }));
+  const customerFees = (addFeesObj.customer || []).map(f => ({
+      ...f,
+      total: f.category === "one-time-fee" ? 0 : Number(f.total || 0),
+      qty: f.category === "one-time-fee" ? 0 : Number(f.qty || 0)
+  }));
 
   // EARLY RETURN — no succeeding years when contract is only 1 year
   if (succeedingYearCount === 0) {
@@ -43,6 +48,7 @@ export const succeedingYears = (projectData) => {
       totalMachineQty: 0,
       totalMachineCost: 0,
       totalMachineSales: 0,
+      totalMachineMargin: 0, // Added
       totalConsumableQty: 0,
       totalConsumableCost: 0,
       totalConsumableSales: 0,
@@ -68,12 +74,26 @@ export const succeedingYears = (projectData) => {
   const processedMachines = rawMachines.map(m => {
     const unitSell = 0;
     const fixedQty = 1;
+    
+    const mType = (m.type || "").toLowerCase();
+    const isMachineRow = mType === "machine";
+    const mode = (m.mode || "").toLowerCase();
+    const isModeOthers = mode === "others" || mode === "other";
+
+    // Calculate unit margin exactly like 1st year so UI doesn't break
+    let unitMargin = 0;
+    if (!isOutright && isMachineRow && !isModeOthers) {
+      const rawCost = Number(m.inputtedCost || m.cost) || 0;
+      unitMargin = rawCost * percentMargin;
+    }
 
     return {
       ...m,
       qty: fixedQty,
       price: unitSell,
-      totalCost: 0,
+      machineMarginTotal: unitMargin, // Available for UI if needed
+      totalMachineMargin: 0, // Explicitly 0 because cost is 0 in succeeding years
+      totalCost: 0, // Machines already paid for in Year 1
       totalSell: fixedQty * unitSell
     };
   });
@@ -188,6 +208,7 @@ const processedConsumables = rawConsumables.map(c => {
   const totalMachineQty = processedMachines.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalMachineCost = processedMachines.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
   const totalMachineSales = processedMachines.reduce((sum, m) => sum + (Number(m.totalSell) || 0), 0);
+  const totalMachineMargin = processedMachines.reduce((sum, m) => sum + (Number(m.totalMachineMargin) || 0), 0); // Will sum to 0
 
   const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (Number(c.totalCost) || 0), 0);
@@ -211,6 +232,7 @@ const processedConsumables = rawConsumables.map(c => {
     totalMachineQty,
     totalMachineCost,
     totalMachineSales,
+    totalMachineMargin, // Added to return payload
     totalConsumableQty,
     totalConsumableCost,
     totalConsumableSales,

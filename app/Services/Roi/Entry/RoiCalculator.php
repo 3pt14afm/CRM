@@ -67,11 +67,6 @@ class RoiCalculator
         return [
             'normalized'      => $n,
             'isOutright'      => str_contains($n, 'outright'),
-            // Three outright variants exist — "Outright + Click Charge",
-            // "Outright + Per Cartridge", and "Outright Only (1 year)" — and
-            // only the last makes consumable qty user-entered / machine
-            // optional. Match on "outright" + "only" together, since that
-            // combination is unique to it.
             'isOutrightOnly'  => str_contains($n, 'outright') && str_contains($n, 'only'),
             'isMonthlyRental' => $n === 'fixed monthly only',
             'isRentalClick'   => str_contains($n, 'rental + click'),
@@ -130,7 +125,6 @@ class RoiCalculator
         $machineMargin      = 0.0;
         $machineMarginTotal = 0.0;
 
-        // Only non-outright machines get interest/margin applied
         $isInterestModel = $isMachine && !$flags['isOutright'];
 
         if ($isInterestModel && !$isModeOthers) {
@@ -139,9 +133,6 @@ class RoiCalculator
             $machineMargin      = $basePerYear * $percentMargin;
             $machineMarginTotal = $rawCost * $percentMargin;
         } else {
-            // Outright machines, mode=others machines, and all non-machine
-            // rows: no interest, no margin. Runs unconditionally (matches
-            // JS's plain if/else) — not gated on isMachine.
             $finalComputedCost  = $rawCost;
             $basePerYear        = $rawCost;
             $machineMargin      = 0.0;
@@ -154,9 +145,7 @@ class RoiCalculator
             'inputtedCost'       => $rawCost,
             'computedCost'       => $finalComputedCost,
             'basePerYear'        => $basePerYear,
-            // FIX 1: qty now multiplies machine cost (previously ignored for machines)
-            // FIX 2: margin no longer folded into totalCost — it's a separate line item
-            'totalCost' => $isMachine ? $finalComputedCost * $qty : $rawCost * $qty,
+            'totalCost'          => $isMachine ? $finalComputedCost * $qty : $rawCost * $qty,
             'yields'             => $yields,
             'costCpp'            => $safeYields > 0 ? $rawCost / $safeYields : 0.0,
             'price'              => $price,
@@ -179,6 +168,11 @@ class RoiCalculator
 
         $flags = $this->getContractFlags($projectData['companyInfo']['contractType'] ?? '');
 
+        // --- INTEREST / MARGIN CONSTANTS ---
+        $annualInterest = $this->toFloat($projectData['interest']['annualInterest'] ?? 0);
+        $contractYears  = $this->orFallback($projectData['companyInfo']['contractYears'] ?? 1, 1.0);
+        $percentMargin  = ($annualInterest * $contractYears) / 100;
+
         $isBundleChecked = ($projectData['companyInfo']['bundledStdInk'] ?? false) === true;
         $bundleDeduction = ($flags['isMonthlyRental'] && $isBundleChecked)
             ? $this->toFloat($config['totals']['totalBundledPrice'] ?? 0)
@@ -193,7 +187,7 @@ class RoiCalculator
 
         // --- PROCESS MACHINES (processed first — consumables now depend on printer machine qty) ---
         $processedMachines = array_map(function (array $m) use (
-            $flags, $annualMonoYields, $annualColorYields
+            $flags, $annualMonoYields, $annualColorYields, $percentMargin
         ): array {
             $mode          = strtolower($m['mode'] ?? '');
             $machineYields = $this->toFloat($m['yields'] ?? 0);
@@ -211,25 +205,33 @@ class RoiCalculator
                     : 1;
             }
 
-            // Fallback securely to computedCost from your row calculations
-          
-            $loadedCost = $this->toFloat($m['cost'] ?? 0) + $this->toFloat($m['machineMarginTotal'] ?? 0);
+            // FIX: Use inputtedCost to avoid compounding interest markup
+            $rawCost = $this->toFloat($m['inputtedCost'] ?? $m['cost'] ?? 0);
+            
+            $mType = strtolower($m['type'] ?? '');
+            $isMachineRow = $mType === 'machine';
+            $isModeOthers = in_array($mode, ['others', 'other']);
+
+            // Dynamically calculate margin to guarantee it matches raw cost
+            $unitMargin = 0.0;
+            if (!$flags['isOutright'] && $isMachineRow && !$isModeOthers) {
+                $unitMargin = $rawCost * $percentMargin;
+            }
+
+            $loadedCost = $rawCost + $unitMargin;
             $unitSell   = $flags['isOutright'] ? $this->toFloat($m['price'] ?? 0) : 0.0;
 
             return array_merge($m, [
-                'mode'      => $mode,
-                'qty'       => $this->to2Decimals($machineQty),
-                'price'     => $unitSell,
-                'totalCost' => $this->to2Decimals($machineQty * $loadedCost),
-                'totalSell' => $this->to2Decimals($machineQty * $unitSell),
+                'mode'                => $mode,
+                'qty'                 => $this->to2Decimals($machineQty),
+                'price'               => $unitSell,
+                'machineMarginTotal'  => $this->to2Decimals($unitMargin),
+                'totalMachineMargin'  => $this->to2Decimals($machineQty * $unitMargin),
+                'totalCost'           => $this->to2Decimals($machineQty * $loadedCost),
+                'totalSell'           => $this->to2Decimals($machineQty * $unitSell),
             ]);
         }, $rawMachines);
 
-        // Printer machine qty — any machine row that isn't 'others' mode
-        // (mirrors useMachineRows.js's "printer row" definition). Includes
-        // the mandatory row, whose mode is always '' rather than
-        // 'mono'/'color' — filtering on mode === 'mono' || 'color' would
-        // silently drop it and undercount the printer total.
         $printerMachineQty = array_sum(array_map(
             fn($m) => $this->toFloat($m['qty'] ?? 0),
             array_filter($processedMachines, fn($m) => ($m['mode'] ?? '') !== 'others')
@@ -244,7 +246,6 @@ class RoiCalculator
             $qty        = 0.0;
 
             if ($flags['isMonthlyRental']) {
-                // Exception — untouched: monthly rental consumable qty stays user-entered.
                 $unitCost = $this->toFloat($c['cost'] ?? 0);
                 $qty = $this->toFloat($c['qty'] ?? 0);
                 return array_merge($c, [
@@ -256,16 +257,9 @@ class RoiCalculator
                 ]);
             }
 
-            // Only three exceptions are untouched (no printer-qty multiplication):
-            //   1. isMonthlyRental — handled above via early return.
-            //   2. isOutrightOnly mono/color — handled explicitly below.
-            //   3. mode === 'others' — handled explicitly below.
-            // Only the mono/color yield-based case gets multiplied by printerMachineQty.
             if ($flags['isOutrightOnly'] && in_array($mode, ['mono', 'color'])) {
-                // Exception — untouched: Outright Only (1yr) consumable qty is user-entered.
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             } elseif ($mode === 'others') {
-                // Exception — untouched: yield-derived or user-entered, no printer multiplier.
                 $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
                 $qty = $this->hasValidYield($itemYields)
                     ? ($base > 0 ? $this->getQtyFromYields($base, $itemYields) : $this->toFloat($c['qty'] ?? 1, 1))
@@ -275,17 +269,11 @@ class RoiCalculator
                 $qty  = $this->hasValidYield($itemYields)
                     ? $this->getQtyFromYields($base, $itemYields)
                     : 0.0;
-
-                // Multiply by printer machine qty — only the mono/color
-                // yield-based branch gets this; 'others' and any other
-                // mode are untouched.
                 $qty = $this->to2Decimals($qty * $printerMachineQty);
             } else {
-                // Any other mode — untouched, not part of the printer-qty rule.
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             }
 
-            // Apply ceil rounding for "per cartridge" contract types
             $qty = $this->applyPerCartridgeRounding($qty, $flags['isPerCartridge']);
 
             $unitCost = $this->toFloat($c['cost']  ?? 0);
@@ -299,9 +287,10 @@ class RoiCalculator
         }, $rawConsumables);
 
         // --- TOTALS ---
-        $totalMachineQty   = array_sum(array_column($processedMachines, 'qty'));
-        $totalMachineCost  = array_sum(array_column($processedMachines, 'totalCost'));
-        $totalMachineSales = array_sum(array_column($processedMachines, 'totalSell'));
+        $totalMachineQty    = array_sum(array_column($processedMachines, 'qty'));
+        $totalMachineCost   = array_sum(array_column($processedMachines, 'totalCost'));
+        $totalMachineSales  = array_sum(array_column($processedMachines, 'totalSell'));
+        $totalMachineMargin = array_sum(array_column($processedMachines, 'totalMachineMargin'));
 
         $totalConsumableQty   = array_sum(array_column($processedConsumables, 'qty'));
         $totalConsumableCost  = array_sum(array_column($processedConsumables, 'totalCost'));
@@ -319,6 +308,7 @@ class RoiCalculator
             'totalMachineQty'         => $this->to2Decimals($totalMachineQty),
             'totalMachineCost'        => $this->to2Decimals($totalMachineCost),
             'totalMachineSales'       => $this->to2Decimals($totalMachineSales),
+            'totalMachineMargin'      => $this->to2Decimals($totalMachineMargin),
             'totalConsumableQty'      => $this->to2Decimals($totalConsumableQty),
             'totalConsumableCost'     => $this->to2Decimals($totalConsumableCost),
             'totalConsumableSales'    => $this->to2Decimals($totalConsumableSales),
@@ -353,6 +343,10 @@ class RoiCalculator
 
         $flags = $this->getContractFlags($projectData['companyInfo']['contractType'] ?? '');
 
+        // --- INTEREST / MARGIN CONSTANTS ---
+        $annualInterest = $this->toFloat($projectData['interest']['annualInterest'] ?? 0);
+        $percentMargin  = ($annualInterest * $contractYears) / 100;
+
         $annualMonoYields  = $this->toFloat($projectData['yield']['monoAmvpYields']['monthly']  ?? 0) * 12;
         $annualColorYields = $this->toFloat($projectData['yield']['colorAmvpYields']['monthly'] ?? 0) * 12;
 
@@ -366,7 +360,7 @@ class RoiCalculator
         $customerFees = array_map($zeroOneTime, $addFeesObj['customer'] ?? []);
 
         $emptyReturn = [
-            'totalMachineQty' => 0, 'totalMachineCost' => 0, 'totalMachineSales' => 0,
+            'totalMachineQty' => 0, 'totalMachineCost' => 0, 'totalMachineSales' => 0, 'totalMachineMargin' => 0,
             'totalConsumableQty' => 0, 'totalConsumableCost' => 0, 'totalConsumableSales' => 0,
             'totalFeesQty' => 0, 'totalCompanyFeesAmount' => 0, 'totalCustomerFeesAmount' => 0,
             'grandtotalCost' => 0, 'grandtotalSell' => 0, 'grossProfit' => 0, 'roiPercentage' => 0,
@@ -377,16 +371,33 @@ class RoiCalculator
 
         if ($succeedingYearCount === 0) return $emptyReturn;
 
-        $processedMachines = array_map(fn($m) => array_merge($m, [
-            'qty' => 1, 'price' => 0, 'totalCost' => 0, 'totalSell' => 0,
-        ]), $rawMachines);
+        // --- PROCESS MACHINES ---
+        $processedMachines = array_map(function(array $m) use ($flags, $percentMargin): array {
+            $unitSell = 0.0;
+            $fixedQty = 1;
+            
+            $mType = strtolower($m['type'] ?? '');
+            $isMachineRow = $mType === 'machine';
+            $mode = strtolower($m['mode'] ?? '');
+            $isModeOthers = in_array($mode, ['others', 'other']);
 
-        // Printer machine qty — pulled from rawMachines (the actual entered
-        // qty), not processedMachines, since processedMachines locks every
-        // row's displayed qty to 1 for succeeding years (machines already
-        // paid for / no new cost applies). Same "printer row" definition as
-        // get1YrPotential: any machine row that isn't 'others' mode —
-        // includes the mandatory row, whose mode is always ''.
+            // Calculate unit margin exactly like 1st year so UI doesn't break
+            $unitMargin = 0.0;
+            if (!$flags['isOutright'] && $isMachineRow && !$isModeOthers) {
+                $rawCost = $this->toFloat($m['inputtedCost'] ?? $m['cost'] ?? 0);
+                $unitMargin = $rawCost * $percentMargin;
+            }
+
+            return array_merge($m, [
+                'qty'                 => $fixedQty,
+                'price'               => $unitSell,
+                'machineMarginTotal'  => $unitMargin, // Available for UI if needed
+                'totalMachineMargin'  => 0.0, // Explicitly 0 because cost is 0 in succeeding years
+                'totalCost'           => 0.0, // Machines already paid for in Year 1
+                'totalSell'           => $fixedQty * $unitSell
+            ]);
+        }, $rawMachines);
+
         $printerMachineQty = array_sum(array_map(
             fn($m) => $this->toFloat($m['qty'] ?? 0),
             array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others')
@@ -409,32 +420,21 @@ class RoiCalculator
                 ]);
             }
 
-            // CASE 1: OTHERS → calculated based on Mono (default) or Color.
-            // Exception — untouched: no printer multiplier (mirrors get1YrPotential).
             if ($mode === 'others') {
                 $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
                 $qty  = $this->hasValidYield($itemYields) && $base > 0
                     ? $this->getQtyFromYields($base, $itemYields)
                     : $this->toFloat($c['qty'] ?? 1, 1);
-            }
-            // CASE 2: MONO / COLOR with valid yields → computed, then scaled by
-            // printer machine qty (mirrors get1YrPotential's mono/color multiplier
-            // so consumable usage keeps scaling with printer count in later years).
-            elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
+            } elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
                 $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
                 $qty  = $this->getQtyFromYields($base, $itemYields);
                 $qty  = round($qty * $printerMachineQty * 100) / 100;
-            }
-            // CASE 3: MONO / COLOR but ZERO/INVALID yields → FORCE 0
-            elseif (in_array($mode, ['mono', 'color'])) {
+            } elseif (in_array($mode, ['mono', 'color'])) {
                 $qty = 0;
-            }
-            // CASE 4: UNKNOWN mode → safe fallback, untouched
-            else {
+            } else {
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             }
 
-            // Apply ceil rounding for "per cartridge" contract types
             $qty = $this->applyPerCartridgeRounding($qty, $flags['isPerCartridge']);
 
             $unitCost = $this->toFloat($c['cost']  ?? 0);
@@ -448,9 +448,10 @@ class RoiCalculator
         }, $rawConsumables);
 
         // --- TOTALS ---
-        $totalMachineQty   = array_sum(array_column($processedMachines, 'qty'));
-        $totalMachineCost  = array_sum(array_column($processedMachines, 'totalCost'));
-        $totalMachineSales = array_sum(array_column($processedMachines, 'totalSell'));
+        $totalMachineQty    = array_sum(array_column($processedMachines, 'qty'));
+        $totalMachineCost   = array_sum(array_column($processedMachines, 'totalCost'));
+        $totalMachineSales  = array_sum(array_column($processedMachines, 'totalSell'));
+        $totalMachineMargin = array_sum(array_column($processedMachines, 'totalMachineMargin')); // Will sum to 0
 
         $totalConsumableQty   = array_sum(array_column($processedConsumables, 'qty'));
         $totalConsumableCost  = array_sum(array_column($processedConsumables, 'totalCost'));
@@ -470,6 +471,7 @@ class RoiCalculator
             'totalMachineQty'          => $totalMachineQty,
             'totalMachineCost'         => $totalMachineCost,
             'totalMachineSales'        => $totalMachineSales,
+            'totalMachineMargin'       => $totalMachineMargin, 
             'totalConsumableQty'       => $totalConsumableQty,
             'totalConsumableCost'      => $totalConsumableCost,
             'totalConsumableSales'     => $totalConsumableSales,

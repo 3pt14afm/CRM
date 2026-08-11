@@ -31,7 +31,6 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
     ...filteredConsumable.map(c => (Number(c.price) || 0))
   ].reduce((sum, val) => sum + val, 0);
 
-  // Sum of the individual Sell CPPs for Machines
   const machineSellCppTotal = [...normalMachines, ...othersMachines].reduce((sum, m) => {
     const effectivePrice = isOutright ? (Number(m.price) || 0) : 0;
     const yields = Number(m.yields) || 0;
@@ -39,7 +38,6 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
     return sum + itemCpp;
   }, 0);
 
-  // Sum of the individual Sell CPPs for Consumables
   const consumableSellCppTotal = filteredConsumable.reduce((sum, c) => {
     const price = Number(c.price) || 0;
     const yields = Number(c.yields) || 0;
@@ -47,7 +45,6 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
     return sum + itemCpp;
   }, 0);
 
-  // Combine for the final Total Sell CPP
   const manualTotalSellCpp = machineSellCppTotal + consumableSellCppTotal;
 
   const formatNum = (val, decimals = 2) => {
@@ -71,15 +68,24 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
   // =========================
   // FROM Potentials
   // =========================
-  const yearData = projectData?.yearlyBreakdown?.[yearNumber] || {};
+  // Calculate the 1st Year Potential dynamically
+  const firstYear = useMemo(() => get1YrPotential(projectData), [projectData]);
+
+  // Use the dynamically calculated firstYear if yearNumber is 1, otherwise fallback to saved state
+  const yearData = yearNumber === 1 
+    ? firstYear 
+    : (projectData?.yearlyBreakdown?.[yearNumber] || {});
 
   const {
     machines = [],
     consumables = [],
-    bundleDeduction,
-    firstYearTotalCost,
-    fistYearTotalSell,
+    bundleDeduction = 0,
+    firstYearTotalCost = 0,
+    fistYearTotalSell = 0, // Preserving original typo from context state
   } = yearData;
+
+  // Map to correct variable (handling the original typo in state if needed)
+  const displayTotalSell = yearNumber === 1 ? (firstYear.firstYearTotalSell || 0) : fistYearTotalSell;
 
   const normalizedContractType = String(contractType).trim().toLowerCase();
 
@@ -117,15 +123,13 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
   // =========================
   // FROM Totals
   // =========================
-  const firstYear = useMemo(() => get1YrPotential(projectData), [projectData]);
-
   const {
     grandtotalCost: finalTotalCost,
     grandtotalSell: finalTotalRevenue,
     grossProfit: finalTotalROI,
     roiPercentage,
-    companyFees,
-    customerFees,
+    companyFees = [],
+    customerFees = [],
   } = firstYear;
 
   const allAdditionalFees = [
@@ -209,9 +213,9 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
           <MobileStat label="Total Cost" value={p ? format(p.totalCost) : ''} />
           <MobileStat label="Gross Sales" value={p ? format(p.totalSell) : ''} />
         </div>
-        {p && (Number(p.machineMarginTotal) || 0) !== 0 && (
+        {p && (Number(p.totalMachineMargin) || 0) !== 0 && (
           <p className="text-[10px] text-blue-700 italic">
-            {format(p.machineMarginTotal)}
+            {format(p.totalMachineMargin)}
           </p>
         )}
       </div>
@@ -344,7 +348,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                 <p className="text-[10px] text-red-700 pt-0.5">-{format(bundleDeduction)}</p>
               )}
             </div>
-            <MobileStat label="Gross Sales" value={format(fistYearTotalSell)} />
+            <MobileStat label="Gross Sales" value={format(displayTotalSell)} />
           </div>
         </div>
 
@@ -494,10 +498,10 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                     <td className="border border-gray-200 text-center px-1 py-2">
                       {p ? (
                         <div className="flex flex-col gap-1">
-                          <p>{format(p.cost)}</p>
-                          {(Number(p.machineMarginTotal) || 0) !== 0 && (
+                          <p>{format(p.totalCost)}</p>
+                          {(Number(p.totalMachineMargin) || 0) !== 0 && (
                             <p className="text-[11px] text-blue-700 italic">
-                              {format(p.machineMarginTotal)}
+                              {format(p.totalMachineMargin)}
                             </p>
                           )}
                         </div>
@@ -680,7 +684,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                 </div>
               </td>
               <td className="border border-gray-300 text-center px-1 py-3 font-semibold">
-                {format(fistYearTotalSell)}
+                {format(displayTotalSell)}
               </td>
             </tr>
 

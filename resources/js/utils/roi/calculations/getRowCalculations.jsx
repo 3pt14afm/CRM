@@ -70,11 +70,13 @@ export const getRowCalculations = (row, projectData) => {
         computedCost: finalComputedCost,
         basePerYear,
 
-        // FIX 1: qty now multiplies machine cost (previously ignored for machines)
-        // FIX 2: margin no longer folded into totalCost — it's a separate line item
-        totalCost: isMachine
-            ? finalComputedCost * qty
-            : rawCost * qty,
+        // Machine Config's own Total Cost column is plain qty x unit cost —
+        // no interest markup, for machines or consumables. The financed/
+        // interest-loaded cost is still available via computedCost above
+        // and machineMarginTotal below; downstream calcs (1st Year
+        // Potential, Succeeding Years) read those two fields directly and
+        // never read this totalCost, so this only affects Machine Config.
+        totalCost: rawCost * qty,
 
         yields,
         costCpp: yields > 0 ? rawCost / yields : 0,

@@ -290,11 +290,11 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
       </td>
 
       {/* Total cost */}
-      <td className="border-b border-r border-darkgreen/15 p-1">
-        <div className={cls.readonly}>
-          {formatNum(isMachineRow ? Number(row.cost) || 0 : Number(calcs.totalCost) || 0)}
-        </div>
-      </td>
+ <td className="border-b border-r border-darkgreen/15 p-1">
+  <div className={cls.readonly}>
+    {formatNum(Number(calcs.totalCost) || 0)}
+  </div>
+</td>
 
       {/* Yields */}
       <td className={`border-b border-r border-darkgreen/15 p-1 ${isYieldError ? 'bg-red-50' : ''}`}>
@@ -521,7 +521,7 @@ function MachineRowCard({ row, readOnly, canEditRemarks, activeSearchRowId, focu
 
         <Field label="Total Cost">
           <div className={cls.readonlyLeft}>
-            {formatNum(isMachineRow ? Number(row.cost) || 0 : Number(calcs.totalCost) || 0)}
+            {formatNum(Number(calcs.totalCost) || 0)}
           </div>
         </Field>
 

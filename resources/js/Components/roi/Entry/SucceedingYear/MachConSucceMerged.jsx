@@ -190,7 +190,8 @@ function MachConSucceMerged() {
               <ItemCard
                 key={`m-mobile-${index}`}
                 sku={row.left?.sku || ''}
-                cost={row.left ? formatNum(row.left.cost) : ''}
+                // FIX: Use inputtedCost to avoid displaying 22,400
+                cost={row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}
                 yearQty={formatQty(0)}
                 yearTotalCost={format(0)}
                 yearTotalSell={format(0)}
@@ -238,7 +239,8 @@ function MachConSucceMerged() {
               <ItemCard
                 key={`o-mobile-${index}`}
                 sku={row.left?.sku || ''}
-                cost={row.left ? formatNum(row.left.cost) : ''}
+                // FIX: Use inputtedCost to avoid displaying 22,400
+                cost={row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}
                 yearQty={formatQty(0)}
                 yearTotalCost={format(0)}
                 yearTotalSell={format(0)}
@@ -307,7 +309,8 @@ function MachConSucceMerged() {
             {machineRows.map((row, index) => (
               <tr key={`machine-row-${index}`} className="border-x border-x-gray-300 bg-white align-middle">
                 <td className="px-7 py-3 break-words uppercase border-r border-gray-200">{row.left?.sku || ''}</td>
-                <td className="px-3 py-3 text-center border-r border-gray-300">{row.left ? formatNum(row.left.cost) : ''}</td>
+                {/* FIX: Use inputtedCost to avoid displaying 22,400 */}
+                <td className="px-3 py-3 text-center border-r border-gray-300">{row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}</td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                 <td className="px-1 py-3 text-center border-x border-gray-200">{formatQty(0)}</td>
                 <td className="text-center px-1 py-3 border-x border-gray-200">{format(0)}</td>
@@ -356,7 +359,8 @@ function MachConSucceMerged() {
                 {othersRows.map((row, index) => (
                   <tr key={`others-row-${index}`} className="border-x border-x-gray-300 bg-white align-middle">
                     <td className="px-7 py-3 break-words uppercase border-r border-b border-gray-200">{row.left?.sku || ''}</td>
-                    <td className="px-3 py-3 text-center border-r border-r-gray-300 border-b border-gray-200">{row.left ? formatNum(row.left.cost) : ''}</td>
+                    {/* FIX: Use inputtedCost to avoid displaying 22,400 */}
+                    <td className="px-3 py-3 text-center border-r border-r-gray-300 border-b border-gray-200">{row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}</td>
                     <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                     <td className="px-1 py-3 text-center border-r border-r-gray-200 border-b border-gray-200">{formatQty(0)}</td>
                     <td className="text-center px-1 py-3 border-b border-gray-200">{format(0)}</td>

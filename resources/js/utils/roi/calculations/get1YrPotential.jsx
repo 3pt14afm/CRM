@@ -11,12 +11,12 @@ export const get1YrPotential = (projectData) => {
   const isOutright = normalizedContractType.includes("outright");
   const isMonthlyRental = normalizedContractType === "fixed monthly only";
   const isPerCartridge = normalizedContractType.includes("per cartridge");
-  // There are three outright variants — "Outright + Click Charge",
-  // "Outright + Per Cartridge", and "Outright Only (1 year)" — and only the
-  // last one makes consumable qty user-entered / machine optional. Match on
-  // "outright" + "only" together, since that combination is unique to it.
   const isOutrightOnly = normalizedContractType.includes("outright") && normalizedContractType.includes("only");
 
+  // --- INTEREST / MARGIN CONSTANTS ---
+  const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
+  const contractYears = Number(projectData?.companyInfo?.contractYears) || 1;
+  const percentMargin = (annualInterest * contractYears) / 100; // E.g., (12 * 3) / 100 = 0.36
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
   const bundleDeduction = (isMonthlyRental && isBundleChecked)
@@ -39,11 +39,8 @@ export const get1YrPotential = (projectData) => {
   // --- HELPER FUNCTIONS ---
   const getQtyFromYields = (annualYields, itemYields) => {
     const safeItemYields = Number(itemYields);
-    if (!safeItemYields || safeItemYields <= 0) {
-      return 0;
-    }
-    const exactQty = annualYields / safeItemYields;
-    return to2Decimals(exactQty);
+    if (!safeItemYields || safeItemYields <= 0) return 0;
+    return to2Decimals(annualYields / safeItemYields);
   };
 
   const getSafeNumber = (val, fallback = 0) => {
@@ -56,32 +53,25 @@ export const get1YrPotential = (projectData) => {
     return !isNaN(num) && num > 0;
   };
 
-    const applyPerCartridgeRounding = (qty) => {
+  const applyPerCartridgeRounding = (qty) => {
     return isPerCartridge ? Math.ceil(qty) : qty;
   };
 
-
-  // 2. PROCESS MACHINES (processed first — consumables now depend on printer machine qty)
+  // 2. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
     const mode = m.mode?.toLowerCase();
     const machineYields = Number(m.yields);
 
-    // ✅ SANITIZED: Instantly catch NaN strings
     let machineQty = getSafeNumber(m.qty, 0);
 
     if (mode === 'others') {
       if (hasValidYield(machineYields)) {
         const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
-        if (baseYields > 0) {
-          machineQty = getQtyFromYields(baseYields, machineYields);
-        } else {
-          machineQty = getSafeNumber(m.qty, 1);
-        }
+        machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : getSafeNumber(m.qty, 1);
       } else {
         machineQty = getSafeNumber(m.qty, 1);
       }
-    }
-    else if (!machineQty || machineQty <= 0) {
+    } else if (!machineQty || machineQty <= 0) {
       if (hasValidYield(machineYields)) {
         const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
         machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : 1;
@@ -90,28 +80,36 @@ export const get1YrPotential = (projectData) => {
       }
     }
 
-    const unitCost = Number(m.cost) || 0;
-    const unitMargin = Number(m.machineMarginTotal) || 0;
+    // FIX: Use inputtedCost to avoid compounding interest markup
+    const unitCost = Number(m.inputtedCost || m.cost) || 0; 
+    const mType = (m.type || "").toLowerCase();
+    const isMachineRow = mType === "machine";
+    const isModeOthers = mode === "others" || mode === "other";
 
-    const loadedCost = unitCost + unitMargin;
+    // --- MACHINE MARGIN CALCULATION ---
+    let unitMargin = 0;
+    if (!isOutright && isMachineRow && !isModeOthers) {
+      unitMargin = unitCost * percentMargin; 
+    }
+
     const unitSell = isOutright ? (Number(m.price) || 0) : 0;
 
+    const baseCost = machineQty * unitCost; 
+    const rowTotalMargin = machineQty * unitMargin; 
+    const rowTotalCost = baseCost + rowTotalMargin; 
 
     return {
       ...m,
       mode,
       qty: to2Decimals(machineQty),
       price: unitSell,
-      totalCost: to2Decimals(machineQty * loadedCost),
+      machineMarginTotal: to2Decimals(unitMargin),
+      totalMachineMargin: to2Decimals(rowTotalMargin),
+      totalCost: to2Decimals(rowTotalCost),
       totalSell: to2Decimals(machineQty * unitSell)
     };
   });
 
-  // Printer machine qty — any machine row that isn't 'others' mode (this is
-  // the same "printer row" definition used in useMachineRows.js: MACHINE
-  // type, mode !== 'others'). Includes the mandatory row, whose mode is
-  // always '' rather than 'mono'/'color' — filtering on mode === 'mono' ||
-  // 'color' would silently drop it and undercount the printer total.
   const printerMachineQty = processedMachines
     .filter(m => m.mode !== 'others')
     .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
@@ -121,33 +119,24 @@ export const get1YrPotential = (projectData) => {
     const mode = c.mode?.toLowerCase();
     const itemYields = Number(c.yields);
     
-    // ✅ SANITIZED: Immediately clean quantities against NaN strings
     let qty = getSafeNumber(c.qty, 0);
 
     if (isMonthlyRental) {
-      // Exception — untouched: monthly rental consumable qty stays user-entered.
       const unitCost = getSafeNumber(c.cost);
-      const qty = getSafeNumber(c.qty, 0);
+      const monthlyQty = getSafeNumber(c.qty, 0);
       return {
         ...c,
-        qty,
+        qty: monthlyQty,
         yields: 0,
         price: 0,
-        totalCost: to2Decimals(qty * unitCost),
+        totalCost: to2Decimals(monthlyQty * unitCost),
         totalSell: 0,
       };
     }
 
-    // Only three exceptions are untouched (no printer-qty multiplication):
-    //   1. isMonthlyRental — handled above via early return.
-    //   2. isOutrightOnly mono/color — handled explicitly below.
-    //   3. mode === 'others' — handled explicitly below.
-    // Only the mono/color yield-based case gets multiplied by printerMachineQty.
     if (isOutrightOnly && (mode === 'mono' || mode === 'color')) {
-      // Exception — untouched: Outright Only (1yr) consumable qty is user-entered.
       qty = getSafeNumber(c.qty, 1);
     } else if (mode === 'others') {
-      // Exception — untouched: yield-derived or user-entered, no printer multiplier.
       if (hasValidYield(itemYields)) {
         const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
         qty = baseYields > 0 ? getQtyFromYields(baseYields, itemYields) : getSafeNumber(c.qty, 1);
@@ -161,16 +150,11 @@ export const get1YrPotential = (projectData) => {
       } else {
         qty = 0;
       }
-
-      // Multiply by printer machine qty — only the mono/color yield-based
-      // branch gets this; 'others' and any other mode are untouched.
       qty = to2Decimals(qty * printerMachineQty);
     } else {
-      // Any other mode — untouched, not part of the new rule.
       qty = getSafeNumber(c.qty, 1);
     }
 
-    // Apply ceil rounding for "per cartridge" contract types
     qty = applyPerCartridgeRounding(qty); 
 
     const unitCost = getSafeNumber(c.cost);
@@ -184,17 +168,18 @@ export const get1YrPotential = (projectData) => {
     };
   });
 
-  // 4. CALCULATION LOGIC WITH REAL-TIME NaN INTERCEPTION
-  const totalMachineQty = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.qty, 0)), 0);
-  const totalMachineCost = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.totalCost, 0)), 0);
-  const totalMachineSales = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.totalSell, 0)), 0);
+  // 4. CALCULATION LOGIC
+  const totalMachineQty = processedMachines.reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
+  const totalMachineCost = processedMachines.reduce((sum, m) => sum + getSafeNumber(m.totalCost, 0), 0);
+  const totalMachineSales = processedMachines.reduce((sum, m) => sum + getSafeNumber(m.totalSell, 0), 0);
+  const totalMachineMargin = processedMachines.reduce((sum, m) => sum + getSafeNumber(m.totalMachineMargin, 0), 0);
   
-  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + (getSafeNumber(item.qty, 0)), 0);
-  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + (getSafeNumber(c.totalCost, 0)), 0);
-  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + (getSafeNumber(c.totalSell, 0)), 0);
+  const totalConsumableQty = processedConsumables.reduce((sum, item) => sum + getSafeNumber(item.qty, 0), 0);
+  const totalConsumableCost = processedConsumables.reduce((sum, c) => sum + getSafeNumber(c.totalCost, 0), 0);
+  const totalConsumableSales = processedConsumables.reduce((sum, c) => sum + getSafeNumber(c.totalSell, 0), 0);
 
-  const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + (getSafeNumber(f.total, 0)), 0);
-  const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + (getSafeNumber(f.total, 0)), 0);
+  const totalCompanyFeesAmount = companyFees.reduce((sum, f) => sum + getSafeNumber(f.total, 0), 0);
+  const totalCustomerFeesAmount = customerFees.reduce((sum, f) => sum + getSafeNumber(f.total, 0), 0);
 
   const grandtotalCost = (totalMachineCost + totalConsumableCost + totalCompanyFeesAmount) - getSafeNumber(bundleDeduction, 0);
   const grandtotalSell = totalMachineSales + totalConsumableSales + totalCustomerFeesAmount;
@@ -207,6 +192,7 @@ export const get1YrPotential = (projectData) => {
     totalMachineQty: to2Decimals(totalMachineQty),
     totalMachineCost: to2Decimals(totalMachineCost),
     totalMachineSales: to2Decimals(totalMachineSales),
+    totalMachineMargin: to2Decimals(totalMachineMargin),
     totalConsumableQty: to2Decimals(totalConsumableQty),
     totalConsumableCost: to2Decimals(totalConsumableCost),
     totalConsumableSales: to2Decimals(totalConsumableSales),
