@@ -1,7 +1,7 @@
 import React from 'react';
 import { usePage } from '@inertiajs/react';
 import { useProjectData } from '@/Context/ProjectContext';
-import { useMachineRows, MANDATORY_ROW_ID, isOutrightOnlyContract } from '@/hooks/roi/useMachineRows';
+import { useMachineRows, MANDATORY_ROW_ID } from '@/hooks/roi/useMachineRows';
 import { getRowDisplayFlags } from '@/utils/roi/machineconfig/rowLogic';
 import { getRowCalculations } from '@/utils/roi/calculations/getRowCalculations';
 import { format2dpWithCommas, formatIntWithCommas, formatNum, sanitizeInt, sanitize2dp, normalize2dp } from '@/utils/roi/machineconfig/formatter';
@@ -57,9 +57,10 @@ const shouldHighlightModeError = (row, showModeErrors) =>
 // mobile card, so the two views never drift out of sync.
 function useRowRenderData({ row, contractType, errors, showOutrightErrors, showModeErrors, focusedField, handlers }) {
   const { projectData } = useProjectData();
-  const { enforceRowQty } = handlers;
+  const { enforceRowQty, isQtyEditable, computePrinterQtyTotal, rows } = handlers;
 
-  const calcs = getRowCalculations(enforceRowQty(row, contractType), projectData);
+  const printerQtyTotal = computePrinterQtyTotal(rows);
+  const calcs = getRowCalculations(enforceRowQty(row, contractType, printerQtyTotal), projectData);
   const flags = getRowDisplayFlags(row, contractType, errors, showOutrightErrors);
   const { isYieldDisabled, isPriceProhibited, isYieldError, isPriceError } = flags;
 
@@ -70,10 +71,12 @@ function useRowRenderData({ row, contractType, errors, showOutrightErrors, showM
   const keyOf             = (field) => `${row.id}:${field}`;
   const isFocused         = (field) => focusedField === keyOf(field);
   const modeError         = shouldHighlightModeError(row, showModeErrors);
+  const qtyEditable       = isQtyEditable(row, contractType);
 
   return {
     calcs, isYieldDisabled, isPriceProhibited, isYieldError, isPriceError,
     isMachineRow, modeStr, isAutoOrMonoColor, isMandatory, keyOf, isFocused, modeError,
+    qtyEditable,
   };
 }
 
@@ -181,6 +184,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
   const {
     calcs, isYieldDisabled, isPriceProhibited, isYieldError, isPriceError,
     isMachineRow, modeStr, isAutoOrMonoColor, isMandatory, keyOf, isFocused, modeError,
+    qtyEditable,
   } = useRowRenderData({ row, contractType, errors, showOutrightErrors, showModeErrors, focusedField, handlers });
 
   return (
@@ -267,30 +271,22 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
 
       {/* Qty */}
       <td className="border-b border-r border-darkgreen/15 p-1">
-        {(() => {
-          const isFixedMonthly = contractType.toLowerCase() === 'fixed monthly only';
-          const isOutrightOnly = isOutrightOnlyContract(contractType);
-          const isMonoColor = modeStr === MODE.MONO || modeStr === MODE.COLOR;
-          const qtyEditable = (isFixedMonthly || isOutrightOnly) && !isMachineRow && isMonoColor;
-          return (
-            <input
-              type="text"
-              inputMode="numeric"
-              value={isFocused('qty') ? row.qty || '' : row.qty || 1}
-              disabled={readOnly || !qtyEditable}
-              onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
-              onBlur={() => {
-                setFocusedField(null);
-                if (qtyEditable && !String(row.qty || '').trim()) {
-                  handleInputChange(row.id, 'qty', '1');
-                }
-              }}
-              onKeyDown={onlyNumericKeys(false)}
-              onChange={(e) => qtyEditable && handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
-              className={`${cls.input} ${!qtyEditable ? cls.disabled : ''}`}
-            />
-          );
-        })()}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={isFocused('qty') ? row.qty || '' : row.qty || 1}
+          disabled={readOnly || !qtyEditable}
+          onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
+          onBlur={() => {
+            setFocusedField(null);
+            if (qtyEditable && !String(row.qty || '').trim()) {
+              handleInputChange(row.id, 'qty', '1');
+            }
+          }}
+          onKeyDown={onlyNumericKeys(false)}
+          onChange={(e) => qtyEditable && handleInputChange(row.id, 'qty', sanitizeInt(e.target.value))}
+          className={`${cls.input} ${!qtyEditable ? cls.disabled : ''}`}
+        />
       </td>
 
       {/* Total cost */}
@@ -405,12 +401,8 @@ function MachineRowCard({ row, readOnly, canEditRemarks, activeSearchRowId, focu
   const {
     calcs, isYieldDisabled, isPriceProhibited, isYieldError, isPriceError,
     isMachineRow, modeStr, isAutoOrMonoColor, isMandatory, keyOf, isFocused, modeError,
+    qtyEditable,
   } = useRowRenderData({ row, contractType, errors, showOutrightErrors, showModeErrors, focusedField, handlers });
-
-  const isFixedMonthly  = contractType.toLowerCase() === 'fixed monthly only';
-  const isOutrightOnly  = isOutrightOnlyContract(contractType);
-  const isMonoColorMode = modeStr === MODE.MONO || modeStr === MODE.COLOR;
-  const qtyEditable     = (isFixedMonthly || isOutrightOnly) && !isMachineRow && isMonoColorMode;
 
   return (
     <div

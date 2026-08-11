@@ -43,11 +43,13 @@ const blankRow = () => ({
   __fixed: false,
 });
 
-const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0) => {
+const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0, printerQty = 0) => {
   const l = normalize(label);
   if (l === "shipping")          return 1;
   if (l === "rebate")            return 1;
-  if (l === "support services")  return 12;
+  // Support Services = 12 (monthly visits) × the printer machine qty from
+  // Machine Configuration — e.g. 2 printers = 24, not a flat 12.
+  if (l === "support services")  return 12 * printerQty;
   if (l === "rental")            return 12;
   if (l === "a4/a3 mono click")  return monoAnnual;
   if (l === "a4/lgl color click") return colorAnnual;
@@ -55,8 +57,8 @@ const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0) => {
   return null;
 };
 
-const applyFixedQtyIfNeeded = (row, monoAnnual = 0, colorAnnual = 0) => {
-  const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
+const applyFixedQtyIfNeeded = (row, monoAnnual = 0, colorAnnual = 0, printerQty = 0) => {
+  const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual, printerQty);
   if (fixedQty == null) return row;
   const cost = Number(row.cost) || 0;
   return { ...row, qty: fixedQty, total: cost * fixedQty };
@@ -72,7 +74,7 @@ const removeInactiveContractSpecificRows = (rows, activeFixedLabels) => {
   });
 };
 
-const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => {
+const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0, printerQty = 0) => {
   const cleanedRows = removeInactiveContractSpecificRows(rows, fixedLabels);
   const remaining   = [...cleanedRows];
 
@@ -84,7 +86,7 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
       const existing = remaining.splice(idx, 1)[0];
       return applyFixedQtyIfNeeded(
         { ...existing, label: fixedLabel, __fixed: true, isMachine: isClickLabel },
-        monoAnnual, colorAnnual
+        monoAnnual, colorAnnual, printerQty
       );
     }
 
@@ -97,7 +99,7 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0) => 
       remarks: '',
       isMachine: isClickLabel,
       __fixed: true,
-    }, monoAnnual, colorAnnual);
+    }, monoAnnual, colorAnnual, printerQty);
   });
 
   return [...fixedRows, ...remaining.map(r => ({ ...r, __fixed: false }))];
@@ -274,6 +276,15 @@ const Fees = ({ readOnly }) => {
   const monoAnnual  = (Number(projectData?.yield?.monoAmvpYields?.monthly  || 0)) * 12;
   const colorAnnual = (Number(projectData?.yield?.colorAmvpYields?.monthly || 0)) * 12;
 
+  // Printer machine qty — any machine row that isn't 'others' mode (same
+  // "printer row" definition used in Machine Configuration / getRowCalculations:
+  // includes the mandatory row, whose mode is always '' rather than 'mono'/'color').
+  const rawMachines = projectData?.machineConfiguration?.machine || [];
+  const printerQty  = rawMachines.reduce((sum, m) => {
+    const mode = String(m.mode || '').toLowerCase();
+    return mode !== 'others' ? sum + (Number(m.qty) || 0) : sum;
+  }, 0);
+
   const contractType    = projectData?.companyInfo?.contractType || "";
   const activeFixedLabels = LABELS_BY_CONTRACT[contractType] ?? null;
   const hasFixedRows    = Array.isArray(activeFixedLabels);
@@ -281,9 +292,9 @@ const Fees = ({ readOnly }) => {
   const buildRows = (source) => {
     const cleaned = removeInactiveContractSpecificRows(source, activeFixedLabels);
     const withFixed = hasFixedRows
-      ? ensureFixedRows(cleaned, activeFixedLabels, monoAnnual, colorAnnual)
+      ? ensureFixedRows(cleaned, activeFixedLabels, monoAnnual, colorAnnual, printerQty)
       : cleaned.map(r => ({ ...r, __fixed: false }));
-    return withFixed.map(r => applyFixedQtyIfNeeded(r, monoAnnual, colorAnnual));
+    return withFixed.map(r => applyFixedQtyIfNeeded(r, monoAnnual, colorAnnual, printerQty));
   };
 
   const [rows, setRows] = useState(() => {
@@ -295,10 +306,10 @@ const Fees = ({ readOnly }) => {
     return buildRows(initial);
   });
 
-  // Re-sync rows when contract type or annual volumes change
+  // Re-sync rows when contract type, annual volumes, or printer qty change
   useEffect(() => {
     setRows(prev => buildRows(prev));
-  }, [contractType, monoAnnual, colorAnnual]);
+  }, [contractType, monoAnnual, colorAnnual, printerQty]);
 
   // Sync rows → projectData
   useEffect(() => {
@@ -323,7 +334,7 @@ const Fees = ({ readOnly }) => {
         if (field === 'remarks' && readOnly) return row;
         if (hasFixedRows && row.__fixed && field === 'label') return row;
 
-        const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
+        const fixedQty = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual, printerQty);
         if (field === 'qty' && fixedQty != null) return row;
 
         const updated = { ...row, [field]: value };
@@ -337,7 +348,7 @@ const Fees = ({ readOnly }) => {
           updated.total = cost * updated.qty;
         }
 
-        return applyFixedQtyIfNeeded(updated, monoAnnual, colorAnnual);
+        return applyFixedQtyIfNeeded(updated, monoAnnual, colorAnnual, printerQty);
       })
     );
   };
@@ -387,7 +398,7 @@ const Fees = ({ readOnly }) => {
 
           <tbody>
             {rows.map(row => {
-              const fixedQty   = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
+              const fixedQty   = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual, printerQty);
               const qtyLocked  = fixedQty != null;
               const isFixed    = hasFixedRows && row.__fixed;
               const canRemove  = !readOnly && !isFixed && rows.length > 1;
@@ -520,7 +531,7 @@ const Fees = ({ readOnly }) => {
   </div>
       <div className="md:hidden px-3 pt-2 flex flex-col gap-3">
         {rows.map(row => {
-          const fixedQty  = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual);
+          const fixedQty  = getFixedQtyForLabel(row.label, monoAnnual, colorAnnual, printerQty);
           const qtyLocked = fixedQty != null;
           const isFixed   = hasFixedRows && row.__fixed;
           const canRemove = !readOnly && !isFixed && rows.length > 1;

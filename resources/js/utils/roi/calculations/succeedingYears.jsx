@@ -106,6 +106,16 @@ const hasValidYield = (y) => {
     return isPerCartridge ? Math.ceil(qty) : qty;
   };
 
+  // Printer machine qty — pulled from rawMachines (the actual entered qty),
+  // not processedMachines, since processedMachines locks every row's
+  // displayed qty to 1 for succeeding years (machines already paid for /
+  // no new cost applies). Same "printer row" definition as get1YrPotential:
+  // any machine row that isn't 'others' mode — includes the mandatory row,
+  // whose mode is always ''.
+  const printerMachineQty = rawMachines
+    .filter(m => (m.mode?.toLowerCase() || '') !== 'others')
+    .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
+
 const processedConsumables = rawConsumables.map(c => {
   const mode = c.mode?.toLowerCase();
   const itemYields = Number(c.yields);
@@ -113,6 +123,7 @@ const processedConsumables = rawConsumables.map(c => {
   let qty = 0;
 
     if (isMonthlyRental) {
+    // Exception — untouched: monthly rental consumable qty stays user-entered.
     qty = getSafeNumber(c.qty, 0);
     const unitCost = getSafeNumber(c.cost);
     return {
@@ -125,7 +136,8 @@ const processedConsumables = rawConsumables.map(c => {
     };
   }
 
-  // ✅ CASE 1: OTHERS → calculated based on Mono (default) or Color
+  // ✅ CASE 1: OTHERS → calculated based on Mono (default) or Color.
+  // Exception — untouched: no printer multiplier (mirrors get1YrPotential).
   if (mode === 'others') {
     if (hasValidYield(itemYields)) {
       const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
@@ -139,10 +151,13 @@ const processedConsumables = rawConsumables.map(c => {
     }
   }
 
-  // ✅ CASE 2: MONO / COLOR with valid yields → computed
+  // ✅ CASE 2: MONO / COLOR with valid yields → computed, then scaled by
+  // printer machine qty (mirrors get1YrPotential's mono/color multiplier
+  // so consumable usage keeps scaling with printer count in later years).
   else if ((mode === 'mono' || mode === 'color') && hasValidYield(itemYields)) {
     const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
     qty = getQtyFromYields(baseYields, itemYields);
+    qty = Math.round(qty * printerMachineQty * 100) / 100;
   }
 
   // 🚫 CASE 3: MONO / COLOR but ZERO/INVALID yields → FORCE 0
@@ -150,7 +165,7 @@ const processedConsumables = rawConsumables.map(c => {
     qty = 0;
   }
 
-  // ✅ CASE 4: UNKNOWN mode → safe fallback
+  // ✅ CASE 4: UNKNOWN mode → safe fallback, untouched
   else {
     qty = getSafeNumber(c.qty, 1);
   }

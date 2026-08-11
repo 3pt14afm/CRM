@@ -187,11 +187,11 @@ function ContractDetails() {
             <div className="text-xs text-gray-600">{formatQty(qty)}</div>
           </div>
           <div>
-            <div className="text-[9px] uppercase text-gray-400">Unit Price</div>
+            <div className="text-[9px] uppercase text-gray-400">Selling Price</div>
             <div className="text-xs text-gray-600 font-mono">{unitPrice > 0 ? formatCurrency(unitPrice) : ''}</div>
           </div>
           <div>
-            <div className="text-[9px] uppercase text-gray-400">Amount</div>
+            <div className="text-[9px] uppercase text-gray-400">Total Selling Price</div>
             <div className="text-xs text-gray-600 font-mono">{amount > 0 ? formatCurrency(amount) : ''}</div>
           </div>
         </div>
@@ -232,11 +232,11 @@ function ContractDetails() {
             <div className="text-xs text-gray-600">{formatQty(qty)}</div>
           </div>
           <div>
-            <div className="text-[9px] uppercase text-gray-400">Unit Price</div>
+            <div className="text-[9px] uppercase text-gray-400">Selling Price</div>
             <div className="text-xs text-gray-600 font-mono">{formatCurrency(price)}</div>
           </div>
           <div>
-            <div className="text-[9px] uppercase text-gray-400">Amount</div>
+            <div className="text-[9px] uppercase text-gray-400">Total Selling Price</div>
             <div className="text-xs text-gray-600 font-mono">{formatCurrency(amount)}</div>
           </div>
         </div>
@@ -310,8 +310,8 @@ function ContractDetails() {
               )}
 
               <th className="px-3 py-2 border-r border-gray-300 text-center print:px-1">Qty</th>
-              <th className="px-3 py-2 border-r border-gray-300 text-center print:px-1">Unit Price</th>
-              <th className="px-3 py-2 border-r border-gray-300 text-center print:px-1">Amount</th>
+              <th className="px-3 py-2 border-r border-gray-300 text-center print:px-1">Selling Price</th>
+              <th className="px-3 py-2 border-r border-gray-300 text-center print:px-1">Total Selling Price</th>
               <th className="px-3 py-2 text-left">Remarks</th>
             </tr>
           </thead>

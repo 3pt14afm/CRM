@@ -59,9 +59,64 @@ export const get1YrPotential = (projectData) => {
     const applyPerCartridgeRounding = (qty) => {
     return isPerCartridge ? Math.ceil(qty) : qty;
   };
- 
 
-  // 2. PROCESS CONSUMABLES
+
+  // 2. PROCESS MACHINES (processed first — consumables now depend on printer machine qty)
+  const processedMachines = rawMachines.map(m => {
+    const mode = m.mode?.toLowerCase();
+    const machineYields = Number(m.yields);
+
+    // ✅ SANITIZED: Instantly catch NaN strings
+    let machineQty = getSafeNumber(m.qty, 0);
+
+    if (mode === 'others') {
+      if (hasValidYield(machineYields)) {
+        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        if (baseYields > 0) {
+          machineQty = getQtyFromYields(baseYields, machineYields);
+        } else {
+          machineQty = getSafeNumber(m.qty, 1);
+        }
+      } else {
+        machineQty = getSafeNumber(m.qty, 1);
+      }
+    }
+    else if (!machineQty || machineQty <= 0) {
+      if (hasValidYield(machineYields)) {
+        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+        machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : 1;
+      } else {
+        machineQty = 1;
+      }
+    }
+
+    const unitCost = Number(m.cost) || 0;
+    const unitMargin = Number(m.machineMarginTotal) || 0;
+
+    const loadedCost = unitCost + unitMargin;
+    const unitSell = isOutright ? (Number(m.price) || 0) : 0;
+
+
+    return {
+      ...m,
+      mode,
+      qty: to2Decimals(machineQty),
+      price: unitSell,
+      totalCost: to2Decimals(machineQty * loadedCost),
+      totalSell: to2Decimals(machineQty * unitSell)
+    };
+  });
+
+  // Printer machine qty — any machine row that isn't 'others' mode (this is
+  // the same "printer row" definition used in useMachineRows.js: MACHINE
+  // type, mode !== 'others'). Includes the mandatory row, whose mode is
+  // always '' rather than 'mono'/'color' — filtering on mode === 'mono' ||
+  // 'color' would silently drop it and undercount the printer total.
+  const printerMachineQty = processedMachines
+    .filter(m => m.mode !== 'others')
+    .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
+
+  // 3. PROCESS CONSUMABLES
   const processedConsumables = rawConsumables.map(c => {
     const mode = c.mode?.toLowerCase();
     const itemYields = Number(c.yields);
@@ -70,6 +125,7 @@ export const get1YrPotential = (projectData) => {
     let qty = getSafeNumber(c.qty, 0);
 
     if (isMonthlyRental) {
+      // Exception — untouched: monthly rental consumable qty stays user-entered.
       const unitCost = getSafeNumber(c.cost);
       const qty = getSafeNumber(c.qty, 0);
       return {
@@ -82,26 +138,35 @@ export const get1YrPotential = (projectData) => {
       };
     }
 
-    if (mode === 'others') {
+    // Only three exceptions are untouched (no printer-qty multiplication):
+    //   1. isMonthlyRental — handled above via early return.
+    //   2. isOutrightOnly mono/color — handled explicitly below.
+    //   3. mode === 'others' — handled explicitly below.
+    // Only the mono/color yield-based case gets multiplied by printerMachineQty.
+    if (isOutrightOnly && (mode === 'mono' || mode === 'color')) {
+      // Exception — untouched: Outright Only (1yr) consumable qty is user-entered.
+      qty = getSafeNumber(c.qty, 1);
+    } else if (mode === 'others') {
+      // Exception — untouched: yield-derived or user-entered, no printer multiplier.
       if (hasValidYield(itemYields)) {
         const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
-        if (baseYields > 0) {
-          qty = getQtyFromYields(baseYields, itemYields);
-        } else {
-          qty = getSafeNumber(c.qty, 1);
-        }
+        qty = baseYields > 0 ? getQtyFromYields(baseYields, itemYields) : getSafeNumber(c.qty, 1);
       } else {
         qty = getSafeNumber(c.qty, 1);
       }
-    } else if (isOutrightOnly && (mode === 'mono' || mode === 'color')) {
-      // Outright (1yr): consumable qty is user-entered, not derived from yields.
-      qty = getSafeNumber(c.qty, 1);
-    } else if ((mode === 'mono' || mode === 'color') && hasValidYield(itemYields)) {
-      const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
-      qty = getQtyFromYields(baseYields, itemYields);
     } else if (mode === 'mono' || mode === 'color') {
-      qty = 0;
+      if (hasValidYield(itemYields)) {
+        const baseYields = mode === 'mono' ? annualMonoYields : annualColorYields;
+        qty = getQtyFromYields(baseYields, itemYields);
+      } else {
+        qty = 0;
+      }
+
+      // Multiply by printer machine qty — only the mono/color yield-based
+      // branch gets this; 'others' and any other mode are untouched.
+      qty = to2Decimals(qty * printerMachineQty);
     } else {
+      // Any other mode — untouched, not part of the new rule.
       qty = getSafeNumber(c.qty, 1);
     }
 
@@ -118,52 +183,7 @@ export const get1YrPotential = (projectData) => {
       totalSell: to2Decimals(qty * unitSell)
     };
   });
-  
-  // 3. PROCESS MACHINES
-  const processedMachines = rawMachines.map(m => {
-    const mode = m.mode?.toLowerCase();
-    const machineYields = Number(m.yields);
-    
-    // ✅ SANITIZED: Instantly catch NaN strings
-    let machineQty = getSafeNumber(m.qty, 0); 
-    
-    if (mode === 'others') {
-      if (hasValidYield(machineYields)) {
-        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
-        if (baseYields > 0) {
-          machineQty = getQtyFromYields(baseYields, machineYields);
-        } else {
-          machineQty = getSafeNumber(m.qty, 1);
-        }
-      } else {
-        machineQty = getSafeNumber(m.qty, 1);
-      }
-    } 
-    else if (!machineQty || machineQty <= 0) {
-      if (hasValidYield(machineYields)) {
-        const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
-        machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : 1;
-      } else {
-        machineQty = 1; 
-      }
-    }
 
-    const unitCost = Number(m.cost) || 0;
-    const unitMargin = Number(m.machineMarginTotal) || 0; 
-    
-    const loadedCost = unitCost + unitMargin;
-    const unitSell = isOutright ? (Number(m.price) || 0) : 0;
-    
-
-    return {
-      ...m,
-      qty: to2Decimals(machineQty),
-      price: unitSell,
-      totalCost: to2Decimals(machineQty * loadedCost), 
-      totalSell: to2Decimals(machineQty * unitSell)
-    };
-  });
-  
   // 4. CALCULATION LOGIC WITH REAL-TIME NaN INTERCEPTION
   const totalMachineQty = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.qty, 0)), 0);
   const totalMachineCost = processedMachines.reduce((sum, m) => sum + (getSafeNumber(m.totalCost, 0)), 0);

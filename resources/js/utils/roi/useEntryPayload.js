@@ -1,4 +1,5 @@
 import { useProjectData } from '@/Context/ProjectContext';
+import { getAttachmentFileObject } from '@/Components/roi/Entry/EntryRemarks'; // Adjust path if needed
 
 /**
  * Builds the plain-object payload and the FormData payload
@@ -76,46 +77,46 @@ export function useEntryPayload({ entryProject, formattedDate }) {
       ? payload.entryRemarks.attachments
       : [];
 
-    const existingAttachmentMeta = attachments
-      .filter((item) => !(item?.file instanceof File))
-      .map((item) => ({
+    // 1. Clean up the metadata to remove the broken `file: {}` object
+    const existingAttachmentMeta = attachments.map((item) => {
+      // If it's a newly attached local file, strip out the File object entirely
+      const realFile = getAttachmentFileObject(item);
+      if (realFile) {
+        return {
+          id: item?.id ?? "",
+          name: item?.name ?? "",
+          size: item?.size ?? 0,
+        };
+      }
+      
+      // If it's an existing file from the server, keep its server metadata
+      return {
         id: item?.id ?? "",
         original_name: item?.original_name ?? item?.name ?? "",
         stored_name: item?.stored_name ?? "",
         path: item?.path ?? "",
         size: item?.size ?? 0,
-      }));
+      };
+    });
 
     const payloadForForm = {
       ...payload,
       entryRemarks: {
         ...payload.entryRemarks,
-        attachments: existingAttachmentMeta,
+        attachments: existingAttachmentMeta, // Send clean metadata
       },
     };
 
+    // Append the clean JSON payload to FormData
     Object.entries(payloadForForm).forEach(([key, value]) => {
       appendToFormData(formData, value, key);
     });
 
+    // 2. Append the REAL File objects from our secure Map
     attachments.forEach((item) => {
-      if (item instanceof File) {
-        formData.append("entry_remarks_attachments[]", item);
-        return;
-      }
-
-      if (item?.file instanceof File) {
-        formData.append("entry_remarks_attachments[]", item.file);
-        return;
-      }
-
-      if (item?.originFileObj instanceof File) {
-        formData.append("entry_remarks_attachments[]", item.originFileObj);
-        return;
-      }
-
-      if (item?.raw instanceof File) {
-        formData.append("entry_remarks_attachments[]", item.raw);
+      const file = getAttachmentFileObject(item);
+      if (file) {
+        formData.append("entry_remarks_attachments[]", file);
       }
     });
 

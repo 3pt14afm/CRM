@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 import { toast } from 'sonner';
+import { getAttachmentFileObject } from '@/Components/roi/Entry/EntryRemarks';
 
 const MACHINE_TAB = "Machine";
 
@@ -282,23 +283,27 @@ export function useEntryValidation({ setTab }) {
     return Array.isArray(attachments) && attachments.length > 0;
   };
 
-  const validateEntryRemarks = () => {
-    if (!requiresEntryRemarks()) return true;
- console.log("Attachments:", projectData?.entryRemarks?.attachments);
-    if (!hasValidEntryRemarks()) {
-      toast.error("Remarks are required when Mono AMPV exceeds 4,000 or Color AMPV exceeds 2,000.");
-      setTab(MACHINE_TAB);
+const validateEntryRemarks = () => {
+  
+
+  const monoMonthly = Number(projectData?.yield?.monoAmvpYields?.monthly || 0);
+  const colorMonthly = Number(projectData?.yield?.colorAmvpYields?.monthly || 0);
+  
+  if (monoMonthly > 4000 || colorMonthly > 2000) {
+    const attachments = projectData?.entryRemarks?.attachments || [];
+    
+    // Check if there is at least ONE real file
+    const hasValidAttachment = attachments.some(att => 
+      getAttachmentFileObject(att) || att.path || att.url
+    );
+
+    if (!hasValidAttachment) {
+      toast.error("At least one attachment is required when Mono AMPV is more than 4,000 or Color AMVP is more than 2,000.");
       return false;
     }
-
-    if (!hasRequiredEntryRemarkAttachment()) {
-      toast.error("At least one attachment is required.");
-      setTab(MACHINE_TAB);
-      return false;
-    }
-
-    return true;
-  };
+  }
+  return true;
+};
 
   return {
     showOutrightErrors,

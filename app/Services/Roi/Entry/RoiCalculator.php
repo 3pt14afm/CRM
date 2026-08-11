@@ -46,6 +46,17 @@ class RoiCalculator
         return $isPerCartridge ? (float) ceil($qty) : $qty;
     }
 
+    /**
+     * Mirrors JS `Number(val) || $fallback`: falls back only when the
+     * numeric value is 0 or invalid — unlike max(), this does NOT clamp
+     * negative numbers up to the fallback.
+     */
+    private function orFallback(mixed $val, float $fallback): float
+    {
+        $num = $this->toFloat($val, 0.0);
+        return $num !== 0.0 ? $num : $fallback;
+    }
+
     // =========================================================================
     // CONTRACT TYPE FLAGS
     // =========================================================================
@@ -84,7 +95,7 @@ class RoiCalculator
 
         $annualInterestRate = $this->toFloat($projectData['interest']['annualInterest'] ?? 0) / 100;
         $annualInterest     = $this->toFloat($projectData['interest']['annualInterest'] ?? 0);
-        $contractYears      = max($this->toFloat($projectData['companyInfo']['contractYears'] ?? 1), 1);
+        $contractYears      = $this->orFallback($projectData['companyInfo']['contractYears'] ?? 1, 1.0);
         $percentMargin      = ($annualInterest * $contractYears) / 100;
 
         $type         = strtolower($row['type'] ?? '');
@@ -127,8 +138,10 @@ class RoiCalculator
             $finalComputedCost  = ($basePerYear + ($basePerYear * $annualInterestRate)) * $contractYears;
             $machineMargin      = $basePerYear * $percentMargin;
             $machineMarginTotal = $rawCost * $percentMargin;
-        } elseif ($isMachine) {
-            // Outright or mode=others: no interest, no margin
+        } else {
+            // Outright machines, mode=others machines, and all non-machine
+            // rows: no interest, no margin. Runs unconditionally (matches
+            // JS's plain if/else) — not gated on isMachine.
             $finalComputedCost  = $rawCost;
             $basePerYear        = $rawCost;
             $machineMargin      = 0.0;
@@ -141,7 +154,9 @@ class RoiCalculator
             'inputtedCost'       => $rawCost,
             'computedCost'       => $finalComputedCost,
             'basePerYear'        => $basePerYear,
-            'totalCost' => $isMachine ? ($flags['isOutright'] ? $finalComputedCost : $finalComputedCost + $machineMarginTotal) : $rawCost * $qty,
+            // FIX 1: qty now multiplies machine cost (previously ignored for machines)
+            // FIX 2: margin no longer folded into totalCost — it's a separate line item
+            'totalCost' => $isMachine ? $finalComputedCost * $qty : $rawCost * $qty,
             'yields'             => $yields,
             'costCpp'            => $safeYields > 0 ? $rawCost / $safeYields : 0.0,
             'price'              => $price,
@@ -176,57 +191,7 @@ class RoiCalculator
         $companyFees  = $addFeesObj['company']  ?? [];
         $customerFees = $addFeesObj['customer'] ?? [];
 
-        // --- PROCESS CONSUMABLES ---
-        $processedConsumables = array_map(function (array $c) use (
-            $flags, $annualMonoYields, $annualColorYields
-        ): array {
-            $mode       = strtolower($c['mode'] ?? '');
-            $itemYields = $this->toFloat($c['yields'] ?? 0);
-            $qty        = 0.0;
-
-        if ($flags['isMonthlyRental']) {
-            $unitCost = $this->toFloat($c['cost'] ?? 0);
-            $qty = $this->toFloat($c['qty'] ?? 0);
-            return array_merge($c, [
-                'qty'       => $qty,
-                'yields'    => 0,
-                'price'     => 0,
-                'totalCost' => $this->to2Decimals($qty * $unitCost),
-                'totalSell' => 0,
-            ]);
-        }
-
-            if ($mode === 'others') {
-                $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
-                $qty = $this->hasValidYield($itemYields)
-                    ? ($base > 0 ? $this->getQtyFromYields($base, $itemYields) : $this->toFloat($c['qty'] ?? 1, 1))
-                    : $this->toFloat($c['qty'] ?? 1, 1);
-            } elseif ($flags['isOutrightOnly'] && in_array($mode, ['mono', 'color'])) {
-                // Outright (1yr): consumable qty is user-entered, not derived from yields.
-                $qty = $this->toFloat($c['qty'] ?? 1, 1);
-            } elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
-                $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
-                $qty  = $this->getQtyFromYields($base, $itemYields);
-            } elseif (in_array($mode, ['mono', 'color'])) {
-                $qty = 0;
-            } else {
-                $qty = $this->toFloat($c['qty'] ?? 1, 1);
-            }
-
-            // Apply ceil rounding for "per cartridge" contract types
-            $qty = $this->applyPerCartridgeRounding($qty, $flags['isPerCartridge']);
-
-            $unitCost = $this->toFloat($c['cost']  ?? 0);
-            $unitSell = $this->toFloat($c['price'] ?? 0);
-
-            return array_merge($c, [
-                'qty'       => $this->to2Decimals($qty),
-                'totalCost' => $this->to2Decimals($qty * $unitCost),
-                'totalSell' => $this->to2Decimals($qty * $unitSell),
-            ]);
-        }, $rawConsumables);
-
-        // --- PROCESS MACHINES ---
+        // --- PROCESS MACHINES (processed first — consumables now depend on printer machine qty) ---
         $processedMachines = array_map(function (array $m) use (
             $flags, $annualMonoYields, $annualColorYields
         ): array {
@@ -252,12 +217,86 @@ class RoiCalculator
             $unitSell   = $flags['isOutright'] ? $this->toFloat($m['price'] ?? 0) : 0.0;
 
             return array_merge($m, [
+                'mode'      => $mode,
                 'qty'       => $this->to2Decimals($machineQty),
                 'price'     => $unitSell,
                 'totalCost' => $this->to2Decimals($machineQty * $loadedCost),
                 'totalSell' => $this->to2Decimals($machineQty * $unitSell),
             ]);
         }, $rawMachines);
+
+        // Printer machine qty — any machine row that isn't 'others' mode
+        // (mirrors useMachineRows.js's "printer row" definition). Includes
+        // the mandatory row, whose mode is always '' rather than
+        // 'mono'/'color' — filtering on mode === 'mono' || 'color' would
+        // silently drop it and undercount the printer total.
+        $printerMachineQty = array_sum(array_map(
+            fn($m) => $this->toFloat($m['qty'] ?? 0),
+            array_filter($processedMachines, fn($m) => ($m['mode'] ?? '') !== 'others')
+        ));
+
+        // --- PROCESS CONSUMABLES ---
+        $processedConsumables = array_map(function (array $c) use (
+            $flags, $annualMonoYields, $annualColorYields, $printerMachineQty
+        ): array {
+            $mode       = strtolower($c['mode'] ?? '');
+            $itemYields = $this->toFloat($c['yields'] ?? 0);
+            $qty        = 0.0;
+
+            if ($flags['isMonthlyRental']) {
+                // Exception — untouched: monthly rental consumable qty stays user-entered.
+                $unitCost = $this->toFloat($c['cost'] ?? 0);
+                $qty = $this->toFloat($c['qty'] ?? 0);
+                return array_merge($c, [
+                    'qty'       => $qty,
+                    'yields'    => 0,
+                    'price'     => 0,
+                    'totalCost' => $this->to2Decimals($qty * $unitCost),
+                    'totalSell' => 0,
+                ]);
+            }
+
+            // Only three exceptions are untouched (no printer-qty multiplication):
+            //   1. isMonthlyRental — handled above via early return.
+            //   2. isOutrightOnly mono/color — handled explicitly below.
+            //   3. mode === 'others' — handled explicitly below.
+            // Only the mono/color yield-based case gets multiplied by printerMachineQty.
+            if ($flags['isOutrightOnly'] && in_array($mode, ['mono', 'color'])) {
+                // Exception — untouched: Outright Only (1yr) consumable qty is user-entered.
+                $qty = $this->toFloat($c['qty'] ?? 1, 1);
+            } elseif ($mode === 'others') {
+                // Exception — untouched: yield-derived or user-entered, no printer multiplier.
+                $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
+                $qty = $this->hasValidYield($itemYields)
+                    ? ($base > 0 ? $this->getQtyFromYields($base, $itemYields) : $this->toFloat($c['qty'] ?? 1, 1))
+                    : $this->toFloat($c['qty'] ?? 1, 1);
+            } elseif (in_array($mode, ['mono', 'color'])) {
+                $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
+                $qty  = $this->hasValidYield($itemYields)
+                    ? $this->getQtyFromYields($base, $itemYields)
+                    : 0.0;
+
+                // Multiply by printer machine qty — only the mono/color
+                // yield-based branch gets this; 'others' and any other
+                // mode are untouched.
+                $qty = $this->to2Decimals($qty * $printerMachineQty);
+            } else {
+                // Any other mode — untouched, not part of the printer-qty rule.
+                $qty = $this->toFloat($c['qty'] ?? 1, 1);
+            }
+
+            // Apply ceil rounding for "per cartridge" contract types
+            $qty = $this->applyPerCartridgeRounding($qty, $flags['isPerCartridge']);
+
+            $unitCost = $this->toFloat($c['cost']  ?? 0);
+            $unitSell = $this->toFloat($c['price'] ?? 0);
+
+            return array_merge($c, [
+                'qty'       => $this->to2Decimals($qty),
+                'totalCost' => $this->to2Decimals($qty * $unitCost),
+                'totalSell' => $this->to2Decimals($qty * $unitSell),
+            ]);
+        }, $rawConsumables);
 
         // --- TOTALS ---
         $totalMachineQty   = array_sum(array_column($processedMachines, 'qty'));
@@ -342,9 +381,20 @@ class RoiCalculator
             'qty' => 1, 'price' => 0, 'totalCost' => 0, 'totalSell' => 0,
         ]), $rawMachines);
 
+        // Printer machine qty — pulled from rawMachines (the actual entered
+        // qty), not processedMachines, since processedMachines locks every
+        // row's displayed qty to 1 for succeeding years (machines already
+        // paid for / no new cost applies). Same "printer row" definition as
+        // get1YrPotential: any machine row that isn't 'others' mode —
+        // includes the mandatory row, whose mode is always ''.
+        $printerMachineQty = array_sum(array_map(
+            fn($m) => $this->toFloat($m['qty'] ?? 0),
+            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others')
+        ));
+
         // --- PROCESS CONSUMABLES ---
         $processedConsumables = array_map(function (array $c) use (
-            $flags, $annualMonoYields, $annualColorYields
+            $flags, $annualMonoYields, $annualColorYields, $printerMachineQty
         ): array {
             $mode       = strtolower($c['mode'] ?? '');
             $itemYields = $this->toFloat($c['yields'] ?? 0);
@@ -359,20 +409,28 @@ class RoiCalculator
                 ]);
             }
 
+            // CASE 1: OTHERS → calculated based on Mono (default) or Color.
+            // Exception — untouched: no printer multiplier (mirrors get1YrPotential).
             if ($mode === 'others') {
                 $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
                 $qty  = $this->hasValidYield($itemYields) && $base > 0
                     ? $this->getQtyFromYields($base, $itemYields)
                     : $this->toFloat($c['qty'] ?? 1, 1);
-            } elseif ($flags['isOutrightOnly'] && in_array($mode, ['mono', 'color'])) {
-                // Outright (1yr): consumable qty is user-entered, not derived from yields.
-                $qty = $this->toFloat($c['qty'] ?? 1, 1);
-            } elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
+            }
+            // CASE 2: MONO / COLOR with valid yields → computed, then scaled by
+            // printer machine qty (mirrors get1YrPotential's mono/color multiplier
+            // so consumable usage keeps scaling with printer count in later years).
+            elseif (in_array($mode, ['mono', 'color']) && $this->hasValidYield($itemYields)) {
                 $base = $mode === 'mono' ? $annualMonoYields : $annualColorYields;
                 $qty  = $this->getQtyFromYields($base, $itemYields);
-            } elseif (in_array($mode, ['mono', 'color'])) {
+                $qty  = round($qty * $printerMachineQty * 100) / 100;
+            }
+            // CASE 3: MONO / COLOR but ZERO/INVALID yields → FORCE 0
+            elseif (in_array($mode, ['mono', 'color'])) {
                 $qty = 0;
-            } else {
+            }
+            // CASE 4: UNKNOWN mode → safe fallback, untouched
+            else {
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             }
 

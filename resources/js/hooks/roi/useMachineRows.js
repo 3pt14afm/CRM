@@ -59,7 +59,6 @@ const makeMandatoryRow = (overrides = {}) => ({
   isMandatory: true,
   type:        ROW_TYPE.MACHINE,
   mode:        '',
-  qty:         1,
 });
 
 // ── Value normalizers (pure) ───────────────────────────────────────────────
@@ -115,22 +114,63 @@ const makeAutoConsumableRow = (machineRowId, consumable) => ({
 });
 
 // ── Qty enforcement ────────────────────────────────────────────────────────
-// Machine rows are always qty 1.
-// Consumable mono/color rows are free to have user-defined qty when contract
-// is "fixed monthly only" OR exact "Outright" (1yr); everything else is
-// locked to 1.
-const isQtyEditable = (row, contractType = '') => {
+// A "printer" row is any MACHINE-type row whose mode isn't "others" — this
+// covers the mandatory row (mode is always '') as well as any other
+// user-added machine row that hasn't been switched to "others".
+const isPrinterRow = (row) =>
+  row?.type === ROW_TYPE.MACHINE && row?.mode !== MODE.OTHERS;
+
+const isMonoColorConsumable = (row) =>
+  row?.type === ROW_TYPE.CONSUMABLE && (row?.mode === MODE.MONO || row?.mode === MODE.COLOR);
+
+// "fixed monthly only" and exact "Outright Only" (1yr) are the two exception
+// contracts: printer qty stays locked at 1 and consumable mono/color qty
+// stays user-entered — the pre-existing behavior. Every other contract
+// flips this: printer qty becomes editable, and mono/color consumable qty
+// is derived (locked, not directly editable) from the printer qty total.
+const isExceptionContract = (contractType = '') => {
   const ct = (contractType || '').toLowerCase().trim();
-  const qtyEditableContract = ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
-  return (
-    qtyEditableContract &&
-    row.type === ROW_TYPE.CONSUMABLE &&
-    (row.mode === MODE.MONO || row.mode === MODE.COLOR)
-  );
+  return ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
 };
 
-const enforceRowQty = (row, contractType = '') =>
-  isQtyEditable(row, contractType) ? row : { ...row, qty: 1 };
+// Sum of qty across every printer row currently on the table — this is what
+// non-exception-contract consumable mono/color qty is locked to.
+const computePrinterQtyTotal = (rows = []) =>
+  rows.reduce((sum, r) => (isPrinterRow(r) ? sum + (Number(r.qty) || 0) : sum), 0);
+
+const isQtyEditable = (row, contractType = '') => {
+  const exception = isExceptionContract(contractType);
+
+  if (isPrinterRow(row)) {
+    // Printer qty: editable everywhere except the two exception contracts,
+    // where it stays locked at 1 (unchanged legacy behavior).
+    return !exception;
+  }
+
+  if (isMonoColorConsumable(row)) {
+    // Consumable mono/color qty: user-entered only for the two exception
+    // contracts (unchanged legacy behavior). Everywhere else it's derived
+    // from printer qty and not directly editable.
+    return exception;
+  }
+
+  // "others" rows (machine or consumable) are always locked to 1.
+  return false;
+};
+
+const enforceRowQty = (row, contractType = '', printerQtyTotal = 1) => {
+  if (isQtyEditable(row, contractType)) return row;
+
+  // Non-exception contracts: mono/color consumable qty tracks the summed
+  // printer qty live, instead of being hardcoded to 1.
+  if (isMonoColorConsumable(row) && !isExceptionContract(contractType)) {
+    return { ...row, qty: printerQtyTotal };
+  }
+
+  // Everything else not covered above (printer rows under the two
+  // exception contracts, "others" rows) stays locked at 1.
+  return { ...row, qty: 1 };
+};
 
 // ── Hydration ──────────────────────────────────────────────────────────────
 function buildHydratedRows(
@@ -144,6 +184,7 @@ function buildHydratedRows(
     ? makeMandatoryRow({
         sku:               persistedMandatory?.sku ?? '',
         cost:              persistedMandatory?.inputtedCost ?? persistedMandatory?.cost ?? '',
+        qty:               Number(persistedMandatory?.qty) || 1,
         price:             persistedMandatory?.price ?? '',
         yields:            persistedMandatory?.yields ?? '',
         remarks:           persistedMandatory?.remarks ?? '',
@@ -181,7 +222,7 @@ function buildHydratedRows(
       selectedConsumableId: '',
       linkedMachineRowId:   null,
       autoAdded:            false,
-      qty:                  1,
+      qty:                  Number(r.qty) || 1,
     };
     return hydrateMachineFields(base);
   });
@@ -293,20 +334,16 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     hydratedProjectKeyRef.current = projectKey;
   }, [projectData?.metadata?.projectId, projectData.machineConfiguration]);
 
-  // ── Reset consumable qty when contract type changes to one where qty isn't user-editable ─
+  // ── Re-enforce qty rules when contract type changes ──────────────────────
+  // Flipping contract type can flip which rows have editable qty (printer
+  // rows lock/unlock, consumable mono/color rows switch between
+  // user-entered and derived-from-printer-total). Re-run enforcement across
+  // every row so nothing is left holding a stale qty from the old regime.
   useEffect(() => {
-    const ct = contractType.toLowerCase().trim();
-    const qtyIsUserEditable = ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
-    if (!qtyIsUserEditable) {
-      setRows((prev) =>
-        prev.map((row) => {
-          if (row.type === ROW_TYPE.CONSUMABLE && (row.mode === MODE.MONO || row.mode === MODE.COLOR)) {
-            return { ...row, qty: 1 };
-          }
-          return row;
-        })
-      );
-    }
+    setRows((prev) => {
+      const printerQtyTotal = computePrinterQtyTotal(prev);
+      return prev.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
+    });
   }, [contractType]);
 
   // ── Toggle the mandatory printer row in/out when contract type flips ────────
@@ -351,9 +388,10 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     const isMonthlyRental = contractType.toLowerCase() === 'rental + supplies';
     const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
 
-    
+    const printerQtyTotal = computePrinterQtyTotal(rows);
+
     const rowsWithCalculations = rows.map((r) => {
-      const normalized = enforceRowQty(r, contractType);
+      const normalized = enforceRowQty(r, contractType, printerQtyTotal);
       const calcs      = getRowCalculations(normalized, projectData);
       return {
         ...normalized,
@@ -430,19 +468,25 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       setManuallyEdited((prev) => ({ ...prev, [`${id}:${field}`]: true }));
     }
 
-    setRows((prev) =>
-      prev.map((row) => {
+    setRows((prev) => {
+      const updated = prev.map((row) => {
         if (row.id !== id) return row;
         if (field === 'remarks' && !canEditRemarks) return row;
         if (row.isMandatory && (field === 'type' || field === 'mode')) return row;
         // Prevent qty changes on rows where qty is not editable
         if (field === 'qty' && !isQtyEditable(row, contractType)) return row;
         if (field === 'sku') {
-          return enforceRowQty({ ...row, sku: value, selectedMachineId: '', selectedConsumableId: '' }, contractType);
+          return { ...row, sku: value, selectedMachineId: '', selectedConsumableId: '' };
         }
-        return enforceRowQty({ ...row, [field]: value }, contractType);
-      })
-    );
+        return { ...row, [field]: value };
+      });
+
+      // Re-derive printer qty total from the just-applied edit (covers the
+      // case where the edit itself was a printer qty change) and re-enforce
+      // it across every row so consumable qty stays live-synced.
+      const printerQtyTotal = computePrinterQtyTotal(updated);
+      return updated.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
+    });
   };
 
   const handleMachineSelect = (id, selectedId) => {
@@ -478,7 +522,8 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
 
       if (!selectedMachine) {
         result.splice(currentIndex, 0, { ...currentRow, type: ROW_TYPE.MACHINE, selectedMachineId: '', qty: 1 });
-        return result;
+        const printerQtyTotal = computePrinterQtyTotal(result);
+        return result.map((r) => enforceRowQty(r, contractType, printerQtyTotal));
       }
 
       const base = {
@@ -499,7 +544,8 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       );
 
       result.splice(currentIndex, 0, updatedMachineRow, ...newConsumableRows);
-      return result;
+      const printerQtyTotal = computePrinterQtyTotal(result);
+      return result.map((r) => enforceRowQty(r, contractType, printerQtyTotal));
     });
 
     setActiveSearchRowId(null);
@@ -507,11 +553,12 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
 
   const handleConsumableSelect = (id, selectedId, mode) => {
     const selected = findConsumableById(mode, selectedId);
-    setRows((prev) =>
-      prev.map((row) => {
+    setRows((prev) => {
+      const printerQtyTotal = computePrinterQtyTotal(prev);
+      return prev.map((row) => {
         if (row.id !== id) return row;
         if (!selected) {
-          return enforceRowQty({ ...row, selectedConsumableId: '', sku: '', cost: '', price: '', yields: '' }, contractType);
+          return enforceRowQty({ ...row, selectedConsumableId: '', sku: '', cost: '', price: '', yields: '' }, contractType, printerQtyTotal);
         }
         return enforceRowQty({
           ...row,
@@ -520,9 +567,9 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
           cost:                 normalize2dp(selected.unitCost),
           price:                normalize2dp(selected.sellingPrice),
           yields:               selected.yields,
-        }, contractType);
-      })
-    );
+        }, contractType, printerQtyTotal);
+      });
+    });
     setActiveSearchRowId(null);
   };
 
@@ -534,9 +581,9 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       const withoutLinked = prev.filter(
         (r) => !(r.type === ROW_TYPE.CONSUMABLE && r.linkedMachineRowId === id)
       );
-      return withoutLinked.map((r) => {
+      const updated = withoutLinked.map((r) => {
         if (r.id !== id) return r;
-        return enforceRowQty({
+        return {
           ...r,
           type:                 isMachine ? ROW_TYPE.MACHINE : ROW_TYPE.CONSUMABLE,
           mode:                 r.mode || '',
@@ -544,8 +591,10 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
           selectedConsumableId: '',
           linkedMachineRowId:   null,
           autoAdded:            false,
-        }, contractType);
+        };
       });
+      const printerQtyTotal = computePrinterQtyTotal(updated);
+      return updated.map((r) => enforceRowQty(r, contractType, printerQtyTotal));
     });
   };
 
@@ -560,10 +609,10 @@ const setMode = (id, mode) => {
     return next;
   });
 
-  setRows((prev) =>
-    prev.map((r) => {
+  setRows((prev) => {
+    const updated = prev.map((r) => {
       if (r.id !== id) return r;
-      return enforceRowQty({
+      return {
         ...r,
         type:                 mode === MODE.OTHERS ? ROW_TYPE.CONSUMABLE : r.type,
         mode,
@@ -571,9 +620,11 @@ const setMode = (id, mode) => {
         selectedConsumableId: '',
         linkedMachineRowId:   null,
         autoAdded:            false,
-      }, contractType);
-    })
-  );
+      };
+    });
+    const printerQtyTotal = computePrinterQtyTotal(updated);
+    return updated.map((r) => enforceRowQty(r, contractType, printerQtyTotal));
+  });
 };
 
   const addRow = () => setRows((prev) => [...prev, makeBlankRow()]);
@@ -657,5 +708,7 @@ const setMode = (id, mode) => {
     sanitize2dp,
     normalize2dp,
     enforceRowQty,
+    isQtyEditable,
+    computePrinterQtyTotal,
   };
 }

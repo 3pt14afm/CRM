@@ -1,13 +1,61 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useProjectData } from "@/Context/ProjectContext";
 import { FiX, FiPaperclip } from "react-icons/fi";
 import { FaFileCirclePlus } from "react-icons/fa6";
 import { usePage } from "@inertiajs/react";
-import { getRoiAttachmentKey, getRoiAttachmentName, openRoiAttachment } from "@/utils/openRoiAttachment";
+import {
+  getRoiAttachmentKey,
+  getRoiAttachmentName,
+  openRoiAttachment,
+} from "@/utils/openRoiAttachment";
 
 const MAX_ATTACHMENTS = 3;
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+/* ──────────────────────────────────────────────────────────────
+ * Module-level File store
+ *
+ * File objects cannot survive JSON serialization. When projectData
+ * is persisted (sessionStorage, Inertia, etc.), every `item.file`
+ * becomes `{}`. The metadata (name, size, lastModified) survives,
+ * so the UI still shows the attachment chip — but the actual binary
+ * File is gone. SaveDraft then sends nothing, and the server rejects.
+ *
+ * This Map lives in JS heap (never serialized). We key File objects
+ * by a generated `id` and store only that id + metadata in context.
+ * SaveDraft retrieves the real File via getAttachmentFileObject().
+ * ────────────────────────────────────────────────────────────── */
+const fileObjectStore = new Map();
+
+let fileSeq = 0;
+const generateFileId = () => `att-${Date.now()}-${++fileSeq}`;
+
+/** Look up a stored File by attachment id. */
+export const getAttachmentFile = (id) => fileObjectStore.get(id);
+
+/**
+ * Retrieve the File for an attachment, handling three cases:
+ *  1. Fresh File still in context state (not yet serialized)
+ *  2. File recovered from the module-level store (serialized context)
+ *  3. Previously uploaded file from server (no local File — returns null)
+ *
+ * SaveDraft should use THIS instead of `attachment.file`.
+ */
+export const getAttachmentFileObject = (attachment) => {
+  if (!attachment) return null;
+  // Case 1: File survived in context state
+  if (attachment.file instanceof File) return attachment.file;
+  // Case 2: File was stored in module-level store
+  if (attachment.id && fileObjectStore.has(attachment.id)) {
+    return fileObjectStore.get(attachment.id);
+  }
+  // Case 3: server-side file, no local File to send
+  return null;
+};
+
+/** Call after a successful SaveDraft to free memory. */
+export const clearAttachmentFileStore = () => fileObjectStore.clear();
 
 export default function EntryRemarks({ readOnly = false }) {
   const { projectData, setProjectData } = useProjectData();
@@ -15,15 +63,17 @@ export default function EntryRemarks({ readOnly = false }) {
   const [showAttachHint, setShowAttachHint] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
 
-  const monoMonthly = Number(projectData?.yield?.monoAmvpYields?.monthly || 0);
-  const colorMonthly = Number(projectData?.yield?.colorAmvpYields?.monthly || 0);
+  const monoMonthly = Number(
+    projectData?.yield?.monoAmvpYields?.monthly || 0
+  );
+  const colorMonthly = Number(
+    projectData?.yield?.colorAmvpYields?.monthly || 0
+  );
 
   const { url } = usePage();
 
   const projectId =
-    projectData?.metadata?.projectId ??
-    projectData?.id ??
-    null;
+    projectData?.metadata?.projectId ?? projectData?.id ?? null;
 
   const pageRoute = url.includes("/archive/")
     ? "archive"
@@ -43,7 +93,21 @@ export default function EntryRemarks({ readOnly = false }) {
     : [];
 
   const hasRemarks = String(entryRemarks.remarks || "").trim().length > 0;
-  const hasAttachments = attachments.length > 0;
+
+  // ── Check for *real* attachments, not just metadata ghosts ──
+  // After serialization, attachment.file becomes {} but name/size
+  // survive. We must verify an actual File exists somewhere.
+  const hasAttachments = useMemo(() => {
+    return attachments.some((att) => {
+      // Fresh File still in context state
+      if (att?.file instanceof File) return true;
+      // File backed by module-level store
+      if (att?.id && fileObjectStore.has(att.id)) return true;
+      // Previously uploaded to server (has a path/url)
+      if (att?.path || att?.url || att?.original_name) return true;
+      return false;
+    });
+  }, [attachments]);
 
   const remarksErrorMessage = useMemo(() => {
     if (!requiresRemarks) return "";
@@ -56,6 +120,21 @@ export default function EntryRemarks({ readOnly = false }) {
     if (!hasAttachments) return "Add at least one attachment.";
     return "";
   }, [requiresRemarks, hasAttachments]);
+
+  // ── Sync: back up any File objects still in context to the store ──
+  // Handles re-mount after wizard step switch where context still
+  // holds real File objects but the store doesn't have them yet.
+  useEffect(() => {
+    attachments.forEach((att) => {
+      if (
+        att?.file instanceof File &&
+        att?.id &&
+        !fileObjectStore.has(att.id)
+      ) {
+        fileObjectStore.set(att.id, att.file);
+      }
+    });
+  }, [attachments]);
 
   const updateRemarks = (patch) => {
     setProjectData((prev) => ({
@@ -90,7 +169,9 @@ export default function EntryRemarks({ readOnly = false }) {
     const existingKeys = new Set(
       existingAttachments.map(
         (item) =>
-          `${item?.original_name || item?.name}-${item?.size}-${item?.lastModified || item?.id || 0}`
+          `${item?.original_name || item?.name}-${item?.size}-${
+            item?.lastModified || item?.id || 0
+          }`
       )
     );
 
@@ -111,14 +192,22 @@ export default function EntryRemarks({ readOnly = false }) {
       }
 
       if (nextAttachments.length >= MAX_ATTACHMENTS) {
-        setAttachmentError(`You may attach up to ${MAX_ATTACHMENTS} files only.`);
+        setAttachmentError(
+          `You may attach up to ${MAX_ATTACHMENTS} files only.`
+        );
         break;
       }
 
+      // ── Generate unique id and store File in module-level Map ──
+      const fileId = generateFileId();
+      fileObjectStore.set(fileId, file);
+
       nextAttachments.push({
-        file,
+        id: fileId,
+        file, // kept for backward compat, but may become {} after serialization
         name: file.name,
         size: file.size,
+        type: file.type,
         lastModified: file.lastModified,
       });
       existingKeys.add(fileKey);
@@ -132,7 +221,16 @@ export default function EntryRemarks({ readOnly = false }) {
   };
 
   const handleRemoveFile = (indexToRemove) => {
-    const nextAttachments = attachments.filter((_, index) => index !== indexToRemove);
+    const removed = attachments[indexToRemove];
+
+    // ── Clean up module-level store ──
+    if (removed?.id) {
+      fileObjectStore.delete(removed.id);
+    }
+
+    const nextAttachments = attachments.filter(
+      (_, index) => index !== indexToRemove
+    );
     updateRemarks({ attachments: nextAttachments });
 
     if (fileInputRef.current) {
@@ -251,14 +349,6 @@ export default function EntryRemarks({ readOnly = false }) {
         </p>
       ) : null}
 
-      {/*
-        FIX: A concrete rejection reason (e.g. "file too big", "too many files")
-        must always take priority over the generic "add at least one attachment"
-        placeholder. Previously, attachmentRequiredMessage suppressed
-        attachmentError whenever no attachment had been successfully added yet,
-        so a 10MB+ file would get silently rejected with no visible explanation
-        to the user - it just looked like nothing happened.
-      */}
       {attachmentError ? (
         <p className="mt-1 px-1 text-[11px] text-red-600 font-medium">
           {attachmentError}
