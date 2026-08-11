@@ -127,10 +127,12 @@ export default function MobileTopNav() {
   const profileRef = useRef(null);
 
   const activeByRoute =
+    route().current('customers.dashboard') ||
     route().current('customers.*') ||
     route().current('customerinfo.*') ||
     route().current('roi.*') ||
     route().current('sprf.*') ||
+    route().current('contract.*') ||
     route().current('proposals.*')
       ? 'customer'
       : route().current('machine.*')
@@ -193,7 +195,7 @@ export default function MobileTopNav() {
   return (
     <>
       {/* TOP BAR */}
-      <header className="md:hidden sticky top-0 z-40 flex items-center justify-between h-11 px-3 bg-white border-b border-black/10">
+      <header className="md:hidden sticky top-0 z-40 flex items-center justify-between h-11 px-3 bg-transparent border-b border-black/10">
         <button
           onClick={() => setDrawerOpen(true)}
           className="p-2 -ml-1 text-darkgreen"
@@ -285,9 +287,14 @@ export default function MobileTopNav() {
                   onNavigate={navigate}
                 >
                   {!openSub && (
-                    <PlainLink href={route('customerinfo.companies.index')} onNavigate={() => navigate(route('customerinfo.companies.index'))}>
-                      Customer Information Details
-                    </PlainLink>
+                    <>
+                      <PlainLink href={route('customers.dashboard')} active={route().current('customers.dashboard')} onNavigate={() => navigate(route('customers.dashboard'))}>
+                        Dashboard
+                      </PlainLink>
+                      <PlainLink href={route('customerinfo.companies.index')} onNavigate={() => navigate(route('customerinfo.companies.index'))}>
+                        Customer Information Details
+                      </PlainLink>
+                    </>
                   )}
 
                   <SubAccordion id="roi" label="Project ROI Approval" openId={openSub} onToggle={toggleSub}>
@@ -310,6 +317,7 @@ export default function MobileTopNav() {
                   )}
 
                   <SubAccordion id="contract" label="Contract Generation" openId={openSub} onToggle={toggleSub}>
+                    <SubLink href={route('contract.upload')} active={route().current('contract.upload')}>Upload Contract</SubLink>
                     <SubLink href="#">New Contract</SubLink>
                     <SubLink href="#">Contract Renewal</SubLink>
                     <SubLink href="#">Business Review</SubLink>

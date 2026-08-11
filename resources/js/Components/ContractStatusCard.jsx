@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { BsExclamationOctagonFill } from "react-icons/bs";
 import StatCard from "@/Components/StatCard";
+import { IoAlertCircle } from "react-icons/io5";
 
 const STATUS_STYLES = {
   expiring_soon: { label: "Expiring", labelClass: "text-amber-500", valueClass: "text-amber-500" },
@@ -25,7 +25,7 @@ export default function ContractStatusCard({ theme, index = 0, onStatusClick, se
   }, []);
 
   return (
-    <StatCard icon={BsExclamationOctagonFill} title="Contract Status" theme={theme} index={index}>
+    <StatCard icon={IoAlertCircle} title="Contract Status" theme={theme} index={index}>
       {loading ? (
         <div className="grid grid-cols-3 gap-6 mt-2">
           {Object.keys(STATUS_STYLES).map((key) => (
@@ -33,7 +33,7 @@ export default function ContractStatusCard({ theme, index = 0, onStatusClick, se
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-8 mt-1 w-full">
+        <div className="grid grid-cols-3 gap-3 lg:gap-8 mt-1 w-full">
           {Object.keys(STATUS_STYLES).map((key) => (
             <StatusStat
               key={key}
@@ -58,8 +58,8 @@ function StatusStat({ label, value, labelClass, valueClass, active, onClick }) {
       onClick={onClick}
       className={`flex flex-col items-start rounded-md px-1 py-0.5 transition-colors hover:bg-rose-500/5 hover:shadow-inner`}
     >
-      <span className={`text-[10px] font-medium ${labelClass}`}>{label}</span>
-      <span className={`text-2xl font-bold leading-tight ${valueClass}`}>{value}</span>
+      <span className={`text-[9px] lg:text-[10px] font-medium ${labelClass}`}>{label}</span>
+      <span className={`text-lg lg:text-2xl font-bold leading-tight ${valueClass}`}>{value}</span>
     </button>
   );
 }

@@ -34,9 +34,9 @@ export default function ExpiringContractsPanel({ activeTab: controlledTab, onTab
   }, [activeTab]);
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-6 py-5 flex flex-col h-[445px]">
-      <div className="flex items-center justify-between mb-3 pb-3">
-        <h2 className="flex items-center gap-2.5 text-sm font-semibold text-gray-800">
+    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] px-3 sm:px-4 xl:px-6 py-3 sm:py-4 xl:py-5 flex flex-col h-auto h-[400px] sm:h-[420px] xl:h-[445px]">
+      <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3 pb-2 sm:pb-3">
+        <h2 className="flex items-center gap-1.5 sm:gap-2.5 text-xs sm:text-sm font-semibold text-gray-800">
           <LuClockAlert />Contracts
         </h2>
         <div className="flex items-center gap-1">
@@ -45,7 +45,7 @@ export default function ExpiringContractsPanel({ activeTab: controlledTab, onTab
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`px-2 py-1 text-[11px] font-medium rounded-2xl border -mb-px transition-colors ${
+              className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-[11px] font-medium rounded-2xl border -mb-px transition-colors ${
                 activeTab === tab.key ? tab.activeClass
                   : "text-gray-500 shadow-sm hover:text-gray-600 hover:bg-gray-200"
               }`}
@@ -58,33 +58,42 @@ export default function ExpiringContractsPanel({ activeTab: controlledTab, onTab
       
 
       {loading ? (
-        <div className="flex flex-col gap-2 mt-1">
+        <div className="flex flex-col gap-1.5 sm:gap-2 mt-1">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-9 bg-gray-100 rounded animate-pulse" />
+            <div key={i} className="h-8 sm:h-9 bg-gray-100 rounded animate-pulse" />
           ))}
         </div>
       ) : contracts.length > 0 ? (
         <div className="flex flex-col min-h-0 flex-1">
-          <div className="flex items-center justify-between px-2 pb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-            <span className="w-[55%]">Company Name</span>
-            <span className="w-[25%] text-right">Expiry Date</span>
-            <span className="w-[20%] text-right">Days</span>
+          <div className="flex items-center justify-between px-1 sm:px-2 pb-1.5 sm:pb-2 text-[9px] sm:text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+            <span className="w-[55%] min-w-0">Company Name</span>
+            <span className="w-[25%] min-w-0 text-right">Expiry Date</span>
+            <span className="w-[20%] min-w-0 text-right">Days</span>
           </div>
           <div className="flex flex-col divide-y divide-gray-100 overflow-y-auto pr-1">
             {contracts.map((c) => (
               <Link
                 href={`${route("contract.upload")}?company_id=${c.company_id}&company_name=${encodeURIComponent(c.company_name)}&sap_code=${encodeURIComponent(c.sap_code ?? '')}&can_upload=${c.can_upload ? 1 : 0}&contract_id=${c.id}`}
                 key={c.id}
-                className="flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors hover:bg-slate-50 hover:font-bold"
+                className="flex items-center justify-between py-1.5 px-1 sm:px-2 rounded-lg transition-colors hover:bg-slate-50 hover:font-bold"
               >
-                <span className="text-xs text-gray-700 truncate w-[55%]" title={c.company_name}>
+                <span
+                  className="text-[11px] sm:text-xs text-gray-700 truncate w-[55%] min-w-0"
+                  title={c.company_name}
+                >
                   {c.company_name}
                 </span>
-                <span className="text-xs text-gray-600 whitespace-nowrap w-[25%] text-right">
+
+                <span className="text-[10px] sm:text-xs text-gray-600 w-[25%] min-w-0 text-right">
                   {formatDate(c.expires_at)}
-                  {c.was_extended && <span className="text-gray-400 font-normal"> (ext.)</span>}
+                  {c.was_extended && (
+                    <span className="text-gray-400 font-normal"> (ext.)</span>
+                  )}
                 </span>
-                <span className={`text-xs font-medium whitespace-nowrap w-[20%] text-right ${daysRemainingClass(c.days_remaining)}`}>
+
+                <span
+                  className={`text-[10px] sm:text-xs font-medium w-[20%] min-w-0 text-right leading-tight break-words ${daysRemainingClass(c.days_remaining)}`}
+                >
                   {formatDaysRemaining(c.days_remaining)}
                 </span>
               </Link>
@@ -93,7 +102,7 @@ export default function ExpiringContractsPanel({ activeTab: controlledTab, onTab
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-black/40 italic text-center max-w-[220px]">
+          <p className="text-xs sm:text-sm text-black/40 italic text-center max-w-[180px] sm:max-w-[220px]">
             No {TABS.find((t) => t.key === activeTab)?.label.toLowerCase()} contracts
           </p>
         </div>

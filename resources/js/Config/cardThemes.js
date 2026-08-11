@@ -1,5 +1,5 @@
 export const cardThemes = {
-  "Total Customer": {
+  "Total Account & Branches": {
     icon: "bg-[#74C5FF]/25 border-[#74C5FF]/30",
     bg: "bg-gradient-to-br from-sky-50 to-sky-100",
     svgFill: "#0565D2",

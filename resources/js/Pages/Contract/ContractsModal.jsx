@@ -1,12 +1,22 @@
-import React, { forwardRef, useImperativeHandle, useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import axios from 'axios';
 import { route } from 'ziggy-js';
 import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit, MdMoreVert, MdOutlineCancel, MdOutlineArchive, MdOutlinePictureAsPdf,  MdBlock,
-  MdInbox, MdSchedule } from 'react-icons/md';
+  MdInbox, MdSchedule, MdExpandMore } from 'react-icons/md';
 import { GrDocumentTime } from 'react-icons/gr';
 import { FaFileUpload } from 'react-icons/fa';
 import { toast } from 'sonner';
 
+
+const STATUS_TABS = [
+    { key: 'all',            label: 'All' },
+    { key: 'active',         label: 'Active' },
+    { key: 'expiring_soon',  label: 'Expiring Soon' },
+    { key: 'expired',        label: 'Expired' },
+    { key: 'extended',       label: 'Extended' },
+    { key: 'terminated',     label: 'Terminated' },
+    { key: 'archived',       label: 'Archived' },
+];
 
 const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightContractId, onHighlightConsumed, onClose, onUpload, onEdit }, ref) {
     const [contractsList, setContractsList] = useState([]);
@@ -16,23 +26,17 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     const [isLoadingContracts, setIsLoadingContracts] = useState(false);
     const contractsRequestRef = useRef(null);
 
-    // Maps contract id -> that card's DOM node, so we can scroll a
-    // highlighted contract into view once it's rendered. Keyed by string
-    // since highlightContractId arrives from a URL query param.
     const cardRefs = useRef({});
+    const backFaceRefs = useRef({});
     const hasScrolledToHighlightRef = useRef(false);
 
-    // The branch is always the modalRow's own company_name now — we no
-    // longer group companies by SAP code, so there's no dropdown to pick
-    // a sibling branch from. Every contract returned by the backend
-    // already belongs to this exact branch.
     const selectedBranch = modalRow?.company_name ?? '';
 
-    // Which cards are currently showing their back (extension history) face.
     const [flippedIds, setFlippedIds] = useState(null);
+    const [flippedHeight, setFlippedHeight] = useState(null);
 
     // ── Extend Date modal state ──
-    const [extendTarget, setExtendTarget] = useState(null); // the contract being extended
+    const [extendTarget, setExtendTarget] = useState(null);
     const [extendDateValue, setExtendDateValue] = useState('');
     const [extendError, setExtendError] = useState('');
     const [isExtending, setIsExtending] = useState(false);
@@ -40,6 +44,10 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     // ── 3-dot action menu (Edit / Terminate / Archive) ──
     const [openMenuId, setOpenMenuId] = useState(null);
     const menuContainerRef = useRef(null);
+
+    // ── Status filter dropdown (mobile, below md) ──
+    const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+    const statusDropdownRef = useRef(null);
 
     // Close the open action menu on outside click or Escape.
     useEffect(() => {
@@ -62,6 +70,27 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         };
     }, [openMenuId]);
 
+    // Close the status filter dropdown on outside click or Escape.
+    useEffect(() => {
+        if (!statusDropdownOpen) return;
+
+        const handleClickOutside = (e) => {
+            if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target)) {
+                setStatusDropdownOpen(false);
+            }
+        };
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') setStatusDropdownOpen(false);
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [statusDropdownOpen]);
+
     // ── Terminate contract modal state ──
     const [terminateTarget, setTerminateTarget] = useState(null);
     const [terminateError, setTerminateError] = useState('');
@@ -72,10 +101,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     const [archiveError, setArchiveError] = useState('');
     const [isArchiving, setIsArchiving] = useState(false);
 
-    // Fetches (or re-fetches) the contract list for the current modalRow
-    // without touching the user's current status/search/date filters
-    // — used both for the initial load and for silent refreshes after a
-    // new contract is uploaded from the still-open modal.
     const fetchContracts = useCallback(() => {
         if (!modalRow) return;
 
@@ -95,8 +120,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
             .finally(() => setIsLoadingContracts(false));
     }, [modalRow]);
 
-    // Lets the parent trigger a refresh (e.g. right after a contract is
-    // uploaded) without closing/reopening this modal.
     useImperativeHandle(ref, () => ({
         refresh: () => fetchContracts(),
     }), [fetchContracts]);
@@ -105,11 +128,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         if (!modalRow) return;
 
         setContractsList([]);
-        // If we're opening with a specific contract to highlight (e.g. the
-        // "Edit" link from the branch sidebar), the "Active" default would
-        // filter it straight out before it's ever found below whenever that
-        // contract is Expired/Extended/Terminated/Archived — so open on
-        // "All" instead whenever there's a target to locate.
         setStatusFilter(highlightContractId ? 'all' : 'active');
         setSearchQuery('');
         setSelectedDate('');
@@ -151,8 +169,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         });
     };
 
-    // Status now comes straight from the database (Contract::computeStatus())
-    // instead of being derived here in the frontend.
     const statusMeta = {
         active:         { label: 'Active',         badgeClass: 'bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20', borderClass: 'border-[#2DA300]' },
         expiring_soon:  { label: 'Expiring Soon',   badgeClass: 'bg-amber-100 text-amber-700 border border-amber-200', borderClass: 'border-amber-300' },
@@ -233,12 +249,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         };
     }, [contractsList, selectedBranch]);
 
-    // Scrolls the highlighted contract's card into view once it's actually
-    // rendered in filteredContracts (i.e. after the "All" default above has
-    // let it through). Fires once per modal open — switching status tabs
-    // afterward won't fight the user by re-scrolling on every render. The
-    // highlight itself stays until the user clicks the card (see the card's
-    // onClick below), not on a timer.
     useEffect(() => {
         if (!highlightContractId || hasScrolledToHighlightRef.current) return;
         const el = cardRefs.current[String(highlightContractId)];
@@ -248,26 +258,27 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         hasScrolledToHighlightRef.current = true;
     }, [highlightContractId, filteredContracts]);
 
+    useLayoutEffect(() => {
+        if (flippedIds == null) {
+            setFlippedHeight(null);
+            return;
+        }
+        const el = backFaceRefs.current[String(flippedIds)];
+        if (el) setFlippedHeight(el.scrollHeight + 24);
+    }, [flippedIds, filteredContracts]);
+
     const toggleFlip = (id) => {
         setFlippedIds((prevId) => (prevId === id ? null : id));
     };
     // ── Edit contract handler ──
-    // Only the admin or the contract's owning account manager can edit
-    // (enforced server-side via c.can_edit). Hands the contract off to the
-    // parent, which opens the Add/Edit Contract modal pre-filled with this
-    // contract's data.
     const handleEditClick = (contract) => {
         if (!contract?.can_edit || !onEdit) return;
         onEdit(modalRow, contract);
     };
 
     // ── Extend Date modal handlers ──
-    // The extend button stays clickable for anyone with manage permission
-    // (c.can_edit) even once the 3-month extension window has closed
-    // (c.extension_expired) — that way clicking it surfaces a clear toast
-    // explaining why, instead of just looking greyed-out/broken.
     const openExtendModal = (contract) => {
-        if (!contract.can_edit) return; // no permission at all — nothing to do
+        if (!contract.can_edit) return;
 
         if (contract.extension_expired) {
             toast.error('This contract expired more than 3 months ago and can no longer be extended.');
@@ -312,11 +323,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                 ...c,
                                 extend_dates,
                                 status,
-                                // An expired contract that just got extended is
-                                // "extended" now, not "expired" — these flags
-                                // flip the 3-dot menu from Archive to
-                                // Terminate immediately instead of only after
-                                // the modal is reopened/refetched.
                                 can_edit,
                                 can_extend,
                                 extension_expired,
@@ -446,12 +452,12 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
             onClick={onClose}
         >
             <div
-                className=" w-[99%] lg:w-[70%] h-[80%] bg-[#f5f5f7] rounded-2xl shadow-xl p-8  flex flex-col"
+                className="w-[99%] md:w-[80%] lg:w-[70%] h-[80%] bg-slate-50 rounded-2xl shadow-xl p-6 md:p-8 flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-start justify-between mb-5 flex-shrink-0">
+                <div className="flex items-start justify-between mb-3 flex-shrink-0">
                     <div>
-                        <h2 className="text-2xl font-semibold text-slate-900 font-mono">
+                        <h2 className="text-sm md:text-lg lg:text-xl font-semibold text-slate-900">
                             {modalRow.company_name ?? '—'}
                         </h2>
                         <p className="text-xs text-slate-500 mt-1">
@@ -467,36 +473,58 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                     </button>
                 </div>
 
-                {modalRow.company_name && (
-                    <div className="mt-3 flex-shrink-0">
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
-                            Company Name
-                        </label>
-                        <div className="w-full lg:w-[60%] h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 flex items-center text-slate-700">
-                            {modalRow.company_name}
+                {/* Status filter — dropdown below md, tab strip md and up */}
+                <div className="relative flex-shrink-0 md:hidden" ref={statusDropdownRef}>
+                    <button
+                        type="button"
+                        onClick={() => setStatusDropdownOpen((o) => !o)}
+                        className="w-full flex items-center justify-between gap-2 h-9 px-3 bg-slate-100 rounded-t-lg border-b text-xs font-semibold text-slate-700"
+                    >
+                        <span className="flex items-center gap-2">
+                            {STATUS_TABS.find((t) => t.key === statusFilter)?.label}
+                            {statusCounts[statusFilter] > 0 && (
+                                <span className="text-[10px] font-bold px-1.5 bg-[#2DA300]/20 rounded-full text-[#2DA300]">
+                                    {statusCounts[statusFilter]}
+                                </span>
+                            )}
+                        </span>
+                        <MdExpandMore className={`transition-transform duration-200 ${statusDropdownOpen ? 'rotate-180' : ''}`} size={18} />
+                    </button>
+
+                    {statusDropdownOpen && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 max-h-64 overflow-y-auto">
+                            {STATUS_TABS.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => { setStatusFilter(tab.key); setStatusDropdownOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors ${
+                                        statusFilter === tab.key
+                                            ? 'bg-[#4FA34E]/10 text-[#2DA300]'
+                                            : 'text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <span>{tab.label}</span>
+                                    <span className={statusFilter === tab.key ? 'text-[#2DA300] font-semibold' : 'text-slate-400'}>
+                                        {statusCounts[tab.key] ?? 0}
+                                    </span>
+                                </button>
+                            ))}
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {/* Status filter tabs */}
-                <div className="mt-5 flex items-center gap-3 flex-shrink-0 overflow-x-auto py-2">
-                    {[
-                        { key: 'all',            label: 'All' },
-                        { key: 'active',         label: 'Active' },
-                        { key: 'expiring_soon',  label: 'Expiring Soon' },
-                        { key: 'expired',        label: 'Expired' },
-                        { key: 'extended',       label: 'Extended' },
-                        { key: 'terminated',     label: 'Terminated' },
-                        { key: 'archived',       label: 'Archived' },
-                    ].map((tab) => (
+                <div className="hidden md:flex items-center bg-slate-100 px-3 rounded-t-lg gap-3 border-b flex-shrink-0 overflow-x-auto pt-2">
+                    {STATUS_TABS.map((tab) => (
                         <button
                             key={tab.key}
                             type="button"
                             onClick={() => setStatusFilter(tab.key)}
-                            className={`relative h-7 px-3 rounded-lg text-[12px] font-semibold whitespace-nowrap transition-colors ${
+                            className={`relative h-6 md:h-8 px-4 rounded-t-lg text-[10px] md:text-[12px] font-semibold whitespace-nowrap transition-colors ${
                                 statusFilter === tab.key
-                                    ? 'bg-[#4FA34E] text-white'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-[#4FA34E] text-white border-b-[#4FA34E] shadow'
+                                    : 'bg-slate-50 text-slate-600 hover:bg-slate-200'
                             }`}
                         >
                             {tab.label}
@@ -510,7 +538,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                 </div>
 
                 {/* Search bar and Date picker */}
-                <div className="mt-4 flex items-center gap-2 flex-shrink-0 flex-wrap">
+                <div className="pt-3 md:pt-4 px-3 bg-slate-100 flex items-center gap-2 flex-shrink-0 flex-wrap">
 
                     {/* Calendar Icon / Date Picker */}
                     <label className="relative cursor-pointer h-9 w-9 flex items-center justify-center hover:bg-slate-50 rounded-lg" title="Filter by active date">
@@ -525,13 +553,13 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
 
                     {/* Search Bar */}
                     <div className="relative flex-1 min-w-[200px] max-w-sm">
-                        <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search by Doc #..."
-                            className="w-full h-9 pl-9 pr-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
+                            placeholder="Search..."
+                            className="w-full h-8 md:h-9 pl-9 pr-3 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
                         />
                     </div>
 
@@ -546,7 +574,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                             modalRow?.can_upload ? ' cursor-pointer' : 'cursor-not-allowed shadow-none'
                         }`}
                     >
-                        <FaFileUpload className="text-2xl" />
+                        <FaFileUpload className="text-xl md:text-2xl" />
                      
                     </button>
 
@@ -563,7 +591,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                     )}
                 </div>
 
-                <div className="mt-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
+                <div className="pt-3 md:pt-4 h-full overflow-y-auto rounded-b-lg p-3 bg-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2 md:gap-3">
                     {/* Skeleton Loading State */}
                     {isLoadingContracts && (
                         Array.from({ length: 6 }).map((_, index) => (
@@ -584,7 +612,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                     )}
 
                     {!isLoadingContracts && filteredContracts.length === 0 && (
-                        <p className="text-sm text-slate-500 py-6 text-center col-span-full">
+                        <p className="text-xs md:text-sm text-slate-500 py-6 text-center col-span-full">
                             No contracts match this filter.
                         </p>
                     )}
@@ -600,8 +628,12 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                 key={c.id}
                                 ref={(el) => { cardRefs.current[String(c.id)] = el; }}
                                 onClick={() => { if (isHighlighted) onHighlightConsumed?.(); }}
-                                className="relative group h-full rounded-2xl"
-                                style={{ perspective: '1200px' }}
+                                className="relative group self-start rounded-2xl"
+                                style={{
+                                    perspective: '1200px',
+                                    height: isFlipped && flippedHeight ? `${flippedHeight}px` : 'auto',
+                                    transition: 'height 300ms ease-in-out',
+                                }}
                             >
                                 <div
                                     className="relative w-full h-full transition-transform duration-700 ease-in-out"
@@ -613,24 +645,24 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                     {/* ── Front face ── */}
                                     {/* Changed gap-4 to gap-3 to tighten vertical spacing */}
                                     <div
-                                        className={`relative bg-white rounded-2xl p-5 flex flex-col gap-3 shadow-sm transition-all duration-300 h-full ${
+                                        className={`relative bg-white rounded-2xl p-4 md:p-5 flex flex-col gap-2 md:gap-3 shadow-sm transition-all duration-300 ${
                                             isHighlighted ? `border ${meta.borderClass}` : 'border border-slate-200 group-hover:border-slate-200'
                                         }`}
                                         style={{ backfaceVisibility: 'hidden' }}
                                     >
                                         {/* Header: Company & Status Badge */}
                                         <div className="flex items-start justify-between gap-3">
-                                            <h3 className="text-base font-semibold text-[#0f3800] leading-tight tracking-tight truncate">
+                                            <h3 className="text-xs md:text-base font-semibold text-[#0f3800] leading-tight tracking-tight truncate">
                                                 {c.company_name ?? '—'}
                                             </h3>
-                                            <span className={`flex-shrink-0 text-[9px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-3xl ${meta.badgeClass}`}>
+                                            <span className={`flex-shrink-0 text-[8px] md:text-[9px] font-semibold uppercase tracking-wider px-1.5 md:px-2.5 md:py-1 rounded-3xl ${meta.badgeClass}`}>
                                                 {meta.label}
                                             </span>
                                         </div>
 
                                         {/* Meta Information */}
-                                        <div className="flex flex-col gap-2 ">
-                                            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                                        <div className="flex flex-col gap-1 md:gap-2">
+                                            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-[11px] md:text-xs text-slate-500">
                                                 <span className="flex items-center gap-1.5">
                                                     <span className="text-slate-400">SAP:</span> 
                                                     <span className="font-mono text-slate-700">{modalRow.sap_code ?? '—'}</span>
@@ -640,7 +672,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                                     <span className="font-mono text-slate-700">{c.doc_num ?? '—'}</span>
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                                            <div className="flex items-center gap-2 text-[11px] md:text-xs font-medium text-slate-600">
                                                 <span className="text-slate-400">Validity:</span>
                                                 <span>{formatDate(c.start_date)}</span>
                                                 <span className="text-slate-300 text-base">→</span>
@@ -672,13 +704,13 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                         </div>
 
                                         {/* Footer: Actions */}
-                                        <div className="mt-auto pt-2 flex items-center justify-between gap-2">
+                                        <div className="mt-auto md:pt-2 flex items-center justify-between gap-2">
                                             {c.pdf_url ? (
                                                 <a
                                                     href={c.pdf_url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#4FA34E]  hover:text-emerald-700 transition-colors"
+                                                    className="inline-flex items-center gap-1.5 text-[11px] md:text-xs font-semibold text-[#4FA34E]  hover:text-emerald-700 transition-colors"
                                                 >
                                                     <MdOutlinePictureAsPdf size={16} className="text-[#4FA34E] " />
                                                     View Contract
@@ -773,7 +805,8 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
 
                                     {/* ── Back face — extension history ── */}
                                     <div
-                                        className="absolute inset-0 bg-white border border-slate-100 rounded-2xl p-5 flex flex-col gap-3 shadow-md overflow-hidden"
+                                        ref={(el) => { backFaceRefs.current[String(c.id)] = el; }}
+                                        className="absolute inset-0 bg-white border border-slate-100 rounded-2xl p-3 md:p-5 flex flex-col gap-3 shadow-md overflow-hidden"
                                         style={{
                                             backfaceVisibility: 'hidden',
                                             transform: 'rotateY(180deg)',
@@ -781,11 +814,11 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                     >
                                         <div className="flex items-start justify-between gap-2 flex-shrink-0 pb-3 border-b border-slate-100">
                                             <div className="flex flex-col">
-                                                <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                <p className="text-xs md:text-sm font-bold text-slate-800 flex items-center gap-2">
                                                     <MdOutlineHistory size={16} className="text-emerald-500" />
                                                     Extension History
                                                 </p>
-                                                <p className="text-[11px] text-slate-400 mt-1">
+                                                <p className="text-[10px] md:text-[11px] text-slate-400 pl-1 mt-1">
                                                     Original end date: <span className="text-slate-600 font-medium">{formatDate(c.end_date)}</span>
                                                 </p>
                                             </div>
@@ -800,16 +833,16 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                         </div>
 
                                         {extensions.length === 0 ? (
-                                            <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 text-slate-400 py-4">
+                                            <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 text-slate-400 md:py-4">
                                                 <MdInbox size={32} className="text-slate-200" />
-                                                <p className="text-xs font-medium">No extensions have been made on this contract yet.</p>
+                                                <p className="text-[10px] md:text-xs font-medium">No extensions have been made on this contract yet.</p>
                                             </div>
                                         ) : (
                                             <ul className="flex flex-col gap-3 overflow-y-auto pr-1 custom-scrollbar">
                                                 {[...extensions].reverse().map((entry, idx) => (
                                                     <li
                                                         key={`${entry.date}-${idx}`}
-                                                        className="relative pl-5 text-xs group/li"
+                                                        className="relative pl-5 text-[10px] md:text-xs group/li"
                                                     >
                                                         {/* Timeline Dot & Line */}
                                                         <span className="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white z-10"></span>
@@ -819,7 +852,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                                             <p className="font-semibold text-slate-800">
                                                                 New end date: <span className="text-emerald-600">{formatDate(entry.date)}</span>
                                                             </p>
-                                                            <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1.5">
+                                                            <p className="text-[9px] md:text-[10px] text-slate-500 mt-1 flex items-center gap-1.5">
                                                                 <MdSchedule size={11} />
                                                                 Extended {formatDateTime(entry.extended_at)}
                                                                 {(entry.extended_by_name || entry.extended_by)
