@@ -494,6 +494,9 @@ export default function Sidebar() {
 
                       {activeSubMenu === 'contract' && (
                         <div className="relative ml-6 pb-2 mt-2">
+                          <NavSubLink href={route('contract.monitoring')} active={route().current('contract.monitoring')}>
+                            Contract Monitoring
+                          </NavSubLink>
                           <NavSubLink href={route('contract.upload')} active={route().current('contract.upload')}>
                             Upload Contract
                           </NavSubLink>

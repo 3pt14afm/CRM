@@ -6,8 +6,11 @@ export default function ScrollableMultiSelect({
   values = [],
   onChange,
   options,
-  placeholder = "Search employees...",
+  placeholder = "Select...",
   disabled = false,
+  isSearchable = true, // Set to true by default for other pages
+  className = "",
+  pluralLabel = "options",
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -34,25 +37,41 @@ export default function ScrollableMultiSelect({
     };
   }, [open]);
 
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const selectedOptions = useMemo(
     () => options.filter((opt) => values.map(String).includes(String(opt.id))),
     [options, values]
   );
 
   const filteredOptions = useMemo(() => {
-    if (!query) return options;
+    if (!isSearchable || !query) return options;
     return options.filter((opt) =>
       opt.name.toLowerCase().includes(query.toLowerCase())
     );
-  }, [options, query]);
+  }, [options, query, isSearchable]);
 
   const selectValue = (id) => {
     const strId = String(id);
-    if (!values.map(String).includes(strId)) {
+    if (values.map(String).includes(strId)) {
+      onChange(values.filter((v) => String(v) !== strId));
+    } else {
       onChange([...values, strId]);
     }
     setQuery("");
-    setOpen(false);
   };
 
   const removeValue = (id, e) => {
@@ -60,49 +79,79 @@ export default function ScrollableMultiSelect({
     onChange(values.filter((v) => String(v) !== String(id)));
   };
 
+  const handleWrapperClick = () => {
+    if (disabled) return;
+    if (isSearchable) {
+      inputRef.current?.focus();
+    } else {
+      setOpen((prev) => !prev);
+    }
+  };
+
   return (
-    <div className="relative">
-      <label className="mb-1 block text-xs font-medium text-slate-700">{label}</label>
+    <div className="relative w-full">
+      {label && (
+        <label className="mb-1 block text-[11px] md:text-xs font-semibold text-slate-600">
+          {label}
+        </label>
+      )}
 
       <div
         ref={wrapperRef}
-        onClick={() => !disabled && inputRef.current?.focus()}
-        className={`flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 bg-white py-1.5 text-sm ${
-          disabled ? "cursor-not-allowed bg-slate-50" : "cursor-text"
-        }`}
+        onClick={handleWrapperClick}
+        className={`flex w-full flex-wrap items-center gap-1.5 rounded-lg border bg-white min-h-7 md:min-h-9 px-2 md:px-3 py-1 text-[11px] md:text-[13px] transition-[border-color,box-shadow] duration-150 ${
+          open ? "border-[#4FA34E]" : "border-gray-200"
+        } ${
+          disabled
+            ? "cursor-not-allowed bg-slate-50"
+            : isSearchable
+            ? "cursor-text"
+            : "cursor-pointer hover:bg-slate-50 select-none"
+        } ${className}`}
       >
-        {selectedOptions.map((opt) => (
-          <span
-            key={opt.id}
-            className="flex items-center gap-1 rounded-full bg-[#B5EBA2]/40 px-2 py-0.5 text-xs font-medium text-slate-900"
-          >
-            {opt.name}
-            <span className="font-normal text-slate-500">({opt.id})</span>
-            <button
+        {selectedOptions.length === 1 ? (
+          <span className="flex items-center gap-1 rounded bg-[#B5EBA2]/40 px-1.5 py-0.5 text-[10px] md:text-[11px] font-medium text-slate-900 border border-[#B5EBA2]/60">
+            {selectedOptions[0].name}
+          </span>
+        ) : selectedOptions.length > 1 ? (
+          <span className="flex items-center gap-1 rounded bg-[#B5EBA2]/40 px-1.5 py-0.5 text-[10px] md:text-[11px] font-medium text-slate-900 border border-[#B5EBA2]/60">
+            {selectedOptions.length} {pluralLabel} selected
+            {/* <button
               type="button"
-              onClick={(e) => removeValue(opt.id, e)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange([]);
+              }}
               disabled={disabled}
-              className="text-slate-500 hover:text-slate-800"
+              className="text-slate-500 hover:text-slate-800 focus:outline-none ml-0.5"
             >
               ×
-            </button>
+            </button> */}
           </span>
-        ))}
+        ) : null}
 
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          disabled={disabled}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          onChange={(e) => {
-            setQuery(e.target.value.trimStart());
-            setOpen(true);
-          }}
-          placeholder={selectedOptions.length === 0 ? placeholder : ""}
-          className="min-w-[80px] flex-1 border-none bg-transparent py-0.5 text-sm outline-none focus:outline-none focus:ring-0 disabled:text-slate-400"
-        />
+        {isSearchable ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            disabled={disabled}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onChange={(e) => {
+              setQuery(e.target.value.trimStart());
+              setOpen(true);
+            }}
+            placeholder={selectedOptions.length === 0 ? placeholder : ""}
+            className="min-w-[50px] flex-1 border-none bg-transparent p-0 text-[11px] md:text-[13px] outline-none focus:outline-none focus:ring-0 disabled:text-slate-400 placeholder:text-slate-400"
+          />
+        ) : (
+          selectedOptions.length === 0 && (
+            <span className="text-slate-400 min-w-[50px] flex-1 text-left pointer-events-none">
+              {placeholder}
+            </span>
+          )
+        )}
       </div>
 
       {open &&
@@ -113,35 +162,33 @@ export default function ScrollableMultiSelect({
             className="max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
           >
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-slate-500">No matches found</div>
+              <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-500">No options found</div>
             ) : (
               filteredOptions.map((opt) => {
                 const checked = values.map(String).includes(String(opt.id));
                 return (
-                    <div
-                        key={opt.id}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => selectValue(opt.id)}
-                        className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-xs lg:text-sm hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
-                            checked ? "font-medium text-slate-900" : "text-slate-700"
-                        }`}
+                  <div
+                    key={opt.id}
+                    onClick={() => selectValue(opt.id)}
+                    className={`flex cursor-pointer items-center gap-2 px-2 md:px-3 py-1.5 md:py-2 text-[11px] md:text-[13px] hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
+                      checked ? "font-medium text-slate-900" : "text-slate-700"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded border ${
+                        checked ? "border-[#289800] bg-[#289800]" : "border-slate-300 bg-white"
+                      }`}
                     >
-                        <span
-                            className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
-                            checked ? "border-[#289800] bg-[#289800]" : "border-slate-300 bg-white"
-                            }`}
-                        >
-                            {checked && (
-                            <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                            )}
-                        </span>
-                        <div className="flex min-w-0 w-full items-center justify-between gap-2">
-                            <span className="min-w-0 truncate">{opt.name}</span>
-                            <span className="shrink-0 text-[11px] text-slate-400">{opt.id}</span>
-                        </div>
+                      {checked && (
+                        <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <div className="flex min-w-0 w-full items-center justify-between gap-2">
+                      <span className="min-w-0 truncate">{opt.name}</span>
                     </div>
+                  </div>
                 );
               })
             )}

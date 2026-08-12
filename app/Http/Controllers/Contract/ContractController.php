@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Contract;
 use App\Http\Controllers\Concerns\AppliesCompanyVisibility;
 use App\Http\Controllers\Controller;
 use App\Models\Contracts\Contract;
+use App\Models\Contracts\ContractType;
 use App\Models\CustomerInfo\Company;
 use App\Models\LocationDepartment;
 use App\Models\Preferences;
@@ -149,6 +150,8 @@ class ContractController extends Controller
         $contractsByCompanyName = $contractsForPage->groupBy('company_name');
         $contractsByCompanyId   = $contractsForPage->groupBy('company_id');
 
+        $contractTypes = ContractType::where('status', 1)->orderBy('name')->get(['id', 'name']);
+
         $contractsForCompany = function ($c) use ($contractsByCompanyName, $contractsByCompanyId) {
             if ($c->company_name && $contractsByCompanyName->has($c->company_name)) {
                 return $contractsByCompanyName->get($c->company_name);
@@ -164,15 +167,14 @@ class ContractController extends Controller
         $statusFromContracts = function ($contracts) {
             // 'expired' -> any contract currently expired
             // 'warning' -> no expired, but at least one expiring soon
-            // 'good'    -> active/extended (and no expired or expiring
-            //              soon), or none of the above
-            return match (true) { 
-                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRED) => 'expired', 
-                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRING_SOON) => 'warning', 
-                $contracts->contains(fn ($ct) => in_array($ct->status, [ Contract::STATUS_ACTIVE, Contract::STATUS_EXTENDED, ], true)) => 'good', 
-                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_ARCHIVED) => 'default', 
-                default => 'good', 
-            }; 
+            // 'good'    -> no expired/expiring soon, but at least one active/extended
+            // 'default' -> everything else (terminated, archived, empty)
+            return match (true) {
+                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRED) => 'expired',
+                $contracts->contains(fn ($ct) => $ct->status === Contract::STATUS_EXPIRING_SOON) => 'warning',
+                $contracts->contains(fn ($ct) => in_array($ct->status, [Contract::STATUS_ACTIVE, Contract::STATUS_EXTENDED], true)) => 'good',
+                default => 'default',
+            };
         };
 
         $contractsCountByRowId  = collect();
@@ -230,6 +232,7 @@ class ContractController extends Controller
         return Inertia::render('Contract/UploadContract', [
             'companies'  => $companies,
             'categories' => $categories,
+            'contractTypes' => $contractTypes,
             'is_admin'   => $isAdmin,
             'filters'    => $request->only([
                 'search', 'category', 'per_page', 'sort_by', 'sort_order', 'delsan_company',
@@ -241,7 +244,6 @@ class ContractController extends Controller
     {
         $company = Company::with('mainLocation')->findOrFail($companyId);
 
-        // Admin, Assigned Manager, Approver, or Privileged Employee can VIEW
         if (!$this->canAccessCompanyContracts($company)) {
             abort(403, 'You are not authorized to view contracts for this company.');
         }
@@ -256,11 +258,7 @@ class ContractController extends Controller
                 ->get();
         }
 
-        $siblingCompanyNames = $siblingCompanies
-            ->pluck('company_name')
-            ->filter()
-            ->unique()
-            ->values();
+        $siblingCompanyIds = $siblingCompanies->pluck('id');
 
         $locationGroups = $siblingCompanies
             ->groupBy('main_location')
@@ -270,6 +268,7 @@ class ContractController extends Controller
                     'main_location_id'   => $first->main_location,
                     'main_location_name' => $first->mainLocation->branch_name ?? null,
                     'companies'          => $group->pluck('company_name')
+                        ->map(fn ($n) => trim($n ?? ''))
                         ->filter()
                         ->unique()
                         ->values()
@@ -280,13 +279,8 @@ class ContractController extends Controller
             ->all();
 
         $contractsRaw = Contract::query()
-            ->where(function ($q) use ($company, $siblingCompanyNames) {
-                $q->whereIn('company_name', $siblingCompanyNames);
-
-                if (!$company->sap_code) {
-                    $q->orWhere('company_id', $company->id);
-                }
-            })
+            ->whereIn('company_id', $siblingCompanyIds)
+            ->with('contractType')
             ->orderByDesc('start_date')
             ->get();
 
@@ -319,6 +313,8 @@ class ContractController extends Controller
                 return [
                     'id'                 => $c->id,
                     'doc_num'            => $c->doc_num,
+                    'ctid'               => $c->ctid,
+                    'contract_type'      => $c->contractType->name ?? null,
                     'company_name'       => trim($c->company_name ?? ''),
                     'start_date'         => optional($c->start_date)->format('Y-m-d'),
                     'end_date'           => optional($c->end_date)->format('Y-m-d'),
@@ -374,34 +370,36 @@ class ContractController extends Controller
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
             'company_name' => ['required', 'string'],
+            'ctid'       => ['nullable', 'exists:contract_type,id'],
         ]);
 
-        $candidateNames = $company->sap_code
-            ? Company::where('sap_code', $company->sap_code)->pluck('company_name')
-            : collect([$company->company_name]);
+        $candidates = $company->sap_code
+            ? Company::where('sap_code', $company->sap_code)->get(['id', 'company_name'])
+            : collect([$company]);
 
         $submittedName = trim($validated['company_name']);
 
-        $matchedName = $candidateNames->first(
-            fn ($name) => trim($name ?? '') === $submittedName
+        $matched = $candidates->first(
+            fn ($c) => trim($c->company_name ?? '') === $submittedName
         );
 
-        if ($matchedName === null) {
+        if ($matched === null) {
             return back()
                 ->withErrors(['company_name' => 'The selected company name is invalid.'])
                 ->withInput();
         }
 
-        $validated['company_name'] = $matchedName;
+        $validated['company_name'] = $matched->company_name;
 
         $path = $request->file('pdf')->store('contracts', 'local');
 
         try {
-            $contract = DB::transaction(function () use ($company, $validated, $path, $employeeId) {
+            $contract = DB::transaction(function () use ($matched, $validated, $path, $employeeId) {
                 return Contract::create([
-                    'company_id'   => $company->id,
+                    'company_id'   => $matched->id,
                     'company_name' => $validated['company_name'],
                     'doc_num'      => $validated['doc_num'],
+                    'ctid'         => $validated['ctid'] ?? null,
                     'start_date'   => $validated['start_date'],
                     'end_date'     => $validated['end_date'],
                     'pdf_path'     => $path,
@@ -414,7 +412,7 @@ class ContractController extends Controller
             // MySQL duplicate-entry error code (use 23505 / SQLSTATE check on Postgres).
             if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
                 ContractUploadLogger::uploadFailed(
-                    $company->company_name,
+                    $matched->company_name,
                     $validated['doc_num'] ?? null,
                     'Duplicate document number.'
                 );
@@ -425,7 +423,7 @@ class ContractController extends Controller
             }
 
             ContractUploadLogger::uploadFailed(
-                $company->company_name,
+                $matched->company_name,
                 $validated['doc_num'] ?? null,
                 $e->getMessage()
             );
@@ -435,7 +433,7 @@ class ContractController extends Controller
             Storage::disk('local')->delete($path);
 
             ContractUploadLogger::uploadFailed(
-                $company->company_name,
+                $matched->company_name,
                 $validated['doc_num'] ?? null,
                 $e->getMessage()
             );
@@ -466,6 +464,7 @@ class ContractController extends Controller
             'doc_num'    => ['required', 'string', 'max:100', Rule::unique('contracts', 'doc_num')->ignore($contract->id)],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+            'ctid'       => ['nullable', 'exists:contract_type,id'],
         ]);
 
         $before = [
@@ -485,6 +484,7 @@ class ContractController extends Controller
             DB::transaction(function () use ($contract, $validated, $newPath) {
                 $contract->update([
                     'doc_num'    => $validated['doc_num'],
+                    'ctid'       => $validated['ctid'] ?? null,
                     'start_date' => $validated['start_date'],
                     'end_date'   => $validated['end_date'],
                     'pdf_path'   => $newPath ?? $contract->pdf_path,

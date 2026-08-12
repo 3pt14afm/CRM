@@ -29,6 +29,7 @@ const CONTRACTS_STATUS_COLOR = {
     expired:        'text-red-600 bg-red-50 border-red-200 hover:bg-red-200/70',
     expiring_soon:  'text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-200/70',
     ok:             'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20 hover:bg-[#2da300]/20',
+    default:        'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-200/70',
 };
 
 function loadPersistedFilters() {
@@ -353,18 +354,26 @@ const handleSearchChange = (value) => {
         {
             key: 'company_name',
             header: (
-                <SortHeader label="COMPANY NAME" sortKey="company_name"
-                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+                <SortHeader 
+                    label="COMPANY NAME" 
+                    sortKey="company_name"
+                    sortBy={searchState.sort_by} 
+                    sortDirection={searchState.sort_order} 
+                    onSort={handleSort} 
+                />
             ),
             cell: (r) => {
                 const isActive = r.status == 1;
                 const branchCount = Array.isArray(r.branches) ? r.branches.length : 0;
                 return (
-                    <div className={`font-medium w-full flex items-center justify-between gap-2 min-w-52 ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
-                        <span className="truncate">{r.company_name ?? '—'}</span>
+                    <div className={`font-medium w-full flex items-center justify-between gap-2 min-w-[208px] ${isActive ? 'text-[#0f3800]' : 'text-[#C40000]'}`}>
+                        {/* Replaced 'truncate' with 'line-clamp-2 break-words' */}
+                        <span className="line-clamp-2 break-words text-wrap">
+                            {r.company_name ?? '—'}
+                        </span>
                         {branchCount > 0 && (
                             <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
-                                {branchCount}
+                                {branchCount} Branches
                             </span>
                         )}
                     </div>
@@ -385,7 +394,10 @@ const handleSearchChange = (value) => {
         },
         {
             key: 'contracts',
-            header: "CONTRACTS",
+            header: (
+                <SortHeader label="CONTRACTS" sortKey="contracts"
+                    sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />
+            ),
             cell: (r) => {
                 if (r.contracts) {
                     return (
@@ -396,7 +408,7 @@ const handleSearchChange = (value) => {
                                 setContractsCompany(r);
                                 setIsContractsSidebarOpen(true);
                             }}
-                            className={`text-[11px] flex items-center min-w-6 min-h-6 py-0.5 px-2 rounded-lg font-bold shadow hover:shadow-inner border ${CONTRACTS_STATUS_COLOR[r.contracts_status] || 'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20 hover:shadow-inner hover:bg-[#2da300]/20'}`}
+                            className={`text-[11px] flex items-center min-w-6 min-h-6 py-0.5 px-2 rounded-lg font-bold shadow hover:shadow-inner border ${CONTRACTS_STATUS_COLOR[r.contracts_status] || CONTRACTS_STATUS_COLOR.default}`}
                         >
                             {r.contracts}
                         </button>
