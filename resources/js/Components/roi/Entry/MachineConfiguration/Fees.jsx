@@ -50,7 +50,7 @@ const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0, printerQty 
   // Support Services = 12 (monthly visits) × the printer machine qty from
   // Machine Configuration — e.g. 2 printers = 24, not a flat 12.
   if (l === "support services")  return 12 * printerQty;
-  if (l === "rental")            return 12;
+  if (l === "rental")            return 12 * printerQty;
   // Click fees = annual yield × the printer machine qty from Machine
   // Configuration — same "printer row" multiplier used for Support Services.
   if (l === "a4/a3 mono click")   return monoAnnual * printerQty;

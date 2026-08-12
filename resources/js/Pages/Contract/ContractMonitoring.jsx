@@ -43,6 +43,26 @@ const STATUS_CLASSES = {
     archived:        'text-slate-500 bg-slate-100 border-slate-200',
 };
 
+const COUNT_STATUS_SEVERITY = {
+    expired:        3,
+    expiring_soon:  2,
+    active:         1,
+    extended:       1,
+    terminated:     0,
+    archived:       0,
+    default:        0,
+};
+
+const COUNT_COLOR_CLASSES = {
+    expired:        'text-red-600',
+    expiring_soon:  'text-amber-500',
+    active:         'text-lime-500',
+    extended:       'text-lime-500',
+    terminated:     'text-slate-400',
+    archived:       'text-slate-400',
+    default:        'text-slate-400',
+};
+
 function StatusPill({ status, label }) {
     const classes = STATUS_CLASSES[status] || 'text-slate-500 bg-slate-100 border-slate-200';
     return (
@@ -260,6 +280,10 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             const isExpanded = c.sap_code && expandedSapCodes.has(c.sap_code);
             const allBranchContracts = c.branch_contracts ?? c.contracts ?? [];
             const contractsToShow = isExpanded ? allBranchContracts : (c.contracts ?? []);
+            const contractsStatus = allBranchContracts.reduce((worst, contract) => {
+                const s = contract.status ?? 'default';
+                return (COUNT_STATUS_SEVERITY[s] ?? 0) > (COUNT_STATUS_SEVERITY[worst] ?? -1) ? s : worst;
+            }, 'default');
 
             rows.push({
                 _type: 'group',
@@ -273,6 +297,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                 branchCount,
                 isExpanded,
                 contractCount: allBranchContracts.length,
+                contractsStatus,
             });
 
             if (isExpanded) {
@@ -317,7 +342,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                         <p className="text-[11px] font-medium truncate uppercase">{r.delsan_company ?? '—'}</p>
                         <div className="flex items-center justify-between mt-1">
                             <p className="text-[11px] font-medium text-slate-700">{r.client_manager || r.id_client_mngr || ''}</p>
-                            <span className="text-[11px] font-semibold text-slate-400">
+                            <span className={`text-[11px] font-semibold ${r.contractCount > 0 ? (COUNT_COLOR_CLASSES[r.contractsStatus] ?? COUNT_COLOR_CLASSES.default) : COUNT_COLOR_CLASSES.default}`}>
                                 {r.contractCount} contract{r.contractCount === 1 ? '' : 's'}{r.isExpanded ? '' : ' (in this branch)'}
                             </span>
                         </div>
@@ -457,7 +482,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             cell: (r) => (
                 <div className="min-h-[32px] flex items-center">
                     {r._type === 'group'
-                        ? <span className="text-[11px] text-slate-400">{r.contractCount} contract{r.contractCount === 1 ? '' : 's'}</span>
+                        ? <span className={`text-[11px] font-semibold ${r.contractCount > 0 ? (COUNT_COLOR_CLASSES[r.contractsStatus] ?? COUNT_COLOR_CLASSES.default) : COUNT_COLOR_CLASSES.default}`}>{r.contractCount} contract{r.contractCount === 1 ? '' : 's'}</span>
                         : <StatusPill status={r.status} label={r.status_label} />}
                 </div>
             ),
