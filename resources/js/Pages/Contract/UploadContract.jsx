@@ -153,6 +153,20 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         setContractsModalRow(null);
         setHighlightContractId(null);
     };
+ 
+    const hasSeenInitialNavigateRef = useRef(false);
+    useEffect(() => {
+        const removeListener = router.on('navigate', () => {
+            if (!hasSeenInitialNavigateRef.current) {
+                hasSeenInitialNavigateRef.current = true;
+                return;
+            }
+            closeContractsModal();
+            closeUploadModal();
+        });
+        return removeListener;
+    }, [])
+
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
