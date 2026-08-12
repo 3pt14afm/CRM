@@ -51,9 +51,11 @@ const getFixedQtyForLabel = (label, monoAnnual = 0, colorAnnual = 0, printerQty 
   // Machine Configuration — e.g. 2 printers = 24, not a flat 12.
   if (l === "support services")  return 12 * printerQty;
   if (l === "rental")            return 12;
-  if (l === "a4/a3 mono click")  return monoAnnual;
-  if (l === "a4/lgl color click") return colorAnnual;
-  if (l === "a3 color click")    return 0;
+  // Click fees = annual yield × the printer machine qty from Machine
+  // Configuration — same "printer row" multiplier used for Support Services.
+  if (l === "a4/a3 mono click")   return monoAnnual * printerQty;
+  if (l === "a4/lgl color click") return colorAnnual * printerQty;
+  if (l === "a3 color click")     return 0;
   return null;
 };
 
@@ -135,6 +137,47 @@ const cls = {
     'w-full h-8 text-[11px] xl:text-[12px] text-left rounded-sm text-slate-900 font-medium flex items-center justify-start px-2',
 };
 
+// ── FormattedNumberInput ───────────────────────────────────────────────────
+// Shows "20,000" style formatting when not focused; switches to raw digits
+// while the user is actively typing so commas don't fight the cursor.
+function FormattedNumberInput({ value, onChange, disabled, className, placeholder, title }) {
+  const [focused, setFocused] = useState(false);
+  const [localValue, setLocalValue] = useState('');
+
+  useEffect(() => {
+    if (!focused) {
+      const n = Number(value);
+      setLocalValue(
+        (!value && value !== 0) || n === 0
+          ? ''
+          : n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+      );
+    }
+  }, [value, focused]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={localValue}
+      placeholder={placeholder}
+      disabled={disabled}
+      title={title}
+      className={className}
+      onFocus={() => {
+        setFocused(true);
+        setLocalValue(value === 0 || value === '' ? '' : String(value));
+      }}
+      onBlur={() => setFocused(false)}
+      onChange={e => {
+        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+        setLocalValue(cleaned);
+        onChange(cleaned);
+      }}
+    />
+  );
+}
+
 // ── FeeCard (mobile card) ────────────────────────────────────────────────
 function FeeCard({ row, readOnly, isFixed, qtyLocked, fixedQty, canRemove, onUpdate, onAdd, onRemove, fmtNumber }) {
   return (
@@ -208,11 +251,10 @@ function FeeCard({ row, readOnly, isFixed, qtyLocked, fixedQty, canRemove, onUpd
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">Cost</label>
-          <input
-            type="number"
-            value={row.cost === 0 || row.cost === "" ? "" : row.cost}
+          <FormattedNumberInput
+            value={row.cost}
             placeholder="0"
-            onChange={e => onUpdate(row.id, 'cost', e.target.value)}
+            onChange={val => onUpdate(row.id, 'cost', val)}
             disabled={readOnly}
             className={cls.inputLeft}
           />
@@ -220,11 +262,10 @@ function FeeCard({ row, readOnly, isFixed, qtyLocked, fixedQty, canRemove, onUpd
 
         <div>
           <label className="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">Qty</label>
-          <input
-            type="number"
-            value={row.qty === 0 || row.qty === "" ? "" : row.qty}
+          <FormattedNumberInput
+            value={row.qty}
             placeholder="0"
-            onChange={e => onUpdate(row.id, 'qty', e.target.value)}
+            onChange={val => onUpdate(row.id, 'qty', val)}
             disabled={qtyLocked || readOnly}
             title={qtyLocked ? `Fixed qty: ${fixedQty}` : undefined}
             className={`${cls.inputLeft} ${qtyLocked ? 'disabled:bg-lightgreen/5 border-none text-slate-700 cursor-not-allowed' : ''}`}
@@ -376,12 +417,12 @@ const Fees = ({ readOnly }) => {
         <table className="w-full table-fixed border-separate border-spacing-0">
           <colgroup>
             <col style={{ width: "4%"  }} />
-            <col style={{ width: "32%" }} />
-            <col style={{ width: "10%" }} />
-            <col style={{ width: "5%"  }} />
-            <col style={{ width: "11%" }} />
-            <col style={{ width: "10%"  }} />
             <col style={{ width: "25%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "30%" }} />
           </colgroup>
 
           <thead>
@@ -422,7 +463,7 @@ const Fees = ({ readOnly }) => {
                   {/* Description */}
                   <td className="border-b border-r border-darkgreen/15 p-1 bg-[#F6FDF5]/30">
                     {isFixed ? (
-                      <div className="h-8 flex items-center text-[11px] xl:text-[12px] font-semibold text-slate-800 px-2">
+                      <div className="h-8 flex items-center text-[11px] xl:text-[12px] font-semibold text-slate-800 px-2 truncate">
                         {row.label}
                       </div>
                     ) : (
@@ -439,11 +480,10 @@ const Fees = ({ readOnly }) => {
 
                   {/* Cost */}
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    <input
-                      type="number"
-                      value={row.cost === 0 || row.cost === "" ? "" : row.cost}
+                    <FormattedNumberInput
+                      value={row.cost}
                       placeholder="0"
-                      onChange={e => handleUpdate(row.id, 'cost', e.target.value)}
+                      onChange={val => handleUpdate(row.id, 'cost', val)}
                       disabled={readOnly}
                       className={`${cls.input} h-6 text-[10px] px-1 mx-auto block`}
                     />
@@ -451,11 +491,10 @@ const Fees = ({ readOnly }) => {
 
                   {/* Qty */}
                   <td className="border-b border-r border-darkgreen/15 p-1">
-                    <input
-                      type="number"
-                      value={row.qty === 0 || row.qty === "" ? "" : row.qty}
+                    <FormattedNumberInput
+                      value={row.qty}
                       placeholder="0"
-                      onChange={e => handleUpdate(row.id, 'qty', e.target.value)}
+                      onChange={val => handleUpdate(row.id, 'qty', val)}
                       disabled={qtyLocked || readOnly}
                       title={qtyLocked ? `Fixed qty: ${fixedQty}` : undefined}
                       className={`${cls.input} h-6 text-[10px] px-1 mx-auto block ${qtyLocked ? 'disabled:bg-lightgreen/5 border-none text-slate-700 cursor-not-allowed' : ''}`}

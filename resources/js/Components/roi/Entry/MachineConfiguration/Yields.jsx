@@ -1,5 +1,45 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useProjectData } from "@/Context/ProjectContext";
+
+// ── FormattedNumberInput ───────────────────────────────────────────────────
+// Shows "20,000" style formatting when not focused; switches to raw digits
+// while the user is actively typing so commas don't fight the cursor.
+function FormattedNumberInput({ value, onChange, disabled, className, placeholder }) {
+  const [focused, setFocused] = useState(false);
+  const [localValue, setLocalValue] = useState("");
+
+  useEffect(() => {
+    if (!focused) {
+      const n = Number(value);
+      setLocalValue(
+        (!value && value !== 0) || n === 0
+          ? ""
+          : n.toLocaleString("en-US", { maximumFractionDigits: 2 })
+      );
+    }
+  }, [value, focused]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={localValue}
+      placeholder={placeholder}
+      disabled={disabled}
+      className={className}
+      onFocus={() => {
+        setFocused(true);
+        setLocalValue(value === 0 || value === "" ? "" : String(value));
+      }}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+        setLocalValue(cleaned);
+        onChange(cleaned);
+      }}
+    />
+  );
+}
 
 function Yields({ buttonClicked, readOnly }) {
   const { projectData, setProjectData } = useProjectData();
@@ -60,12 +100,11 @@ function Yields({ buttonClicked, readOnly }) {
                 Mono AMPV
               </td>
               <td className="border-b border-r border-slate-200 p-2 sm:p-1 bg-lightgreen/2">
-                <input
-                  type="number"
+                <FormattedNumberInput
                   placeholder="0"
-                  value={monoRaw === 0 ? "" : monoRaw}
-                  onChange={(e) => handleChange("mono", e.target.value)}
-                  readOnly={readOnly}
+                  value={monoRaw === "" ? "" : monoMonthlyNum}
+                  onChange={(value) => handleChange("mono", value)}
+                  disabled={readOnly}
                   className={numberInputClass}
                 />
               </td>
@@ -80,12 +119,11 @@ function Yields({ buttonClicked, readOnly }) {
                 Color AMPV
               </td>
               <td className="border-r border-slate-200 p-2 sm:p-1 bg-lightgreen/2">
-                <input
-                  type="number"
+                <FormattedNumberInput
                   placeholder="0"
-                  value={colorRaw === 0 ? "" : colorRaw}
-                  onChange={(e) => handleChange("color", e.target.value)}
-                  readOnly={readOnly}
+                  value={colorRaw === "" ? "" : colorMonthlyNum}
+                  onChange={(value) => handleChange("color", value)}
+                  disabled={readOnly}
                   className={numberInputClass}
                 />
               </td>
