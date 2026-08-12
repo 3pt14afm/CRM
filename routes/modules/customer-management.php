@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Contract\ContractController;
+use App\Http\Controllers\Contract\ContractMonitoringController;
 use App\Http\Controllers\Customer\CustomerInfoController;
 use App\Http\Controllers\Customer\CustomerManagementController;
 use App\Http\Controllers\Customer\DashboardController;
@@ -39,6 +40,7 @@ Route::middleware(['auth', 'verified'])
         Route::get('/create/{company?}', [ContractController::class, 'create'])->name('create');
         Route::get('/renewal', [ContractController::class, 'renewal'])->name('renewal');
         Route::get('/review', [ContractController::class, 'review'])->name('review');
+        Route::get('/monitoring', [ContractMonitoringController::class, 'index'])->name('monitoring');
     });
 
 Route::middleware(['auth', 'verified'])

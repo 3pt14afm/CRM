@@ -8,6 +8,7 @@ export default function ScrollableSelect({
   options,
   placeholder = "Select an option",
   disabled = false,
+  className = "",
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
@@ -50,9 +51,9 @@ export default function ScrollableSelect({
   const selected = options.find((opt) => String(opt.id) === String(value));
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       {label && (
-        <label className="mb-1 block text-xs font-semibold text-slate-600">
+        <label className="mb-1 block text-[11px] md:text-xs font-semibold text-slate-600">
           {label}
         </label>
       )}
@@ -62,13 +63,17 @@ export default function ScrollableSelect({
         type="button"
         onClick={() => !disabled && setOpen((prev) => !prev)}
         disabled={disabled}
-        className="flex w-full items-center justify-between rounded-lg border border-black/10 bg-[#FBFFFA] px-3 py-2 text-left text-sm disabled:bg-slate-50 disabled:text-slate-400"
+        className={`flex w-full items-center justify-between h-7 md:h-9 px-2 md:px-3 py-0 border border-gray-200 rounded-lg bg-white cursor-pointer focus:outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${className}`}
       >
-        <span className={selected ? "text-slate-800" : "text-slate-400"}>
+        <span 
+          className={`truncate pr-2 text-[11px] md:text-[13px] ${
+            selected ? "text-slate-700" : "text-slate-400"
+          }`}
+        >
           {selected ? selected.name : placeholder}
         </span>
         <svg
-          className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform ${
+          className={`h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0 text-slate-400 transition-transform duration-200 ${
             open ? "rotate-180" : ""
           }`}
           fill="none"
@@ -83,8 +88,14 @@ export default function ScrollableSelect({
         createPortal(
           <div
             ref={dropdownRef}
-            style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width, zIndex: 10000 }}
-            className="max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+            style={{
+              position: "fixed",
+              top: coords.top,
+              left: coords.left,
+              width: coords.width,
+              zIndex: 10000,
+            }}
+            className="max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
           >
             {options.map((opt) => (
               <button
@@ -94,7 +105,7 @@ export default function ScrollableSelect({
                   onChange(String(opt.id));
                   setOpen(false);
                 }}
-                className={`block w-full px-3 py-2 text-left text-sm hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
+                className={`block w-full px-2 md:px-3 py-1.5 md:py-2 text-left text-[11px] md:text-[13px] transition-colors hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
                   String(opt.id) === String(value)
                     ? "bg-[#B5EBA2]/40 font-medium text-slate-900"
                     : "text-slate-700"

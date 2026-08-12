@@ -10,6 +10,7 @@ import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons
 import { FaFileUpload, FaRegFileAlt } from 'react-icons/fa';
 import { TbLayoutRows } from 'react-icons/tb';
 import SortHeader from '@/Components/SortHeader';
+import ScrollableSelect from '@/Components/ScrollableSelect';
 
 const STORAGE_KEY = 'contract_upload_filters';
 
@@ -32,7 +33,7 @@ function loadPersistedFilters() {
     }
 }
 
-function UploadContract({ companies, filters = {}, categories = [] }) {
+function UploadContract({ companies, filters = {}, categories = [], contractTypes = [] }) {
     const { auth } = usePage().props;
     const currentEmployeeId = auth?.user?.employee_id ?? null;
 
@@ -44,6 +45,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const [docNum, setDocNum] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [ctid, setCtid] = useState('');
     const [formErrors, setFormErrors] = useState({});
     const [isUploading, setIsUploading] = useState(false);
 
@@ -69,6 +71,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         setDocNum('');
         setStartDate('');
         setEndDate('');
+        setCtid('');
         setFormErrors({});
 
         const uniqueNames = row.company_name_options?.length
@@ -76,9 +79,6 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             : [row.company_name].filter(Boolean);
         setCompanyNameOptions(uniqueNames);
 
-        // If we were told which branch to prefer (e.g. the branch selected
-        // inside the Contracts modal) and it's actually one of this row's
-        // known names, use it; otherwise fall back to the row's own name.
         const initialName = (preferredCompanyName && uniqueNames.includes(preferredCompanyName))
             ? preferredCompanyName
             : (row.company_name ?? '');
@@ -100,6 +100,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
         setDocNum(contract.doc_num ?? '');
         setStartDate(contract.start_date ?? '');
         setEndDate(contract.end_date ?? '');
+        setCtid(contract.ctid ?? '');
         setFormErrors({});
 
         const uniqueNames = row.company_name_options?.length
@@ -135,9 +136,10 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             docNum !== (editingContract.doc_num ?? '') ||
             startDate !== (editingContract.start_date ?? '') ||
             endDate !== (editingContract.end_date ?? '') ||
+            ctid !== (editingContract.ctid ?? '') ||
             selectedCompanyName !== (editingContract.company_name ?? '')
         );
-    }, [editingContract, pdfFile, docNum, startDate, endDate, selectedCompanyName]);
+    }, [editingContract, pdfFile, docNum, startDate, endDate, ctid, selectedCompanyName]);
 
     // ── View Contracts modal state ──
     const [contractsModalRow, setContractsModalRow] = useState(null);
@@ -189,6 +191,8 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
             } else {
                 openContractsModal(row, contractId);
             }
+
+            window.history.replaceState(history.state, '', window.location.pathname);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -212,6 +216,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                 doc_num: docNum,
                 start_date: startDate,
                 end_date: endDate,
+                ctid: ctid,
                 company_name: selectedCompanyName,
             },
             {
@@ -332,11 +337,6 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const updateFilters = (newFilters) => {
         const updated = { ...searchStateRef.current, ...newFilters };
         setSearchState(updated);
-        // Drop any stale AJAX search results so the render falls back to the
-        // `companies` prop returned by this Inertia visit — otherwise sort/
-        // filter/page changes made while `searchResults` is populated (i.e.
-        // after typing in the search box) appear to do nothing, because
-        // effectiveCompanies prefers searchResults over companies.
         setSearchResults(null);
         router.get(route('contract.upload'), updated, {
             preserveState: true,
@@ -409,14 +409,11 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat('en-US', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(today);
 
-    // Same color rule used on the Customer Info "Existing Customers" table:
-    // red for any expired contract, amber for expiring-soon, green for
-    // healthy (active/extended), no color when there are no contracts at all.
     const CONTRACT_STATUS_CLASSES = {
         expired: 'text-red-600',
         warning: 'text-amber-500',
         good:    'text-lime-500',
-        default: 'text-slate-500',
+        default: 'text-slate-400',
     };
 
     const STATUS_SEVERITY = { expired: 3, warning: 2, good: 1, default: 0 };
@@ -523,7 +520,7 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                         {groupCount > 1 && (
                             <div className="flex items-center gap-5 flex-shrink-0">
                                 <span className="text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
-                                    {groupCount}
+                                    {groupCount} Branches
                                 </span>
                                 <button
                                     type="button"
@@ -826,6 +823,17 @@ function UploadContract({ companies, filters = {}, categories = [] }) {
                                     </div>
                                 )}
                             </div> */}
+
+                            <div>
+                                <ScrollableSelect
+                                    label="Contract Type"
+                                    value={ctid}
+                                    onChange={(val) => setCtid(val)}
+                                    options={contractTypes}
+                                    placeholder="Select contract type"
+                                />
+                                {formErrors.ctid && <p className="text-[11px] text-[#C40000] mt-1">{formErrors.ctid}</p>}
+                            </div>
 
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">

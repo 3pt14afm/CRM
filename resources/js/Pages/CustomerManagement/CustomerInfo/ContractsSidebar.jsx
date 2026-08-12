@@ -26,7 +26,8 @@ const COUNT_STATUS_COLOR = {
 function branchCountColor(contracts) {
     if (contracts.some((c) => c.status === 'expired')) return COUNT_STATUS_COLOR.expired;
     if (contracts.some((c) => c.status === 'expiring_soon')) return COUNT_STATUS_COLOR.expiring_soon;
-    return 'text-emerald-600';
+    if (contracts.some((c) => ['active', 'extended'].includes(c.status))) return 'text-emerald-600';
+    return 'text-slate-500';
 }
 
 // Same rollup, but across every company nested under a main_location group.

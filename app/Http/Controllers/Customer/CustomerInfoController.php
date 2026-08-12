@@ -73,6 +73,7 @@ class CustomerInfoController extends Controller
         $allowedSorts = [
             'id', 'company_name', 'sap_code',
             'client_category', 'delsan_company', 'status', 'client_manager',
+            'contracts',
         ];
 
         if (!in_array($sortBy, $allowedSorts)) {
@@ -102,8 +103,11 @@ class CustomerInfoController extends Controller
                     $query->where(function ($q) use ($search) {
                         $q->where('company_name', 'like', "%{$search}%")
                         ->orWhere('sap_code', 'like', "%{$search}%")
-                        ->orWhere('address', 'like', "%{$search}%")
-                        ->orWhere('delsan_company', 'like', "%{$search}%");
+                        ->orWhereRaw(
+                            "CONCAT(client_managers.first_name, ' ', client_managers.last_name) LIKE ?",
+                            ["%{$search}%"]
+                        );
+                        // ->orWhere('address', 'like', "%{$search}%")
                     });
                 })
                 ->when($request->input('category'), function ($query, $category) {
@@ -134,6 +138,28 @@ class CustomerInfoController extends Controller
 
         $totalGroups = $representativeIds->count();
 
+        // Contract count for a row's whole sap_code group (falls back to the
+        // row's own id when it has no sap_code) — mirrors $groupKeyExpr /
+        // $contractsCountBySapCode below so sort order matches what's shown.
+        $contractsCountSubquery = "(
+            SELECT COUNT(*) FROM contracts
+            WHERE contracts.company_id IN (
+                SELECT grp.id FROM {$companyTable} AS grp
+                WHERE
+                    (
+                        {$companyTable}.sap_code IS NOT NULL AND {$companyTable}.sap_code != ''
+                        AND grp.sap_code = {$companyTable}.sap_code
+                    )
+                    OR
+                    (
+                        ({$companyTable}.sap_code IS NULL OR {$companyTable}.sap_code = '')
+                        AND grp.id = {$companyTable}.id
+                    )
+            )
+        )";
+
+        $exemptSorts = ['sap_code', 'client_manager', 'contracts'];
+
         $companiesQuery = $baseFilteredQuery()
             ->select("{$companyTable}.*")
             ->with(['clientManager', 'mainLocation'])
@@ -149,10 +175,13 @@ class CustomerInfoController extends Controller
                     "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) {$sortOrder}"
                 );
             })
-            ->when(!in_array($sortBy, ['sap_code', 'client_manager']) && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable) {
+            ->when($sortBy === 'contracts', function ($query) use ($sortOrder, $contractsCountSubquery) {
+                $query->orderByRaw("{$contractsCountSubquery} {$sortOrder}");
+            })
+            ->when(!in_array($sortBy, $exemptSorts) && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable) {
                 $query->orderBy("{$companyTable}.{$sortBy}", $sortOrder);
             })
-            ->when(!in_array($sortBy, ['sap_code', 'client_manager']) && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable, $qualify) {
+            ->when(!in_array($sortBy, $exemptSorts) && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable, $qualify) {
                 $query->orderByRaw("LOWER({$qualify($companyTable, $sortBy)}) {$sortOrder}");
             });
 
@@ -229,7 +258,10 @@ class CustomerInfoController extends Controller
             if ($group->contains(fn ($c) => $c->status === Contract::STATUS_EXPIRING_SOON)) {
                 return 'expiring_soon';
             }
-            return 'ok';
+            if ($group->contains(fn ($c) => in_array($c->status, [Contract::STATUS_ACTIVE, Contract::STATUS_EXTENDED], true))) {
+                return 'ok';
+            }
+            return 'default';
         });
 
         $contractsCountBySapCode = $companiesForPage
@@ -243,10 +275,12 @@ class CustomerInfoController extends Controller
             ->filter(fn ($c) => $c->sap_code)
             ->mapWithKeys(function ($c) use ($siblingsBySap, $statusByCompanyId) {
                 $allIds = ($siblingsBySap[$c->sap_code] ?? collect())->pluck('id')->push($c->id)->unique();
-                $statuses = $allIds->map(fn ($id) => $statusByCompanyId[$id] ?? 'ok');
+                $statuses = $allIds->map(fn ($id) => $statusByCompanyId[$id] ?? 'default');
                 return [$c->sap_code => $statuses->contains('expired')
                     ? 'expired'
-                    : ($statuses->contains('expiring_soon') ? 'expiring_soon' : 'ok')];
+                    : ($statuses->contains('expiring_soon')
+                        ? 'expiring_soon'
+                        : ($statuses->contains('ok') ? 'ok' : 'default'))];
             });
 
         $companies->getCollection()->transform(function ($c) use (

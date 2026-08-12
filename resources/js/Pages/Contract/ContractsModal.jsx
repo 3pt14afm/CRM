@@ -1,11 +1,11 @@
 import React, { forwardRef, useImperativeHandle, useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import axios from 'axios';
 import { route } from 'ziggy-js';
-import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit, MdMoreVert, MdOutlineCancel, MdOutlineArchive, MdOutlinePictureAsPdf,  MdBlock,
-  MdInbox, MdSchedule, MdExpandMore } from 'react-icons/md';
+import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit, MdMoreVert, MdOutlineCancel, MdOutlineArchive, MdOutlinePictureAsPdf,  MdBlock, MdInbox, MdSchedule, MdExpandMore } from 'react-icons/md';
 import { GrDocumentTime } from 'react-icons/gr';
 import { FaFileUpload } from 'react-icons/fa';
 import { toast } from 'sonner';
+import { VscTag } from 'react-icons/vsc';
 
 
 const STATUS_TABS = [
@@ -662,6 +662,12 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
 
                                         {/* Meta Information */}
                                         <div className="flex flex-col gap-1 md:gap-2">
+                                            <span className="flex items-center gap-2 pb-1 text-xs">
+                                                <VscTag className="h-4 w-4 text-slate-400" />
+                                                <span className={c.contract_type ? 'text-slate-700' : 'text-slate-400'}>
+                                                    {c.contract_type ?? 'Contract type not specified'}
+                                                </span>
+                                            </span>
                                             <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-[11px] md:text-xs text-slate-500">
                                                 <span className="flex items-center gap-1.5">
                                                     <span className="text-slate-400">SAP:</span> 

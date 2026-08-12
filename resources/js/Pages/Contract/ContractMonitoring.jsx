@@ -1,0 +1,663 @@
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import axios from 'axios';
+import { Head, router } from '@inertiajs/react';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { route } from 'ziggy-js';
+import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdOutlineVisibility, } from 'react-icons/md';
+import { TbLayoutRows } from 'react-icons/tb';
+import SortHeader from '@/Components/SortHeader';
+import ScrollableSelect from '@/Components/ScrollableSelect';
+import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
+import ProjectListSection from '@/Components/roi/ProjectListSection';
+import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
+import { IoEyeOutline } from 'react-icons/io5';
+
+const STORAGE_KEY = 'contract_monitoring_filters';
+
+const DEFAULT_FILTERS = {
+    search:         '',
+    delsan_company: '',
+    type:           '',
+    status:         '',
+    per_page:       12,
+    sort_by:        'company_name',
+    sort_order:     'asc',
+};
+
+function loadPersistedFilters() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+const STATUS_CLASSES = {
+    active:          'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20',
+    extended:        'text-emerald-600 bg-emerald-50 border-emerald-200',
+    expiring_soon:   'text-amber-600 bg-amber-50 border-amber-200',
+    expired:         'text-red-600 bg-red-50 border-red-200',
+    terminated:      'text-slate-500 bg-slate-100 border-slate-200',
+    archived:        'text-slate-500 bg-slate-100 border-slate-200',
+};
+
+function StatusPill({ status, label }) {
+    const classes = STATUS_CLASSES[status] || 'text-slate-500 bg-slate-100 border-slate-200';
+    return (
+        <span className={`inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-semibold border ${classes}`}>
+            {label}
+        </span>
+    );
+}
+
+function formatShortDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '');
+}
+
+function formatDaysRemaining(days) {
+    if (days === null || days === undefined) return '—';
+
+    const rounded = Math.round(days);
+    if (rounded === 0) return 'Today';
+
+    const overdue = rounded < 0;
+    const abs = Math.abs(rounded);
+    const months = Math.floor(abs / 30);
+    const remDays = abs % 30;
+
+    const parts = [];
+    if (months > 0) parts.push(`${months}m`);
+    if (remDays > 0 || months === 0) parts.push(`${remDays}d`);
+
+    const label = parts.join(' ');
+    return overdue ? `${label} overdue` : label;
+}
+
+function daysRemainingClass(days) {
+    if (days === null || days === undefined) return 'text-slate-400';
+    if (days < 0) return 'text-red-600';
+    if (days <= 180) return 'text-amber-600';
+    return 'text-[#2da300]';
+}
+
+function RemainingDaysLabel({ days }) {
+    const label = formatDaysRemaining(days);
+    if (label === '—') return <span className="text-slate-400">—</span>;
+    return (
+        <span className={`whitespace-nowrap text-[11px] font-medium ${daysRemainingClass(days)}`}>
+            {label}
+        </span>
+    );
+}
+
+function ContractMonitoring({ companies, filters = {}, contractTypes = [], statusOptions = [] }) {
+    const [searchState, setSearchState] = useState(() => {
+        const persisted = loadPersistedFilters();
+        return {
+            ...DEFAULT_FILTERS,
+            ...(persisted ?? {}),
+            ...(filters.search         !== undefined ? { search:         filters.search }         : {}),
+            ...(filters.delsan_company !== undefined ? { delsan_company: filters.delsan_company } : {}),
+            ...(filters.type           !== undefined ? { type:           filters.type }           : {}),
+            ...(filters.status         !== undefined ? { status:         filters.status }          : {}),
+            ...(filters.per_page       !== undefined ? { per_page:       filters.per_page }        : {}),
+            ...(filters.sort_by        !== undefined ? { sort_by:        filters.sort_by }         : {}),
+            ...(filters.sort_order     !== undefined ? { sort_order:     filters.sort_order }      : {}),
+        };
+    });
+
+    const [showPerPagePicker, setShowPerPagePicker] = useState(false);
+    const [perPageInput, setPerPageInput] = useState(String(searchState.per_page));
+    const perPagePickerRef = useRef(null);
+
+    const [expandedSapCodes, setExpandedSapCodes] = useState(() => new Set());
+    const toggleGroup = (sapCode) => {
+        if (!sapCode) return;
+        setExpandedSapCodes((prev) => {
+            const next = new Set(prev);
+            if (next.has(sapCode)) next.delete(sapCode); else next.add(sapCode);
+            return next;
+        });
+    };
+
+    const [searchResults, setSearchResults] = useState(null);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchDebounceRef = useRef(null);
+    const searchAbortRef = useRef(null);
+
+    const searchStateRef = useRef(searchState);
+    useEffect(() => { searchStateRef.current = searchState; }, [searchState]);
+
+    useEffect(() => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(searchState)); } catch {}
+    }, [searchState]);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (perPagePickerRef.current && !perPagePickerRef.current.contains(e.target))
+                setShowPerPagePicker(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    useEffect(() => () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        if (searchAbortRef.current) searchAbortRef.current.abort();
+    }, []);
+
+    const updateFilters = (newFilters) => {
+        const updated = { ...searchStateRef.current, ...newFilters };
+        setSearchState(updated);
+        setSearchResults(null);
+        router.get(route('contract.monitoring'), updated, { preserveState: true, replace: true });
+    };
+
+    const runSearch = (value, currentFilters) => {
+        if (searchAbortRef.current) searchAbortRef.current.abort();
+        const controller = new AbortController();
+        searchAbortRef.current = controller;
+        setIsSearching(true);
+
+        axios.get(route('contract.monitoring'), {
+            params: { ...currentFilters, search: value },
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            signal: controller.signal,
+        })
+            .then((res) => setSearchResults(res.data))
+            .catch((err) => {
+                if (axios.isCancel?.(err) || err.name === 'CanceledError') return;
+                console.error('Search request failed:', err);
+            })
+            .finally(() => setIsSearching(false));
+    };
+
+    const handleSearchChange = (value) => {
+        const updated = { ...searchState, search: value };
+        setSearchState(updated);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => {
+            const params = new URLSearchParams(updated).toString();
+            window.history.replaceState(window.history.state, '', `${route('contract.monitoring')}?${params}`);
+            runSearch(value, updated);
+        }, 350);
+    };
+
+    const handleSort = (key) => {
+        const current = searchStateRef.current;
+        const newOrder = current.sort_by === key && current.sort_order === 'asc' ? 'desc' : 'asc';
+        updateFilters({ sort_by: key, sort_order: newOrder });
+    };
+
+    const isFiltered = useMemo(() => (
+        searchState.search         !== DEFAULT_FILTERS.search         ||
+        searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
+        searchState.type           !== DEFAULT_FILTERS.type           ||
+        searchState.status         !== DEFAULT_FILTERS.status         ||
+        searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
+        searchState.sort_order     !== DEFAULT_FILTERS.sort_order
+    ), [searchState]);
+
+    const clearAllFilters = () => {
+        const reset = { ...DEFAULT_FILTERS, per_page: searchState.per_page };
+        setSearchState(reset);
+        setPerPageInput(String(reset.per_page));
+        setSearchResults(null);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
+        router.get(route('contract.monitoring'), reset, { preserveState: true, replace: true });
+    };
+
+    const handlePerPageInputApply = () => {
+        const raw = parseInt(perPageInput, 10);
+        const num = !isNaN(raw) && raw > 0 ? Math.min(raw, 100) : searchState.per_page;
+        setShowPerPagePicker(false);
+        updateFilters({ per_page: num });
+        setPerPageInput(String(num));
+    };
+
+    const today = new Date();
+    const formattedDate = new Intl.DateTimeFormat('en-US', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(today);
+
+    const effectiveCompanies = searchResults?.companies ?? companies;
+
+    const displayRows = useMemo(() => {
+        const list = effectiveCompanies?.data ?? [];
+        const seenSapCodes = new Set();
+        const rows = [];
+
+        list.forEach((c) => {
+            if (c.sap_code) {
+                if (seenSapCodes.has(c.sap_code)) return;
+                seenSapCodes.add(c.sap_code);
+            }
+
+            const branchCount = c.branches?.length || 1;
+            const isCollapsible = branchCount > 1;
+
+            if (!isCollapsible) {
+                (c.contracts ?? []).forEach((contract) => {
+                    rows.push({
+                        _type: 'contract',
+                        ...contract,
+                        sap_code: c.sap_code,
+                        company_name: contract.company_name ?? c.company_name,
+                        delsan_company: c.delsan_company,
+                        location: c.location,
+                        client_manager: c.client_manager,
+                        id_client_mngr: c.id_client_mngr,
+                        _groupId: c.id,
+                        _topLevel: true,
+                    });
+                });
+                return;
+            }
+
+            const isExpanded = c.sap_code && expandedSapCodes.has(c.sap_code);
+            const allBranchContracts = c.branch_contracts ?? c.contracts ?? [];
+            const contractsToShow = isExpanded ? allBranchContracts : (c.contracts ?? []);
+
+            rows.push({
+                _type: 'group',
+                id: c.id,
+                sap_code: c.sap_code,
+                company_name: c.company_name,
+                delsan_company: c.delsan_company,
+                location: c.location,
+                client_manager: c.client_manager,
+                id_client_mngr: c.id_client_mngr,
+                branchCount,
+                isExpanded,
+                contractCount: allBranchContracts.length,
+            });
+
+            if (isExpanded) {
+                contractsToShow.forEach((contract) => {
+                    rows.push({ _type: 'contract', ...contract, _groupId: c.id });
+                });
+            }
+        });
+
+        return rows;
+    }, [effectiveCompanies, expandedSapCodes]);
+
+    // ── Mobile card renderer ──
+    const renderMonitoringCard = (r) => {
+        if (r._type === 'group') {
+            return (
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-slate-600 text-xs">{r.sap_code}</span>
+                            {r.branchCount > 1 && (
+                                <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
+                                    {r.branchCount} Branches
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold truncate text-[#0f3800]">{r.company_name ?? '—'}</p>
+                            {r.branchCount > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); toggleGroup(r.sap_code); }}
+                                    title={r.isExpanded ? 'Collapse branches' : `Show ${r.branchCount - 1} more branch${r.branchCount - 1 !== 1 ? 'es' : ''}`}
+                                    className="flex-shrink-0 text-slate-600 hover:text-slate-800 transition-colors"
+                                >
+                                    <MdExpandMore size={20} className={`transition-transform duration-200 ${r.isExpanded ? 'rotate-180' : ''}`} />
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-[11px] font-medium truncate uppercase">{r.delsan_company ?? '—'}</p>
+                        <div className="flex items-center justify-between mt-1">
+                            <p className="text-[11px] font-medium text-slate-700">{r.client_manager || r.id_client_mngr || ''}</p>
+                            <span className="text-[11px] font-semibold text-slate-400">
+                                {r.contractCount} contract{r.contractCount === 1 ? '' : 's'}{r.isExpanded ? '' : ' (in this branch)'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="flex flex-col gap-2 pl-3 border-l-2 border-[#195c00]/15">
+                <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs italic text-slate-700 truncate">{r.company_name ?? '—'}</span>
+                    <StatusPill status={r.status} label={r.status_label} />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-600">
+                    <span>{r.client_manager || r.id_client_mngr || ''}</span>
+                    <span className="uppercase">{r.delsan_company ?? '—'}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-600">
+                    <span>{formatShortDate(r.start_date) ?? '—'} – {formatShortDate(r.end_date) ?? '—'}</span>
+                    <RemainingDaysLabel days={r.remaining_days} />
+                </div>
+                <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500">{r.contract_type ?? '—'}</span>
+                    {r.pdf_url ? (
+                        <a
+                            href={r.pdf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 h-6 px-2 rounded-lg text-white text-[10px] font-semibold bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors"
+                        >
+                            <MdOutlineVisibility size={12} /> View
+                        </a>
+                    ) : (
+                        <span className="text-[10px] text-slate-300">No PDF</span>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // ── Desktop table columns ──
+    const monitoringColumns = useMemo(() => [
+        {
+            key: 'sap_code',
+            header: <SortHeader label="SAP CODE" sortKey="sap_code" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center">
+                    {(r._type === 'group' || r._topLevel)
+                        ? <span className="font-mono text-slate-600">{r.sap_code ?? ''}</span>
+                        : ""}
+                </div>
+            ),
+        },
+        {
+            key: 'company_name',
+            header: <SortHeader label="NAME" sortKey="company_name" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => {
+                if (r._type === 'group') {
+                    return (
+                        <div className="min-h-[32px] flex items-center font-medium justify-between text-[#0f3800]">
+                            <span className="truncate">{r.company_name ?? '—'}</span>
+                            {r.branchCount > 1 && (
+                                <div className="flex items-center gap-5 flex-shrink-0">
+                                    <span className="text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
+                                        {r.branchCount} Branches
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleGroup(r.sap_code)}
+                                        title={r.isExpanded ? 'Collapse branches' : `Show ${r.branchCount - 1} more branch${r.branchCount - 1 !== 1 ? 'es' : ''}`}
+                                        className="bg-white border shadow-sm rounded-md"
+                                    >
+                                        <MdExpandMore size={20} className={`transition-transform duration-200 ${r.isExpanded ? 'rotate-180' : ''}`} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+                if (r._topLevel) {
+                    return (
+                        <div className="min-h-[32px] flex items-center">
+                            <span className="font-medium text-[#0f3800] truncate">{r.company_name ?? ''}</span>
+                        </div>
+                    );
+                }
+                return (
+                    <div className="min-h-[32px] border-l-2 flex items-center pl-4">
+                        <span className=" text-slate-700 break-words">{r.company_name ?? ''}</span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'client_manager',
+            header: <SortHeader label="ACCOUNT MANAGER" sortKey="client_manager" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center font-medium">{r.client_manager || r.id_client_mngr || ''}</div>
+            ),
+        },
+        {
+            key: 'delsan_company',
+            header: <SortHeader label="DELSAN" sortKey="delsan_company" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] uppercase font-medium flex items-center">{r.delsan_company ?? ''}</div>
+            ),
+        },
+        {
+            key: 'dates',
+            header: <SortHeader label="START – END" sortKey="dates" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center">
+                    {r._type === 'contract'
+                        ? (
+                            <div className="text-[11px] leading-snug py-1">
+                                <div>{formatShortDate(r.start_date) ?? ''}</div>
+                                <div>to {formatShortDate(r.end_date) ?? ''}</div>
+                            </div>
+                        )
+                        : ""}
+                </div>
+            ),
+        },
+        {
+            key: 'location',
+            header: <SortHeader label="LOCATION" sortKey="location" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center">
+                    <span className="font-medium break-words">{r.location ?? ''}</span>
+                </div>
+            ),
+        },
+        {
+            key: 'status',
+            header: <SortHeader label="STATUS" sortKey="status" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center">
+                    {r._type === 'group'
+                        ? <span className="text-[11px] text-slate-400">{r.contractCount} contract{r.contractCount === 1 ? '' : 's'}</span>
+                        : <StatusPill status={r.status} label={r.status_label} />}
+                </div>
+            ),
+        },
+        {
+            key: 'contract_type',
+            header: <SortHeader label="TYPE" sortKey="contract_type" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center">
+                    {r._type === 'contract'
+                        ? <span className="block max-w-[90px] font-medium whitespace-normal break-words">{r.contract_type ?? ''}</span>
+                        : ""}
+                </div>
+            ),
+        },
+        {
+            key: 'remaining_days',
+            header: <SortHeader label="DAYS" sortKey="remaining_days" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center">
+                    {r._type === 'contract'
+                        ? <RemainingDaysLabel days={r.remaining_days} />
+                        : <span className="text-slate-300"></span>}
+                </div>
+            ),
+        },
+        {
+            key: 'action',
+            header: <div className="text-center">ACTION</div>,
+            cell: (r) => {
+                if (r._type !== 'contract') return null;
+                return (
+                    <div className="min-h-[32px] flex items-center justify-center">
+                        {r.pdf_url ? (
+                            <button
+                                title="View PDF"
+                                className="px-1.5 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+                                onClick={() => window.open(r.pdf_url, '_blank', 'noopener,noreferrer')}
+                            >
+                                <IoEyeOutline className="text-[18px]" />
+                            </button>
+                        ) : (
+                            <span className="text-[10px] text-slate-300">No PDF</span>
+                        )}
+                    </div>
+                );
+            },
+        },
+    ], [searchState.sort_by, searchState.sort_order, expandedSapCodes]);
+
+    const goToPage = (p) => {
+        setSearchResults(null);
+        router.get(route('contract.monitoring'), { ...searchStateRef.current, page: p }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
+    const pagination = effectiveCompanies && typeof effectiveCompanies.current_page === 'number'
+        ? {
+            page: effectiveCompanies.current_page,
+            perPage: effectiveCompanies.per_page ?? searchState.per_page,
+            total: effectiveCompanies.total ?? 0,
+            onPageChange: goToPage,
+        }
+        : null;
+
+    const searchControl = (
+        <div className="relative h-7 md:h-8 flex items-center min-w-0 flex-shrink-0">
+            <input
+                type="text"
+                placeholder="Search"
+                value={searchState.search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
+                    md:w-64 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
+                    ${searchState.search ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" : "w-7 px-0 text-transparent placeholder:text-transparent cursor-pointer focus:w-40 focus:pl-8 focus:pr-3 focus:text-black focus:placeholder:text-slate-400 focus:cursor-text"}
+                `}
+            />
+            <MdSearch className={`absolute text-slate-400 text-base pointer-events-none z-10 transition-all duration-300 ${searchState.search ? "left-2.5 translate-x-0" : "left-1/2 -translate-x-1/2 peer-focus:left-2.5 peer-focus:translate-x-0 md:left-2.5 md:translate-x-0"}`} />
+        </div>
+    );
+
+    const delsanOptions = [
+        { id: "", name: "All Delsan" },
+        { id: "DBIC", name: "DBIC" },
+        { id: "DOSC", name: "DOSC" },
+        { id: "DDTC", name: "DDTC" }
+    ];
+
+    const mappedStatusOptions = statusOptions.map((s) => ({ id: s.value, name: s.label }));
+
+    const filterToolbar = (
+        <FilterToolbar hasActiveFilters={isFiltered} onClearAll={clearAllFilters}>
+            
+            {/* Delsan Company Filter */}
+            <div className="relative w-[110px] md:w-36 flex flex-shrink-0 items-center">
+                <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+                <ScrollableSelect
+                    value={searchState.delsan_company}
+                    onChange={(val) => updateFilters({ delsan_company: val })}
+                    options={delsanOptions}
+                    placeholder="All Delsan"
+                    className="!pl-[21px] md:!pl-8"
+                />
+            </div>
+
+            <div className="relative w-[160px] md:w-52 flex flex-shrink-0 items-center">
+                <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+                <ScrollableMultiSelect
+                    isSearchable={false}
+                    pluralLabel="types"
+                    values={searchState.type || []}
+                    onChange={(arr) => updateFilters({ type: arr })}
+                    options={contractTypes}
+                    placeholder="Select types"
+                    className="!pl-[21px] md:!pl-8 pr-1 md:pr-2"
+                />
+            </div>
+
+            {/* Status Multi-Filter */}
+            <div className="relative w-[180px] md:w-44 flex flex-shrink-0 items-center">
+                <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+                <ScrollableMultiSelect
+                    isSearchable={false}
+                    values={searchState.status || []}
+                    onChange={(arr) => updateFilters({ status: arr })}
+                    options={mappedStatusOptions}
+                    placeholder="Select status"
+                    className="!pl-[21px] md:!pl-8 pr-1 md:pr-2"
+                />
+            </div>
+
+            {/* Rows Per Page Picker */}
+            <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
+                <button
+                    type="button"
+                    onClick={() => setShowPerPagePicker((p) => !p)}
+                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[60px] sm:w-24 md:w-36"
+                >
+                    <TbLayoutRows className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
+                    <span className="flex-1 text-left pt-0.5 truncate"><span className="hidden sm:inline">Rows: </span>{searchState.per_page}</span>
+                    <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
+                </button>
+                {showPerPagePicker && (
+                    <div className="absolute -left-20 sm:-left-10 top-9 md:top-12 md:-left-2 z-50 w-36 bg-white border border-gray-300 rounded-2xl shadow-lg p-3">
+                        <span className="block text-[9px] md:text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Rows per page</span>
+                        <div className="flex items-center gap-1.5">
+                            <input
+                                autoFocus
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={perPageInput}
+                                onChange={(e) => setPerPageInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handlePerPageInputApply()}
+                                className="w-16 h-6 md:h-7 px-2 text-[11px] sm:text-xs md:text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0"
+                            />
+                            <button type="button" onClick={handlePerPageInputApply} className="h-6 md:h-7 min-w-11 flex-1 text-[10px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">Apply</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </FilterToolbar>
+    );
+
+    return (
+        <>
+            <Head title="Contract Monitoring" />
+
+            <div className="min-h-screen flex flex-col">
+                <div className="flex-1 pb-24">
+                    <div className="px-4 sm:px-6 lg:px-10 pt-8 mb-5 pb-0 flex justify-between items-end">
+                        <div className="flex flex-col md:gap-1">
+                            <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900">Contract Monitoring</p>
+                            <p className="text-[11px] text-slate-500 md:text-xs lg:text-sm">Track existing contracts by company, status, and remaining time.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-[11px] md:text-xs text-slate-500">{formattedDate}</h1>
+                        </div>
+                    </div>
+
+                    <ProjectListSection
+                        tableTitle="Company Contracts"
+                        columns={monitoringColumns}
+                        rows={displayRows}
+                        rowKey={(r) => r._type === 'group' ? `group-${r.id}` : `contract-${r.id}`}
+                        pagination={pagination}
+                        searchControl={searchControl}
+                        filterControl={filterToolbar}
+                        loading={isSearching}
+                        emptyText="No contracts found."
+                        renderCard={renderMonitoringCard}
+                    />
+                </div>
+            </div>
+        </>
+    );
+}
+
+export default ContractMonitoring;
+
+ContractMonitoring.layout = (page) => <AuthenticatedLayout children={page} />;

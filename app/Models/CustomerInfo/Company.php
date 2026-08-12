@@ -59,4 +59,9 @@ class Company extends Model
     {
         return $this->belongsTo(\App\Models\CustomerInfo\Location::class, 'main_location', 'id');
     }
+
+    public function contracts()
+    {
+        return $this->hasMany(\App\Models\Contracts\Contract::class, 'company_id');
+    }
 }

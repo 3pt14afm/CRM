@@ -30,6 +30,7 @@ class Contract extends Model
         'company_id',
         'company_name',
         'doc_num',
+        'ctid',
         'start_date',
         'end_date',
         'extend_dates',
@@ -140,5 +141,10 @@ class Contract extends Model
         $this->archived_at = now();
         $this->archived_by = $employeeId;
         $this->save();
+    }
+
+    public function contractType()
+    {
+        return $this->belongsTo(ContractType::class, 'ctid');
     }
 }
