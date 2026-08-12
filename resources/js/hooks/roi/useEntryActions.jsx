@@ -4,34 +4,10 @@ import { useProjectData } from '@/Context/ProjectContext';
 import { route as ziggyRoute } from 'ziggy-js';
 import { toast } from 'sonner';
 import { IoAlertCircle } from 'react-icons/io5';
-
-// Import the helpers from EntryRemarks
-import { 
-  getAttachmentFileObject, 
-  clearAttachmentFileStore 
-} from '@/Components/roi/Entry/EntryRemarks';
+import { clearAttachmentFileStore } from '@/Components/roi/Entry/EntryRemarks';
 
 /**
  * Handles draft save, submit, and clear actions for the entry author.
- *
- * @param {{
- *   entryProject: object|null,
- *   setTab: Function,
- *   setShowCompanyInfoErrors: Function,
- *   setShowOutrightErrors: Function,
- *   setResetKey: Function,
- *   isCompanyInfoValid: Function,
- *   validateBusinessLogic: Function,
- *   validateEntryRemarks: Function,
- *   buildPayload: Function,
- *   buildFormDataPayload: Function,
- * }} params
- * @returns {{
- *   buttonClicked: boolean,
- *   handleSaveDraft: Function,
- *   handleSubmit: Function,
- *   handleClearAll: Function,
- * }}
  */
 export function useEntryActions({
   entryProject,
@@ -45,72 +21,12 @@ export function useEntryActions({
   buildPayload,
   buildFormDataPayload,
 }) {
-  const { projectData, resetProject, saveDraft } = useProjectData();
-
+  const { projectData, resetProject, saveDraft, setProjectData } = useProjectData();
   const [buttonClicked, setButtonClicked] = useState(false);
 
   const triggerBlink = () => {
     setButtonClicked(true);
     setTimeout(() => setButtonClicked(false), 100);
-  };
-
-  /**
-   * Helper: Re-injects real File objects into FormData.
-   * buildFormDataPayload only sees serialized state, where File objects 
-   * have become {}. This step removes the ghosts and appends the real Files.
-   */
-  /**
-   * Helper: Re-injects real File objects into FormData.
-   * Strips empty {} file objects from JSON strings so backend validation passes.
-   */
-  /**
-   * Helper: Re-injects real File objects into FormData.
-   */
-  const fixAttachmentsInFormData = (formData) => {
-    const currentAttachments = projectData?.entryRemarks?.attachments || [];
-    
-    // 1. Clean up any JSON string payload (if buildFormDataPayload stringifies the data)
-    const formDataEntries = Array.from(formData.entries());
-    for (const [key, value] of formDataEntries) {
-      if (typeof value === 'string' && value.includes('"file":{}')) {
-        try {
-          const parsed = JSON.parse(value);
-          // Deep clean function to remove 'file: {}'
-          const cleanObject = (obj) => {
-            if (Array.isArray(obj)) return obj.map(cleanObject);
-            if (obj && typeof obj === 'object') {
-              const newObj = {};
-              for (const k in obj) {
-                // Skip the broken file object
-                if (k === 'file' && obj[k] && Object.keys(obj[k]).length === 0) continue;
-                newObj[k] = cleanObject(obj[k]);
-              }
-              return newObj;
-            }
-            return obj;
-          };
-          formData.set(key, JSON.stringify(cleanObject(parsed)));
-        } catch (e) {}
-      }
-    }
-
-    // 2. Remove ghost files appended as multipart
-    formData.delete('attachments[]');
-    formData.delete('entryRemarks[attachments][]');
-    formData.delete('entryRemarks[attachments][0][file]');
-    
-    // 3. Append real files with multiple possible keys to ensure backend validation passes
-    currentAttachments.forEach((att, index) => {
-      const file = getAttachmentFileObject(att);
-      if (file) {
-        // Append under every possible key format Laravel might expect
-        formData.append(`attachments[]`, file);
-        formData.append(`attachments[${index}]`, file);
-        formData.append(`entryRemarks[attachments][${index}][file]`, file);
-      }
-    });
-
-    return formData;
   };
 
   const handleSaveDraft = () => {
@@ -136,17 +52,28 @@ export function useEntryActions({
     const payload = buildPayload();
     saveDraft(payload);
     
-    let formData = buildFormDataPayload();
-    
-    // --- FIX: Inject real File objects before sending ---
-    formData = fixAttachmentsInFormData(formData);
+    // buildFormDataPayload() now handles attaching the real files perfectly!
+    const formData = buildFormDataPayload();
 
     router.post(ziggyRoute("roi.entry.draft.save"), formData, {
       preserveScroll: true,
       forceFormData: true,
       onStart: () => toast.loading("Saving Draft...", { id: "saveDraft" }),
-      onSuccess: () => {
-        clearAttachmentFileStore(); // Free memory
+      onSuccess: (page) => {
+        const savedAttachments = page?.props?.entryProject?.entry_remarks_attachments;
+
+        if (Array.isArray(savedAttachments)) {
+          setProjectData((prev) => ({
+            ...prev,
+            entryRemarks: {
+              ...prev.entryRemarks,
+              attachments: savedAttachments, // now carries server `path`, satisfying validateEntryRemarks
+            },
+          }));
+          clearAttachmentFileStore(); // safe now — path-based fallback is in place
+        }
+        // if savedAttachments is somehow missing, don't clear — keep local Files as a fallback
+
         triggerBlink();
         toast.success("Draft saved!", { id: "saveDraft" });
         setShowCompanyInfoErrors(false);
@@ -198,11 +125,9 @@ export function useEntryActions({
       return;
     }
 
-    let formData = buildFormDataPayload();
+    // buildFormDataPayload() now handles attaching the real files perfectly!
+    const formData = buildFormDataPayload();
     formData.append("_method", "patch");
-
-    // --- FIX: Inject real File objects before sending ---
-    formData = fixAttachmentsInFormData(formData);
 
     // Force the query parameter explicitly into the destination URI
     const submissionUrl = `${ziggyRoute("roi.entry.projects.submit", projectId)}?_method=PATCH`;
@@ -211,8 +136,26 @@ export function useEntryActions({
       preserveScroll: true,
       forceFormData: true,
       onStart: () => toast.loading("Submitting project...", { id: "submitProject" }),
-      onSuccess: () => {
-        clearAttachmentFileStore(); // Free memory
+      onSuccess: (page) => {
+        const savedAttachments = page?.props?.entryProject?.entry_remarks_attachments;
+
+        if (Array.isArray(savedAttachments) && savedAttachments.length > 0) {
+          setProjectData((prev) => ({
+            ...prev,
+            entryRemarks: {
+              ...prev.entryRemarks,
+              attachments: savedAttachments.map((att) => ({
+                id: att.id,
+                path: att.path,
+                size: att.size,
+                stored_name: att.stored_name,
+                original_name: att.original_name,
+              })),
+            },
+          }));
+        }
+
+        clearAttachmentFileStore();
         toast.success("Project submitted successfully!", { id: "submitProject" });
         setShowOutrightErrors(false);
       },

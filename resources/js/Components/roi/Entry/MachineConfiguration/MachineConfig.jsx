@@ -663,9 +663,7 @@ function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
       baseHandlers.toggleMachine(id, isMachine);
       if (isMachine) {
         baseHandlers.handleInputChange(id, 'yields', '0');
-        baseHandlers.handleInputChange(id, 'cost', '0');
         baseHandlers.handleInputChange(id, 'price', '0');
-        baseHandlers.handleInputChange(id, 'sku', '');
       }
     }
   }), [baseHandlers]);
