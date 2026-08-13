@@ -41,6 +41,7 @@ class SprfArchiveProject extends Model
         'type',
         'company_id',
         'company_sap_code',
+        'form_version', 
 
         'remarks',
         'remarks_attachments', 

@@ -136,10 +136,23 @@ const tiles = useMemo(() => {
             <span className="hidden sm:inline">Create New Draft</span>
           </>
         ),
-        value: null,
+        value: "Markup % Input",
         icon: <IoAddCircleOutline />,
         variant: "action",
         onClick: () => router.visit(route("sprf.entry.create")),
+      });
+
+      baseTiles.push({
+        label: (
+          <>
+            <span className="sm:hidden">Create</span>
+            <span className="hidden sm:inline">Create New Draft</span>
+          </>
+        ),
+        value: "Selling Price Input",
+        icon: <IoAddCircleOutline />,
+        variant: "action",
+        onClick: () => router.visit(route("sprf.entry2.create")),
       });
     }
 
@@ -324,7 +337,7 @@ const tiles = useMemo(() => {
             <div className="flex items-center justify-center gap-2 md:gap-1">
               <button
                 className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
-                onClick={() => router.visit(route('sprf.entry.projects.show', r.id))}
+                onClick={() => router.visit(route(r.form_version === 2 ? 'sprf.entry2.projects.show' : 'sprf.entry.projects.show', r.id))}
               >
                 <MdEdit className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
               </button>
@@ -515,7 +528,7 @@ const tiles = useMemo(() => {
           <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-xl z-50 p-1 flex flex-col gap-1">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); router.visit(route('sprf.entry.projects.show', r.id)); }}
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); router.visit(route(r.form_version === 2 ? 'sprf.entry2.projects.show' : 'sprf.entry.projects.show', r.id)); }}
               className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-[#289800] hover:bg-[#B5EBA2]/20"
             >
               <MdEdit className="text-sm" /> Edit
@@ -554,7 +567,7 @@ const tiles = useMemo(() => {
 
     return (
       <div
-        onClick={() => router.visit(route('sprf.entry.projects.show', r.id))}
+        onClick={() => router.visit(route(r.form_version === 2 ? 'sprf.entry2.projects.show' : 'sprf.entry.projects.show', r.id))}
         className="cursor-pointer px-2 py-3 hover:bg-slate-50 transition-colors rounded-xl"
       >
         <div className="gap-2">

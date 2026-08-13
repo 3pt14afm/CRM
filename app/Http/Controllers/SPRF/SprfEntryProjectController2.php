@@ -12,7 +12,7 @@ use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
 use App\Services\SPRF\Current\SprfCurrentWorkflowService;
 use App\Services\SprfActivityLogger;
-use App\Services\SPRF\SprfItemCalculationService;
+use App\Services\SPRF\SprfItemCalculationService2;
 use App\Services\SPRF\SprfNumberGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -23,12 +23,14 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Models\CustomerInfo\Company;
 use App\Models\CustomerInfo\PotentialCustomer;
-use Illuminate\Support\Facades\Storage;
+use App\Support\ResolvesSprfApproverUsers;
 
-class SprfEntryProjectController extends Controller
+class SprfEntryProjectController2 extends Controller
 {
+    use ResolvesSprfApproverUsers;
+
     public function __construct(
-        private readonly SprfItemCalculationService $itemCalc,
+        private readonly SprfItemCalculationService2 $itemCalc,
         private readonly SprfCurrentWorkflowService $workflowService,
     ) {}
 
@@ -38,13 +40,13 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        if ((int) $project->form_version !== 1) {
+        if ((int) $project->form_version !== 2) {
             abort(404);
         }
 
         $project->load(['items.subitems', 'fees', 'preparer:id,first_name,last_name,position,email']);
 
-        return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
+        return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry2', [
             'approverUsers'  => $this->mapApproverUsersFromProject($project),
             'initialProject' => $this->transformProjectForFrontend($project),
             'route'          => 'entry',
@@ -57,7 +59,7 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        if ((int) $project->form_version !== 1) {
+        if ((int) $project->form_version !== 2) {
             abort(404);
         }
 
@@ -68,6 +70,13 @@ class SprfEntryProjectController extends Controller
             'storageKey'         => request('storageKey'),
             'autoprint'          => (bool) request('autoprint', false),
             'showDraftWatermark' => (bool) request('draftWatermark', true),
+        ]);
+    }
+
+    public function create()
+    {
+        return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry2', [
+            'approverUsers' => $this->resolveApproverUsers(),
         ]);
     }
 
@@ -86,7 +95,7 @@ class SprfEntryProjectController extends Controller
             ? SprfEntryProject::query()
                 ->where('id', $projectId)
                 ->where('prepared_by_user_id', Auth::id())
-                ->where('form_version', 1)
+                ->where('form_version', 2)
                 ->firstOrFail()
             : null;
 
@@ -142,7 +151,7 @@ class SprfEntryProjectController extends Controller
                 'document_datetime' => $documentDatetime,
 
                 'status'                  => $existingProject && $existingProject->status === 'returned' ? 'returned' : 'draft',
-                'form_version'            => 1,
+                'form_version'            => 2,
                 'current_level'           => 1,
                 'approval_level'          => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
@@ -220,7 +229,7 @@ class SprfEntryProjectController extends Controller
         );
 
         return redirect()
-            ->route('sprf.entry.projects.show', $project)
+            ->route('sprf.entry2.projects.show', $project)
             ->with('success', 'SPRF draft saved.');
     }
 
@@ -232,7 +241,7 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        if ((int) $project->form_version !== 1) {
+        if ((int) $project->form_version !== 2) {
             abort(404);
         }
 
@@ -305,7 +314,7 @@ class SprfEntryProjectController extends Controller
                 'document_datetime' => $documentDatetime,
 
                 'status'                  => 'for_review',
-                'form_version'            => 1,
+                'form_version'            => 2,
                 'current_level'           => $startLevel,
                 'approval_level'          => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
@@ -414,7 +423,7 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        if ((int) $project->form_version !== 1) {
+        if ((int) $project->form_version !== 2) {
             abort(404);
         }
 
@@ -478,7 +487,7 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
-        if ((int) $project->form_version !== 1) {
+        if ((int) $project->form_version !== 2) {
             abort(404);
         }
 
@@ -563,8 +572,8 @@ class SprfEntryProjectController extends Controller
             'items.*.subitems.*.itemDescription' => ['nullable', 'string'],
             'items.*.subitems.*.qty'             => ['nullable', 'integer', 'min:0'],
             'items.*.subitems.*.disty'           => ['nullable', 'string', 'max:255'],
-            'items.*.subitems.*.costPerUnit'     => ['nullable', 'numeric'],
-            'items.*.subitems.*.markupPercent'   => ['nullable', 'numeric'],
+            'items.*.subitems.*.costPerUnit'         => ['nullable', 'numeric'],
+            'items.*.subitems.*.sellingPricePerUnit' => ['nullable', 'numeric'],
 
             'other_expenses'                   => ['nullable', 'array'],
             'other_expenses.*.expenseKey'      => ['nullable', 'string', 'max:255'],
@@ -809,7 +818,7 @@ class SprfEntryProjectController extends Controller
                 ! blank($row['disty']) ||
                 $row['qty'] !== null ||
                 $row['cost_per_unit'] !== null ||
-                $row['markup_percent'] !== null
+                $row['selling_price_per_unit'] !== null
             ))
             ->keys();
 
@@ -845,6 +854,8 @@ class SprfEntryProjectController extends Controller
                 ];
             })
             ->filter(fn ($row) =>
+                // Fixed rows only count as "used" if qty or unit price was actually entered —
+                // expense_key/product_code are pre-filled for all 5 regardless of input.
                 $row['qty'] !== null
                 || $row['unit_price'] !== null
                 || (! $row['is_fixed'] && ! blank($row['item_description']))
@@ -1115,9 +1126,10 @@ class SprfEntryProjectController extends Controller
                                 'itemDescription' => $sub->item_description,
                                 'qty'             => $sub->qty,
                                 'disty'           => $sub->disty,
-                                'costPerUnit'     => $sub->cost_per_unit,
-                                'markupPercent'   => $sub->markup_percent,
-                                'totalCost'       => $sub->total_cost,
+                                'costPerUnit'         => $sub->cost_per_unit,
+                                'sellingPricePerUnit' => $sub->selling_price_per_unit,
+                                'markupPercent'       => $sub->markup_percent,
+                                'totalCost'           => $sub->total_cost,
                             ])
                             ->values()
                             ->all(),
@@ -1184,9 +1196,10 @@ class SprfEntryProjectController extends Controller
                                 'itemDescription' => $sub->item_description,
                                 'qty'             => $sub->qty,
                                 'disty'           => $sub->disty,
-                                'costPerUnit'     => $sub->cost_per_unit,
-                                'markupPercent'   => $sub->markup_percent,
-                                'totalCost'       => $sub->total_cost,
+                                'costPerUnit'         => $sub->cost_per_unit,
+                                'sellingPricePerUnit' => $sub->selling_price_per_unit,
+                                'markupPercent'       => $sub->markup_percent,
+                                'totalCost'           => $sub->total_cost,
                             ])
                             ->values()
                             ->all(),

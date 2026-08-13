@@ -257,7 +257,11 @@ public function show(SprfCurrentProject $project)
         'presidentCeo'                => (! $isSentBack || $currentLevel > 5) ? $this->signatureFor($project->president_ceo_user_id) : null,
     ];
 
-    return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
+    return Inertia::render(
+        $project->form_version === 2
+            ? 'CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry2'
+            : 'CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry',
+        [
         'project' => $transformedProject,
         'initialProject' => $transformedProject,
         'approverUsers' => $this->mapApproverUsersFromProject($project),
@@ -880,6 +884,7 @@ public function show(SprfCurrentProject $project)
                                 'disty'           => $sub->disty,
                                 'costPerUnit'     => $sub->cost_per_unit,
                                 'markupPercent'   => $sub->markup_percent,
+                                'sellingPricePerUnit'  => $sub->selling_price_per_unit, 
                                 'totalCost'       => $sub->total_cost,
                             ])
                             ->values()
@@ -950,6 +955,7 @@ public function show(SprfCurrentProject $project)
                                 'disty'           => $sub->disty,
                                 'costPerUnit'     => $sub->cost_per_unit,
                                 'markupPercent'   => $sub->markup_percent,
+                                'sellingPricePerUnit'  => $sub->selling_price_per_unit, 
                                 'totalCost'       => $sub->total_cost,
                             ])
                             ->values()

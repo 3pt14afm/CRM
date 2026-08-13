@@ -38,7 +38,7 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
         </div>
 
         {value != null && (
-          <div className="text-sm font-semibold leading-tight md:text-base lg:text-lg xl:text-xl">
+          <div className={` leading-tight ${ variant === "highlight" || variant === "action" ? "text-xs md:text-[13px]" : "text-sm md:text-base lg:text-lg xl:text-xl font-semibold "}`}>
             {value}
           </div>
         )}
@@ -228,7 +228,7 @@ export default function ProjectListSection({
     <div className="mx-4 md:mx-6 lg:mx-10">
     <div className="flex justify-start sm:justify-start md:grid md:grid-cols-12 gap-1 sm:gap-2 md:gap-4 xl:gap-6 ">
       {tiles.map((t) => (
-        <div key={t.label} className="flex-1 md:flex-none col-span-12 md:col-span-4 ">
+        <div key={t.label} className="flex-1 md:flex-none col-span-12 md:col-span-3 ">
           <Tile {...t} />
         </div>
       ))}
