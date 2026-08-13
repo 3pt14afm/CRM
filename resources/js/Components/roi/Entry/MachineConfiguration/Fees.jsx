@@ -109,17 +109,23 @@ const ensureFixedRows = (rows, fixedLabels, monoAnnual = 0, colorAnnual = 0, pri
 
 const stripLocalFields = ({ __fixed, ...clean }) => clean;
 
-// Module-level so it's not recreated on every render
 const processRow = (r) => {
-  const clean = stripLocalFields(r);
   const label = normalize(r.label);
+  const clean = stripLocalFields(r); // do this after reading r.__fixed, not before
+
   if (label === "one time charge" || label === "shipping") {
     clean.category = "one-time-fee";
   } else if (label === "support services") {
     clean.category = "yearlyFee";
+  } else if (!r.__fixed) {
+    // Anything the user added that isn't part of the contract's fixed
+    // fee schedule (rebate/rental/click/etc.) is a one-off — it should
+    // only show up in year 1, not repeat on every succeeding year.
+    clean.category = "one-time-fee";
   } else {
     delete clean.category;
   }
+
   return clean;
 };
 
