@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Customer;
 
+use App\Http\Controllers\Concerns\ManagesCompanyContracts;
 use App\Http\Controllers\Controller;
+use App\Models\Contracts\Contract;
 use App\Models\CustomerInfo\Company;
 use App\Models\CustomerInfo\PotentialCustomer;
 use App\Models\RoiEntryProject;
@@ -17,6 +19,8 @@ use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
+    use ManagesCompanyContracts;
+
     public function customerStats(Request $request)
     {
         $companyTable = (new Company())->getTable();
@@ -307,5 +311,118 @@ class DashboardController extends Controller
         }
 
         return $totals;
+    }
+
+    
+    public function statusStats(Request $request)
+    {
+        $counts = ['expiring_soon' => 0, 'active' => 0, 'expired' => 0];
+
+        $visibleCompanyIds = $this->visibleCompanyIds();
+        $companyIdsWithContracts = [];
+
+        Contract::query()
+            ->whereIn('company_id', $visibleCompanyIds)
+            ->chunk(200, function ($contracts) use (&$counts, &$companyIdsWithContracts) {
+                foreach ($contracts as $contract) {
+                    $contract->refreshStatus();
+
+                    $bucket = $contract->status === Contract::STATUS_EXTENDED
+                        ? Contract::STATUS_ACTIVE
+                        : $contract->status;
+
+                    if (isset($counts[$bucket])) {
+                        $counts[$bucket]++;
+                        $companyIdsWithContracts[$contract->company_id] = true;
+                    }
+                }
+            });
+
+        $counts['no_contracts'] = $this->countActiveAccountsWithoutContracts(
+            $visibleCompanyIds->all(),
+            array_keys($companyIdsWithContracts)
+        );
+
+        return response()->json($counts);
+    }
+
+    private function countActiveAccountsWithoutContracts(array $visibleCompanyIds, array $companyIdsWithContracts): int
+    {
+        $companyTable = (new Company())->getTable();
+
+        $groupKeyExpr = "CASE WHEN {$companyTable}.sap_code IS NULL OR {$companyTable}.sap_code = '' "
+            . "THEN CONCAT('__row_', {$companyTable}.id) ELSE {$companyTable}.sap_code END";
+
+        $groups = Company::query()
+            ->where("{$companyTable}.status", 1)
+            ->whereIn("{$companyTable}.id", $visibleCompanyIds)
+            ->selectRaw("{$groupKeyExpr} as group_key, {$companyTable}.id as branch_id")
+            ->get()
+            ->groupBy('group_key');
+
+        $withContracts = array_flip($companyIdsWithContracts);
+
+        return $groups->filter(function ($branches) use ($withContracts) {
+            foreach ($branches as $branch) {
+                if (isset($withContracts[$branch->branch_id])) {
+                    return false; // at least one branch in this account has a live contract
+                }
+            }
+            return true;
+        })->count();
+    }
+
+    public function byStatus(Request $request)
+    {
+        $status = $request->input('status', 'expiring_soon');
+
+        if (!in_array($status, ['expiring_soon', 'active', 'expired'])) {
+            $status = 'expiring_soon';
+        }
+
+        $limit = 50;
+
+        $visibleCompanyIds = $this->visibleCompanyIds();
+
+        $contracts = Contract::query()
+            ->whereIn('company_id', $visibleCompanyIds)
+            ->get();
+
+        $filtered = $contracts
+            ->each(fn ($c) => $c->refreshStatus())
+            ->filter(function ($c) use ($status) {
+                // Same "extended folds into active" rollup as statusStats().
+                if ($status === Contract::STATUS_ACTIVE) {
+                    return in_array($c->status, [Contract::STATUS_ACTIVE, Contract::STATUS_EXTENDED], true);
+                }
+                return $c->status === $status;
+            })
+            ->map(function ($c) {
+                $effectiveDate = $c->latestExtendedDate() ?? optional($c->end_date)->format('Y-m-d');
+                $company = Company::find($c->company_id);
+
+                return [
+                    'id'             => $c->id,
+                    'company_id'     => $c->company_id,
+                    // Trimmed for the same reason as contracts() above —
+                    // keeps this consistent with the trimmed company_name
+                    // the frontend gets everywhere else.
+                    'company_name'   => trim($c->company_name ?? ''),
+                    'sap_code'       => $company->sap_code ?? null,
+                    'expires_at'     => $effectiveDate,
+                    'days_remaining' => $effectiveDate
+                        ? (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($effectiveDate)->startOfDay(), false)
+                        : null,
+                    'was_extended'   => !empty($c->extend_dates),
+                    'can_upload'     => $company ? $this->canManageCompanyContracts($company) : false,
+                    'pdf_url' => $c->pdf_path ? route('contract.pdf', $c->id) : null,
+                ];
+            });
+
+        $sorted = $status === 'expired'
+            ? $filtered->sortByDesc('expires_at')
+            : $filtered->sortBy('expires_at');
+
+        return response()->json($sorted->take($limit)->values());
     }
 }

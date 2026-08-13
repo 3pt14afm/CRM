@@ -146,17 +146,14 @@ const [companyInfo, setCompanyInfo] = useState({
   subCategory: '',
   account: '',
   accountManager: '',
-  type: null,              // NEW
-  companySapCode: null,    // NEW
-  potentialCompanyId: null,// NEW
+  type: null,             
+  companySapCode: null,    
+  potentialCompanyId: null,
 });
 
   const [remarks, setRemarks] = useState(['']);
   const [rebateJustification, setRebateJustification] = useState('');
 
-  // Pending remark attachment uploads/removals, keyed by remark row index.
-  // remarksAttachments[index] = File[] (newly selected, not yet saved)
-  // remarksRemovedIndexes = "rowIndex:savedSubIndex" strings to delete on next save
   const [remarksAttachments, setRemarksAttachments] = useState({});
   const [remarksRemovedIndexes, setRemarksRemovedIndexes] = useState([]);
 
@@ -177,10 +174,6 @@ const [companyInfo, setCompanyInfo] = useState({
     setRemarksRemovedIndexes((prev) => (prev.includes(key) ? prev : [...prev, key]));
   };
 
-  // Remarks must have at least one file attachment to save/submit — the remark
-  // text itself is optional as long as a file is attached. This accounts for
-  // attachments already saved on the project (minus any the user just removed)
-  // plus any newly-selected files pending upload.
   const hasRemarksAttachment = useMemo(() => {
     const existingAttachments = sourceProject?.attachments ?? {};
 
@@ -227,9 +220,9 @@ const [companyInfo, setCompanyInfo] = useState({
         subCategory: '',
         account: '',
         accountManager: '',
-        type: null,               // NEW
-        companySapCode: null,     // NEW
-        potentialCompanyId: null, // NEW
+        type: null,               
+        companySapCode: null,     
+        potentialCompanyId: null, 
       });
       setRemarks(['']);
       setRebateJustification('');
@@ -245,9 +238,9 @@ const [companyInfo, setCompanyInfo] = useState({
       subCategory: sourceProject?.company_info?.subCategory ?? '',
       account: sourceProject?.company_info?.account ?? '',
       accountManager: sourceProject?.company_info?.accountManager ?? '',
-      type: sourceProject?.company_info?.type ?? null,                           // NEW
-      companySapCode: sourceProject?.company_info?.companySapCode ?? null,       // NEW
-      potentialCompanyId: sourceProject?.company_info?.potentialCompanyId ?? null, // NEW
+      type: sourceProject?.company_info?.type ?? null,                          
+      companySapCode: sourceProject?.company_info?.companySapCode ?? null,      
+      potentialCompanyId: sourceProject?.company_info?.potentialCompanyId ?? null,
     });
     setRemarks(normalizeRemarksRows(sourceProject?.remarks ?? ''));
     setRebateJustification(sourceProject?.rebate_justification ?? '');
@@ -279,8 +272,6 @@ const [companyInfo, setCompanyInfo] = useState({
 
   const hasRebate = rebateTotal > 0; 
 
-  // Compute the expected level if not provided by backend (entry route only —
-  // sourceProject is null on a fresh draft so backend flags don't exist yet)
   const computedApprovalLevel = useMemo(
     () =>
       resolveApprovalLevelMatrix({
@@ -293,14 +284,6 @@ const [companyInfo, setCompanyInfo] = useState({
 
   const approvalLevel = sourceProject?.approval_level ?? computedApprovalLevel;
 
-  // ============================================================================ //
-  // SIGNATORY VISIBILITY — #3: Trust backend flags when present (current/archive
-  // routes), fall back to local derivation only for entry route (fresh draft).
-  // ============================================================================ //
-
-  // Backend flags are booleans (true/false) when the project has been saved at
-  // least once. On a brand-new entry draft sourceProject is null so both sides
-  // of ?? are evaluated — the local derivation is the correct fallback there.
   const showPresidentCeo =
     sourceProject?.requires_president_ceo != null     
       ? Boolean(sourceProject.requires_president_ceo) 
@@ -328,7 +311,6 @@ const [companyInfo, setCompanyInfo] = useState({
 
   const currentLevel = Number(sourceProject?.current_level || 0);
   
-  // Calculate the terminal step mathematically
   const finalLevel = showPresidentCeo ? 5 : (showVpCcto ? 4 : 3);
 
   const isFinalApprover = 
@@ -339,9 +321,6 @@ const [companyInfo, setCompanyInfo] = useState({
   const isCurrentRoute = pageRoute === 'current';
   const isArchiveRoute = pageRoute === 'archive';
 
-  // Withdraw/Cancel — Preparer-only actions, only meaningful on the current route.
-  // Trust the backend-computed flags (mirrors canActOnCurrentProject); they're the
-  // source of truth since the same rules are enforced server-side on submit.
   const canWithdraw = isCurrentRoute && canWithdrawProp;
   const canCancel = isCurrentRoute && canCancelProp;
 
@@ -453,15 +432,8 @@ const [companyInfo, setCompanyInfo] = useState({
     });
   };
 
-  // Rebate can only be added/edited once revenue reaches 1M; below that
-  // threshold it's locked (existing values are preserved, just not editable).
   const rebateLocked = summary.revenue < 1000000;
 
-  // If revenue drops back below 1M while a rebate value is still sitting in
-  // the row (e.g. user pushed revenue over 1M, entered a rebate, then
-  // removed items again), clear it out rather than silently keeping it
-  // locked-but-populated. Skipped on read-only views (submitted/archived
-  // records) so we never mutate historical data just by viewing it.
   useEffect(() => {
     if (!rebateLocked || readOnly) return;
 
@@ -609,13 +581,10 @@ const [companyInfo, setCompanyInfo] = useState({
 
     setIsSubmitting(true);
 
-    // 1. Initialize FormData
     const formData = new FormData();
 
-    // 2. Append the main payload values as a JSON string
     formData.append('payload', JSON.stringify(buildPayload()));
 
-    // 3. Append newly-selected remark attachment files, keyed by row index (each row can have multiple files)
     Object.entries(remarksAttachments).forEach(([index, files]) => {
       (files || []).forEach((file) => {
         if (file) {
@@ -624,14 +593,12 @@ const [companyInfo, setCompanyInfo] = useState({
       });
     });
 
-    // 3b. Append "rowIndex:savedSubIndex" keys of previously-saved attachments the user removed
     remarksRemovedIndexes.forEach((key) => {
       formData.append('remarks_attachments_remove[]', key);
     });
 
-    // 4. Send FormData with forceFormData enabled
     router.post(ziggyRoute('sprf.entry.draft.save'), formData, {
-      forceFormData: true, // <--- Crucial for file uploads
+      forceFormData: true, 
       preserveScroll: true,
       preserveState: true,
       onSuccess: () => {
@@ -725,9 +692,9 @@ const [companyInfo, setCompanyInfo] = useState({
                 subCategory: '',
                 account: '',
                 accountManager: '',
-                type: null,               // NEW
-                companySapCode: null,     // NEW
-                potentialCompanyId: null, // NEW
+                type: null,               
+                companySapCode: null,     
+                potentialCompanyId: null, 
               });
               setRemarks(['']);
               setRebateJustification('');
@@ -836,7 +803,6 @@ const [companyInfo, setCompanyInfo] = useState({
         onError: (errors) => {
           const firstError = Object.values(errors || {})[0];
           if (firstError) {
-            // let Inertia handle error
           }
         },
         onFinish: () => {
@@ -1044,14 +1010,8 @@ const [companyInfo, setCompanyInfo] = useState({
                     signatures={signatures}  
 
                   />
+                </div>
               </div>
-
-                
-              </div>
-              
-              
-              
-              
             </div>
           </div>
         </div>

@@ -3,14 +3,14 @@ import axios from 'axios';
 import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { route } from 'ziggy-js';
-import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdOutlineVisibility, } from 'react-icons/md';
+import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdOutlineCalendarMonth, } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import SortHeader from '@/Components/SortHeader';
 import ScrollableSelect from '@/Components/ScrollableSelect';
 import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
-import { IoEyeOutline } from 'react-icons/io5';
+import { FaRegFilePdf, FaRegUser } from 'react-icons/fa6';
 
 const STORAGE_KEY = 'contract_monitoring_filters';
 
@@ -19,6 +19,7 @@ const DEFAULT_FILTERS = {
     delsan_company: '',
     type:           '',
     status:         '',
+    include_no_contracts: false,
     per_page:       12,
     sort_by:        'company_name',
     sort_order:     'asc',
@@ -66,7 +67,7 @@ const COUNT_COLOR_CLASSES = {
 function StatusPill({ status, label }) {
     const classes = STATUS_CLASSES[status] || 'text-slate-500 bg-slate-100 border-slate-200';
     return (
-        <span className={`inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-semibold border ${classes}`}>
+        <span className={`inline-flex items-center whitespace-nowrap px-1.5 md:px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-semibold border ${classes}`}>
             {label}
         </span>
     );
@@ -80,7 +81,7 @@ function formatShortDate(dateStr) {
 }
 
 function formatDaysRemaining(days) {
-    if (days === null || days === undefined) return '—';
+    if (days === null || days === undefined) return '';
 
     const rounded = Math.round(days);
     if (rounded === 0) return 'Today';
@@ -107,9 +108,37 @@ function daysRemainingClass(days) {
 
 function RemainingDaysLabel({ days }) {
     const label = formatDaysRemaining(days);
-    if (label === '—') return <span className="text-slate-400">—</span>;
+
+    if (label === '—') {
+        return <span className="text-slate-400">—</span>;
+    }
+
+    const isOverdue = days < 0;
+
+    if (isOverdue) {
+        const overdueDays = Math.abs(days);
+        const months = Math.floor(overdueDays / 30);
+        const remainingDays = overdueDays % 30;
+
+        const overdueLabel = [
+            months > 0 ? `${months}m` : null,
+            remainingDays > 0 ? `${remainingDays}d` : null,
+        ]
+            .filter(Boolean)
+            .join(' ');
+
+        return (
+            <span className={`text-[10px] md:text-[11px] font-medium ${daysRemainingClass(days)}`}>
+                <span className="flex flex-row md:flex-col md:leading-tight gap-1 md:gap-0">
+                    <span>{overdueLabel}</span>
+                    <span>overdue</span>
+                </span>
+            </span>
+        );
+    }
+
     return (
-        <span className={`whitespace-nowrap text-[11px] font-medium ${daysRemainingClass(days)}`}>
+        <span className={`whitespace-nowrap text-[10px] md:text-[11px] font-medium ${daysRemainingClass(days)}`}>
             {label}
         </span>
     );
@@ -125,6 +154,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             ...(filters.delsan_company !== undefined ? { delsan_company: filters.delsan_company } : {}),
             ...(filters.type           !== undefined ? { type:           filters.type }           : {}),
             ...(filters.status         !== undefined ? { status:         filters.status }          : {}),
+            ...(filters.include_no_contracts !== undefined ? { include_no_contracts: [true, 'true', '1', 1].includes(filters.include_no_contracts) } : {}),
             ...(filters.per_page       !== undefined ? { per_page:       filters.per_page }        : {}),
             ...(filters.sort_by        !== undefined ? { sort_by:        filters.sort_by }         : {}),
             ...(filters.sort_order     !== undefined ? { sort_order:     filters.sort_order }      : {}),
@@ -172,7 +202,18 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
     }, []);
 
     const updateFilters = (newFilters) => {
-        const updated = { ...searchStateRef.current, ...newFilters };
+        let updated = { ...searchStateRef.current, ...newFilters };
+
+        if ('include_no_contracts' in newFilters && newFilters.include_no_contracts) {
+            updated = { ...updated, status: [], type: [] };
+        } else if (('status' in newFilters || 'type' in newFilters) && updated.include_no_contracts) {
+            const hasActiveStatus = Array.isArray(newFilters.status) ? newFilters.status.length > 0 : !!newFilters.status;
+            const hasActiveType = Array.isArray(newFilters.type) ? newFilters.type.length > 0 : !!newFilters.type;
+            if (hasActiveStatus || hasActiveType) {
+                updated = { ...updated, include_no_contracts: false };
+            }
+        }
+
         setSearchState(updated);
         setSearchResults(null);
         router.get(route('contract.monitoring'), updated, { preserveState: true, replace: true });
@@ -219,6 +260,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
         searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
         searchState.type           !== DEFAULT_FILTERS.type           ||
         searchState.status         !== DEFAULT_FILTERS.status         ||
+        searchState.include_no_contracts !== DEFAULT_FILTERS.include_no_contracts ||
         searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
         searchState.sort_order     !== DEFAULT_FILTERS.sort_order
     ), [searchState]);
@@ -260,7 +302,33 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             const isCollapsible = branchCount > 1;
 
             if (!isCollapsible) {
-                (c.contracts ?? []).forEach((contract) => {
+                const contractsForCompany = c.contracts ?? [];
+
+                if (contractsForCompany.length === 0) {
+                    rows.push({
+                        _type: 'contract',
+                        id: `no-contract-${c.id}`,
+                        sap_code: c.sap_code,
+                        company_name: c.company_name,
+                        delsan_company: c.delsan_company,
+                        location: c.location,
+                        client_manager: c.client_manager,
+                        id_client_mngr: c.id_client_mngr,
+                        _groupId: c.id,
+                        _topLevel: true,
+                        _noContract: true,
+                        status: null,
+                        status_label: null,
+                        contract_type: null,
+                        start_date: null,
+                        end_date: null,
+                        remaining_days: null,
+                        pdf_url: null,
+                    });
+                    return;
+                }
+
+                contractsForCompany.forEach((contract) => {
                     rows.push({
                         _type: 'contract',
                         ...contract,
@@ -312,12 +380,16 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
 
     // ── Mobile card renderer ──
     const renderMonitoringCard = (r) => {
+        // ── GROUP / COMPANY WITH BRANCHES ──
         if (r._type === 'group') {
             return (
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-slate-600 text-xs">{r.sap_code}</span>
+                            <span className="font-mono text-slate-600 text-xs">
+                                {r.sap_code}
+                            </span>
+
                             {r.branchCount > 1 && (
                                 <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
                                     {r.branchCount} Branches
@@ -325,25 +397,58 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                             )}
                         </div>
                     </div>
+
                     <div className="flex flex-col gap-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold truncate text-[#0f3800]">{r.company_name ?? '—'}</p>
+                            <p className="text-xs font-semibold truncate text-[#0f3800]">
+                                {r.company_name ?? '—'}
+                            </p>
+
                             {r.branchCount > 1 && (
                                 <button
                                     type="button"
-                                    onClick={(e) => { e.stopPropagation(); toggleGroup(r.sap_code); }}
-                                    title={r.isExpanded ? 'Collapse branches' : `Show ${r.branchCount - 1} more branch${r.branchCount - 1 !== 1 ? 'es' : ''}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleGroup(r.sap_code);
+                                    }}
+                                    title={
+                                        r.isExpanded
+                                            ? 'Collapse branches'
+                                            : `Show ${r.branchCount - 1} more branch${
+                                                r.branchCount - 1 !== 1 ? 'es' : ''
+                                            }`
+                                    }
                                     className="flex-shrink-0 text-slate-600 hover:text-slate-800 transition-colors"
                                 >
-                                    <MdExpandMore size={20} className={`transition-transform duration-200 ${r.isExpanded ? 'rotate-180' : ''}`} />
+                                    <MdExpandMore
+                                        size={20}
+                                        className={`transition-transform duration-200 ${
+                                            r.isExpanded ? 'rotate-180' : ''
+                                        }`}
+                                    />
                                 </button>
                             )}
                         </div>
-                        <p className="text-[11px] font-medium truncate uppercase">{r.delsan_company ?? '—'}</p>
+
+                        <p className="text-[11px] font-medium truncate uppercase">
+                            {r.delsan_company ?? '—'}
+                        </p>
+
                         <div className="flex items-center justify-between mt-1">
-                            <p className="text-[11px] font-medium text-slate-700">{r.client_manager || r.id_client_mngr || ''}</p>
-                            <span className={`text-[11px] font-semibold ${r.contractCount > 0 ? (COUNT_COLOR_CLASSES[r.contractsStatus] ?? COUNT_COLOR_CLASSES.default) : COUNT_COLOR_CLASSES.default}`}>
-                                {r.contractCount} contract{r.contractCount === 1 ? '' : 's'}{r.isExpanded ? '' : ' (in this branch)'}
+                            <p className="text-[11px] font-medium text-slate-700">
+                                {r.client_manager || r.id_client_mngr || ''}
+                            </p>
+
+                            <span
+                                className={`text-[10px] font-semibold ${
+                                    r.contractCount > 0
+                                        ? (COUNT_COLOR_CLASSES[r.contractsStatus] ??
+                                        COUNT_COLOR_CLASSES.default)
+                                        : COUNT_COLOR_CLASSES.default
+                                }`}
+                            >
+                                {r.contractCount} contract
+                                {r.contractCount === 1 ? '' : 's'}
                             </span>
                         </div>
                     </div>
@@ -351,33 +456,134 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             );
         }
 
+        // ── NO-BRANCH COMPANY ──
+        // _topLevel === true identifies these rows.
+        if (r._type === 'contract' && r._topLevel) {
+            return (
+                <div className="flex flex-col">
+                    <div className="flex items-center justify-between mb-2.5">
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-slate-600 text-xs">
+                                {r.sap_code}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                            <p className="text-xs font-semibold truncate text-[#0f3800]">
+                                {r.company_name ?? '—'}
+                            </p>
+
+                            <StatusPill
+                                status={r.status}
+                                label={r.status_label}
+                            />
+                        </div>
+
+                        <p className="flex items-center justify-between text-[11px] font-medium truncate mt-1">
+                            <div className="flex items-center gap-1">
+                                <FaRegUser/><span>{r.client_manager || r.id_client_mngr || ''}</span>
+                            </div>
+                            <span className="uppercase">{r.delsan_company ?? '—'}</span>
+                        </p>
+
+                        <div className="flex items-center justify-between text-[11px] mt-1">
+                            <span className="flex items-center gap-1">
+                                <MdOutlineCalendarMonth/>
+                                {formatShortDate(r.start_date) ?? '—'} –{' '}
+                                {formatShortDate(r.end_date) ?? '—'}
+                            </span>
+
+                            <RemainingDaysLabel days={r.remaining_days} />
+                        </div>
+
+                        <div className="flex items-center justify-between mt-2.5">
+                            <span className="text-[11px] text-slate-500">
+                                {r.contract_type ?? '—'}
+                            </span>
+
+                            {r.pdf_url ? (
+                                <button
+                                    type="button"
+                                    title="View PDF"
+                                    onClick={() =>
+                                        window.open(
+                                            r.pdf_url,
+                                            '_blank',
+                                            'noopener,noreferrer'
+                                        )
+                                    }
+                                    className="px-1.5 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+                                >
+                                    <FaRegFilePdf className="text-[16px]" />
+                                </button>
+                            ) : (
+                                ""
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ── CHILD BRANCH ──
+        // Keep the existing child-branch UI exactly as it was.
         return (
-            <div className="flex flex-col gap-2 pl-3 border-l-2 border-[#195c00]/15">
-                <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs italic text-slate-700 truncate">{r.company_name ?? '—'}</span>
-                    <StatusPill status={r.status} label={r.status_label} />
+            <div className="flex flex-col pl-3 border-l-2 border-[#195c00]/15">
+                <div className="flex items-center justify-between gap-4 mb-3 mt-1">
+                    <span className="text-[11px] sm:text-xs text-slate-700 whitespace-normal">
+                        {r.company_name ?? '—'}
+                    </span>
+
+                    <StatusPill
+                        status={r.status}
+                        label={r.status_label}
+                    />
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-600">
-                    <span>{r.client_manager || r.id_client_mngr || ''}</span>
-                    <span className="uppercase">{r.delsan_company ?? '—'}</span>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-600 mb-1">
+                    <div className="flex items-center gap-1">
+                        <FaRegUser/><span>{r.client_manager || r.id_client_mngr || ''}</span>
+                    </div>
+
+                    <span className="uppercase">
+                        {r.delsan_company ?? '—'}
+                    </span>
                 </div>
+
                 <div className="flex items-center justify-between text-[11px] text-slate-600">
-                    <span>{formatShortDate(r.start_date) ?? '—'} – {formatShortDate(r.end_date) ?? '—'}</span>
+                    <span className="flex items-center gap-1">
+                        <MdOutlineCalendarMonth/>
+                        {formatShortDate(r.start_date) ?? '—'} –{' '}
+                        {formatShortDate(r.end_date) ?? '—'}
+                    </span>
+
                     <RemainingDaysLabel days={r.remaining_days} />
                 </div>
-                <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-500">{r.contract_type ?? '—'}</span>
+
+                <div className="flex items-center justify-between mt-2.5">
+                    <span className="text-[11px] text-slate-500">
+                        {r.contract_type ?? '—'}
+                    </span>
+
                     {r.pdf_url ? (
-                        <a
-                            href={r.pdf_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 h-6 px-2 rounded-lg text-white text-[10px] font-semibold bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors"
+                        <button
+                            type="button"
+                            title="View PDF"
+                            onClick={() =>
+                                window.open(
+                                    r.pdf_url,
+                                    '_blank',
+                                    'noopener,noreferrer'
+                                )
+                            }
+                            className="px-1.5 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
                         >
-                            <MdOutlineVisibility size={12} /> View
-                        </a>
+                            <FaRegFilePdf className="text-[16px]" />
+                        </button>
                     ) : (
-                        <span className="text-[10px] text-slate-300">No PDF</span>
+                        ""
                     )}
                 </div>
             </div>
@@ -399,40 +605,67 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
         },
         {
             key: 'company_name',
-            header: <SortHeader label="NAME" sortKey="company_name" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
+            header: (
+                <SortHeader
+                    label="NAME"
+                    sortKey="company_name"
+                    sortBy={searchState.sort_by}
+                    sortDirection={searchState.sort_order}
+                    onSort={handleSort}
+                />
+            ),
             cell: (r) => {
                 if (r._type === 'group') {
                     return (
                         <div className="min-h-[32px] flex items-center font-medium justify-between text-[#0f3800]">
-                            <span className="truncate">{r.company_name ?? '—'}</span>
+                            <span className="whitespace-normal min-w-24">
+                                {r.company_name ?? '—'}
+                            </span>
+
                             {r.branchCount > 1 && (
                                 <div className="flex items-center gap-5 flex-shrink-0">
                                     <span className="text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
                                         {r.branchCount} Branches
                                     </span>
+
                                     <button
                                         type="button"
                                         onClick={() => toggleGroup(r.sap_code)}
-                                        title={r.isExpanded ? 'Collapse branches' : `Show ${r.branchCount - 1} more branch${r.branchCount - 1 !== 1 ? 'es' : ''}`}
+                                        title={
+                                            r.isExpanded
+                                                ? 'Collapse branches'
+                                                : `Show ${r.branchCount - 1} more branch${r.branchCount - 1 !== 1 ? 'es' : ''}`
+                                        }
                                         className="bg-white border shadow-sm rounded-md"
                                     >
-                                        <MdExpandMore size={20} className={`transition-transform duration-200 ${r.isExpanded ? 'rotate-180' : ''}`} />
+                                        <MdExpandMore
+                                            size={20}
+                                            className={`transition-transform duration-200 ${
+                                                r.isExpanded ? 'rotate-180' : ''
+                                            }`}
+                                        />
                                     </button>
                                 </div>
                             )}
                         </div>
                     );
                 }
+
                 if (r._topLevel) {
                     return (
-                        <div className="min-h-[32px] flex items-center">
-                            <span className="font-medium text-[#0f3800] truncate">{r.company_name ?? ''}</span>
+                        <div className="min-h-[32px] max-h-[64px] flex items-center overflow-y-auto">
+                            <span className="font-medium text-[#0f3800] break-words whitespace-normal">
+                                {r.company_name ?? ''}
+                            </span>
                         </div>
                     );
                 }
+
                 return (
-                    <div className="min-h-[32px] border-l-2 flex items-center pl-4">
-                        <span className=" text-slate-700 break-words">{r.company_name ?? ''}</span>
+                    <div className="min-h-[32px] max-h-[64px] border-l-2 flex items-center pl-4 overflow-y-auto">
+                        <span className="text-slate-700 break-words whitespace-normal">
+                            {r.company_name ?? ''}
+                        </span>
                     </div>
                 );
             },
@@ -456,14 +689,14 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             header: <SortHeader label="START – END" sortKey="dates" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
             cell: (r) => (
                 <div className="min-h-[32px] flex items-center">
-                    {r._type === 'contract'
+                    {r._type === 'contract' && !r._noContract
                         ? (
                             <div className="text-[11px] leading-snug py-1">
                                 <div>{formatShortDate(r.start_date) ?? ''}</div>
                                 <div>to {formatShortDate(r.end_date) ?? ''}</div>
                             </div>
                         )
-                        : ""}
+                        : (r._noContract ? <span className="text-slate-300"></span> : "")}
                 </div>
             ),
         },
@@ -483,7 +716,8 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                 <div className="min-h-[32px] flex items-center">
                     {r._type === 'group'
                         ? <span className={`text-[11px] font-semibold ${r.contractCount > 0 ? (COUNT_COLOR_CLASSES[r.contractsStatus] ?? COUNT_COLOR_CLASSES.default) : COUNT_COLOR_CLASSES.default}`}>{r.contractCount} contract{r.contractCount === 1 ? '' : 's'}</span>
-                        : <StatusPill status={r.status} label={r.status_label} />}
+                        : (r._noContract ? <span className="text-[11px] text-slate-400"></span>
+                            : <StatusPill status={r.status} label={r.status_label} />)}
                 </div>
             ),
         },
@@ -522,10 +756,10 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                                 className="px-1.5 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
                                 onClick={() => window.open(r.pdf_url, '_blank', 'noopener,noreferrer')}
                             >
-                                <IoEyeOutline className="text-[18px]" />
+                                <FaRegFilePdf className="text-[16px]" />
                             </button>
                         ) : (
-                            <span className="text-[10px] text-slate-300">No PDF</span>
+                            ""
                         )}
                     </div>
                 );
@@ -579,18 +813,18 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
         <FilterToolbar hasActiveFilters={isFiltered} onClearAll={clearAllFilters}>
             
             {/* Delsan Company Filter */}
-            <div className="relative w-[110px] md:w-36 flex flex-shrink-0 items-center">
+            <div className="relative w-[80px] md:w-28 flex flex-shrink-0 items-center">
                 <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
                 <ScrollableSelect
                     value={searchState.delsan_company}
                     onChange={(val) => updateFilters({ delsan_company: val })}
                     options={delsanOptions}
-                    placeholder="All Delsan"
+                    placeholder="Delsan"
                     className="!pl-[21px] md:!pl-8"
                 />
             </div>
 
-            <div className="relative w-[160px] md:w-52 flex flex-shrink-0 items-center">
+            <div className="relative w-[160px] md:w-48 flex flex-shrink-0 items-center">
                 <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
                 <ScrollableMultiSelect
                     isSearchable={false}
@@ -604,7 +838,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             </div>
 
             {/* Status Multi-Filter */}
-            <div className="relative w-[180px] md:w-44 flex flex-shrink-0 items-center">
+            <div className="relative w-[150px] md:w-44 flex flex-shrink-0 items-center">
                 <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
                 <ScrollableMultiSelect
                     isSearchable={false}
@@ -621,7 +855,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                 <button
                     type="button"
                     onClick={() => setShowPerPagePicker((p) => !p)}
-                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[60px] sm:w-24 md:w-36"
+                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-xs  text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[60px] sm:w-24 md:w-32"
                 >
                     <TbLayoutRows className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
                     <span className="flex-1 text-left pt-0.5 truncate"><span className="hidden sm:inline">Rows: </span>{searchState.per_page}</span>
@@ -646,6 +880,19 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                     </div>
                 )}
             </div>
+
+            {/* Include Companies With No Contracts */}
+            <label className="flex items-center gap-1.5 h-7 md:h-9 px-2 flex-shrink-0 select-none cursor-pointer text-[11px] md:text-xs text-slate-700">
+                <input
+                    type="checkbox"
+                    checked={searchState.include_no_contracts}
+                    onChange={(e) => updateFilters({ include_no_contracts: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-[#289800] focus:ring-0 focus:ring-offset-0 accent-[#289800]"
+                />
+                <span className="whitespace-nowrap">
+                    Show companies without contracts
+                </span>
+            </label>
         </FilterToolbar>
     );
 

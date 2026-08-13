@@ -66,14 +66,14 @@ export default function ScrollableSelect({
         className={`flex w-full items-center justify-between h-7 md:h-9 px-2 md:px-3 py-0 border border-gray-200 rounded-lg bg-white cursor-pointer focus:outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${className}`}
       >
         <span 
-          className={`truncate pr-2 text-[11px] md:text-[13px] ${
+          className={`truncate pr-2 text-[11px] md:text-xs ${
             selected ? "text-slate-700" : "text-slate-400"
           }`}
         >
           {selected ? selected.name : placeholder}
         </span>
         <svg
-          className={`h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0 text-slate-400 transition-transform duration-200 ${
+          className={`h-3 w-3 md:h-2.5 md:w-2.5 flex-shrink-0 text-slate-400 transition-transform duration-200 ${
             open ? "rotate-180" : ""
           }`}
           fill="none"
@@ -105,7 +105,7 @@ export default function ScrollableSelect({
                   onChange(String(opt.id));
                   setOpen(false);
                 }}
-                className={`block w-full px-2 md:px-3 py-1.5 md:py-2 text-left text-[11px] md:text-[13px] transition-colors hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
+                className={`block w-full px-2 md:px-3 py-1.5 md:py-2 text-left text-[11px] md:text-xs transition-colors hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
                   String(opt.id) === String(value)
                     ? "bg-[#B5EBA2]/40 font-medium text-slate-900"
                     : "text-slate-700"

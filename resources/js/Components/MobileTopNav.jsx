@@ -317,6 +317,7 @@ export default function MobileTopNav() {
                   )}
 
                   <SubAccordion id="contract" label="Contract Generation" openId={openSub} onToggle={toggleSub}>
+                    <SubLink href={route('contract.monitoring')} active={route().current('contract.monitoring')}>Contract Monitoring</SubLink>
                     <SubLink href={route('contract.upload')} active={route().current('contract.upload')}>Upload Contract</SubLink>
                     <SubLink href="#">New Contract</SubLink>
                     <SubLink href="#">Contract Renewal</SubLink>

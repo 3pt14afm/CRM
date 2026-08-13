@@ -70,7 +70,7 @@ export default function Dashboard() {
         </div>
 
         {/* Row 1: Stat cards. */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-5 pt-5 lg:pt-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-5 pt-5 lg:pt-6">
           {cards.map((card, index) => (
             <StatCard
               key={card.name}
@@ -88,6 +88,7 @@ export default function Dashboard() {
             index={cards.length}
             onStatusClick={setContractsTab}
             selectedStatus={contractsTab}
+            className="col-span-1 md:col-span-2"
           />
         </div>
 
