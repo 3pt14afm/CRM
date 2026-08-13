@@ -257,7 +257,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
         <p className="text-xs font-bold truncate">{fee.label}</p>
         <div className="grid grid-cols-3 gap-2">
           <MobileStat label="Cost" value={isA3ColorClick ? '' : format(fee.cost)} />
-          <MobileStat label="Qty" value={feeCost !== 0 && feeQty !== 0 ? feeQty : ''} />
+          <MobileStat label="Qty" value={feeCost !== 0 && format(feeQty) !== 0 ? format(feeQty) : ''} />
           <MobileStat
             label={isCompany ? 'Company Total' : 'Customer Total'}
             value={format(fee.total)}
@@ -493,7 +493,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                     <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-center border-b border-gray-200">
-                      {p ? (p.qty !== 0 ? p.qty : '') : ''}
+                      {p ? format(p.qty !== 0 ? p.qty : '') : ''}
                     </td>
                     <td className="border border-gray-200 text-center px-1 py-2">
                       {p ? (
@@ -567,7 +567,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
                     <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
 
                     <td className="px-1 py-3 text-center border border-gray-200">
-                      {p ? formatConsumableQty(p.qty) : ''}
+                      {p ? format(formatConsumableQty(p.qty)) : ''}
                     </td>
                     <td className="border-l text-center px-1 py-3 border border-gray-200">
                       {p ? format(p.totalCost) : ''}
@@ -736,7 +736,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
 
                 <td className="py-2 text-center border-r border-b border-gray-200">
                   {/* Change: Blank if cost is 0 OR qty is 0 */}
-                  {feeCost !== 0 && feeQty !== 0 ? feeQty : ''}
+                  {feeCost !== 0 && format(feeQty) !== 0 ? format(feeQty) : ''}
                 </td>
                 <td className="py-2 text-center border-r border-b border-gray-200">
                   {isCompany ? format(fee.total) : ''}

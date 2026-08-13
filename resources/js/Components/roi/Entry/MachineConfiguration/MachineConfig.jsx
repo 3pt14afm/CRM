@@ -285,7 +285,7 @@ function MachineRow({ row, readOnly, canEditRemarks, activeSearchRowId, focusedF
         <input
           type="text"
           inputMode="numeric"
-          value={isFocused('qty') ? row.qty || '' : displayQty}
+          value={isFocused('qty') ? row.qty || '' : formatIntWithCommas(displayQty)}
           disabled={readOnly || !qtyEditable}
           onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
           onBlur={() => {
@@ -514,7 +514,7 @@ function MachineRowCard({ row, readOnly, canEditRemarks, activeSearchRowId, focu
           <input
             type="text"
             inputMode="numeric"
-            value={isFocused('qty') ? row.qty || '' : displayQty}
+            value={isFocused('qty') ? row.qty || '' : formatIntWithCommas(displayQty)}
             disabled={readOnly || !qtyEditable}
             onFocus={() => qtyEditable && setFocusedField(keyOf('qty'))}
             onBlur={() => {
@@ -601,7 +601,7 @@ function ConfigTableFooter({ totals }) {
         <td className={cls.footerCell} />
         <td className={cls.footerCell}>TOTALS</td>
         <td className={cls.footerCell}>{formatNum(t.unitCost)}</td>
-        <td className={cls.footerCell}>{t.qty}</td>
+        <td className={cls.footerCell}>{formatIntWithCommas(t.qty)}</td>
         <td className={cls.footerCell}>{formatNum(t.totalCost)}</td>
         <td className={cls.footerCell}>{formatNum(t.yields)}</td>
         <td className={cls.footerCell}>{formatNum(t.costCpp)}</td>
@@ -619,7 +619,7 @@ function MobileTotalsFooter({ totals }) {
   const t = { ...EMPTY_TOTALS, ...totals };
   const items = [
     ['Unit Cost', formatNum(t.unitCost)],
-    ['Qty', t.qty],
+    ['Qty', formatIntWithCommas(t.qty)],
     ['Total Cost', formatNum(t.totalCost)],
     ['Yields', formatNum(t.yields)],
     ['Cost CPP', formatNum(t.costCpp)],

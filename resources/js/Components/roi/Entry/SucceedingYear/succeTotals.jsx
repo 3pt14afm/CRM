@@ -52,11 +52,11 @@ function SucceTotals() {
     });
   };
 
-  const nFormat = (val) => {
-    const num = Number(val) || 0;
-    return num === 0 ? "" : num; // Return blank instead of 0 for Qty
-  };
-
+const nFormat = (val) => {
+  const num = Number(val) || 0;
+  if (num === 0) return "";
+  return num.toLocaleString();
+};
   const n = (val) => Number(val) || 0;
 
   // 3. LIFETIME CONTEXT UPDATE

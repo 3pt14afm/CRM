@@ -44,7 +44,8 @@ function ContractDetails() {
   // Specifically for Quantities (integers)
   const formatQty = (val) => {
     const num = Number(val) || 0;
-    return num === 0 ? "" : num;
+    if (num === 0) return "";
+    return num.toLocaleString();
   };
 
   const normalize = (s) => String(s || '').trim().toLowerCase();

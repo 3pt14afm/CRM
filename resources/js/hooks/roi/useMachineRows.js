@@ -354,10 +354,13 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   // Flipping contract type can flip which rows have editable qty (printer
   // rows lock/unlock, consumable mono/color rows switch between
   // user-entered and derived-from-printer-total). On an actual change (not
-  // the initial load/hydration) we reset every row's qty back to 1 first,
-  // then re-derive — otherwise a qty typed under the old contract can carry
-  // over and get permanently "stuck" once the row becomes non-editable
-  // under the new one (e.g. an "others" row locked at some leftover value).
+  // the initial load/hydration) a row's qty is reset back to 1 ONLY when
+  // that row is transitioning from non-editable to editable — i.e. the user
+  // is about to start typing into a previously-locked field and shouldn't
+  // inherit a stale derived/locked value. Rows that stay non-editable, or
+  // stay editable, keep whatever qty they already had; enforceRowQty below
+  // still re-derives locked/mirrored values (e.g. followers, mono/color
+  // consumable qty) from that preserved data.
   const prevContractTypeRef = useRef(contractType);
   useEffect(() => {
     const prevContractType = prevContractTypeRef.current;
@@ -365,9 +368,13 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     if (prevContractType === contractType) return; // skip on initial mount
 
     setRows((prev) => {
-      const reset = prev.map((row) => ({ ...row, qty: 1 }));
-      const printerQtyTotal = computePrinterQtyTotal(reset);
-      return reset.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
+      const adjusted = prev.map((row) => {
+        const wasEditable = isQtyEditable(row, prevContractType);
+        const isEditable  = isQtyEditable(row, contractType);
+        return (!wasEditable && isEditable) ? { ...row, qty: 1 } : row;
+      });
+      const printerQtyTotal = computePrinterQtyTotal(adjusted);
+      return adjusted.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
     });
   }, [contractType]);
 
