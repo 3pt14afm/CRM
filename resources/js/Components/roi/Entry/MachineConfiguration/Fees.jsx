@@ -317,13 +317,15 @@ const Fees = ({ readOnly }) => {
   const monoAnnual  = (Number(projectData?.yield?.monoAmvpYields?.monthly  || 0)) * 12;
   const colorAnnual = (Number(projectData?.yield?.colorAmvpYields?.monthly || 0)) * 12;
 
-  // Printer machine qty — any machine row that isn't 'others' mode (same
-  // "printer row" definition used in Machine Configuration / getRowCalculations:
-  // includes the mandatory row, whose mode is always '' rather than 'mono'/'color').
+  // Printer machine qty — only the MANDATORY machine row (mode is always ''
+  // rather than 'mono'/'color'). Any other printer-type row a user added
+  // just mirrors the mandatory row's qty (see useMachineRows.js) and must
+  // not be counted again here, or Support Services/Rental/Click fee
+  // quantities would double.
   const rawMachines = projectData?.machineConfiguration?.machine || [];
   const printerQty  = rawMachines.reduce((sum, m) => {
     const mode = String(m.mode || '').toLowerCase();
-    return mode !== 'others' ? sum + (Number(m.qty) || 0) : sum;
+    return (mode !== 'others' && m.isMandatory) ? sum + (Number(m.qty) || 0) : sum;
   }, 0);
 
   const contractType    = projectData?.companyInfo?.contractType || "";

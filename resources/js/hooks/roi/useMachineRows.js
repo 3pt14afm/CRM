@@ -133,17 +133,26 @@ const isExceptionContract = (contractType = '') => {
   return ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
 };
 
-// Sum of qty across every printer row currently on the table — this is what
-// non-exception-contract consumable mono/color qty is locked to.
+// Sum of qty across every MANDATORY printer row currently on the table —
+// this is what non-exception-contract consumable mono/color qty (and any
+// secondary printer row) is locked to. Only the mandatory row counts here:
+// any additional printer row a user checks "H" on is a follower, not a
+// second source of qty, so it must never inflate this total.
 const computePrinterQtyTotal = (rows = []) =>
-  rows.reduce((sum, r) => (isPrinterRow(r) ? sum + (Number(r.qty) || 0) : sum), 0);
+  rows.reduce((sum, r) => (isPrinterRow(r) && r.isMandatory ? sum + (Number(r.qty) || 0) : sum), 0);
 
 const isQtyEditable = (row, contractType = '') => {
   const exception = isExceptionContract(contractType);
 
   if (isPrinterRow(row)) {
-    // Printer qty: editable everywhere except the two exception contracts,
-    // where it stays locked at 1 (unchanged legacy behavior).
+    if (!row.isMandatory) {
+      // Any printer row besides the mandatory one (e.g. a blank row the
+      // user checked "H" on) is a follower: its qty always mirrors the
+      // mandatory printer's qty and is never directly editable.
+      return false;
+    }
+    // Mandatory printer qty: editable everywhere except the two exception
+    // contracts, where it stays locked at 1 (unchanged legacy behavior).
     return !exception;
   }
 
@@ -161,14 +170,21 @@ const isQtyEditable = (row, contractType = '') => {
 const enforceRowQty = (row, contractType = '', printerQtyTotal = 1) => {
   if (isQtyEditable(row, contractType)) return row;
 
+  // Non-mandatory printer rows always mirror the mandatory printer's qty
+  // (== printerQtyTotal, since only the mandatory row feeds that total)
+  // instead of being counted separately or locked to 1.
+  if (isPrinterRow(row) && !row.isMandatory) {
+    return { ...row, qty: printerQtyTotal || 1 };
+  }
+
   // Non-exception contracts: mono/color consumable qty tracks the summed
-  // printer qty live, instead of being hardcoded to 1.
+  // (mandatory) printer qty live, instead of being hardcoded to 1.
   if (isMonoColorConsumable(row) && !isExceptionContract(contractType)) {
     return { ...row, qty: printerQtyTotal };
   }
 
-  // Everything else not covered above (printer rows under the two
-  // exception contracts, "others" rows) stays locked at 1.
+  // Everything else not covered above (mandatory printer row under the
+  // two exception contracts, "others" rows) stays locked at 1.
   return { ...row, qty: 1 };
 };
 
@@ -337,12 +353,21 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   // ── Re-enforce qty rules when contract type changes ──────────────────────
   // Flipping contract type can flip which rows have editable qty (printer
   // rows lock/unlock, consumable mono/color rows switch between
-  // user-entered and derived-from-printer-total). Re-run enforcement across
-  // every row so nothing is left holding a stale qty from the old regime.
+  // user-entered and derived-from-printer-total). On an actual change (not
+  // the initial load/hydration) we reset every row's qty back to 1 first,
+  // then re-derive — otherwise a qty typed under the old contract can carry
+  // over and get permanently "stuck" once the row becomes non-editable
+  // under the new one (e.g. an "others" row locked at some leftover value).
+  const prevContractTypeRef = useRef(contractType);
   useEffect(() => {
+    const prevContractType = prevContractTypeRef.current;
+    prevContractTypeRef.current = contractType;
+    if (prevContractType === contractType) return; // skip on initial mount
+
     setRows((prev) => {
-      const printerQtyTotal = computePrinterQtyTotal(prev);
-      return prev.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
+      const reset = prev.map((row) => ({ ...row, qty: 1 }));
+      const printerQtyTotal = computePrinterQtyTotal(reset);
+      return reset.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
     });
   }, [contractType]);
 

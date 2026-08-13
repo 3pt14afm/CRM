@@ -55,8 +55,11 @@ export const get1YrPotential = (projectData) => {
     return isPerCartridge ? Math.ceil(qty) : qty;
   };
 
+  // Only the mandatory printer row drives this total — any other
+  // printer-type row a user added just mirrors the mandatory row's qty
+  // (see useMachineRows.js) and must not be counted a second time.
   const printerMachineQty = rawMachines
-    .filter(m => (m.mode?.toLowerCase() || '') !== 'others')
+    .filter(m => (m.mode?.toLowerCase() || '') !== 'others' && m.isMandatory)
     .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
 
   // 2. PROCESS MACHINES

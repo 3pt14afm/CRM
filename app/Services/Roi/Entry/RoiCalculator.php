@@ -186,9 +186,20 @@ class RoiCalculator
 
         $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'];
 
+        // Only the mandatory printer row drives this total — any other
+        // printer-type row a user added just mirrors the mandatory row's
+        // qty (see frontend useMachineRows.js) and must not be counted a
+        // second time here. Identify it primarily by its stable id
+        // ('__mandatory_printer__', == MANDATORY_ROW_ID in the frontend)
+        // rather than relying only on `isMandatory`, since that boolean
+        // isn't guaranteed to survive persistence — the id is the row's
+        // primary key and always will.
+        $isMandatoryRow = fn($m) =>
+            ($m['id'] ?? null) === '__mandatory_printer__' || ($m['isMandatory'] ?? false) === true;
+
         $printerMachineQty = array_sum(array_map(
             fn($m) => $this->toFloat($m['qty'] ?? 0),
-            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others')
+            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others' && $isMandatoryRow($m))
         ));
 
         // --- PROCESS MACHINES ---
@@ -377,9 +388,20 @@ class RoiCalculator
 
         $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'];
 
+        // Only the mandatory printer row drives this total — any other
+        // printer-type row a user added just mirrors the mandatory row's
+        // qty (see frontend useMachineRows.js) and must not be counted a
+        // second time here. Identify it primarily by its stable id
+        // ('__mandatory_printer__', == MANDATORY_ROW_ID in the frontend)
+        // rather than relying only on `isMandatory`, since that boolean
+        // isn't guaranteed to survive persistence — the id is the row's
+        // primary key and always will.
+        $isMandatoryRow = fn($m) =>
+            ($m['id'] ?? null) === '__mandatory_printer__' || ($m['isMandatory'] ?? false) === true;
+
         $printerMachineQty = array_sum(array_map(
             fn($m) => $this->toFloat($m['qty'] ?? 0),
-            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others')
+            array_filter($rawMachines, fn($m) => strtolower($m['mode'] ?? '') !== 'others' && $isMandatoryRow($m))
         ));
 
         // --- PROCESS MACHINES ---
