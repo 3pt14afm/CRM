@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { MdClose } from "react-icons/md";
 
 export default function ScrollableMultiSelect({
   label,
@@ -99,7 +100,7 @@ export default function ScrollableMultiSelect({
       <div
         ref={wrapperRef}
         onClick={handleWrapperClick}
-        className={`flex w-full flex-wrap items-center gap-1.5 rounded-lg border bg-white min-h-7 md:min-h-9 px-2 md:px-3 py-1 text-[11px] md:text-[13px] transition-[border-color,box-shadow] duration-150 ${
+        className={`flex w-full flex-wrap items-center gap-1.5 rounded-lg border bg-white min-h-7 md:min-h-9 px-2 md:px-3 py-1 text-[11px] md:text-xs transition-[border-color,box-shadow] duration-150 ${
           open ? "border-[#4FA34E]" : "border-gray-200"
         } ${
           disabled
@@ -114,19 +115,19 @@ export default function ScrollableMultiSelect({
             {selectedOptions[0].name}
           </span>
         ) : selectedOptions.length > 1 ? (
-          <span className="flex items-center gap-1 rounded bg-[#B5EBA2]/40 px-1.5 py-0.5 text-[10px] md:text-[11px] font-medium text-slate-900 border border-[#B5EBA2]/60">
+          <span className="flex items-center rounded bg-[#B5EBA2]/40 pl-1.5 py-0.5 text-[10px] md:text-[11px] font-medium text-slate-900 border border-[#B5EBA2]/60">
             {selectedOptions.length} {pluralLabel} selected
-            {/* <button
+            <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onChange([]);
               }}
               disabled={disabled}
-              className="text-slate-500 hover:text-slate-800 focus:outline-none ml-0.5"
+              className="text-slate-500 hover:text-red-800 hover:bg-red-100 rounded-lg p-0.5 focus:outline-none ml-1 mr-0.5"
             >
-              ×
-            </button> */}
+              <MdClose/>
+            </button>
           </span>
         ) : null}
 
@@ -162,7 +163,7 @@ export default function ScrollableMultiSelect({
             className="max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
           >
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-500">No options found</div>
+              <div className="px-3 py-2 text-[11px] md:text-xs text-slate-500">No options found</div>
             ) : (
               filteredOptions.map((opt) => {
                 const checked = values.map(String).includes(String(opt.id));
@@ -170,12 +171,12 @@ export default function ScrollableMultiSelect({
                   <div
                     key={opt.id}
                     onClick={() => selectValue(opt.id)}
-                    className={`flex cursor-pointer items-center gap-2 px-2 md:px-3 py-1.5 md:py-2 text-[11px] md:text-[13px] hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
+                    className={`flex cursor-pointer items-center gap-2 px-2 md:px-3 py-1.5 md:py-2 text-[11px] md:text-xs hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
                       checked ? "font-medium text-slate-900" : "text-slate-700"
                     }`}
                   >
                     <span
-                      className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded border ${
+                      className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded border ${
                         checked ? "border-[#289800] bg-[#289800]" : "border-slate-300 bg-white"
                       }`}
                     >

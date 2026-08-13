@@ -7,9 +7,12 @@ const STATUS_STYLES = {
   expiring_soon: { label: "Expiring", labelClass: "text-amber-500", valueClass: "text-amber-500" },
   active: { label: "Active", labelClass: "text-emerald-500", valueClass: "text-emerald-500" },
   expired: { label: "Expired", labelClass: "text-red-500", valueClass: "text-red-500" },
+  no_contracts: { label: "None", labelClass: "text-gray-500", valueClass: "text-gray-500" },
 };
 
-export default function ContractStatusCard({ theme, index = 0, onStatusClick, selectedStatus, onReady }) {
+const CLICKABLE_STATUSES = ["expiring_soon", "active", "expired"];
+
+export default function ContractStatusCard({ theme, index = 0, onStatusClick, selectedStatus, onReady, className = '' }) {
   const [counts, setCounts] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,15 +28,15 @@ export default function ContractStatusCard({ theme, index = 0, onStatusClick, se
   }, []);
 
   return (
-    <StatCard icon={IoAlertCircle} title="Contract Status" theme={theme} index={index}>
+    <StatCard icon={IoAlertCircle} title="Contract Status" theme={theme} index={index} className={className}>
       {loading ? (
-        <div className="grid grid-cols-3 gap-6 mt-2">
+        <div className="grid grid-cols-4 gap-3 mt-2">
           {Object.keys(STATUS_STYLES).map((key) => (
             <div key={key} className="h-9 w-10 bg-black/5 rounded animate-pulse" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-3 lg:gap-8 mt-1 w-full">
+        <div className="grid grid-cols-4 lg:gap-3 mt-1 w-full">
           {Object.keys(STATUS_STYLES).map((key) => (
             <StatusStat
               key={key}
@@ -42,6 +45,7 @@ export default function ContractStatusCard({ theme, index = 0, onStatusClick, se
               labelClass={STATUS_STYLES[key].labelClass}
               valueClass={STATUS_STYLES[key].valueClass}
               active={selectedStatus === key}
+              clickable={CLICKABLE_STATUSES.includes(key)}
               onClick={() => onStatusClick?.(key)}
             />
           ))}
@@ -51,15 +55,29 @@ export default function ContractStatusCard({ theme, index = 0, onStatusClick, se
   );
 }
 
-function StatusStat({ label, value, labelClass, valueClass, active, onClick }) {
+function StatusStat({ label, value, labelClass, valueClass, active, clickable, onClick }) {
+  const content = (
+    <>
+      <span className={`text-[9px] lg:text-[10px] font-medium ${labelClass}`}>{label}</span>
+      <span className={`text-lg lg:text-2xl font-bold leading-tight ${valueClass}`}>{value}</span>
+    </>
+  );
+
+  if (!clickable) {
+    return (
+      <div className="flex flex-col items-start rounded-md px-1 py-0.5">
+        {content}
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-start rounded-md px-1 py-0.5 transition-colors hover:bg-rose-500/5 hover:shadow-inner`}
+      className={`flex flex-col items-start justify-between rounded-md py-0.5 transition-colors hover:bg-rose-500/5 hover:shadow-inner`}
     >
-      <span className={`text-[9px] lg:text-[10px] font-medium ${labelClass}`}>{label}</span>
-      <span className={`text-lg lg:text-2xl font-bold leading-tight ${valueClass}`}>{value}</span>
+      {content}
     </button>
   );
 }

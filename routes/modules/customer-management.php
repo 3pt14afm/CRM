@@ -52,8 +52,8 @@ Route::middleware(['auth', 'verified'])
         Route::get('/pending-approvals', [DashboardController::class, 'pendingApprovals'])->name('customers.pending-approvals');
         Route::get('/distribution-stats', [DashboardController::class, 'distributionStats'])->name('customers.distribution-stats');
         Route::get('/entries-by-month', [DashboardController::class, 'entriesByMonth'])->name('customers.entries-by-month');
-        Route::get('/contract-status-stats', [ContractController::class, 'statusStats'])->name('customers.contract-status-stats');
-        Route::get('/expiring-contracts', [ContractController::class, 'byStatus'])->name('customers.expiring-contracts');
+        Route::get('/contract-status-stats', [DashboardController::class, 'statusStats'])->name('customers.contract-status-stats');
+        Route::get('/expiring-contracts', [DashboardController::class, 'byStatus'])->name('customers.expiring-contracts');
 
         Route::get('/details', [CustomerManagementController::class, 'details'])->name('customers.details');
 

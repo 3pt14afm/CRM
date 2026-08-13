@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Contract;
 
 use App\Http\Controllers\Concerns\AppliesCompanyVisibility;
+use App\Http\Controllers\Concerns\ManagesCompanyContracts;
 use App\Http\Controllers\Controller;
 use App\Models\Contracts\Contract;
 use App\Models\Contracts\ContractType;
@@ -22,6 +23,7 @@ use Inertia\Inertia;
 class ContractController extends Controller
 {
     use AppliesCompanyVisibility;
+    use ManagesCompanyContracts;
 
     private const EXTENSION_WINDOW_EXPIRED_MESSAGE =
         'This contract expired more than 3 months ago and can no longer be extended.';
@@ -69,13 +71,13 @@ class ContractController extends Controller
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('company_name', 'like', "%{$search}%")
-                      ->orWhere('sap_code', 'like', "%{$search}%")
-                      ->orWhere('address', 'like', "%{$search}%")
-                      ->orWhere('delsan_company', 'like', "%{$search}%")
-                      ->orWhereRaw(
-                          "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) LIKE ?",
-                          ['%' . strtolower($search) . '%']
-                      );
+                    ->orWhere('sap_code', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('delsan_company', 'like', "%{$search}%")
+                    ->orWhereRaw(
+                        "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) LIKE ?",
+                        ['%' . strtolower($search) . '%']
+                    );
                 });
             })
             ->when($request->input('category'), function ($query, $category) {
@@ -93,7 +95,7 @@ class ContractController extends Controller
             ->when($sortBy === 'sap_code', function ($query) use ($sortOrder) {
                 $query->orderByRaw(
                     "CAST(REGEXP_REPLACE(sap_code, '^[A-Za-z-]+', '') AS UNSIGNED) {$sortOrder},
-                     sap_code {$sortOrder}"
+                    sap_code {$sortOrder}"
                 );
             })
             ->when($sortBy === 'client_manager', function ($query) use ($sortOrder) {
@@ -102,13 +104,11 @@ class ContractController extends Controller
                 );
             })
             ->when($sortBy === 'contracts_count', function ($query) use ($sortOrder, $companyTable, $contractTable, $qualifyTable) {
-
                 $query->orderByRaw("
                     (
                         SELECT COUNT(*)
                         FROM {$qualifyTable($contractTable)} AS ct
-                        WHERE (ct.company_name COLLATE utf8mb4_unicode_ci) = ({$companyTable}.company_name COLLATE utf8mb4_unicode_ci)
-                           OR ({$companyTable}.sap_code IS NULL AND ct.company_id = {$companyTable}.id)
+                        WHERE ct.company_id = {$companyTable}.id
                     ) {$sortOrder}
                 ");
             })
@@ -132,36 +132,23 @@ class ContractController extends Controller
             ->map(fn ($group) => $group->pluck('id_client_mngr')->filter()->unique()->values());
 
         $isAdmin           = $this->isAdmin();
-        $isPrivileged = $this->isContractUploadPrivileged();
+        $isPrivileged      = $this->isContractUploadPrivileged();
         $currentEmployeeId = Auth::user()->employee_id ?? null;
 
-        $companyIdsOnPage   = $companies->getCollection()->pluck('id');
-        $companyNamesOnPage = $companies->getCollection()->pluck('company_name')->filter()->unique()->values();
+        $companyIdsOnPage = $companies->getCollection()->pluck('id');
 
         $contractsForPage = Contract::query()
-            ->where(function ($q) use ($companyIdsOnPage, $companyNamesOnPage) {
-                $q->whereIn('company_id', $companyIdsOnPage)
-                  ->orWhereIn('company_name', $companyNamesOnPage);
-            })
+            ->whereIn('company_id', $companyIdsOnPage)
             ->get(['id', 'company_id', 'company_name', 'status', 'end_date', 'extend_dates', 'terminated_at', 'archived_at']);
 
         $contractsForPage->each(fn ($c) => $c->refreshStatus());
 
-        $contractsByCompanyName = $contractsForPage->groupBy('company_name');
-        $contractsByCompanyId   = $contractsForPage->groupBy('company_id');
+        $contractsByCompanyId = $contractsForPage->groupBy('company_id');
 
         $contractTypes = ContractType::where('status', 1)->orderBy('name')->get(['id', 'name']);
 
-        $contractsForCompany = function ($c) use ($contractsByCompanyName, $contractsByCompanyId) {
-            if ($c->company_name && $contractsByCompanyName->has($c->company_name)) {
-                return $contractsByCompanyName->get($c->company_name);
-            }
-
-            if (!$c->sap_code) {
-                return $contractsByCompanyId->get($c->id) ?? collect();
-            }
-
-            return collect();
+        $contractsForCompany = function ($c) use ($contractsByCompanyId) {
+            return $contractsByCompanyId->get($c->id) ?? collect();
         };
 
         $statusFromContracts = function ($contracts) {
@@ -627,28 +614,15 @@ class ContractController extends Controller
         ]);
     }
 
-    /**
-     * Employee-initiated cancellation/termination of a contract. Only
-     * allowed while the contract is still "live" — active, extended, or
-     * expiring soon. Once terminated, the contract is final: it can no
-     * longer be edited, extended, terminated again, or archived — only
-     * viewed.
-     */
     public function terminate($contractId)
     {
         $contract = Contract::findOrFail($contractId);
         $company  = Company::findOrFail($contract->company_id);
 
-        // Same permission tier as edit/extend/upload — Approvers cannot
-        // terminate a contract, only Admin, Privileged Employee, or the
-        // assigned manager.
         if (!$this->canManageCompanyContracts($company)) {
             abort(403, 'You are not authorized to terminate this contract.');
         }
 
-        // Make sure status reflects reality before we check it (e.g. a
-        // contract that quietly crossed into "expired" since it was last
-        // loaded). No-ops if already final.
         $contract->refreshStatus();
 
         if ($contract->isFinal()) {
@@ -680,19 +654,11 @@ class ContractController extends Controller
         ]);
     }
 
-    /**
-     * Employee-initiated archiving of an already-expired contract. Once
-     * archived, the contract is final: it can no longer be edited,
-     * extended, terminated, or archived again — only viewed.
-     */
     public function archive($contractId)
     {
         $contract = Contract::findOrFail($contractId);
         $company  = Company::findOrFail($contract->company_id);
 
-        // Same permission tier as edit/extend/upload — Approvers cannot
-        // archive a contract, only Admin, Privileged Employee, or the
-        // assigned manager.
         if (!$this->canManageCompanyContracts($company)) {
             abort(403, 'You are not authorized to archive this contract.');
         }
@@ -723,111 +689,6 @@ class ContractController extends Controller
         ]);
     }
 
-    private function visibleCompanyIds()
-    {
-        $employeeId = Auth::user()->employee_id ?? null;
-
-        if ($this->isAdmin() || $this->isCompanyVisibilityPrivileged()) {
-            return Company::query()->where('status', 1)->pluck('id');
-        }
-
-        $companyTable = (new Company())->getTable();
-
-        $query = Company::query()
-            ->leftJoin('users as client_managers', function ($join) use ($companyTable) {
-                $join->on(
-                    DB::raw("{$companyTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
-                    '=',
-                    DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
-                );
-            })
-            ->where("{$companyTable}.status", 1) 
-            ->select("{$companyTable}.id");
-
-        $this->applyCompanyVisibility($query);
-
-        return $query->pluck('id');
-    }
-
-    public function statusStats(Request $request)
-    {
-        $counts = ['expiring_soon' => 0, 'active' => 0, 'expired' => 0];
-
-        $visibleCompanyIds = $this->visibleCompanyIds();
-
-        Contract::query()
-            ->whereIn('company_id', $visibleCompanyIds)
-            ->chunk(200, function ($contracts) use (&$counts) {
-                foreach ($contracts as $contract) {
-                    $contract->refreshStatus();
-
-                    $bucket = $contract->status === Contract::STATUS_EXTENDED
-                        ? Contract::STATUS_ACTIVE
-                        : $contract->status;
-
-                    if (isset($counts[$bucket])) {
-                        $counts[$bucket]++;
-                    }
-                }
-            });
-
-        return response()->json($counts);
-    }
-
-    public function byStatus(Request $request)
-    {
-        $status = $request->input('status', 'expiring_soon');
-
-        if (!in_array($status, ['expiring_soon', 'active', 'expired'])) {
-            $status = 'expiring_soon';
-        }
-
-        $limit = 50;
-
-        $visibleCompanyIds = $this->visibleCompanyIds();
-
-        $contracts = Contract::query()
-            ->whereIn('company_id', $visibleCompanyIds)
-            ->get();
-
-        $filtered = $contracts
-            ->each(fn ($c) => $c->refreshStatus())
-            ->filter(function ($c) use ($status) {
-                // Same "extended folds into active" rollup as statusStats().
-                if ($status === Contract::STATUS_ACTIVE) {
-                    return in_array($c->status, [Contract::STATUS_ACTIVE, Contract::STATUS_EXTENDED], true);
-                }
-                return $c->status === $status;
-            })
-            ->map(function ($c) {
-                $effectiveDate = $c->latestExtendedDate() ?? optional($c->end_date)->format('Y-m-d');
-                $company = Company::find($c->company_id);
-
-                return [
-                    'id'             => $c->id,
-                    'company_id'     => $c->company_id,
-                    // Trimmed for the same reason as contracts() above —
-                    // keeps this consistent with the trimmed company_name
-                    // the frontend gets everywhere else.
-                    'company_name'   => trim($c->company_name ?? ''),
-                    'sap_code'       => $company->sap_code ?? null,
-                    'expires_at'     => $effectiveDate,
-                    'days_remaining' => $effectiveDate
-                        ? (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($effectiveDate)->startOfDay(), false)
-                        : null,
-                    'was_extended'   => !empty($c->extend_dates),
-                    'can_upload'     => $company ? $this->canManageCompanyContracts($company) : false,
-                    'pdf_url' => $c->pdf_path ? route('contract.pdf', $c->id) : null,
-                ];
-            });
-
-        $sorted = $status === 'expired'
-            ? $filtered->sortByDesc('expires_at')
-            : $filtered->sortBy('expires_at');
-
-        return response()->json($sorted->take($limit)->values());
-    }
-
     public function viewPdf($contractId)
     {
         $contract = Contract::findOrFail($contractId);
@@ -852,89 +713,6 @@ class ContractController extends Controller
             Storage::disk('local')->path($contract->pdf_path),
             ['Content-Type' => 'application/pdf']
         );
-    }
-
-    /**
-     * True if the logged-in user is the system admin (user id 1).
-     */
-    private function isAdmin(): bool
-    {
-        $currentUser = Auth::user();
-        return $currentUser && (int) $currentUser->id === 1;
-    }
-
-    /**
-     * True if the logged-in user is an approver for the company's assigned
-     * client manager's location and department.
-     */
-    private function isApproverForCompany(Company $company): bool
-    {
-        $currentUser = Auth::user();
-        if (!$currentUser) return false;
-
-        $clientManager = User::where('employee_id', $company->id_client_mngr)->first();
-        if (!$clientManager) return false;
-
-        return LocationDepartment::query()
-            ->where(function ($q) use ($currentUser) {
-                $q->where('reviewed_by', $currentUser->id)
-                  ->orWhere('checked_by', $currentUser->id)
-                  ->orWhere('endorsed_by', $currentUser->id)
-                  ->orWhere('confirmed_by', $currentUser->id)
-                  ->orWhere('approved_by', $currentUser->id);
-            })
-            ->where('location_id', $clientManager->primary_location_id)
-            ->where('department_id', $clientManager->department_id)
-            ->exists();
-    }
-
-    private function canAccessCompanyContracts(Company $company): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        if ($this->isCompanyVisibilityPrivileged()) {
-            return true;
-        }
-
-        $employeeId = Auth::user()->employee_id ?? null;
-
-        if ((string) $company->id_client_mngr === (string) $employeeId) {
-            return true;
-        }
-
-        return $this->isApproverForCompany($company);
-    }
-
-    private function canManageCompanyContracts(Company $company): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        if ($this->isContractUploadPrivileged()) {
-            return true;
-        }
-
-        $employeeId = Auth::user()->employee_id ?? null;
-        if (!$employeeId) {
-            return false;
-        }
-
-        if ((string) $company->id_client_mngr === (string) $employeeId) {
-            return true;
-        }
-
-        if ($company->sap_code) {
-            return Company::query()
-                ->where('status', 1)
-                ->where('sap_code', $company->sap_code)
-                ->where('id_client_mngr', $employeeId)
-                ->exists();
-        }
-
-        return false;
     }
 
     private function isPastExtensionWindow(Contract $contract): bool

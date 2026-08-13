@@ -75,6 +75,8 @@ class ContractMonitoringController extends Controller
         }
         // --------------------------------
 
+        $includeNoContracts = $request->boolean('include_no_contracts');
+
         $typeInput = $request->input('type');
         $typesToShow = null;
 
@@ -111,12 +113,33 @@ class ContractMonitoringController extends Controller
                 );
             })
             ->select("{$companyTable}.*")
+            ->distinct()
             ->with('mainLocation', 'clientManager')
             ->where("{$companyTable}.status", 1)
             ->when(true, fn ($query) => $this->applyCompanyVisibility($query))
-            ->whereHas('contracts', function ($q) use ($statusesToShow, $typesToShow) {
-                $q->when($statusesToShow, fn ($qq) => $qq->whereIn('status', $statusesToShow))
-                ->when($typesToShow, fn ($qq) => $qq->whereIn('ctid', $typesToShow));
+            ->when(!$includeNoContracts, function ($query) use ($statusesToShow, $typesToShow, $companyTable) {
+                $query->where(function ($outer) use ($statusesToShow, $typesToShow, $companyTable) {
+                    $outer->whereExists(function ($sub) use ($statusesToShow, $typesToShow, $companyTable) {
+                        $sub->selectRaw(1)
+                            ->from('contracts')
+                            ->join("{$companyTable} as cc3", 'cc3.id', '=', 'contracts.company_id')
+                            ->where(function ($grp) use ($companyTable) {
+                                $grp->whereColumn('cc3.sap_code', "{$companyTable}.sap_code")
+                                    ->orWhere(function ($self) use ($companyTable) {
+                                        $self->whereNull("{$companyTable}.sap_code")
+                                            ->whereColumn('cc3.id', "{$companyTable}.id");
+                                    });
+                            })
+                            ->when($statusesToShow, fn ($qq) => $qq->whereIn('contracts.status', $statusesToShow))
+                            ->when($typesToShow, fn ($qq) => $qq->whereIn('contracts.ctid', $typesToShow));
+                    });
+                });
+            })
+            ->where(function ($q) use ($companyTable) {
+                $q->whereNull("{$companyTable}.sap_code")
+                ->orWhereRaw(
+                    "{$companyTable}.id = (SELECT MIN(c2.id) FROM {$companyTable} AS c2 WHERE c2.sap_code = {$companyTable}.sap_code AND c2.status = 1)"
+                );
             })
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -168,8 +191,11 @@ class ContractMonitoringController extends Controller
                     ->orderByRaw('LOWER(sort_location.branch_name) ' . $sortOrder);
             })
             ->when($sortBy === 'status', function ($query) use ($sortOrder, $companyTable, $contractFilterSql, $contractFilterBindings) {
+                $subFilter = str_replace('status', 'contracts.status', str_replace('ctid', 'contracts.ctid', $contractFilterSql));
                 $query->orderByRaw(
-                    "(SELECT MIN(status) FROM contracts WHERE contracts.company_id = {$companyTable}.id{$contractFilterSql}) {$sortOrder}",
+                    "(SELECT COUNT(*) FROM contracts
+                    JOIN {$companyTable} AS cc ON cc.id = contracts.company_id
+                    WHERE cc.sap_code = {$companyTable}.sap_code{$subFilter}) {$sortOrder}, LOWER({$companyTable}.company_name) asc",
                     $contractFilterBindings
                 );
             })
@@ -206,9 +232,6 @@ class ContractMonitoringController extends Controller
 
         $sapCodesOnPage = $companies->getCollection()->pluck('sap_code')->filter()->unique()->values();
 
-        // Pull in every sibling company under each SAP code on this page so
-        // grouping/expansion behaves the same as Upload Contract, even for
-        // siblings that themselves have no page-qualifying contracts.
         $siblingCompanies = $sapCodesOnPage->isEmpty()
             ? collect()
             : Company::query()
@@ -310,7 +333,7 @@ class ContractMonitoringController extends Controller
                 'label' => $label,
             ])->values(),
             'filters' => $request->only([
-                'search', 'delsan_company', 'type', 'status', 'per_page', 'sort_by', 'sort_order',
+                'search', 'delsan_company', 'type', 'status', 'include_no_contracts', 'per_page', 'sort_by', 'sort_order',
             ]),
         ]);
     }

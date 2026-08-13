@@ -9,12 +9,13 @@ export default function StatCard({
   index = 0,
   loading = false,
   children,
+  className = ''
 }) {
   const clipId = `bgblur_${index}`;
 
   return (
     <div
-      className={`relative overflow-hidden px-3 lg:px-5 py-3 ${theme.bg} rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] flex flex-col items-start`}
+      className={`${className} relative overflow-hidden w-full px-3 lg:px-5 py-3 ${theme.bg} rounded-lg shadow-[0px_4px_4px_1px_rgba(0,_0,_0,_0.1)] flex flex-col items-start`}
     >
       {/* Decoration */}
       <div className="absolute top-0 right-0 w-full h-full overflow-hidden pointer-events-none">
