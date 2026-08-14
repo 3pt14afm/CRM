@@ -6,6 +6,7 @@ import NewPositionModal from "@/Components/admin/modals/NewPositionModal";
 import EditPositionModal from "@/Components/admin/modals/EditPositionModal";
 import { MdEdit } from "react-icons/md";
 import { IoAddCircle, IoBriefcase } from "react-icons/io5";
+import ViewButton from "@/Components/ViewButton";
 
 function PositionMaster({ stats, positions, departments }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -228,14 +229,12 @@ function PositionMaster({ stats, positions, departments }) {
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
-                title="Edit"
+              <ViewButton
+                label="Edit"
+                icon={MdEdit}
                 onClick={() => openEditModal(r)}
-              >
-                <MdEdit className="text-[14px]" />
-              </button>
+                className="p-1 size-[26px] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800]"
+              />
             </div>
           </div>
         ),
@@ -358,15 +357,12 @@ function PositionMaster({ stats, positions, departments }) {
                 renderCard={renderPositionCard}
                 onRowClick={openEditModal}
                 rightControls={
-                    <button
-                      type="button"
-                      title="Add Position"
-                      aria-label="Add Position"
-                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                    <ViewButton
+                      label="Add Position"
+                      icon={IoAddCircle}
                       onClick={openCreateModal}
-                    >
-                      <IoAddCircle className="w-6 h-6" />
-                    </button>
+                      className="text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35"
+                    />
                   }
               />
             </div>

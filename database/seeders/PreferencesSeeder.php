@@ -40,5 +40,16 @@ class PreferencesSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
+        Preferences::updateOrCreate(
+            ['settings_id' => 'SPRF_VIEW_ALL_ACCESS'],
+            [
+                'settings_key' => 'View All SPRF Access',
+                'description' => 'Employees allowed to view all SPRF projects (view only).',
+                'value_type' => 'employee_list',
+                'employee_ids' => [],
+                'is_active' => true,
+            ]
+        );
     }
 }

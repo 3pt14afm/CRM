@@ -10,6 +10,7 @@ import SortHeader from "@/Components/SortHeader";
 import { MdEdit, MdOutlinePowerSettingsNew } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
 import { FiSearch, FiX } from "react-icons/fi";
+import ViewButton from "@/Components/ViewButton";
 
 function StatusPill({ children, tone = "neutral" }) {
   const classes = {
@@ -685,13 +686,12 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
             </div>
 
             <div className="flex justify-end">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 text-[#289800] hover:brightness-95 md:text-xs lg:text-sm"
+              <ViewButton
+                label="New Approver Matrix"
+                icon={IoAddCircle}
                 onClick={openCreateForActiveTab}
-              >
-                <IoAddCircle className="w-6 h-6" />
-              </button>
+                className="text-[#289800]"
+              />
             </div>
 
             {activeMatrixTab === "ROI" && (
@@ -863,14 +863,12 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
 
                                 <td className="px-4 py-3">
                                   <div className="w-full flex justify-center items-center">
-                                    <button
-                                      type="button"
-                                      className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
-                                      title="Edit"
+                                    <ViewButton
+                                      label="Edit"
+                                      icon={MdEdit}
                                       onClick={() => openEditModal(row)}
-                                    >
-                                      <MdEdit className="text-[14px]" />
-                                    </button>
+                                      className="p-1 size-[26px] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800]"
+                                    />
                                   </div>
                                 </td>
                               </tr>
@@ -1182,24 +1180,20 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
                                 <td className="px-4 py-3">
                                   <div className="w-full flex justify-center items-center">
                                     <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
-                                        title="Edit"
+                                      <ViewButton
+                                        label="Edit"
+                                        icon={MdEdit}
                                         onClick={() => openEditSprfModal(row)}
-                                      >
-                                        <MdEdit className="text-[14px]" />
-                                      </button>
+                                        className="p-1 size-[26px] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800]"
+                                      />
 
                                       {!isActive && (
-                                        <button
-                                          type="button"
-                                          title="Activate"
+                                        <ViewButton
+                                          label="Activate"
+                                          icon={MdOutlinePowerSettingsNew}
                                           onClick={() => activateSprfMatrix(row)}
-                                          className="px-1 py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] text-xs font-semibold"
-                                        >
-                                          <MdOutlinePowerSettingsNew />
-                                        </button>
+                                          className="p-1 size-[26px] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800]"
+                                        />
                                       )}
                                     </div>
                                   </div>

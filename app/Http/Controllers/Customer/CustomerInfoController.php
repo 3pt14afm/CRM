@@ -356,7 +356,8 @@ class CustomerInfoController extends Controller
             ->where('client_category', '!=', '')
             ->distinct()
             ->orderBy('client_category')
-            ->pluck('client_category');
+            ->pluck('client_category')
+            ->values();
 
         // ── Potential customers ─────────────────────────────────────────────
 

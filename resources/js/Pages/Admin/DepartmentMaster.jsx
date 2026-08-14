@@ -6,6 +6,7 @@ import NewDepartmentModal from "@/Components/admin/modals/NewDepartmentModal";
 import EditDepartmentModal from "@/Components/admin/modals/EditDepartmentModal";
 import { MdEdit } from "react-icons/md";
 import { BsBuildingFillAdd, BsFillBuildingFill } from "react-icons/bs";
+import ViewButton from "@/Components/ViewButton";
 
 function DepartmentMaster({ stats, departments }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -333,15 +334,12 @@ function DepartmentMaster({ stats, departments }) {
                 renderCard={renderDepartmentCard}
                 onRowClick={openEditModal}
                 rightControls={
-                    <button
-                      type="button"
-                      title="Add Department"
-                      aria-label="Add Department"
-                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                    <ViewButton
+                      label="Add Department"
+                      icon={BsBuildingFillAdd}
                       onClick={openCreateModal}
-                    >
-                      <BsBuildingFillAdd className="w-5 h-5" />
-                    </button>
+                      className="text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35"
+                    />
                   }
               />
             </div>

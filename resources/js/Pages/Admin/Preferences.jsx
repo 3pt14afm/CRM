@@ -7,6 +7,7 @@ import EditPreferenceModal from "@/Components/admin/modals/EditPreferenceModal";
 import { MdEdit } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
 import { RiSettingsFill } from "react-icons/ri";
+import ViewButton from "@/Components/ViewButton";
 
 function Preferences({ stats, preferences, users }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -258,7 +259,7 @@ function Preferences({ stats, preferences, users }) {
             return (
               <div className="w-full flex items-center">
                 <span className="text-[11px] md:text-xs text-slate-400">
-                  None
+                  No employee assigned
                 </span>
               </div>
             );
@@ -312,7 +313,7 @@ function Preferences({ stats, preferences, users }) {
             <div className="w-full flex justify-center items-center">
               <span
                 className={`
-                  px-2 py-px rounded-full text-[9px] font-bold uppercase tracking-wider
+                  px-2 rounded-full text-[8px] font-bold uppercase tracking-wider
                   ${
                     isActive
                       ? "bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20"
@@ -332,14 +333,12 @@ function Preferences({ stats, preferences, users }) {
         cell: (r) => (
           <div className="w-full flex justify-center items-center">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
-                title="Edit"
+              <ViewButton
+                label="Edit"
+                icon={MdEdit}
                 onClick={() => openEditModal(r)}
-              >
-                <MdEdit className="text-[14px]" />
-              </button>
+                className="p-1 size-[26px] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800]"
+              />
             </div>
           </div>
         ),
@@ -424,15 +423,12 @@ function Preferences({ stats, preferences, users }) {
                 rowKey={(r, i) => String(r.id ?? i)}
                 pagination={preferencePagination}
                 rightControls={
-                    <button
-                      type="button"
-                      title="Add Printer"
-                      aria-label="Add Printer"
-                      className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                    <ViewButton
+                      label="Add Preference"
+                      icon={IoAddCircle}
                       onClick={openCreateModal}
-                    >
-                      <IoAddCircle className="w-6 h-6" />
-                    </button>
+                      className="text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35"
+                    />
                   }
               />
             </div>
