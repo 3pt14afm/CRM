@@ -1,6 +1,7 @@
 import React from "react";
 import { MdEdit } from "react-icons/md";
 import SortHeader from "@/Components/SortHeader";
+import ViewButton from "@/Components/ViewButton";
 
 export function getUserColumns({
   onEdit,
@@ -166,14 +167,12 @@ export function getUserColumns({
       cell: (r) => (
         <div className="w-full flex justify-center">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 px-2 py-2 font-semibold text-[#289800] md:px-1 md:py-1"
-              title="Edit user"
+            <ViewButton
+              label="Edit user"
+              icon={MdEdit}
               onClick={() => onEdit(r)}
-            >
-              <MdEdit className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
-            </button>
+              className="p-1 size-[26px] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800]"
+            />
           </div>
         </div>
       ),

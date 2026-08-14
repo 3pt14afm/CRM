@@ -180,10 +180,10 @@ export default function NewApproverMatrixModal({
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">
-                Setup Approver Matrix
+                New ROI Approver Matrix
               </h2>
               <p className="text-xs text-slate-500">
-                Configure approvers for this location and department.
+                Set up ROI approval routing for a location and department.
               </p>
             </div>
 

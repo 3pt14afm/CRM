@@ -16,6 +16,7 @@ import useDepartments from "./hooks/useDepartments";
 import { BsPersonFillAdd } from "react-icons/bs";
 import { FaUsers } from "react-icons/fa";
 import { FiSearch, FiX } from "react-icons/fi";
+import ViewButton from "@/Components/ViewButton";
 
 function UserManagement({
   users,
@@ -597,7 +598,7 @@ function UserManagement({
                   renderCard={renderUserCard}
                   onRowClick={editModal.openEditModal}
                   rightControls={
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center lg:gap-2">
                       <div ref={searchBoxRef} className="relative flex items-center justify-end">
                         
                         {/* Mobile Toggle Button - Swaps between Search and X */}
@@ -685,15 +686,12 @@ function UserManagement({
                         </div>
                       </div>
                       
-                      <button
-                        type="button"
-                        title="Add User"
-                        aria-label="Add User"
-                        className="rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95 shrink-0"
+                      <ViewButton
+                        label="Add User"
+                        icon={BsPersonFillAdd}
                         onClick={assignModal.openAssignModal}
-                      >
-                        <BsPersonFillAdd className="w-6 h-6" />
-                      </button>
+                        className="text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35"
+                      />
                     </div>
                   }
                 />
