@@ -90,6 +90,13 @@ class CustomerInfoController extends Controller
             '`' . str_replace('.', '`.`', $table) . '`.`' . $column . '`';
 
         $baseFilteredQuery = function () use ($companyTable, $request, $statusParam, $applyVisibility) {
+            
+            $categoryParam = $request->input('category');
+            $categories = is_array($categoryParam) ? $categoryParam : array_filter(explode(',', $categoryParam ?? ''));
+
+            $delsanParam = $request->input('delsan_company');
+            $delsans = is_array($delsanParam) ? $delsanParam : array_filter(explode(',', $delsanParam ?? ''));
+
             return Company::query()
                 ->leftJoin('users as client_managers', function ($join) use ($companyTable) {
                     $join->on(
@@ -107,14 +114,13 @@ class CustomerInfoController extends Controller
                             "CONCAT(client_managers.first_name, ' ', client_managers.last_name) LIKE ?",
                             ["%{$search}%"]
                         );
-                        // ->orWhere('address', 'like', "%{$search}%")
                     });
                 })
-                ->when($request->input('category'), function ($query, $category) {
-                    $query->where('client_category', $category);
+                ->when(!empty($categories), function ($query) use ($categories) {
+                    $query->whereIn('client_category', $categories);
                 })
-                ->when($request->input('delsan_company'), function ($query, $delsan) {
-                    $query->where('delsan_company', $delsan);
+                ->when(!empty($delsans), function ($query) use ($delsans) {
+                    $query->whereIn('delsan_company', $delsans);
                 })
                 ->when($statusParam !== null && $statusParam !== '', function ($query) use ($statusParam, $companyTable) {
                     $statuses = array_filter(explode(',', $statusParam), fn($v) => $v !== '');

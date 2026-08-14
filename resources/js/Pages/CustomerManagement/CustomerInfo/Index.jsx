@@ -12,14 +12,16 @@ import ContractsSidebar from './ContractsSidebar';
 import { FaRegClock } from 'react-icons/fa';
 import SortHeader from '@/Components/SortHeader';
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,} from "@/components/ui/tooltip";
+import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
+import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
 
 const STORAGE_KEY = 'customerinfo_filters';
 
 const DEFAULT_FILTERS = {
     search:         '',
-    category:       '',
+    category:       [],
     status:         '1',  
-    delsan_company: '',
+    delsan_company: [],
     per_page:       12,
     sort_by:        'company_name',
     sort_order:     'asc',
@@ -220,9 +222,9 @@ const handleSearchChange = (value) => {
 
     const isFiltered = useMemo(() => (
         searchState.search         !== DEFAULT_FILTERS.search         ||
-        searchState.category       !== DEFAULT_FILTERS.category       ||
+        (Array.isArray(searchState.category) ? searchState.category.length > 0 : searchState.category !== '') ||
         searchState.status         !== DEFAULT_FILTERS.status         ||
-        searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
+        (Array.isArray(searchState.delsan_company) ? searchState.delsan_company.length > 0 : searchState.delsan_company !== '') ||
         searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
         searchState.sort_order     !== DEFAULT_FILTERS.sort_order
     ), [searchState]);
@@ -629,67 +631,72 @@ const handleSearchChange = (value) => {
     </div>
     );
 
-    /* ── Filter toolbar ── */
+    {/* ── Filter toolbar ── */}
     const filterToolbar = (
-        <div className="flex flex-wrap items-center gap-1 md:gap-2 rounded-xl border border-gray-200 bg-white p-1 md:p-2 shadow-sm">
-
-            {/* Delsan Company — only relevant for Existing */}
+        <FilterToolbar hasActiveFilters={isFiltered} onClearAll={clearAllFilters}>
+            
+            {/* Delsan Company Multi-Filter — only relevant for Existing */}
             {activeTab === 'Existing' && (
-                <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
-                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-                    <select
-                        value={searchState.delsan_company}
-                        onChange={(e) => updateFilters({ delsan_company: e.target.value })}
-                        className="h-7 md:h-9 w-[90px] md:w-36 pl-[21px] md:pl-8 pr-4 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer truncate
-                            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
-                            transition-[border-color,box-shadow] duration-150 text-slate-700"
-                    >
-                        <option value="">All Delsan</option>
-                        <option value="DBIC">DBIC</option>
-                        <option value="DOSC">DOSC</option>
-                        <option value="DDTC">DDTC</option>
-                    </select>
+                <div className="relative w-[110px] md:w-36 flex flex-shrink-0 items-center">
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+                    <ScrollableMultiSelect
+                        isSearchable={false}
+                        pluralLabel="delsan"
+                        values={searchState.delsan_company || []}
+                        onChange={(arr) => updateFilters({ delsan_company: arr })}
+                        options={[
+                            { id: 'DBIC', name: 'DBIC' },
+                            { id: 'DOSC', name: 'DOSC' },
+                            { id: 'DDTC', name: 'DDTC' },
+                        ]}
+                        placeholder="Delsan"
+                        className="!pl-[21px] md:!pl-8 pr-1 md:pr-2"
+                    />
                 </div>
             )}
 
-            {/* Category — only relevant for Existing */}
+            {/* Category Multi-Filter — only relevant for Existing */}
             {activeTab === 'Existing' && (
-                <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
-                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-                    <select
-                        value={searchState.category}
-                        onChange={(e) => updateFilters({ category: e.target.value })}
-                        className="h-7 md:h-9 w-[90px] md:w-36 pl-[21px] truncate md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-                            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
-                            transition-[border-color,box-shadow] duration-150 text-slate-700"
-                    >
-                        <option value="">All Categories</option>
-                        {categories.map((cat) => (
-                            <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                    </select>
+                <div className="relative w-[120px] md:w-40 flex flex-shrink-0 items-center">
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+                    <ScrollableMultiSelect
+                        isSearchable={false}
+                        pluralLabel="categories"
+                        values={searchState.category || []}
+                        onChange={(arr) => updateFilters({ category: arr })}
+                        options={categories.map((cat) => ({ id: cat, name: cat }))}
+                        placeholder="Categories"
+                        className="!pl-[21px] md:!pl-8 pr-1 md:pr-2"
+                    />
                 </div>
             )}
 
-            {/* Status — multi-select dropdown */}
+            {/* Status — kept as your custom multi-select checkbox dropdown as requested */}
             <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={statusPickerRef}>
                 <button
                     type="button"
                     onClick={() => setShowStatusPicker((p) => !p)}
-                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[77px] md:w-36"
+                    className={`h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border rounded-lg text-[11px] md:text-[13px] flex items-center md:gap-1.5 transition-colors relative w-[77px] md:w-28 ${
+                        selectedStatuses.length > 0 
+                            ? "border-[#289800] text-[#289800] font-medium bg-white" 
+                            : "border-gray-200 text-slate-700 bg-white hover:bg-slate-50"
+                    }`}
                 >
                     <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
                     <span className="flex-1 text-left pt-0.5 pl-[1px] truncate">{statusLabel}</span>
-                    <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
+                    <MdExpandMore 
+                        size={14} 
+                        className={`flex-shrink-0 transition-transform duration-200 ${selectedStatuses.length > 0 ? "text-[#289800]" : "text-slate-400"} ${showStatusPicker ? "rotate-180" : ""}`} 
+                    />
                 </button>
 
                 {showStatusPicker && (
-                    <div className="absolute left-0 top-11 z-50 w-28 md:w-40 bg-white border border-gray-300 rounded-2xl shadow-lg p-3 flex flex-col gap-1.5">
+                    <div className="absolute left-0 top-9 md:top-11 z-50 w-28 md:w-40 bg-white border border-gray-300 rounded-2xl shadow-lg p-3 flex flex-col gap-1.5">
                         <span className="block text-[9px] md:text-[11px] font-semibold text-slate-500 mb-0.5 uppercase tracking-wider">
                             Status
                         </span>
                         {[
-                            { val: '1', label: 'Active',   dot: 'bg-[#2DA300]' },
+                            { val: '1', label: 'Active',  dot: 'bg-[#2DA300]' },
                             { val: '0', label: 'Inactive', dot: 'bg-[#C40000]' },
                         ].map(({ val, label, dot }) => (
                             <label key={val} className="flex items-center gap-2 cursor-pointer select-none group">
@@ -707,25 +714,22 @@ const handleSearchChange = (value) => {
                 )}
             </div>
 
-            {/* Per Page */}
+            {/* Rows Per Page Picker */}
             <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
                 <button
                     type="button"
                     onClick={() => setShowPerPagePicker((p) => !p)}
-                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-[13px] text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[60px] sm:w-24 md:w-36"
+                    className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-xs text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[60px] sm:w-24 md:w-32"
                 >
                     <TbLayoutRows className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
                     <span className="flex-1 text-left pt-0.5 truncate"><span className="hidden sm:inline">Rows: </span>{searchState.per_page}</span>
                     <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
                 </button>
-
                 {showPerPagePicker && (
                     <div className="absolute -left-20 sm:-left-10 top-9 md:top-12 md:-left-2 z-50 w-36 bg-white border border-gray-300 rounded-2xl shadow-lg p-3">
-                        <span className="block text-[9px] md:text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
-                            Rows per page
-                        </span>
+                        <span className="block text-[9px] md:text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Rows per page</span>
                         <div className="flex items-center gap-1.5">
-                            <input  
+                            <input
                                 autoFocus
                                 type="number"
                                 min="1"
@@ -735,31 +739,13 @@ const handleSearchChange = (value) => {
                                 onKeyDown={(e) => e.key === 'Enter' && handlePerPageInputApply()}
                                 className="w-16 h-6 md:h-7 px-2 text-[11px] sm:text-xs md:text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0"
                             />
-                            <button
-                                type="button"
-                                onClick={handlePerPageInputApply}
-                                className="h-6 md:h-7 min-w-11 flex-1 text-[10px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
-                            >
-                                Apply
-                            </button>
+                            <button type="button" onClick={handlePerPageInputApply} className="h-6 md:h-7 min-w-11 flex-1 text-[10px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">Apply</button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* Clear All — only shown when any filter deviates from default */}
-            {isFiltered && (
-                <button
-                    type="button"
-                    onClick={clearAllFilters}
-                    className="flex items-center gap-0.5 md:gap-1 text-[11px] md:text-xs font-medium bg-[#B5EBA2]/50 text-emerald-900 hover:bg-red-100 hover:text-red-400 hover:shadow-inner shadow p-1 px-2 pr-2.5 rounded-lg transition-colors duration-150"
-                >
-                    <MdClose className="md:size-3" />
-                    <span>Clear</span>
-                </button>
-            )}
-
-        </div>
+        </FilterToolbar>
     );
 
     return (
