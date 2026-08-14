@@ -9,6 +9,7 @@ import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
 import SortHeader from '@/Components/SortHeader';
 import { RiArrowDownSLine, RiArrowUpSLine, RiExpandUpDownLine } from 'react-icons/ri';
+import ViewButton from '@/Components/ViewButton';
 
 function formatDateLabel(dateStr) {
   if (!dateStr) return null;
@@ -377,13 +378,11 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
       header: <div className="text-center w-full">ACTIONS</div>,
       cell: (r) => (
         <div className="flex justify-center items-center gap-2">
-          <button
-            title="View Details"
-            className="px-1.5 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+          <ViewButton
             onClick={() => router.visit(route("roi.current.show", r.id))}
-          >
-            <IoEyeOutline className="text-[18px]" />
-          </button>
+            iconSize="text-[18px]"
+            className="px-1.5 py-1 border border-[#B5EBA2]/40 hover:shadow-inner hover:bg-[#B5EBA2]/30"
+          />
         </div>
       ),
     },
@@ -600,7 +599,7 @@ const clearPreparedByUserIdFilter = () => {
         onSortToggle={() => handleSort(sortBy || 'last_saved_at')}
         loading={loading}
         isRefreshing={isRefreshing}
-        onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
+        // onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
       />
      
     </div>
@@ -735,6 +734,8 @@ const clearPreparedByUserIdFilter = () => {
           loading={loading}
           emptyText="No matching records found."
           renderCard={renderCurrentCard}
+          onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
+          refreshing={isRefreshing}
         />
       </div>
     </div>

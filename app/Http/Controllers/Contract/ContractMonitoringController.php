@@ -308,9 +308,14 @@ class ContractMonitoringController extends Controller
                     : null,
                 'id_client_mngr'     => $c->id_client_mngr,
                 'branches'           => $siblings->map(fn ($s) => [
-                    'id'           => $s->id,
-                    'company_name' => trim($s->company_name ?? ''),
-                    'location'     => $s->mainLocation->branch_name ?? null,
+                    'id'             => $s->id,
+                    'company_name'   => trim($s->company_name ?? ''),
+                    'location'       => $s->mainLocation->branch_name ?? null,
+                    'delsan_company' => $s->delsan_company,
+                    'client_manager' => $s->clientManager
+                        ? (trim($s->clientManager->first_name . ' ' . $s->clientManager->last_name) ?: null)
+                        : null,
+                    'id_client_mngr' => $s->id_client_mngr,
                 ])->values()->all(),
                 'contracts'          => $contractsByCompanyIdForFrontend->get($c->id, collect())->values()->all(),
                 'branch_contracts'   => $branchContracts->all(),

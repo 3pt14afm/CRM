@@ -15,6 +15,7 @@ import { IoCopyOutline } from "react-icons/io5";
 import { toast } from "sonner"; ``
 import { createPortal } from "react-dom";
 import { RiArrowDownSLine, RiArrowUpSLine, RiExpandUpDownLine } from 'react-icons/ri';
+import ViewButton from '@/Components/ViewButton';
 
 function formatDateLabel(dateStr) {
   try {
@@ -152,13 +153,11 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
 
     return (
       <div className="flex justify-center items-center">
-        <button
-          type="button"
-          className="px-1 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+        <ViewButton
           onClick={(e) => { e.stopPropagation(); handleView(); }}
-        >
-          <IoEyeOutline className="text-[17px]" />
-        </button>
+          label="View details"
+          className="px-1 py-1 border border-[#B5EBA2]/40 hover:shadow-inner hover:bg-[#B5EBA2]/30"
+        />
       </div>
     );
   }
@@ -192,29 +191,29 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
 
           {/* Menu rendered directly on <body>, positioned via fixed coordinates */}
           <div
-            className="fixed z-[9999] flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[130px]"
+            className="fixed z-[9999] flex flex-col gap-1 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-[140px]"
             style={{ top: menuPos.top, left: menuPos.left }}
             onClick={(e) => e.stopPropagation()}
           >
             {!hideView && (
-              <button
-                type="button"
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#289800] bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold"
+              <ViewButton
                 onClick={handleView}
+                iconSize="text-[15px]"
+                className="px-2.5 py-1.5 bg-[#B5EBA2]/20 hover:bg-[#B5EBA2]/40 text-xs font-semibold gap-2"
               >
-                <IoEyeOutline className="text-[15px]" />
-                <span>View</span>
-              </button>
+                <span>View Details</span>
+              </ViewButton>
             )}
 
-            <button
-              type="button"
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-semibold"
+            <ViewButton
               onClick={handleDuplicate}
+              icon={IoCopyOutline}
+              label="Duplicate project"
+              iconSize="text-[15px]"
+              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold gap-2"
             >
-              <IoCopyOutline className="text-[15px]" />
               <span>Duplicate</span>
-            </button>
+            </ViewButton>
           </div>
         </>,
         document.body

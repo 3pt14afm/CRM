@@ -9,6 +9,7 @@ import SortHeader from '@/Components/SortHeader';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ViewButton from '@/Components/ViewButton';
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -460,13 +461,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         header: <div className="text-center w-full">ACTIONS</div>,
         cell: (r) => (
           <div className="flex justify-center items-center gap-2">
-            <button
-              title="View Details"
-              className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold"
-              onClick={() => router.visit(ziggyRoute('sprf.current.show', r.id))}
-            >
-              <IoEyeOutline className="text-[17px]" />
-            </button>
+            <ViewButton onClick={() => router.visit(ziggyRoute('sprf.current.show', r.id))} />
           </div>
         ),
       },
@@ -543,7 +538,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       onSortToggle={() => handleSort(sortBy || 'submitted_at')}
       loading={loading}
       isRefreshing={isRefreshing}
-      onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
+      // onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
     />
   );
 
@@ -684,6 +679,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
             loading={loading}
             emptyText="No matching records found."
             renderCard={renderCurrentCard}
+            onRefresh={() => fetchCurrentData({ targetPage: localCurrentProjects?.current_page ?? 1 })}
+            refreshing={isRefreshing}
           />
         </div>
       </div>

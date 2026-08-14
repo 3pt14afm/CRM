@@ -11,29 +11,30 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
 import { FaRegFilePdf, FaRegUser } from 'react-icons/fa6';
+import ViewButton from '@/Components/ViewButton';
 
-const STORAGE_KEY = 'contract_monitoring_filters';
+// const STORAGE_KEY = 'contract_monitoring_filters_v2';
 
 const DEFAULT_FILTERS = {
     search:         '',
     delsan_company: '',
-    type:           '',
-    status:         '',
+    type:           [],
+    status:         [],
     include_no_contracts: false,
-    per_page:       12,
+    per_page:       100,
     sort_by:        'company_name',
     sort_order:     'asc',
 };
 
-function loadPersistedFilters() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-        return JSON.parse(raw);
-    } catch {
-        return null;
-    }
-}
+// function loadPersistedFilters() {
+//     try {
+//         const raw = localStorage.getItem(STORAGE_KEY);
+//         if (!raw) return null;
+//         return JSON.parse(raw);
+//     } catch {
+//         return null;
+//     }
+// }
 
 const STATUS_CLASSES = {
     active:          'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20',
@@ -145,11 +146,11 @@ function RemainingDaysLabel({ days }) {
 }
 
 function ContractMonitoring({ companies, filters = {}, contractTypes = [], statusOptions = [] }) {
-    const [searchState, setSearchState] = useState(() => {
-        const persisted = loadPersistedFilters();
-        return {
+    const [searchState, setSearchState] = useState(() => ({
+        // const persisted = loadPersistedFilters();
+        // return {
             ...DEFAULT_FILTERS,
-            ...(persisted ?? {}),
+            // ...(persisted ?? {}),
             ...(filters.search         !== undefined ? { search:         filters.search }         : {}),
             ...(filters.delsan_company !== undefined ? { delsan_company: filters.delsan_company } : {}),
             ...(filters.type           !== undefined ? { type:           filters.type }           : {}),
@@ -158,8 +159,8 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             ...(filters.per_page       !== undefined ? { per_page:       filters.per_page }        : {}),
             ...(filters.sort_by        !== undefined ? { sort_by:        filters.sort_by }         : {}),
             ...(filters.sort_order     !== undefined ? { sort_order:     filters.sort_order }      : {}),
-        };
-    });
+        // };
+    }));
 
     const [showPerPagePicker, setShowPerPagePicker] = useState(false);
     const [perPageInput, setPerPageInput] = useState(String(searchState.per_page));
@@ -175,6 +176,16 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
         });
     };
 
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            only: ['companies'],
+            onFinish: () => setIsRefreshing(false),
+        });
+    };
+
     const [searchResults, setSearchResults] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const searchDebounceRef = useRef(null);
@@ -183,9 +194,9 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
     const searchStateRef = useRef(searchState);
     useEffect(() => { searchStateRef.current = searchState; }, [searchState]);
 
-    useEffect(() => {
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(searchState)); } catch {}
-    }, [searchState]);
+    // useEffect(() => {
+    //     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(searchState)); } catch {}
+    // }, [searchState]);
 
     useEffect(() => {
         const handler = (e) => {
@@ -258,8 +269,8 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
     const isFiltered = useMemo(() => (
         searchState.search         !== DEFAULT_FILTERS.search         ||
         searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
-        searchState.type           !== DEFAULT_FILTERS.type           ||
-        searchState.status         !== DEFAULT_FILTERS.status         ||
+        (searchState.type?.length ?? 0)   > 0 ||
+        (searchState.status?.length ?? 0) > 0 ||
         searchState.include_no_contracts !== DEFAULT_FILTERS.include_no_contracts ||
         searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
         searchState.sort_order     !== DEFAULT_FILTERS.sort_order
@@ -270,7 +281,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
         setSearchState(reset);
         setPerPageInput(String(reset.per_page));
         setSearchResults(null);
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
+        // try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
         router.get(route('contract.monitoring'), reset, { preserveState: true, replace: true });
     };
 
@@ -369,14 +380,43 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             });
 
             if (isExpanded) {
+                const branchIdsWithContracts = new Set(
+                    contractsToShow.map((contract) => contract.company_id)
+                );
+
                 contractsToShow.forEach((contract) => {
                     rows.push({ _type: 'contract', ...contract, _groupId: c.id });
+                });
+
+                (c.branches ?? []).forEach((branch) => {
+                    if (!searchState.include_no_contracts) return;
+                    if (branchIdsWithContracts.has(branch.id)) return;
+
+                    rows.push({
+                        _type: 'contract',
+                        id: `no-contract-${branch.id}`,
+                        sap_code: c.sap_code,
+                        company_name: branch.company_name,
+                        delsan_company: branch.delsan_company ?? c.delsan_company,
+                        location: branch.location,
+                        client_manager: branch.client_manager,
+                        id_client_mngr: branch.id_client_mngr,
+                        _groupId: c.id,
+                        _noContract: true,
+                        status: null,
+                        status_label: null,
+                        contract_type: null,
+                        start_date: null,
+                        end_date: null,
+                        remaining_days: null,
+                        pdf_url: null,
+                    });
                 });
             }
         });
 
         return rows;
-    }, [effectiveCompanies, expandedSapCodes]);
+    }, [effectiveCompanies, expandedSapCodes, searchState.include_no_contracts]);
 
     // ── Mobile card renderer ──
     const renderMonitoringCard = (r) => {
@@ -628,23 +668,17 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                                         {r.branchCount} Branches
                                     </span>
 
-                                    <button
-                                        type="button"
+                                    <ViewButton
                                         onClick={() => toggleGroup(r.sap_code)}
-                                        title={
+                                        icon={MdExpandMore}
+                                        label={
                                             r.isExpanded
                                                 ? 'Collapse branches'
-                                                : `Show ${r.branchCount - 1} more branch${r.branchCount - 1 !== 1 ? 'es' : ''}`
+                                                : `Show more branch${r.branchCount - 1 !== 1 ? 'es' : ''} with contract`
                                         }
-                                        className="bg-white border shadow-sm rounded-md"
-                                    >
-                                        <MdExpandMore
-                                            size={20}
-                                            className={`transition-transform duration-200 ${
-                                                r.isExpanded ? 'rotate-180' : ''
-                                            }`}
-                                        />
-                                    </button>
+                                        iconSize={`text-[20px] transition-transform duration-200 ${r.isExpanded ? 'rotate-180' : ''}`}
+                                        className="bg-white border shadow-sm rounded-md -p-1 text-slate-700 hover:bg-slate-50"
+                                    />
                                 </div>
                             )}
                         </div>
@@ -751,20 +785,20 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                 return (
                     <div className="min-h-[32px] flex items-center justify-center">
                         {r.pdf_url ? (
-                            <button
-                                title="View PDF"
-                                className="px-1.5 py-1 flex items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] border border-[#B5EBA2]/40 font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/30"
+                            <ViewButton
                                 onClick={() => window.open(r.pdf_url, '_blank', 'noopener,noreferrer')}
-                            >
-                                <FaRegFilePdf className="text-[16px]" />
-                            </button>
+                                icon={FaRegFilePdf}
+                                label="View Contract"
+                                iconSize="text-[16px]"
+                                className="px-1.5 py-1 border border-[#B5EBA2]/40 hover:shadow-inner hover:bg-[#B5EBA2]/30"
+                            />
                         ) : (
                             ""
                         )}
                     </div>
                 );
             },
-        },
+        }
     ], [searchState.sort_by, searchState.sort_order, expandedSapCodes]);
 
     const goToPage = (p) => {
@@ -919,8 +953,10 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                         rowKey={(r) => r._type === 'group' ? `group-${r.id}` : `contract-${r.id}`}
                         pagination={pagination}
                         searchControl={searchControl}
+                        onRefresh={handleRefresh}
+                        refreshing={isRefreshing}
                         filterControl={filterToolbar}
-                        loading={isSearching}
+                        loading={isSearching || isRefreshing}
                         emptyText="No contracts found."
                         renderCard={renderMonitoringCard}
                     />
