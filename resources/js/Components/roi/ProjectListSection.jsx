@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdRefresh } from "react-icons/md";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,} from "@/components/ui/tooltip";
 
 function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
   const clickable = typeof onClick === "function";
@@ -38,7 +39,7 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
         </div>
 
         {value != null && (
-          <div className="text-sm font-semibold leading-tight md:text-base lg:text-lg xl:text-xl">
+          <div className={` leading-tight ${ variant === "highlight" || variant === "action" ? "text-xs md:text-[13px]" : "text-sm md:text-base lg:text-lg xl:text-xl font-semibold "}`}>
             {value}
           </div>
         )}
@@ -54,12 +55,22 @@ function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
 }
 
 function SkeletonRow({ columnCount }) {
-  const widths = ["w-24", "w-32", "w-20", "w-28", "w-16", "w-24", "w-20", "w-28", "w-16", "w-24"];
   return (
     <tr className="border-t border-black/5">
       {Array.from({ length: columnCount }).map((_, i) => (
-        <td key={i} className="px-4 py-3 md:px-2 lg:px-3 xl:px-6">
-          <div className={`h-3 rounded-full bg-gray-200 animate-pulse ${widths[i % widths.length]}`} />
+        <td
+          key={i}
+          className="px-2 py-3 md:px-2 lg:px-3 xl:px-6"
+        >
+          <div className="flex flex-col gap-1.5">
+            {/* Main skeleton line */}
+            <div className="h-3 w-full rounded-full bg-gray-200 animate-pulse" />
+
+            {/* Optional secondary line */}
+            {/* {i % 3 === 0 && (
+              <div className="h-2 w-2/3 rounded-full bg-gray-100 animate-pulse" />
+            )} */}
+          </div>
         </td>
       ))}
     </tr>
@@ -68,11 +79,23 @@ function SkeletonRow({ columnCount }) {
 
 function SkeletonCard() {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-black/10 bg-white shadow-sm px-4 py-3 animate-pulse">
-      <div className="h-10 w-10 rounded-lg bg-gray-200 shrink-0" />
-      <div className="flex-1 space-y-2 min-w-0">
-        <div className="h-3 w-3/4 rounded-full bg-gray-200" />
-        <div className="h-2.5 w-1/2 rounded-full bg-gray-200" />
+    <div className="flex flex-col gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 shadow-sm animate-pulse">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="h-3 flex-1 rounded-full bg-gray-200" />
+        <div className="h-4 w-16 shrink-0 rounded-full bg-gray-200" />
+      </div>
+
+      {/* Main content */}
+      <div className="h-3 w-3/4 rounded-full bg-gray-200" />
+
+      {/* Secondary content */}
+      <div className="h-2.5 w-1/2 rounded-full bg-gray-200" />
+
+      {/* Tags */}
+      <div className="flex gap-2">
+        <div className="h-5 w-14 rounded-full bg-gray-100" />
+        <div className="h-5 w-14 rounded-full bg-gray-100" />
       </div>
     </div>
   );
@@ -112,6 +135,8 @@ export default function ProjectListSection({
   loading = false,
   rightControls = null,
   searchControl = null,
+  onRefresh = null,
+  refreshing = false,
   filterControl = null, 
   pagination = null,
   onRowClick = null, 
@@ -160,7 +185,8 @@ export default function ProjectListSection({
 
   const renderBody = () => {
     if (loading) {
-      return Array.from({ length: 6 }).map((_, i) => (
+      const count = pagination?.perPage ?? 6;
+      return Array.from({ length: count }).map((_, i) => (
         <SkeletonRow key={i} columnCount={columns.length} />
       ));
     }
@@ -200,7 +226,8 @@ export default function ProjectListSection({
 
   const renderCards = () => {
     if (loading) {
-      return Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />);
+      const count = pagination?.perPage ?? 6;
+      return Array.from({ length: count }).map((_, i) => <SkeletonCard key={i} />);
     }
 
     if (!hasRows) {
@@ -228,7 +255,7 @@ export default function ProjectListSection({
     <div className="mx-4 md:mx-6 lg:mx-10">
     <div className="flex justify-start sm:justify-start md:grid md:grid-cols-12 gap-1 sm:gap-2 md:gap-4 xl:gap-6 ">
       {tiles.map((t) => (
-        <div key={t.label} className="flex-1 md:flex-none col-span-12 md:col-span-4 ">
+        <div key={t.label} className="flex-1 md:flex-none col-span-12 md:col-span-3 ">
           <Tile {...t} />
         </div>
       ))}
@@ -254,6 +281,25 @@ export default function ProjectListSection({
             <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
               {searchControl && (
                 <div className="min-w-0">{searchControl}</div>
+              )}
+              {onRefresh && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={onRefresh}
+                        disabled={refreshing}
+                        className="h-7 md:h-8 w-7 md:w-8 flex items-center justify-center flex-shrink-0 rounded-lg border border-gray-200 bg-white text-slate-500 hover:bg-gray-50 hover:text-slate-700 transition-colors disabled:opacity-50"
+                      >
+                        <MdRefresh className={`text-base ${refreshing ? "animate-spin" : ""}`} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Refresh</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               {rightControls && (
                 <div className="flex items-center gap-2 flex-shrink-0">{rightControls}</div>

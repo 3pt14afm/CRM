@@ -15,6 +15,7 @@ use App\Http\Controllers\Roi\RoiEntryProjectController;
 use App\Http\Controllers\SPRF\SprfController;
 use App\Http\Controllers\SPRF\SprfCurrentProjectController;
 use App\Http\Controllers\SPRF\SprfEntryProjectController;
+use App\Http\Controllers\SPRF\SprfEntryProjectController2;
 use Illuminate\Support\Facades\Route;
 
 
@@ -178,6 +179,17 @@ Route::middleware(['auth', 'verified'])
                 Route::patch('/projects/{project}/submit', [SprfEntryProjectController::class, 'submit'])->name('sprf.entry.projects.submit');
                 Route::delete('/projects/{project}', [SprfEntryProjectController::class, 'destroy'])->name('sprf.entry.projects.destroy');
                 Route::post('/projects/{project}/notes', [SprfEntryProjectController::class, 'storeNote'])->name('sprf.entry.projects.notes.store');
+            });
+ 
+            // --- SPRF2 Entry/Drafts (Selling Price/unit input, Mark-up % derived) ---
+            Route::prefix('entry2')->group(function () {
+                Route::get('/create', [SprfEntryProjectController2::class, 'create'])->name('sprf.entry2.create');
+                Route::post('/draft', [SprfEntryProjectController2::class, 'saveDraft'])->name('sprf.entry2.draft.save');
+                Route::get('/projects/{project}', [SprfEntryProjectController2::class, 'show'])->name('sprf.entry2.projects.show');
+                Route::get('/projects/{project}/print', [SprfEntryProjectController2::class, 'print'])->name('sprf.entry2.projects.print');
+                Route::patch('/projects/{project}/submit', [SprfEntryProjectController2::class, 'submit'])->name('sprf.entry2.projects.submit');
+                Route::delete('/projects/{project}', [SprfEntryProjectController2::class, 'destroy'])->name('sprf.entry2.projects.destroy');
+                Route::post('/projects/{project}/notes', [SprfEntryProjectController2::class, 'storeNote'])->name('sprf.entry2.projects.notes.store');
             });
         });
 

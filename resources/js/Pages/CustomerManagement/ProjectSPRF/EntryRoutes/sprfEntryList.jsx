@@ -12,6 +12,8 @@ import { IoMdMore } from 'react-icons/io';
 import toast, { Toaster } from 'react-hot-toast';
 import { MdDelete, MdEdit, MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose } from 'react-icons/md';
 import FlashMessages from '@/Components/FlashMessages';
+import DatePicker from '@/Components/DatePicker';
+import ViewButton from '@/Components/ViewButton';
 
 // Matching Date Utility Engine
 function formatDateLabel(dateStr) {
@@ -136,10 +138,23 @@ const tiles = useMemo(() => {
             <span className="hidden sm:inline">Create New Draft</span>
           </>
         ),
-        value: null,
+        value: "Markup % Input",
         icon: <IoAddCircleOutline />,
         variant: "action",
         onClick: () => router.visit(route("sprf.entry.create")),
+      });
+
+      baseTiles.push({
+        label: (
+          <>
+            <span className="sm:hidden">Create</span>
+            <span className="hidden sm:inline">Create New Draft</span>
+          </>
+        ),
+        value: "Selling Price Input",
+        icon: <IoAddCircleOutline />,
+        variant: "action",
+        onClick: () => router.visit(route("sprf.entry2.create")),
       });
     }
 
@@ -322,19 +337,23 @@ const tiles = useMemo(() => {
             </div>
           ) : (
             <div className="flex items-center justify-center gap-2 md:gap-1">
-              <button
+              {/* Edit Action Button */}
+              <ViewButton
+                onClick={() => router.visit(route(r.form_version === 2 ? 'sprf.entry2.projects.show' : 'sprf.entry.projects.show', r.id))}
+                icon={MdEdit}
+                label="Edit project"
+                iconSize="text-[10px] md:text-xs lg:text-sm xl:text-base"
                 className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
-                onClick={() => router.visit(route('sprf.entry.projects.show', r.id))}
-              >
-                <MdEdit className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
-              </button>
+              />
 
-              <button
-                className="px-2 py-2 md:px-1 md:py-1 rounded-md border border-[#F27373] text-red-500 font-semibold hover:bg-[#F27373]/10"
+              {/* Delete Action Button */}
+              <ViewButton
                 onClick={() => handleDelete(r)}
-              >
-                <MdDelete className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
-              </button>
+                icon={MdDelete}
+                label="Delete project"
+                iconSize="text-[10px] md:text-xs lg:text-sm xl:text-base"
+                className="px-2 py-2 md:px-1 md:py-1 rounded-md border border-[#F27373] text-red-500 font-semibold bg-transparent hover:bg-[#F27373]/10"
+              />
             </div>
           ),
       },
@@ -406,10 +425,8 @@ const tiles = useMemo(() => {
             /* Centers the icon when collapsed, moves it to the left when focused, typed in, or on desktop */
             ${search ? "left-2.5 translate-x-0" : "left-1/2 -translate-x-1/2 peer-focus:left-2.5 peer-focus:translate-x-0 md:left-2.5 md:translate-x-0"}`} 
         />
-
       </div>
 
-      
       <div className="relative h-7 md:h-8 flex items-center flex-shrink-0">
         <MdOutlineFilterAlt className="absolute left-1/2 -translate-x-1/2 md:translate-x-0 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10 transition-all duration-150" />
         
@@ -428,70 +445,20 @@ const tiles = useMemo(() => {
         </select>
       </div>
 
-      <div className="relative flex-shrink-0" ref={datePickerRef}>
-        <button
-          type="button"
-          onClick={() => setShowDatePicker((p) => !p)}
-          className={`h-7 md:h-8 flex items-center gap-1.5 px-1.5 md:px-2.5 text-xs md:text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap outline-none focus:ring-0 focus:border-[#289800]
-            ${hasDateFilter
-              ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
-              : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"
-            }`}
-        >
-          <MdDateRange size={15} className={hasDateFilter ? "text-[#4FA34E]" : "text-slate-400"} />
-          {hasDateFilter && (
-            <span className="hidden sm:inline text-[12px] max-w-[180px] truncate">{dateLabel}</span>
-          )}
-          {hasDateFilter && (
-            <span
-              className="ml-0.5 flex items-center text-[#2DA300] hover:text-red-400 transition-colors"
-              onMouseDown={(e) => { e.stopPropagation(); handleDateClear(); }}
-            >
-              <MdClose size={13} />
-            </span>
-          )}
-        </button>
-
-        {showDatePicker && (
-          <div className="absolute right-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <MdDateRange size={16} className="text-[#4FA34E]" />
-              <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
-            </div>
-            <div className="space-y-2">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-              />
-              <input
-                type="date"
-                value={dateTo}
-                min={dateFrom || undefined}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={handleDateClear}
-                className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50"
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowDatePicker(false)}
-                className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <DatePicker
+        showDatePicker={showDatePicker}
+        setShowDatePicker={setShowDatePicker}
+        datePickerRef={datePickerRef}
+        dateFrom={dateFrom}
+        setDateFrom={setDateFrom}
+        dateTo={dateTo}
+        setDateTo={setDateTo}
+        hasDateFilter={hasDateFilter}
+        dateLabel={dateLabel}
+        handleDateClear={handleDateClear}
+        tooltipLabel="Filter by date"
+        side="top"
+      />
     </div>
   );
 
@@ -515,7 +482,7 @@ const tiles = useMemo(() => {
           <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-xl z-50 p-1 flex flex-col gap-1">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); router.visit(route('sprf.entry.projects.show', r.id)); }}
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); router.visit(route(r.form_version === 2 ? 'sprf.entry2.projects.show' : 'sprf.entry.projects.show', r.id)); }}
               className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-[#289800] hover:bg-[#B5EBA2]/20"
             >
               <MdEdit className="text-sm" /> Edit
@@ -554,7 +521,7 @@ const tiles = useMemo(() => {
 
     return (
       <div
-        onClick={() => router.visit(route('sprf.entry.projects.show', r.id))}
+        onClick={() => router.visit(route(r.form_version === 2 ? 'sprf.entry2.projects.show' : 'sprf.entry.projects.show', r.id))}
         className="cursor-pointer px-2 py-3 hover:bg-slate-50 transition-colors rounded-xl"
       >
         <div className="gap-2">

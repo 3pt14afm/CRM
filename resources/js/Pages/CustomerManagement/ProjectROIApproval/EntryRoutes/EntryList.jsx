@@ -14,6 +14,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
   import FlashMessages from '@/Components/FlashMessages';
 import { FiPlus } from 'react-icons/fi';
 import { IoMdMore } from 'react-icons/io';
+import ViewButton from '@/Components/ViewButton';
+import DatePicker from '@/Components/DatePicker';
 
   // Matching Date Utility Engine
   function formatDateLabel(dateStr) {
@@ -372,19 +374,23 @@ import { IoMdMore } from 'react-icons/io';
             </div>
           ) : (
             <div className="flex items-center justify-center gap-2 md:gap-1">
-              <button
-                className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
+              {/* Edit Action Button */}
+              <ViewButton
                 onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
-              >
-                <MdEdit className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
-              </button>
+                icon={MdEdit}
+                label="Edit project"
+                iconSize="text-[10px] md:text-xs lg:text-sm xl:text-base"
+                className="py-2 md:px-1 md:py-1 rounded-md border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 text-[#289800] font-semibold"
+              />
 
-              <button
-                className="px-2 py-2  md:px-1 md:py-1 rounded-md border border-[#F27373] text-red-500 font-semibold hover:bg-[#F27373]/10"
+              {/* Delete Action Button */}
+              <ViewButton
                 onClick={() => handleDelete(r)}
-              >
-                <MdDelete className="text-[10px] md:text-xs lg:text-sm xl:text-base" />
-              </button>
+                icon={MdDelete}
+                label="Delete project"
+                iconSize="text-[10px] md:text-xs lg:text-sm xl:text-base"
+                className="px-2 py-2 md:px-1 md:py-1 rounded-md border border-[#F27373] text-red-500 font-semibold bg-transparent hover:bg-[#F27373]/10"
+              />
             </div>
           ),
         },
@@ -503,10 +509,10 @@ import { IoMdMore } from 'react-icons/io';
             onChange={(e) => setSearch(e.target.value)}
             className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
               outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
-              
+
               /* Desktop styling: Always expanded */
               md:w-52 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
-              
+
               /* Mobile styling: Conditional based on whether text has been entered */
               ${search 
                 ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" 
@@ -517,16 +523,13 @@ import { IoMdMore } from 'react-icons/io';
 
           <MdSearch 
             className={`absolute text-slate-400 text-base pointer-events-none z-10 transition-all duration-300 
-              /* Centers the icon when collapsed, moves it to the left when focused, typed in, or on desktop */
               ${search ? "left-2.5 translate-x-0" : "left-1/2 -translate-x-1/2 peer-focus:left-2.5 peer-focus:translate-x-0 md:left-2.5 md:translate-x-0"}`} 
           />
-
         </div>
 
-        
         <div className="relative h-7 md:h-8 flex items-center flex-shrink-0">
           <MdOutlineFilterAlt className="absolute left-1/2 -translate-x-1/2 md:translate-x-0 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10 transition-all duration-150" />
-          
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -539,74 +542,24 @@ import { IoMdMore } from 'react-icons/io';
             <option className="text-black" value="draft">&nbsp;&nbsp;Draft&nbsp;&nbsp;</option>
             <option className="text-black" value="returned">&nbsp;&nbsp;Returned&nbsp;&nbsp;</option>
             <option className="text-black" value="withdrawn">&nbsp;&nbsp;Withdrawn&nbsp;&nbsp;</option>
-             <option className="text-black" value="duplicate">&nbsp;&nbsp;Duplicate&nbsp;&nbsp;</option>
+            <option className="text-black" value="duplicate">&nbsp;&nbsp;Duplicate&nbsp;&nbsp;</option>
           </select>
         </div>
 
-        <div className="relative flex-shrink-0" ref={datePickerRef}>
-          <button
-            type="button"
-            onClick={() => setShowDatePicker((p) => !p)}
-            className={`h-7 md:h-8 flex items-center gap-1.5 px-1.5 md:px-2.5 text-xs md:text-[13px] font-medium border rounded-lg transition-all duration-150 whitespace-nowrap outline-none focus:ring-0 focus:border-[#289800]
-              ${hasDateFilter
-                ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
-                : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"
-              }`}
-          >
-            <MdDateRange size={15} className={hasDateFilter ? "text-[#4FA34E]" : "text-slate-400"} />
-            {hasDateFilter && (
-              <span className="hidden sm:inline text-[12px] max-w-[180px] truncate">{dateLabel}</span>
-            )}
-            {hasDateFilter && (
-              <span
-                className="ml-0.5 flex items-center text-[#2DA300] hover:text-red-400 transition-colors"
-                onMouseDown={(e) => { e.stopPropagation(); handleDateClear(); }}
-              >
-                <MdClose size={13} />
-              </span>
-            )}
-          </button>
-
-          {showDatePicker && (
-            <div className="absolute right-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <MdDateRange size={16} className="text-[#4FA34E]" />
-                <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
-              </div>
-              <div className="space-y-2">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-                />
-                <input
-                  type="date"
-                  value={dateTo}
-                  min={dateFrom || undefined}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-                />
-              </div>
-              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={handleDateClear}
-                  className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50"
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDatePicker(false)}
-                  className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <DatePicker
+          showDatePicker={showDatePicker}
+          setShowDatePicker={setShowDatePicker}
+          datePickerRef={datePickerRef}
+          dateFrom={dateFrom}
+          setDateFrom={setDateFrom}
+          dateTo={dateTo}
+          setDateTo={setDateTo}
+          hasDateFilter={hasDateFilter}
+          dateLabel={dateLabel}
+          handleDateClear={handleDateClear}
+          tooltipLabel="Filter by date"
+          side="top"
+        />
       </div>
     );
 

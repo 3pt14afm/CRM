@@ -1,28 +1,15 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { router, Head } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
-import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
-import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import { 
-  MdCheckCircle, MdCancel, MdOutlineClose, MdCheck, 
-  MdOutlineCancel, MdVerifiedUser, MdPerson 
-} from 'react-icons/md';
+import { FaFolderOpen } from 'react-icons/fa';
+import { IoTimeOutline } from 'react-icons/io5';
+import { MdCheckCircle, MdCancel, MdOutlineClose, MdCheck, MdOutlineCancel, MdVerifiedUser, } from 'react-icons/md';
 import { route as ziggyRoute } from 'ziggy-js';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import SortHeader from '@/Components/SortHeader';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
-import FilterChip from '@/Components/roi/filters/FilterChip';
-
-function formatDateToLongStyle(dateStr) {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  return `${months[parseInt(month, 10) - 1]} ${parseInt(day, 10)}, ${year}`;
-}
+import ViewButton from '@/Components/ViewButton';
 
 const approvalLevelLabel = (value) => {
   if (value === 'PRESIDENT_AND_CEO') return 'President & CEO';
@@ -37,38 +24,6 @@ const companyTypeLabel = (value) => {
   if (value === null || value === undefined || value === '') return '—';
   return Number(value) === 0 ? 'Potential' : 'Existing';
 };
-
-/* ─── TextFilterPopup ─── */
-function TextFilterPopup({ icon, label, placeholder, value, onChange, onApply, open, onClose }) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => { setDraft(value); }, [value, open]);
-
-  const apply = () => { onApply(draft); onClose(); };
-  const clear  = () => { setDraft(''); onApply(''); onClose(); };
-
-  if (!open) return null;
-  return (
-    <div className="absolute left-0 top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-      <div className="flex items-center gap-2 mb-3">
-        {icon}
-        <span className="text-[12px] font-semibold text-slate-700 tracking-wide">{label}</span>
-      </div>
-      <input
-        autoFocus
-        type="text"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder={placeholder}
-        className="w-full h-9 px-3 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E] text-slate-700"
-        onKeyDown={(e) => e.key === 'Enter' && apply()}
-      />
-      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-        <button type="button" onClick={clear} className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50">Clear</button>
-        <button type="button" onClick={apply} className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]">Apply</button>
-      </div>
-    </div>
-  );
-}
 
 function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
   const today = new Date();
@@ -300,12 +255,10 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       header: <div className="text-center w-full">ACTIONS</div>,
       cell: (r) => (
         <div className="flex justify-center items-center gap-2">
-          <button
-            className="px-1 py-1 flex flex-row gap-2 items-center rounded-lg bg-[#B5EBA2]/25 text-[#289800] font-semibold hover:shadow-inner hover:bg-[#B5EBA2]/3"
+          <ViewButton
             onClick={() => router.visit(ziggyRoute('sprf.archive.show', r.id))}
-          >
-            <IoEyeOutline className="text-[17px]" />
-          </button>
+            label="View details"
+          />
         </div>
       ),
     },

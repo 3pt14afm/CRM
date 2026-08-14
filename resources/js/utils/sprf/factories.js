@@ -13,6 +13,7 @@ export const makeSubitemRow = ({
   disty = '',
   costPerUnit = '',
   markupPercent = '',
+  sellingPricePerUnit = '',
 } = {}) => ({
   rowKey,
   productCode,
@@ -21,6 +22,7 @@ export const makeSubitemRow = ({
   disty,
   costPerUnit,
   markupPercent,
+  sellingPricePerUnit,
 });
 
 // A "group" is a bundle of one or more subitem rows. computeGroup() in

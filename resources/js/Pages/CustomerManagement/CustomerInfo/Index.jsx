@@ -4,14 +4,14 @@ import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { route } from 'ziggy-js';
-import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose, MdOutlineFileUpload } from 'react-icons/md';
+import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 import { usePage } from '@inertiajs/react';
 import CompanyDetailsSidebar from './CompanyDetailsSidebar';
 import ContractsSidebar from './ContractsSidebar';
 import { FaRegClock } from 'react-icons/fa';
 import SortHeader from '@/Components/SortHeader';
-
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,} from "@/components/ui/tooltip";
 
 const STORAGE_KEY = 'customerinfo_filters';
 
@@ -83,6 +83,15 @@ function Index({ companies, potentials, filters, categories = [] }) {
     const [isSearching,   setIsSearching]   = useState(false);
     const searchDebounceRef = useRef(null);
     const searchAbortRef    = useRef(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            only: ['companies'],
+            onFinish: () => setIsRefreshing(false),
+        });
+    };
 
     // Persist filters to localStorage whenever they change
     useEffect(() => {
@@ -401,33 +410,50 @@ const handleSearchChange = (value) => {
             cell: (r) => {
                 if (r.contracts) {
                     return (
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setContractsCompany(r);
-                                setIsContractsSidebarOpen(true);
-                            }}
-                            className={`text-[11px] flex items-center min-w-6 min-h-6 py-0.5 px-2 rounded-lg font-bold shadow hover:shadow-inner border ${CONTRACTS_STATUS_COLOR[r.contracts_status] || CONTRACTS_STATUS_COLOR.default}`}
-                        >
-                            {r.contracts}
-                        </button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setContractsCompany(r);
+                                            setIsContractsSidebarOpen(true);
+                                        }}
+                                        className={`text-[11px] flex items-center min-w-6 min-h-6 py-0.5 px-2 rounded-lg font-bold shadow hover:shadow-inner border ${CONTRACTS_STATUS_COLOR[r.contracts_status] || CONTRACTS_STATUS_COLOR.default}`}
+                                    >
+                                        {r.contracts}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>View contracts</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     );
                 }
 
                 if (r.can_upload) {
                     return (
-                        <button
-                            type="button"
-                            title="View contracts / upload for this company"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setContractsCompany(r);
-                                setIsContractsSidebarOpen(true);
-                            }}
-                            className="flex items-center justify-center w-full h-6 rounded-lg"
-                        >
-                        </button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setContractsCompany(r);
+                                            setIsContractsSidebarOpen(true);
+                                        }}
+                                        className="flex items-center justify-center w-full h-6 rounded-lg hover:bg-gray-100 transition-colors"
+                                    >
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>View contracts / upload for this company</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     );
                 }
 
@@ -795,8 +821,10 @@ const handleSearchChange = (value) => {
                             rowKey={(r) => String(r.id)}
                             pagination={pagination}
                             searchControl={searchControl}
+                            onRefresh={handleRefresh}
+                            refreshing={isRefreshing}
                             filterControl={filterToolbar}
-                             loading={isSearching}
+                            loading={isSearching || isRefreshing}
                             onRowClick={(r) => {
                                 setSelectedCompany(r);
                                 setIsSidebarOpen(true);

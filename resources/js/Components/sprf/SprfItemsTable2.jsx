@@ -1,0 +1,481 @@
+import React, { useState } from 'react';
+import { MdKeyboardArrowDown, MdKeyboardArrowRight, MdOutlineDelete } from 'react-icons/md';
+import { peso, blankIfEmpty, percent } from '../../utils/sprf/calculations';
+import { PackagePlus } from 'lucide-react';
+import SprfItemsCardList from './SprfItemsCardList';
+
+const formatNumberInput = (val, maxDecimals = 2) => {
+  if (val === '' || val === null || val === undefined) return '';
+
+  let str = String(val).replace(/[^0-9.]/g, '');
+
+  // Allow only one decimal point
+  const parts = str.split('.');
+  if (parts.length > 2) {
+    str = parts[0] + '.' + parts.slice(1).join('');
+  }
+
+  const finalParts = str.split('.');
+
+  // Add thousand separators
+  finalParts[0] = finalParts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  if (finalParts.length > 1) {
+    finalParts[1] = finalParts[1].slice(0, maxDecimals);
+    return `${finalParts[0]}.${finalParts[1]}`;
+  }
+
+  return finalParts[0];
+};
+
+const truncateDecimals = (val, maxDecimals = 2) => {
+  const parts = val.split('.');
+
+  if (parts.length > 1) {
+    return `${parts[0]}.${parts[1].slice(0, maxDecimals)}`;
+  }
+
+  return val;
+};
+
+const parseNumberInput = (val, maxDecimals = 2) => {
+  if (val === '' || val === null || val === undefined) return '';
+
+  const clean = String(val).replace(/,/g, '');
+
+  return truncateDecimals(clean, maxDecimals);
+};
+
+export default function SprfItemsTable2({
+  items,
+  computedItems,
+  onUpdateSubitem,
+  onAddGroup,
+  onAddSubitem,
+  onRemoveSubitem,
+  totals,
+  summary = {},
+  readOnly = false,
+}) {
+  const showActionColumn = !readOnly;
+  const [expanded, setExpanded] = useState({});
+  const toggleExpand = (key) => setExpanded((p) => ({ 
+    ...p, 
+    [key]: p[key] === undefined ? false : !p[key] 
+  }));
+
+  const inputClass =
+    'w-full min-w-0 min-h-5 text-[10px] sm:text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-0 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
+
+  const readonlyClass =
+    'w-full h-5 text-[10px] sm:text-[11px] xl:text-xs text-center px-1 flex items-center justify-end font-medium';
+
+  const readonlyTextClass =
+    'w-full min-w-0 text-[11px] sm:text-xs rounded-sm px-1 flex items-center leading-snug';
+
+  const footerCellClass =
+    'bg-[#D9F2D0] p-2 text-[10px] sm:text-[11px] xl:text-xs font-semibold xl:font-bold';
+
+  return (
+    <div>
+      <SprfItemsCardList
+        computedItems={computedItems}
+        expanded={expanded}
+        toggleExpand={toggleExpand}
+        onUpdateSubitem={onUpdateSubitem}
+        onAddGroup={onAddGroup}
+        onAddSubitem={onAddSubitem}
+        onRemoveSubitem={onRemoveSubitem}
+        totals={totals}
+        readOnly={readOnly}
+      />
+
+      {/* ── DESKTOP: original table (unchanged, md and up) ─────────────── */}
+      <div className="hidden md:block rounded-xl border border-[#CAD6C2] bg-[#FBFFFA] shadow-md overflow-hidden">
+        <div className="overflow-x-auto touch-pan-x">
+        <table className="w-full min-w-[880px] xl:min-w-0 table-fixed border-separate border-spacing-0 text-[11px]">
+          <colgroup>
+            <col className="w-[3.5%]" />
+            <col className="w-[9%]" />
+            <col className="w-[18%]" />
+            <col className="w-[3.7%] xl:w-[5%]" />
+            <col className="w-[5%]" />
+            <col className="w-[8.5%] xl:w-[9%]" />
+            <col className="w-[10%]" />
+            <col className="w-[9%] xl:w-[11%]" />
+            <col className="w-[9.5%] xl:w-[11%]" />
+            <col className="w-[9%] xl:w-[7%]" />
+            <col className="w-[4%]" />
+            {showActionColumn && <col className="w-[3%] xl:w-[5%]" />}
+          </colgroup>
+
+          <thead>
+            <tr className="bg-lightgreen/30 text-[9px] xl:text-[10px] uppercase">
+              <th className="border-r border-darkgreen/15 py-2">Item Lot</th>
+              <th className="border-r border-darkgreen/15 p-2">Product Code</th>
+              <th className="border-r border-darkgreen/15 py-2">Item Description</th>
+              <th className="border-r border-darkgreen/15 py-2">Qty</th>
+              <th className="border-r border-darkgreen/15 py-2">Disty</th>
+              <th className="border-r border-darkgreen/15 py-2">Cost / unit</th>
+              <th className="border-r border-darkgreen/15 py-2">Total Cost</th>
+              <th className="border-r border-darkgreen/15 py-2 px-1">Selling Price/unit (VAT INC)</th>
+              <th className="border-r border-darkgreen/15 p-2">Total Selling Price (VAT INC)</th>
+              <th className="border-r border-darkgreen/15 p-2">Mark Up Value</th>
+              <th className={`border-darkgreen/15 p-2 px-1 ${showActionColumn ? 'border-r' : ''}`}>Mark - up%</th>
+              {showActionColumn && <th className="border-darkgreen/15 p-1 xl:p-2">+/-</th>}
+            </tr>
+          </thead>
+
+          <tbody>
+            {computedItems.map((group, groupIndex) => {
+              const isExpanded = expanded[group.rowKey] !== false;
+              const subitems = group.computedSubitems || [];
+              const isOdd = groupIndex % 2 === 1;
+              const rowBgClass = isOdd ? 'bg-neutral-200/35' : 'bg-white';
+
+              // ── COLLAPSED: single blank row, aggregates only ──────────────────
+              if (!isExpanded) {
+                return (
+                  <tr key={group.rowKey} className={`border-t relative ${rowBgClass}`}>
+                    {/* Item Lot # + expand toggle */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-[11px] xl:text-[13px]">{groupIndex + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(group.rowKey)}
+                          className="w-5 h-5 flex items-center justify-center text-slate-600 hover:cursor-pointer rounded"
+                        >
+                          <MdKeyboardArrowRight size={14} />
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* Product Code — same as Item Lot number */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className={`${readonlyTextClass} justify-center text-slate-400`}>
+                        Item Lot {groupIndex + 1}
+                      </div>
+                    </td>
+
+                    {/* Item Description — item count label, with expand+add shortcut */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className="flex items-center gap-1">
+                        <div className={`${readonlyTextClass} flex-1 justify-center text-slate-400`}>
+                          {subitems.length} item{subitems.length === 1 ? '' : 's'}
+                        </div>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExpanded((p) => ({ ...p, [group.rowKey]: true }));
+                            }}
+                            title="Expand to view/edit items"
+                            className="shrink-0 w-6 h-6 rounded border border-darkgreen/20 bg-lightgreen/40 text-green-700 hover:bg-green-100 flex items-center justify-center"
+                          >
+                            <PackagePlus size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Qty — blank */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className={readonlyClass}></div>
+                    </td>
+
+                    {/* Disty — blank */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className={readonlyTextClass}></div>
+                    </td>
+
+                    {/* Cost/Unit — blank */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className={readonlyClass}></div>
+                    </td>
+
+                    {/* Total Cost — GROUP aggregate */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className={readonlyClass}>{peso(group.totalCost)}</div>
+                    </td>
+
+                    {/* Selling Price/unit — group aggregate */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className="w-full h-full flex items-center justify-center text-[11px] xl:text-xs font-medium">
+                        {peso(group.sellingPricePerUnitVatInc)}
+                      </div>
+                    </td>
+
+                    {/* Total Selling Price — group aggregate */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className="w-full h-full flex items-center justify-center text-[11px] xl:text-xs font-medium">
+                        {peso(group.totalSellingPriceVatInc)}
+                      </div>
+                    </td>
+
+                    {/* Mark Up Value — group aggregate */}
+                    <td className="border-t border-r border-darkgreen/15 px-1">
+                      <div className="w-full h-full flex items-center justify-center text-[11px] xl:text-xs font-medium">
+                        {peso(group.markupValue)}
+                      </div>
+                    </td>
+
+                    {/* Markup % — blank */}
+                    <td className={`border-t border-darkgreen/15 xl:px-1 ${showActionColumn ? 'border-r' : ''}`}>
+                      <div className={readonlyClass}></div>
+                    </td>
+
+                    {/* Actions */}
+                    {showActionColumn && (
+                      <td className="border-t border-darkgreen/15 flex items-center justify-center p-1 xl:py-1.5">
+                        <div className="flex flex-col xl:flex-row gap-0.5 xl:gap-1 justify-center">
+                          <button
+                            type="button"
+                            onClick={() => onAddGroup()}
+                            className="w-5 h-5 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                            title="Add new item lot"
+                          >
+                            +
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onRemoveSubitem(groupIndex, 0)}
+                            className="w-5 h-5 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                            title="Remove item"
+                          >
+                            -
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              }
+
+              // ── EXPANDED: all subitems, fully editable ────────────────────────
+              const rowSpanCount = subitems.length || 1;
+              const rows = subitems.length > 0 ? subitems : [{}];
+
+              return rows.map((sub, subIndex) => (
+                <tr key={sub.rowKey ?? `${group.rowKey}-${subIndex}`} className={`border-t relative ${rowBgClass}`}>
+                  {subIndex === 0 && (
+                    <td className="border-t border-r border-darkgreen/15 px-1" rowSpan={rowSpanCount}>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-[11px] xl:text-[13px]">{groupIndex + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(group.rowKey)}
+                          className="w-5 h-5 flex items-center justify-center text-slate-600 hover:cursor-pointer rounded"
+                        >
+                          <MdKeyboardArrowDown size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
+
+                  {/* Product Code */}
+                  <td className="border-t border-r border-darkgreen/15 px-1">
+                    {readOnly ? (
+                      <div className={readonlyTextClass}>{blankIfEmpty(sub.productCode)}</div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={sub.productCode ?? ''}
+                        onChange={(e) => onUpdateSubitem(groupIndex, subIndex, 'productCode', e.target.value)}
+                        className={`${inputClass} normal-case placeholder:text-slate-400 py-0.5`}
+                        placeholder="Enter product code"
+                      />
+                    )}
+                  </td>
+
+                  {/* Item Description */}
+                  <td className="border-t border-r border-darkgreen/15 px-1">
+                    {readOnly ? (
+                      <div className={readonlyTextClass}>{blankIfEmpty(sub.itemDescription)}</div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <textarea
+                          ref={(el) => {
+                            if (el) {
+                              el.style.height = 'auto';
+                              el.style.height = el.scrollHeight + 'px';
+                            }
+                          }}
+                          rows={1}
+                          value={sub.itemDescription ?? ''}
+                          onChange={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                            onUpdateSubitem(groupIndex, subIndex, 'itemDescription', e.target.value);
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          className={`${inputClass.replace('text-center', 'text-left')} placeholder:text-slate-400 resize-none overflow-hidden leading-snug py-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] transition-[height] duration-150 ease-out`}
+                          placeholder="Enter item description"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => onAddSubitem(groupIndex, subIndex)}
+                          title="Add item to this lot"
+                          className="shrink-0 w-6 h-6 rounded border border-darkgreen/20 bg-lightgreen/40 text-green-700 hover:bg-green-100 flex items-center justify-center"
+                        >
+                          <PackagePlus size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Qty */}
+                  <td className="border-t border-r border-darkgreen/15 px-1">
+                    {readOnly ? (
+                      <div className={`${readonlyClass} justify-center`}>{sub.qty}</div>
+                    ) : (
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={sub.qty ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          onUpdateSubitem(groupIndex, subIndex, 'qty', value === '' ? '' : String(Math.floor(Number(value))));
+                        }}
+                        className={`${inputClass} py-0.5`}
+                        placeholder="0"
+                      />
+                    )}
+                  </td>
+
+                  {/* Disty */}
+                  <td className="border-t border-r border-darkgreen/15 px-1">
+                    {readOnly ? (
+                      <div className={`${readonlyTextClass} justify-center`}>{blankIfEmpty(sub.disty)}</div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={sub.disty ?? ''}
+                        onChange={(e) => onUpdateSubitem(groupIndex, subIndex, 'disty', e.target.value)}
+                        className={`${inputClass} normal-case placeholder:text-slate-400 py-0.5`}
+                        placeholder="Enter disty"
+                      />
+                    )}
+                  </td>
+
+                  {/* Cost / Unit */}
+                  <td className="border-t border-r border-darkgreen/15 px-1">
+                    {readOnly ? (
+                      <div className={readonlyClass}>{peso(sub.costPerUnit)}</div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={formatNumberInput(sub.costPerUnit, 2)}
+                        onChange={(e) => {
+                          const rawValue = parseNumberInput(e.target.value, 2);
+                          onUpdateSubitem(groupIndex, subIndex, 'costPerUnit', rawValue);
+                        }}
+                        className={`${inputClass} py-0.5`}
+                        placeholder="0.00"
+                      />
+                    )}
+                  </td>
+
+                  {/* Total Cost — per subitem */}
+                  <td className="border-t border-r border-darkgreen/15 px-1">
+                    <div className={readonlyClass}>{peso(sub.totalCost)}</div>
+                  </td>
+
+                  {/* Selling Price / Unit — per-subitem input (drives Mark-up %) */}
+                  <td className="border-t border-r border-darkgreen/15 px-1">
+                    {readOnly ? (
+                      <div className={readonlyClass}>{peso(sub.sellingPricePerUnit)}</div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={formatNumberInput(sub.sellingPricePerUnit, 2)}
+                        onChange={(e) => {
+                          const rawValue = parseNumberInput(e.target.value, 2);
+                          onUpdateSubitem(groupIndex, subIndex, 'sellingPricePerUnit', rawValue);
+                        }}
+                        className={`${inputClass} py-0.5`}
+                        placeholder="0.00"
+                      />
+                    )}
+                  </td>
+
+                  {/* Group aggregates — first row only, spans all subitems */}
+                  {subIndex === 0 && (
+                    <>
+                      <td className="border-t border-r border-darkgreen/15 px-1" rowSpan={rowSpanCount}>
+                        <div className="w-full h-full flex items-center justify-center text-[11px] xl:text-xs font-medium">
+                          {peso(group.totalSellingPriceVatInc)}
+                        </div>
+                      </td>
+                      <td className="border-t border-r border-darkgreen/15 px-1" rowSpan={rowSpanCount}>
+                        <div className="w-full h-full flex items-center justify-center text-[11px] xl:text-xs font-medium">
+                          {peso(group.markupValue)}
+                        </div>
+                      </td>
+                    </>
+                  )}
+
+                  {/* Markup % — read-only, derived from Cost/unit and Selling Price/unit */}
+                  <td className={`border-t border-darkgreen/15 xl:px-1 ${showActionColumn ? 'border-r' : ''}`}>
+                    <div className={readonlyClass}>{percent(sub.markupPercent)}</div>
+                  </td>
+
+                  {/* Actions */}
+                  {showActionColumn && (
+                    <td className="border-t border-darkgreen/15 flex items-center justify-center p-1 xl:py-1.5">
+                      <div className="flex flex-col xl:flex-row gap-0.5 xl:gap-1 justify-center">
+                        {subIndex === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => onAddGroup()}
+                            className="w-5 h-5 rounded bg-lightgreen/50 text-green-600 border border-darkgreen/20 hover:bg-green-100"
+                            title="Add new item lot"
+                          >
+                            +
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => onRemoveSubitem(groupIndex, subIndex)}
+                          className="w-5 h-5 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                          title="Remove item"
+                        >
+                          -
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ));
+            })}
+          </tbody>
+
+          <tfoot>
+            <tr>
+              <td className={`${footerCellClass} rounded-none sm:rounded-bl-xl`}></td>
+              <td className={footerCellClass}></td>
+              <td className={`${footerCellClass} text-center`}>TOTAL</td>
+              <td className={footerCellClass}></td>
+              <td className={footerCellClass}></td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlCost)}</td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15`}></td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlRev)}</td>
+              <td className={`${footerCellClass} border-r border-darkgreen/15 text-end`}>{peso(totals.ttlMarkupValue ?? totals.totalMarkupValue)}</td>
+              <td className={`${footerCellClass} ${showActionColumn ? 'border-r border-darkgreen/15' : 'rounded-br-xl'}`}></td>
+              {showActionColumn && <td className={`${footerCellClass} rounded-none sm:rounded-br-xl`}></td>}
+            </tr>
+          </tfoot>
+        </table>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -38,6 +38,10 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
+        if ((int) $project->form_version !== 1) {
+            abort(404);
+        }
+
         $project->load(['items.subitems', 'fees', 'preparer:id,first_name,last_name,position,email']);
 
         return Inertia::render('CustomerManagement/ProjectSPRF/EntryRoutes/sprfEntry', [
@@ -51,6 +55,10 @@ class SprfEntryProjectController extends Controller
     {
         if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
             abort(403);
+        }
+
+        if ((int) $project->form_version !== 1) {
+            abort(404);
         }
 
         $project->load(['items.subitems', 'fees', 'preparer:id,first_name,last_name,position,email']);
@@ -78,6 +86,7 @@ class SprfEntryProjectController extends Controller
             ? SprfEntryProject::query()
                 ->where('id', $projectId)
                 ->where('prepared_by_user_id', Auth::id())
+                ->where('form_version', 1)
                 ->firstOrFail()
             : null;
 
@@ -133,6 +142,7 @@ class SprfEntryProjectController extends Controller
                 'document_datetime' => $documentDatetime,
 
                 'status'                  => $existingProject && $existingProject->status === 'returned' ? 'returned' : 'draft',
+                'form_version'            => 1,
                 'current_level'           => 1,
                 'approval_level'          => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
@@ -222,6 +232,10 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
+        if ((int) $project->form_version !== 1) {
+            abort(404);
+        }
+
         if (! in_array($project->status, ['draft', 'returned'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'Only draft SPRF projects can be submitted.',
@@ -291,6 +305,7 @@ class SprfEntryProjectController extends Controller
                 'document_datetime' => $documentDatetime,
 
                 'status'                  => 'for_review',
+                'form_version'            => 1,
                 'current_level'           => $startLevel,
                 'approval_level'          => $flags['approval_level'],
                 'sprf_approval_matrix_id' => $sprfApprovalMatrixId,
@@ -399,6 +414,10 @@ class SprfEntryProjectController extends Controller
             abort(403);
         }
 
+        if ((int) $project->form_version !== 1) {
+            abort(404);
+        }
+
         if (! in_array($project->status, ['draft', 'Returned'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'Only draft SPRF projects can be deleted.',
@@ -457,6 +476,10 @@ class SprfEntryProjectController extends Controller
     {
         if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
             abort(403);
+        }
+
+        if ((int) $project->form_version !== 1) {
+            abort(404);
         }
 
         if ((int) $project->current_level !== 1) {
@@ -821,13 +844,11 @@ class SprfEntryProjectController extends Controller
                     'total'            => $total,
                 ];
             })
-            ->filter(fn ($row) => ! (
-                blank($row['expense_key']) &&
-                blank($row['product_code']) &&
-                blank($row['item_description']) &&
-                $row['qty'] === null &&
-                $row['unit_price'] === null
-            ))
+            ->filter(fn ($row) =>
+                $row['qty'] !== null
+                || $row['unit_price'] !== null
+                || (! $row['is_fixed'] && ! blank($row['item_description']))
+            )
             ->values()
             ->all();
     }

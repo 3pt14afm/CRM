@@ -7,7 +7,7 @@ const STATUS_STYLES = {
   expiring_soon: { label: "Expiring", labelClass: "text-amber-500", valueClass: "text-amber-500" },
   active: { label: "Active", labelClass: "text-emerald-500", valueClass: "text-emerald-500" },
   expired: { label: "Expired", labelClass: "text-red-500", valueClass: "text-red-500" },
-  no_contracts: { label: "None", labelClass: "text-gray-500", valueClass: "text-gray-500" },
+  no_contracts: { label: "No Contract", labelClass: "text-gray-500", valueClass: "text-gray-500" },
 };
 
 const CLICKABLE_STATUSES = ["expiring_soon", "active", "expired"];
@@ -30,13 +30,13 @@ export default function ContractStatusCard({ theme, index = 0, onStatusClick, se
   return (
     <StatCard icon={IoAlertCircle} title="Contract Status" theme={theme} index={index} className={className}>
       {loading ? (
-        <div className="grid grid-cols-4 gap-3 mt-2">
+        <div className="grid grid-cols-4 gap-2.5 mt-2">
           {Object.keys(STATUS_STYLES).map((key) => (
             <div key={key} className="h-9 w-10 bg-black/5 rounded animate-pulse" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-4 lg:gap-3 mt-1 w-full">
+        <div className="grid grid-cols-4 lg:gap-2.5 mt-1 w-full">
           {Object.keys(STATUS_STYLES).map((key) => (
             <StatusStat
               key={key}
@@ -65,7 +65,7 @@ function StatusStat({ label, value, labelClass, valueClass, active, clickable, o
 
   if (!clickable) {
     return (
-      <div className="flex flex-col items-start rounded-md px-1 py-0.5">
+      <div className="flex flex-col items-start rounded-md py-0.5">
         {content}
       </div>
     );

@@ -3,6 +3,7 @@ import forms from '@tailwindcss/forms';
 
 /** @type {import('tailwindcss').Config} */
 export default {
+    darkMode: ['class'],
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
@@ -18,15 +19,54 @@ export default {
                 ],
             },
             colors: {
-                darkgreen:'#133307',
+                // Shadcn Theme Variables
+                background: 'var(--background)',
+                foreground: 'var(--foreground)',
+                card: {
+                    DEFAULT: 'var(--card)',
+                    foreground: 'var(--card-foreground)',
+                },
+                popover: {
+                    DEFAULT: 'var(--popover)',
+                    foreground: 'var(--popover-foreground)',
+                },
+                primary: {
+                    DEFAULT: 'var(--primary)',
+                    foreground: 'var(--primary-foreground)',
+                },
+                secondary: {
+                    DEFAULT: 'var(--secondary)',
+                    foreground: 'var(--secondary-foreground)',
+                },
+                muted: {
+                    DEFAULT: 'var(--muted)',
+                    foreground: 'var(--muted-foreground)',
+                },
+                accent: {
+                    DEFAULT: 'var(--accent)',
+                    foreground: 'var(--accent-foreground)',
+                },
+                destructive: {
+                    DEFAULT: 'var(--destructive)',
+                    foreground: 'var(--destructive-foreground)',
+                },
+                border: 'var(--border)',
+                input: 'var(--input)',
+                ring: 'var(--ring)',
+
+                // Your Custom Colors
+                darkgreen: '#133307',
                 green: '#90E274',
                 lightgreen: '#B5EBA2',
-
-
                 text: {
                     primary: '#000000',
                     secondary: '#1B6500',
                 }
+            },
+            borderRadius: {
+                lg: 'var(--radius)',
+                md: 'calc(var(--radius) - 2px)',
+                sm: 'calc(var(--radius) - 4px)',
             },
             boxShadow: {
                 card: '15px 0px 50px 10px rgba(0,0,0,0.2)',

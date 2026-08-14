@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
+use App\Support\ResolvesSprfApproverUsers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Storage;
 
 class SprfController extends Controller
 {
+    use ResolvesSprfApproverUsers;
+
     public function entryList(Request $request)
     {
         $userId = Auth::id();
@@ -72,6 +75,7 @@ class SprfController extends Controller
                     'sprf_no' => $project->sprf_no,
                     'status' => $project->status,
                     'type' => $project->type,
+                    'form_version' => $project->form_version,
                     'company_name' => $project->account,
                     'sub_category' => $project->sub_category,
                     'account_manager' => $project->account_manager,
@@ -346,32 +350,6 @@ class SprfController extends Controller
             'showDraftWatermark'=> false,
             'signatures'        => $signatures, // NEW
         ]);
-    }
-    private function resolveApproverUsers(): array
-    {
-        return [
-            'directorCustomerEngagement' => $this->findActiveUserByPosition('Director - Customer Engagement'),
-            'esdDirector'                => $this->findActiveUserByPosition('Director - Enterprise Solutions'),
-            'vpCcto'                     => $this->findActiveUserByPosition('VP & CCTO'),
-            'presidentCeo'               => $this->findActiveUserByPosition('President & CEO'),
-        ];
-    }
-
-    private function findActiveUserByPosition(string $position): ?array
-    {
-        $user = User::query()
-            ->where('position', $position)
-            ->where('is_banned', false)
-            ->first(['id', 'first_name', 'last_name', 'position', 'email']);
-
-        if (! $user) return null;
-
-        return [
-            'id'       => $user->id,
-            'name'     => $user->name,
-            'position' => $user->position,
-            'email'    => $user->email,
-        ];
     }
 
     private function findUserById(?int $id): ?array

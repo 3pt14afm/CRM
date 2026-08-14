@@ -20,6 +20,7 @@ class SprfArchiveItemSubitem extends Model
         'cost_per_unit',
         'total_cost',
         'markup_percent',
+        'selling_price_per_unit',
     ];
 
     protected $casts = [
