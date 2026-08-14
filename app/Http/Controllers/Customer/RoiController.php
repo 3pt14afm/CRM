@@ -30,15 +30,27 @@ class RoiController extends Controller
                             ->orWhere('company_sap_code', 'like', "%{$search}%");
                     });
                 })
-                ->when($request->filled('status') && $request->input('status') !== 'all', function ($q) use ($request) {
+                ->when($request->filled('status'), function ($q) use ($request) {
                     $status = $request->input('status');
-                    if ($status === 'returned') {
-                        $q->whereIn('status', ['returned', 'sent back']);
-                    } elseif ($status === 'withdrawn') {  // ✅ new
-                        $q->where('status', 'withdrawn');
-                    } else {
-                        $q->where('status', $status);
+
+                    $statusArray = is_array($status) ? $status : explode(',', $status);
+                    $statusArray = array_filter($statusArray, fn($s) => $s !== 'all' && !empty($s));
+
+                    if (empty($statusArray)) {
+                        return;
                     }
+
+                    $finalStatuses = [];
+                    foreach ($statusArray as $s) {
+                        if ($s === 'returned') {
+                            $finalStatuses[] = 'returned';
+                            $finalStatuses[] = 'sent back';
+                        } else {
+                            $finalStatuses[] = $s;
+                        }
+                    }
+
+                    $q->whereIn('status', array_unique($finalStatuses));
                 })
                 ->when($request->filled('date_from'), function ($q) use ($request) {
                     $q->whereDate('last_saved_at', '>=', $request->input('date_from'));

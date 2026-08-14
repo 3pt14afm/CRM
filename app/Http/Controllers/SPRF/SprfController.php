@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SPRF;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 
 class SprfController extends Controller
 {
-    use ResolvesSprfApproverUsers;
+    use ResolvesSprfApproverUsers, ChecksPreferenceAccess;
 
     public function entryList(Request $request)
     {
@@ -124,7 +125,8 @@ class SprfController extends Controller
     public function archive(Request $request)
     {
         $userId  = Auth::id();
-        $isAdmin = (int) $userId === 1;
+        // $isAdmin = (int) $userId === 1;
+        $isViewAllPrivileged = $this->isSprfViewAllPrivileged();
         $perPage = (int) $request->input('per_page', 10);
 
         $filters = $request->only([
@@ -140,7 +142,7 @@ class SprfController extends Controller
             ])
             ->whereIn('status', ['approved', 'rejected', 'cancelled']);
 
-        if (! $isAdmin) {
+        if (! $isViewAllPrivileged) {
             $archiveQuery->where(function ($q) use ($userId) {
                 $q->where('prepared_by_user_id', $userId)
                   ->orWhere('director_customer_engagement_user_id', $userId)

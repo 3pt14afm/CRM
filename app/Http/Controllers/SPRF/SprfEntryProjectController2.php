@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\SPRF;
 
+use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
 use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfApprovalMatrix;
 use App\Models\SPRF\SprfCurrentProject;
@@ -27,7 +28,7 @@ use App\Support\ResolvesSprfApproverUsers;
 
 class SprfEntryProjectController2 extends Controller
 {
-    use ResolvesSprfApproverUsers;
+    use ResolvesSprfApproverUsers, ChecksPreferenceAccess;
 
     public function __construct(
         private readonly SprfItemCalculationService2 $itemCalc,
@@ -36,7 +37,7 @@ class SprfEntryProjectController2 extends Controller
 
     public function show(SprfEntryProject $project)
     {
-        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
+        if ((int) $project->prepared_by_user_id !== (int) Auth::id() && ! $this->isSprfViewAllPrivileged()) {
             abort(403);
         }
 
@@ -55,7 +56,7 @@ class SprfEntryProjectController2 extends Controller
 
     public function print(SprfEntryProject $project)
     {
-        if ((int) $project->prepared_by_user_id !== (int) Auth::id()) {
+        if ((int) $project->prepared_by_user_id !== (int) Auth::id() && ! $this->isSprfViewAllPrivileged()) {
             abort(403);
         }
 

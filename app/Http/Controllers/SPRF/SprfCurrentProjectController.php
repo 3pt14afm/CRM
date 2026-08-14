@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\SPRF;
 
+use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
 use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfCurrentProject;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Storage;
 
 class SprfCurrentProjectController extends Controller
 {
+    use ChecksPreferenceAccess;
+
     public function __construct(
         private readonly SprfCurrentWorkflowService $workflowService
     ) {}
@@ -26,6 +29,7 @@ class SprfCurrentProjectController extends Controller
         $userId = (int) Auth::id();
         $user = Auth::user();
         $isPresidentCeo = $user->role === 'president_ceo' || strtolower(trim($user->position ?? '')) === 'president & ceo';
+        $isViewAllPrivileged = $this->isSprfViewAllPrivileged();
         $perPage = (int) $request->input('per_page', 10);
 
         $query = SprfCurrentProject::query()
@@ -37,7 +41,7 @@ class SprfCurrentProjectController extends Controller
             ]);
 
         // Apply visibility restriction only if the user is not ID 1
-        if ($userId !== 1 && !$isPresidentCeo) {
+        if (!$isPresidentCeo && !$isViewAllPrivileged) {
             $query->where(function ($q) use ($userId) {
                 $q->where('prepared_by_user_id', $userId)
                     ->orWhere('current_approver_user_id', $userId)
@@ -640,14 +644,16 @@ public function show(SprfCurrentProject $project)
     {
         $userId = (int) Auth::id();
 
-        // Allow user 1 to bypass checks
-        if ($userId === 1) return;
         $viewer = Auth::user();
         if ($viewer->role === 'president_ceo'
             || strtolower(trim($viewer->position ?? '')) === 'president & ceo') {
             return;
         }
-            
+
+        if ($this->isSprfViewAllPrivileged()) {
+            return;
+        }
+
         $approverIds = array_filter([
             $project->requires_rebate_justification ? $project->director_customer_engagement_user_id : null,
             $project->esd_director_user_id,
