@@ -172,11 +172,7 @@ export default function SprfOtherExpenseTable({
                   <td className="border-b border-r border-darkgreen/15 p-1">
                     {readOnly || rowLocked ? (
                       <div className={readonlyCellClass}>
-                        {rowLocked && !sourceRow?.itemDescription ? (
-                          <span className="text-slate-300 text-[11px] tracking-widest italic">Cannot add rebate</span>
-                        ) : (
-                          blankIfEmpty(sourceRow?.itemDescription)
-                        )}
+                        {blankIfEmpty(sourceRow?.itemDescription)}
                       </div>
                     ) : (
                       <input
@@ -231,7 +227,6 @@ export default function SprfOtherExpenseTable({
                         }}
                         className={inputClass}
                         placeholder="0.00"
-                        title={rowLocked ? 'Rebate is only editable once value reaches ₱1,000,000' : undefined}
                       />
                     )}
                   </td>
@@ -250,13 +245,8 @@ export default function SprfOtherExpenseTable({
                         <button
                           type="button"
                           onClick={() => onAddExpenseRow(index)}
-                          disabled={rowLocked}
-                          className={`w-6 h-6 px-1 rounded border ${
-                            rowLocked
-                              ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
-                              : 'bg-lightgreen/50 text-green-600 border-darkgreen/20 hover:bg-green-100'
-                          }`}
-                          title={rowLocked ? 'Rebate is only editable once value reaches ₱1,000,000' : 'Add row'}
+                          className="w-6 h-6 px-1 rounded border bg-lightgreen/50 text-green-600 border-darkgreen/20 hover:bg-green-100"
+                          title="Add row"
                         >
                           +
                         </button>

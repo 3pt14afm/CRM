@@ -452,7 +452,7 @@ const handleSearchChange = (value) => {
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>View contracts / upload for this company</p>
+                                    <p>Upload contract for this company</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>

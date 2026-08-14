@@ -16,6 +16,7 @@ import { FiPlus } from 'react-icons/fi';
 import { IoMdMore } from 'react-icons/io';
 import ViewButton from '@/Components/ViewButton';
 import DatePicker from '@/Components/DatePicker';
+import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
 
   // Matching Date Utility Engine
   function formatDateLabel(dateStr) {
@@ -41,11 +42,10 @@ import DatePicker from '@/Components/DatePicker';
     const [serverDrafts, setServerDrafts] = useState(drafts);
     const [serverStats, setServerStats] = useState(stats);
     const [isLoading, setIsLoading] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
+    const [statusFilter, setStatusFilter] = useState([]);
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -498,6 +498,13 @@ import DatePicker from '@/Components/DatePicker';
       setShowDatePicker(false);
     };
 
+    const STATUS_OPTIONS = [
+      { id: 'draft', name: 'Draft' },
+      { id: 'returned', name: 'Returned' },
+      { id: 'withdrawn', name: 'Withdrawn' },
+      { id: 'duplicate', name: 'Duplicate' },
+    ];
+
     // --- Search Control Bar Markup Segment Layout ---
     const searchControl = (
       <div className="flex flex-row items-center gap-1 md:gap-1.5 min-w-0 w-full sm:w-auto">
@@ -527,23 +534,18 @@ import DatePicker from '@/Components/DatePicker';
           />
         </div>
 
-        <div className="relative h-7 md:h-8 flex items-center flex-shrink-0">
-          <MdOutlineFilterAlt className="absolute left-1/2 -translate-x-1/2 md:translate-x-0 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10 transition-all duration-150" />
+        <div className="relative w-28 md:w-36 flex flex-shrink-0 items-center">
+          <MdOutlineFilterAlt className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-7 md:h-8 w-7 md:w-32 px-0 md:pl-8 md:pr-6 py-0 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white 
-              text-transparent md:text-black appearance-none cursor-pointer !bg-none [&::-ms-expand]:hidden
-              flex items-center outline-none focus:ring-0 focus:border-[#289800]
-              transition-all duration-150"
-          >
-            <option className="text-black" value="all">&nbsp;&nbsp;All Status&nbsp;&nbsp;</option>
-            <option className="text-black" value="draft">&nbsp;&nbsp;Draft&nbsp;&nbsp;</option>
-            <option className="text-black" value="returned">&nbsp;&nbsp;Returned&nbsp;&nbsp;</option>
-            <option className="text-black" value="withdrawn">&nbsp;&nbsp;Withdrawn&nbsp;&nbsp;</option>
-            <option className="text-black" value="duplicate">&nbsp;&nbsp;Duplicate&nbsp;&nbsp;</option>
-          </select>
+          <ScrollableMultiSelect
+            placeholder="All Status"
+            pluralLabel="statuses"
+            values={statusFilter}
+            onChange={(selected) => setStatusFilter(selected)}
+            options={STATUS_OPTIONS}
+            isSearchable={false}
+            className="!pl-8 !pr-2 !min-h-7 md:!min-h-8 !h-7 md:!h-8"
+          />
         </div>
 
         <DatePicker

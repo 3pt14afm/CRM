@@ -432,28 +432,7 @@ const [companyInfo, setCompanyInfo] = useState({
     });
   };
 
-  const rebateLocked = summary.revenue < 1000000;
-
-  useEffect(() => {
-    if (!rebateLocked || readOnly) return;
-
-    setOtherExpenses((prev) => {
-      const idx = prev.findIndex((row) => row.expenseKey === 'rebate');
-      if (idx === -1) return prev;
-
-      const row = prev[idx];
-      const isAlreadyClear =
-        (row.qty === '' || row.qty === null || row.qty === undefined) &&
-        (row.unitPrice === '' || row.unitPrice === null || row.unitPrice === undefined) &&
-        (row.itemDescription === '' || row.itemDescription === null || row.itemDescription === undefined);
-
-      if (isAlreadyClear) return prev;
-
-      const next = [...prev];
-      next[idx] = { ...row, qty: '', unitPrice: '', itemDescription: '' };
-      return next;
-    });
-  }, [rebateLocked, readOnly]);
+  const rebateLocked = false;
 
   const updateExpense = (index, field, value) => {
     setOtherExpenses((prev) =>
@@ -461,10 +440,6 @@ const [companyInfo, setCompanyInfo] = useState({
         if (i !== index) return row;
 
         if (row.isFixed && field === 'productCode') {
-          return row;
-        }
-
-        if (row.expenseKey === 'rebate' && rebateLocked && field !== 'productCode') {
           return row;
         }
 
