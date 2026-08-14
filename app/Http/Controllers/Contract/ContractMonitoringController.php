@@ -10,6 +10,7 @@ use App\Models\CustomerInfo\Company;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -104,6 +105,37 @@ class ContractMonitoringController extends Controller
             $contractFilterBindings = array_merge($contractFilterBindings, $typesToShow);
         }
 
+        $sapGroups = Cache::remember('contract_monitoring:company_sap_groups', 300, function () use ($companyTable) {
+            return Company::where("{$companyTable}.status", 1)
+                ->get(["{$companyTable}.id", "{$companyTable}.sap_code"])
+                ->groupBy(fn ($c) => $c->sap_code ?: "solo:{$c->id}");
+        });
+
+        if ($includeNoContracts) {
+            $companyIdsToShow = $sapGroups->map(fn ($group) => $group->min('id'))->values();
+        } else {
+            // Cache per filter combination — there are only a handful of realistic ones
+            // (default statuses, "all", specific picks), so this is a high hit-rate cache
+            // even under concurrent load with different users applying the same filters.
+            $qualifyingCacheKey = 'contract_monitoring:qualifying_company_ids:' . md5(json_encode([
+                'statuses' => $statusesToShow,
+                'types'    => $typesToShow,
+            ]));
+
+            $qualifyingCompanyIds = Cache::remember($qualifyingCacheKey, 120, function () use ($statusesToShow, $typesToShow) {
+                return DB::table('contracts')
+                    ->when($statusesToShow, fn ($q) => $q->whereIn('status', $statusesToShow))
+                    ->when($typesToShow, fn ($q) => $q->whereIn('ctid', $typesToShow))
+                    ->distinct()
+                    ->pluck('company_id');
+            })->flip();
+
+            $companyIdsToShow = $sapGroups
+                ->filter(fn ($group) => $group->contains(fn ($c) => $qualifyingCompanyIds->has($c->id)))
+                ->map(fn ($group) => $group->min('id'))
+                ->values();
+        }
+
         $baseQuery = Company::query()
             ->leftJoin('users as client_managers', function ($join) use ($companyTable) {
                 $join->on(
@@ -117,30 +149,7 @@ class ContractMonitoringController extends Controller
             ->with('mainLocation', 'clientManager')
             ->where("{$companyTable}.status", 1)
             ->when(true, fn ($query) => $this->applyCompanyVisibility($query))
-            ->when(!$includeNoContracts, function ($query) use ($statusesToShow, $typesToShow, $companyTable) {
-                $query->where(function ($outer) use ($statusesToShow, $typesToShow, $companyTable) {
-                    $outer->whereExists(function ($sub) use ($statusesToShow, $typesToShow, $companyTable) {
-                        $sub->selectRaw(1)
-                            ->from('contracts')
-                            ->join("{$companyTable} as cc3", 'cc3.id', '=', 'contracts.company_id')
-                            ->where(function ($grp) use ($companyTable) {
-                                $grp->whereColumn('cc3.sap_code', "{$companyTable}.sap_code")
-                                    ->orWhere(function ($self) use ($companyTable) {
-                                        $self->whereNull("{$companyTable}.sap_code")
-                                            ->whereColumn('cc3.id', "{$companyTable}.id");
-                                    });
-                            })
-                            ->when($statusesToShow, fn ($qq) => $qq->whereIn('contracts.status', $statusesToShow))
-                            ->when($typesToShow, fn ($qq) => $qq->whereIn('contracts.ctid', $typesToShow));
-                    });
-                });
-            })
-            ->where(function ($q) use ($companyTable) {
-                $q->whereNull("{$companyTable}.sap_code")
-                ->orWhereRaw(
-                    "{$companyTable}.id = (SELECT MIN(c2.id) FROM {$companyTable} AS c2 WHERE c2.sap_code = {$companyTable}.sap_code AND c2.status = 1)"
-                );
-            })
+            ->whereIn("{$companyTable}.id", $companyIdsToShow)
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('company_name', 'like', "%{$search}%")
@@ -253,6 +262,9 @@ class ContractMonitoringController extends Controller
             ->when($typesToShow, fn ($q) => $q->whereIn('ctid', $typesToShow))
             ->get();
 
+        // Reflect up-to-date statuses in THIS response without writing inline (avoids
+        // write contention on every page load). Persisting is throttled + lock-guarded
+        // below and deferred until after the response is sent.
         $statusUpdatesByTarget = [];
 
         foreach ($contractsRaw as $c) {
@@ -261,18 +273,29 @@ class ContractMonitoringController extends Controller
             }
 
             $computed = $c->computeStatus();
-
             if ($computed !== $c->status) {
-                $c->status = $computed; // reflect immediately for this request
+                $c->status = $computed; // reflect in this response only
                 $statusUpdatesByTarget[$computed][] = $c->id;
             }
         }
 
-        foreach ($statusUpdatesByTarget as $status => $ids) {
-            Contract::whereIn('id', $ids)->update(['status' => $status]);
-        }
+        if (!empty($statusUpdatesByTarget)) {
+            // At most one writer at a time, at most once every 60s across all users/requests.
+            // No cron/scheduler access needed — this piggybacks on real traffic instead.
+            $lock = Cache::lock('contract_monitoring:refresh_statuses', 55);
 
-        $contractsByCompanyId = $contractsRaw->groupBy('company_id');
+            if ($lock->get()) {
+                dispatch(function () use ($statusUpdatesByTarget, $lock) {
+                    try {
+                        foreach ($statusUpdatesByTarget as $status => $ids) {
+                            Contract::whereIn('id', $ids)->update(['status' => $status]);
+                        }
+                    } finally {
+                        $lock->release();
+                    }
+                })->afterResponse();
+            }
+        }
 
         $companiesById = $allCompanies->keyBy('id');
 
