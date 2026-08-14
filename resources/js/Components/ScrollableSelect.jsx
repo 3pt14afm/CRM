@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { MdExpandMore } from "react-icons/md";
 
 export default function ScrollableSelect({
   label,
@@ -9,6 +10,7 @@ export default function ScrollableSelect({
   placeholder = "Select an option",
   disabled = false,
   className = "",
+  showSelected = false, // Set to true for forms, false for filters
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
@@ -48,7 +50,9 @@ export default function ScrollableSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selected = options.find((opt) => String(opt.id) === String(value));
+  const hasValue = value !== "" && value !== null && value !== undefined;
+  const selectedOption = options.find((opt) => String(opt.id) === String(value));
+  const displayText = showSelected && selectedOption ? selectedOption.name : placeholder;
 
   return (
     <div className="relative w-full">
@@ -63,25 +67,23 @@ export default function ScrollableSelect({
         type="button"
         onClick={() => !disabled && setOpen((prev) => !prev)}
         disabled={disabled}
-        className={`flex w-full items-center justify-between h-7 md:h-9 px-2 md:px-3 py-0 border border-gray-200 rounded-lg bg-white cursor-pointer focus:outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${className}`}
+        className={`flex w-full items-center justify-between h-7 md:h-9 px-2 md:px-3 py-0 border rounded-lg bg-white cursor-pointer focus:outline-none focus:ring-0 transition-[border-color,box-shadow] duration-150 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${
+          open
+            ? "border-[#4FA34E]"
+            : hasValue && !showSelected
+            ? "border-[#289800] text-[#289800] font-medium"
+            : "border-gray-200 text-slate-700"
+        } ${className}`}
       >
-        <span 
-          className={`truncate pr-2 text-[11px] md:text-xs ${
-            selected ? "text-slate-700" : "text-slate-400"
-          }`}
-        >
-          {selected ? selected.name : placeholder}
+        <span className={`truncate pr-2 text-[11px] md:text-xs ${showSelected && selectedOption ? "text-slate-900 font-normal" : ""}`}>
+          {displayText}
         </span>
-        <svg
-          className={`h-3 w-3 md:h-2.5 md:w-2.5 flex-shrink-0 text-slate-400 transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <MdExpandMore
+          size={16}
+          className={`flex-shrink-0 transition-transform duration-200 ${
+            hasValue && !showSelected ? "text-[#289800]" : "text-slate-400"
+          } ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open &&
@@ -92,7 +94,7 @@ export default function ScrollableSelect({
               position: "fixed",
               top: coords.top,
               left: coords.left,
-              width: coords.width,
+              minWidth: Math.max(coords.width, 100),
               zIndex: 10000,
             }}
             className="max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
