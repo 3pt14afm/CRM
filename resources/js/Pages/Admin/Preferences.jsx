@@ -202,6 +202,14 @@ function Preferences({ stats, preferences, users }) {
     );
   };
 
+  const userNameById = useMemo(() => {
+    const map = {};
+    (users ?? []).forEach((u) => {
+      map[u.id] = u.name;
+    });
+    return map;
+  }, [users]);
+
   const preferenceColumns = useMemo(
     () => [
       {
@@ -213,7 +221,7 @@ function Preferences({ stats, preferences, users }) {
         key: "settings_key",
         header: <div className="text-center w-full">SETTINGS KEY</div>,
         cell: (r) => (
-          <div className="w-full flex justify-center items-center">
+          <div className="w-full flex items-center">
             <span className="text-[11px] md:text-xs lg:text-[13px]">
               {r.settings_key ?? "—"}
             </span>
@@ -224,12 +232,53 @@ function Preferences({ stats, preferences, users }) {
         key: "description",
         header: <div className="text-center w-full">DESCRIPTION</div>,
         cell: (r) => (
-          <div className="w-full flex justify-center items-center">
+          <div className="w-full flex items-center">
             <span className="text-[11px] md:text-xs lg:text-[13px]">
               {r.description ?? ""}
             </span>
           </div>
         ),
+      },
+      {
+        key: "employee_ids",
+        header: <div className="text-center w-full">EMPLOYEE(S)</div>,
+        cell: (r) => {
+          if (r.value_type !== "employee_list") {
+            return (
+              <div className="w-full flex items-center">
+                <span className="text-[11px] md:text-xs lg:text-[13px]"></span>
+              </div>
+            );
+          }
+
+          const ids = r.employee_ids ?? [];
+          const names = ids.map((id) => userNameById[id] ?? id);
+
+          if (names.length === 0) {
+            return (
+              <div className="w-full flex items-center">
+                <span className="text-[11px] md:text-xs text-slate-400">
+                  None
+                </span>
+              </div>
+            );
+          }
+
+          return (
+            <div className="w-full flex py-1">
+              <ul className="list-disc list-inside text-left ">
+                {names.map((name, i) => (
+                  <li
+                    key={i}
+                    className="text-[11px] md:text-xs"
+                  >
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        },
       },
       {
         key: "setting_value",
@@ -296,7 +345,7 @@ function Preferences({ stats, preferences, users }) {
         ),
       },
     ],
-    []
+    [userNameById]
   );
 
   const goToPage = (p) => {

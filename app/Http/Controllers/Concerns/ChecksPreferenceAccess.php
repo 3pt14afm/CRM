@@ -17,6 +17,11 @@ trait ChecksPreferenceAccess
         return $this->hasPreferenceAccess('COMPANY_VISIBILITY_ACCESS');
     }
 
+    protected function isSprfViewAllPrivileged(): bool
+    {
+        return $this->hasPreferenceAccess('SPRF_VIEW_ALL_ACCESS');
+    }
+
     protected function hasPreferenceAccess(string $settingsId): bool
     {
         $employeeId = Auth::user()->employee_id ?? null;

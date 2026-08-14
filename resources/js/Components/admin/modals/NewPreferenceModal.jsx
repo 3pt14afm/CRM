@@ -77,6 +77,7 @@ export default function NewPreferenceModal({
 
         <div>
           <ScrollableSelect
+          showSelected={true}
             label="Value Type"
             value={form.value_type}
             onChange={(value) => setForm((p) => ({ ...p, value_type: value }))}
