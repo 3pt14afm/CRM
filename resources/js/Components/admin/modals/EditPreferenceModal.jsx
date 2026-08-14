@@ -85,6 +85,7 @@ export default function EditPreferenceModal({
         {editForm.value_type === "employee_list" ? (
           <div>
             <ScrollableMultiSelect
+              showSelected={true}
               label="Authorized Employees"
               values={editForm.employee_ids}
               onChange={(ids) =>
@@ -120,6 +121,7 @@ export default function EditPreferenceModal({
 
             <div>
               <ScrollableSelect
+                showSelected={true}
                 label="Entity Attribute"
                 value={editForm.entity_attribute}
                 onChange={(value) => setEditForm((p) => ({ ...p, entity_attribute: value }))}

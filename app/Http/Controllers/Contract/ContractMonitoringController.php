@@ -253,7 +253,24 @@ class ContractMonitoringController extends Controller
             ->when($typesToShow, fn ($q) => $q->whereIn('ctid', $typesToShow))
             ->get();
 
-        $contractsRaw->each(fn ($c) => $c->refreshStatus());
+        $statusUpdatesByTarget = [];
+
+        foreach ($contractsRaw as $c) {
+            if (in_array($c->status, Contract::FINAL_STATUSES, true)) {
+                continue;
+            }
+
+            $computed = $c->computeStatus();
+
+            if ($computed !== $c->status) {
+                $c->status = $computed; // reflect immediately for this request
+                $statusUpdatesByTarget[$computed][] = $c->id;
+            }
+        }
+
+        foreach ($statusUpdatesByTarget as $status => $ids) {
+            Contract::whereIn('id', $ids)->update(['status' => $status]);
+        }
 
         $contractsByCompanyId = $contractsRaw->groupBy('company_id');
 

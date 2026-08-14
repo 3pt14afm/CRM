@@ -858,7 +858,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                 />
             </div>
 
-            <div className="relative w-[160px] md:w-48 flex flex-shrink-0 items-center">
+            <div className="relative w-[160px] flex flex-shrink-0 items-center">
                 <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
                 <ScrollableMultiSelect
                     isSearchable={false}
@@ -866,20 +866,20 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                     values={searchState.type || []}
                     onChange={(arr) => updateFilters({ type: arr })}
                     options={contractTypes}
-                    placeholder="Select types"
+                    placeholder="Contract Types"
                     className="!pl-[21px] md:!pl-8 pr-1 md:pr-2"
                 />
             </div>
 
             {/* Status Multi-Filter */}
-            <div className="relative w-[150px] md:w-44 flex flex-shrink-0 items-center">
+            <div className="relative w-[115px] flex flex-shrink-0 items-center">
                 <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
                 <ScrollableMultiSelect
                     isSearchable={false}
                     values={searchState.status || []}
                     onChange={(arr) => updateFilters({ status: arr })}
                     options={mappedStatusOptions}
-                    placeholder="Select status"
+                    placeholder="Status"
                     className="!pl-[21px] md:!pl-8 pr-1 md:pr-2"
                 />
             </div>
