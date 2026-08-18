@@ -13,6 +13,8 @@ export default function ScrollableMultiSelect({
   className = "",
   pluralLabel = "options",
   showSelected = false, // Set to true for forms, false for filters
+  searchInDropdown = false, // Put search input inside dropdown
+  renderOption,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -73,14 +75,15 @@ export default function ScrollableMultiSelect({
     } else {
       onChange([...values, strId]);
     }
-    if (!showSelected) {
+    if (!showSelected && !searchInDropdown) {
       setQuery("");
     }
   };
 
   const handleWrapperClick = () => {
     if (disabled) return;
-    if (isSearchable && !showSelected) {
+
+    if (isSearchable && !showSelected && !searchInDropdown) {
       inputRef.current?.focus();
     } else {
       setOpen((prev) => !prev);
@@ -109,7 +112,7 @@ export default function ScrollableMultiSelect({
         } ${
           disabled
             ? "cursor-not-allowed bg-slate-50"
-            : isSearchable && !showSelected
+            : isSearchable && !showSelected && !searchInDropdown
             ? "cursor-text"
             : "cursor-pointer hover:bg-slate-50 select-none"
         } ${className}`}
@@ -141,7 +144,7 @@ export default function ScrollableMultiSelect({
               </span>
             )}
           </div>
-        ) : isSearchable ? (
+        ) : isSearchable && !searchInDropdown ? (
           <input
             ref={inputRef}
             type="text"
@@ -174,16 +177,16 @@ export default function ScrollableMultiSelect({
         createPortal(
           <div
             ref={dropdownRef}
-            style={{ 
-              position: "fixed", 
-              top: coords.top, 
-              left: coords.left, 
+            style={{
+              position: "fixed",
+              top: coords.top,
+              left: coords.left,
               minWidth: Math.max(coords.width, 180),
-              zIndex: 10000 
+              zIndex: 10000
             }}
             className="max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
           >
-            {isSearchable && showSelected && (
+            {isSearchable && (showSelected || searchInDropdown) && (
               <div className="p-2 border-b border-slate-100">
                 <input
                   type="text"
@@ -202,25 +205,32 @@ export default function ScrollableMultiSelect({
                 return (
                   <div
                     key={opt.id}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => selectValue(opt.id)}
                     className={`flex cursor-pointer items-center gap-2 px-2 md:px-3 py-1.5 md:py-2 text-[11px] md:text-xs hover:bg-[#E9F7E7] hover:text-[#2DA300] ${
-                      checked ? "font-medium text-slate-900" : "text-slate-700"
+                      renderOption ? "" : checked ? "font-medium text-slate-900" : "text-slate-700"
                     }`}
                   >
-                    <span
-                      className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded border ${
-                        checked ? "border-[#289800] bg-[#289800]" : "border-slate-300 bg-white"
-                      }`}
-                    >
-                      {checked && (
-                        <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                    <div className="flex min-w-0 w-full items-center justify-between gap-2">
-                      <span className="min-w-0 truncate">{opt.name}</span>
-                    </div>
+                    {renderOption ? (
+                      renderOption(opt, checked)
+                    ) : (
+                      <>
+                        <span
+                          className={`flex h-3 w-3 flex-shrink-0 items-center justify-center rounded border ${
+                            checked ? "border-[#289800] bg-[#289800]" : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {checked && (
+                            <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </span>
+                        <div className="flex min-w-0 w-full items-center justify-between gap-2">
+                          <span className="min-w-0 truncate">{opt.name}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })

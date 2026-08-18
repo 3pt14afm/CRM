@@ -62,16 +62,24 @@ public function index(Request $request)
     }
 
     // Apply Filters
-    if ($request->filled('status')) {
-        $query->where('roi_archive_projects.status', $request->status);
+    $status        = $request->input('status');
+    $type          = $request->input('type');
+    $locationIdRaw = $request->input('location_id');
+
+    $statusList  = $status !== null && $status !== ''        ? explode(',', $status)                    : [];
+    $typeList    = $type !== null && $type !== ''            ? array_map('intval', explode(',', $type)) : [];
+    $locationIds = $locationIdRaw !== null && $locationIdRaw !== '' ? array_map('intval', explode(',', $locationIdRaw)) : [];
+
+    if (!empty($statusList)) {
+        $query->whereIn('roi_archive_projects.status', $statusList);
     }
 
-    if ($request->filled('type')) {
-        $query->where('roi_archive_projects.type', $request->integer('type'));
+    if (!empty($typeList)) {
+        $query->whereIn('roi_archive_projects.type', $typeList);
     }
 
-    if ($request->filled('location_id')) {
-        $query->where('roi_archive_projects.location_id', (int) $request->location_id);
+    if (!empty($locationIds)) {
+        $query->whereIn('roi_archive_projects.location_id', $locationIds);
     }
 
     if ($request->filled('date_from')) {
@@ -210,7 +218,14 @@ public function index(Request $request)
         ->first();
 
     return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
-        'filters' => $request->only(['search', 'status', 'type', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'location_id', 'per_page', 'sort_by', 'sort_order']),
+        'filters' => array_merge(
+            $request->only(['search', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'per_page', 'sort_by', 'sort_order']),
+            [
+                'status'      => $statusList,
+                'type'        => $typeList,
+                'location_id' => $locationIds,
+            ]
+        ),
         'archiveProjects' => $archiveProjects,
         'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
         'isAdmin' => $isAdmin,

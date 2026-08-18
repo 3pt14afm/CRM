@@ -11,7 +11,7 @@ export default function FilterChip({
 }) {
   return (
     <div
-      className={`h-7 md:h-9 flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2.5 text-[11px] md:text-[13px] border rounded-lg transition-all duration-150 whitespace-nowrap
+      className={`h-7 md:h-9 flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2.5 text-[11px] md:text-xs border rounded-lg transition-all duration-150 whitespace-nowrap
         ${active
           ? "border-[#4FA34E]/40 bg-[#E9F7E7] text-[#2DA300]"
           : "border-gray-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-gray-300"
@@ -23,7 +23,7 @@ export default function FilterChip({
         onClick={onClick}
         className="flex items-center gap-1 md:gap-1.5 h-full focus:outline-none"
       >
-        <span className={`text-sm md:text-lg ${active ? "text-[#4FA34E]" : "text-slate-400"}`}>
+        <span className={`text-sm ${active ? "text-[#4FA34E]" : "text-slate-400"}`}>
           {icon}
         </span>
 

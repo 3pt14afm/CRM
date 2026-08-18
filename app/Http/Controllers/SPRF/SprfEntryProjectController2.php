@@ -51,6 +51,7 @@ class SprfEntryProjectController2 extends Controller
             'approverUsers'  => $this->mapApproverUsersFromProject($project),
             'initialProject' => $this->transformProjectForFrontend($project),
             'route'          => 'entry',
+            'formVersion'    => 2,
         ]);
     }
 
@@ -1078,6 +1079,7 @@ class SprfEntryProjectController2 extends Controller
             'status'         => $project->status,
             'current_level'  => $project->current_level,
             'approval_level' => $project->approval_level,
+            'form_version'   => $project->form_version,
 
             'requires_vp_ccto'              => $project->requires_vp_ccto,
             'requires_president_ceo'        => $project->requires_president_ceo,
@@ -1159,7 +1161,9 @@ class SprfEntryProjectController2 extends Controller
             'id'             => $project->id,
             'sprf_no'        => $project->sprf_no,
             'status'         => $project->status,
+            'current_level'  => $project->current_level,
             'approval_level' => $project->approval_level,
+            'form_version'   => $project->form_version,
 
             'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
             'approval_condition_code' => $project->approval_condition_code,

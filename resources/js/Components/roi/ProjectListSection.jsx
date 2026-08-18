@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdRefresh } from "react-icons/md";
+import React, { useState, useEffect, useRef } from "react";
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight, MdRefresh, MdFileDownload } from "react-icons/md";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,} from "@/components/ui/tooltip";
 
 function Tile({ icon, label, value, variant = "normal", onClick, buttonText }) {
@@ -140,9 +140,26 @@ export default function ProjectListSection({
   filterControl = null, 
   pagination = null,
   onRowClick = null, 
-  renderCard = null, 
+  renderCard = null,
+  onExport = null,
+  exporting = false,
+  exportMenu = null,
 }) {
   const hasRows = rows?.length > 0;
+
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!exportMenu) return;
+    const handler = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [exportMenu]);
 
   const rangeText = (() => {
     if (!pagination) return null;
@@ -277,8 +294,8 @@ export default function ProjectListSection({
             {titleControl}
           </div>
 
-          {(searchControl || rightControls) && (
-            <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
+          {(searchControl || rightControls || onExport || onRefresh) && (
+            <div className="flex items-center justify-end gap-1 md:gap-2 min-w-0 flex-1">
               {searchControl && (
                 <div className="min-w-0">{searchControl}</div>
               )}
@@ -300,6 +317,33 @@ export default function ProjectListSection({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+              )}
+              {onExport && (
+                <div className="relative flex-shrink-0" ref={exportMenu ? exportMenuRef : undefined}>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={exportMenu ? () => setShowExportMenu((v) => !v) : onExport}
+                          disabled={exporting}
+                          className="h-7 md:h-8 w-7 md:w-8 flex items-center justify-center flex-shrink-0 rounded-lg border border-gray-200 bg-white text-slate-500 hover:bg-gray-50 hover:text-slate-700 transition-colors disabled:opacity-50"
+                        >
+                          <MdFileDownload className="text-base" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Export to Excel</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  {exportMenu && showExportMenu && (
+                    <div className="absolute right-0 top-9 md:top-10 z-50">
+                      {exportMenu}
+                    </div>
+                  )}
+                </div>
               )}
               {rightControls && (
                 <div className="flex items-center gap-2 flex-shrink-0">{rightControls}</div>

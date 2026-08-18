@@ -14,6 +14,7 @@ import SortHeader from '@/Components/SortHeader';
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,} from "@/components/ui/tooltip";
 import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
 import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
+import ExportDrawer from '@/Components/ExportDrawer';
 
 const STORAGE_KEY = 'customerinfo_filters';
 
@@ -22,7 +23,7 @@ const DEFAULT_FILTERS = {
     category:       [],
     status:         '1',  
     delsan_company: [],
-    per_page:       12,
+    per_page:       100,
     sort_by:        'company_name',
     sort_order:     'asc',
 };
@@ -47,12 +48,11 @@ function loadPersistedFilters() {
 function Index({ companies, potentials, filters, categories = [] }) {
     const [activeTab, setActiveTab] = useState('Existing');
 
-    // Merge priority: URL filters → localStorage → defaults
     const [searchState, setSearchState] = useState(() => {
         const persisted = loadPersistedFilters();
         return {
             ...DEFAULT_FILTERS,
-            ...(persisted ?? {}),
+            ...(persisted?.per_page !== undefined ? { per_page: persisted.per_page } : {}),
             // URL params always win over persisted (user navigated with explicit params)
             ...(filters.search         !== undefined ? { search:         filters.search }         : {}),
             ...(filters.category       !== undefined ? { category:       filters.category }       : {}),
@@ -69,6 +69,7 @@ function Index({ companies, potentials, filters, categories = [] }) {
 
     const [contractsCompany,     setContractsCompany]     = useState(null);
     const [isContractsSidebarOpen, setIsContractsSidebarOpen] = useState(false);
+    const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
     const [pendingUploadRow, setPendingUploadRow] = useState(null);
 
     // Per-page popup
@@ -95,12 +96,13 @@ function Index({ companies, potentials, filters, categories = [] }) {
         });
     };
 
-    // Persist filters to localStorage whenever they change
+    const handleExport = () => setIsExportDrawerOpen(true);
+
     useEffect(() => {
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(searchState));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ per_page: searchState.per_page }));
         } catch { /* quota exceeded — silently ignore */ }
-    }, [searchState]);
+    }, [searchState.per_page]);
 
     // Close popups on outside click
     useEffect(() => {
@@ -220,24 +222,25 @@ const handleSearchChange = (value) => {
         return selectedStatuses.includes('1') ? 'Active' : 'Inactive';
     }, [selectedStatuses]);
 
-    const isFiltered = useMemo(() => (
-        searchState.search         !== DEFAULT_FILTERS.search         ||
-        (Array.isArray(searchState.category) ? searchState.category.length > 0 : searchState.category !== '') ||
-        searchState.status         !== DEFAULT_FILTERS.status         ||
-        (Array.isArray(searchState.delsan_company) ? searchState.delsan_company.length > 0 : searchState.delsan_company !== '') ||
-        searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
-        searchState.sort_order     !== DEFAULT_FILTERS.sort_order
-    ), [searchState]);
+    const isFiltered = useMemo(() => {
+        const norm = (v) => (Array.isArray(v) ? v.filter(Boolean).join(',') : (v ?? ''));
+
+        return (
+            norm(searchState.search)         !== norm(DEFAULT_FILTERS.search)         ||
+            norm(searchState.category)       !== norm(DEFAULT_FILTERS.category)       ||
+            norm(searchState.status)         !== norm(DEFAULT_FILTERS.status)         ||
+            norm(searchState.delsan_company) !== norm(DEFAULT_FILTERS.delsan_company) ||
+            norm(searchState.sort_by)        !== norm(DEFAULT_FILTERS.sort_by)        ||
+            norm(searchState.sort_order)     !== norm(DEFAULT_FILTERS.sort_order)
+        );
+    }, [searchState]);
 
     const clearAllFilters = () => {
-        const reset = {
-            ...DEFAULT_FILTERS,
-            per_page: searchState.per_page, // ← keep per_page as-is
-        };
+        const reset = { ...DEFAULT_FILTERS };
         setSearchState(reset);
         setPerPageInput(String(reset.per_page));
         setSearchResults(null); // drop any axios-search override so Inertia props take over again
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reset)); } catch {}
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ per_page: reset.per_page })); } catch {}
         router.get(route('customerinfo.companies.index'), reset, {
             preserveState: true,
             replace: true,
@@ -384,7 +387,7 @@ const handleSearchChange = (value) => {
                         </span>
                         {branchCount > 0 && (
                             <span className="shrink-0 text-[9px] font-semibold text-[#195c00] bg-[#195c00]/10 px-1.5 py-0.5 rounded-full">
-                                {branchCount} Branches
+                                {branchCount} {branchCount === 1 ? 'Branch' : 'Branches'}
                             </span>
                         )}
                     </div>
@@ -591,7 +594,7 @@ const handleSearchChange = (value) => {
     const pagination = effectiveCompanies && typeof effectiveCompanies.current_page === 'number'
         ? {
             page:         effectiveCompanies.current_page,
-            perPage:      effectiveCompanies.per_page ?? 12,
+            perPage:      effectiveCompanies.per_page ?? searchState.per_page,
             total:        effectiveCompanies.total ?? rows.length,
             onPageChange: goToPage,
           }
@@ -601,22 +604,22 @@ const handleSearchChange = (value) => {
     const searchControl = (
     <div className="relative h-7 md:h-8 flex items-center min-w-0 flex-shrink-0">        
         <input
-        type="text"
-        placeholder="Search"
-        value={searchState.search}
-        onChange={(e) => handleSearchChange(e.target.value)}
-        className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
-            outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
-            
-            /* Desktop styling: Always expanded */
-            md:w-64 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
-            
-            /* Mobile styling: Conditional based on whether text has been entered */
-            ${searchState.search 
-            ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" 
-            : "w-7 px-0 text-transparent placeholder:text-transparent cursor-pointer focus:w-40 focus:pl-8 focus:pr-3 focus:text-black focus:placeholder:text-slate-400 focus:cursor-text"
-            }
-        `}
+            type="text"
+            placeholder="Search"
+            value={searchState.search ?? ''}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className={`peer h-7 md:h-8 text-xs md:text-[13px] border border-gray-200 rounded-lg bg-white
+                outline-none focus:ring-0 focus:border-[#289800] transition-all duration-300
+                
+                /* Desktop styling: Always expanded */
+                md:w-64 md:pl-8 md:pr-3 md:text-black md:placeholder:text-slate-400 md:cursor-text
+                
+                /* Mobile styling: Conditional based on whether text has been entered */
+                ${searchState.search 
+                ? "w-40 pl-8 pr-3 text-black placeholder:text-slate-400" 
+                : "w-7 px-0 text-transparent placeholder:text-transparent cursor-pointer focus:w-40 focus:pl-8 focus:pr-3 focus:text-black focus:placeholder:text-slate-400 focus:cursor-text"
+                }
+            `}
         />
 
         <MdSearch 
@@ -637,8 +640,8 @@ const handleSearchChange = (value) => {
             
             {/* Delsan Company Multi-Filter — only relevant for Existing */}
             {activeTab === 'Existing' && (
-                <div className="relative w-[110px] md:w-36 flex flex-shrink-0 items-center">
-                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+                <div className="relative w-[100px] md:w-28 flex flex-shrink-0 items-center">
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs md:text-sm pointer-events-none z-10" />
                     <ScrollableMultiSelect
                         isSearchable={false}
                         pluralLabel="delsan"
@@ -657,8 +660,8 @@ const handleSearchChange = (value) => {
 
             {/* Category Multi-Filter — only relevant for Existing */}
             {activeTab === 'Existing' && (
-                <div className="relative w-[120px] md:w-40 flex flex-shrink-0 items-center">
-                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+                <div className="relative w-[110px] md:w-40 flex flex-shrink-0 items-center">
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs md:text-sm pointer-events-none z-10" />
                     <ScrollableMultiSelect
                         isSearchable={false}
                         pluralLabel="categories"
@@ -682,7 +685,7 @@ const handleSearchChange = (value) => {
                             : "border-gray-200 text-slate-700 bg-white hover:bg-slate-50"
                     }`}
                 >
-                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
+                    <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-xs md:text-sm pointer-events-none" />
                     <span className="flex-1 text-left pt-0.5 pl-[1px] truncate">{statusLabel}</span>
                     <MdExpandMore 
                         size={14} 
@@ -721,7 +724,7 @@ const handleSearchChange = (value) => {
                     onClick={() => setShowPerPagePicker((p) => !p)}
                     className="h-7 md:h-9 px-1 md:px-3 pl-[21px] truncate md:pl-8 border border-gray-200 rounded-lg text-[11px] md:text-xs text-slate-700 flex items-center md:gap-1.5 bg-white hover:bg-slate-50 transition-colors relative w-[60px] sm:w-24 md:w-32"
                 >
-                    <TbLayoutRows className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none" />
+                    <TbLayoutRows className="absolute left-1.5 md:left-2.5 text-slate-400 text-xs md:text-sm pointer-events-none" />
                     <span className="flex-1 text-left pt-0.5 truncate"><span className="hidden sm:inline">Rows: </span>{searchState.per_page}</span>
                     <MdExpandMore size={14} className="text-slate-400 flex-shrink-0" />
                 </button>
@@ -809,6 +812,7 @@ const handleSearchChange = (value) => {
                             searchControl={searchControl}
                             onRefresh={handleRefresh}
                             refreshing={isRefreshing}
+                            onExport={handleExport}
                             filterControl={filterToolbar}
                             loading={isSearching || isRefreshing}
                             onRowClick={(r) => {
@@ -832,7 +836,7 @@ const handleSearchChange = (value) => {
                                 effectivePotentials && typeof effectivePotentials.current_page === 'number'
                                     ? {
                                         page:         effectivePotentials.current_page,
-                                        perPage:      effectivePotentials.per_page ?? 12,
+                                        perPage:      effectivePotentials.per_page ?? searchState.per_page,
                                         total:        effectivePotentials.total ?? 0,
                                         onPageChange: (p) => router.get(
                                             route('customerinfo.companies.index'),
@@ -868,6 +872,20 @@ const handleSearchChange = (value) => {
                 companyId={contractsCompany?.id}
                 companyName={contractsCompany?.company_name}
                 onClose={() => setIsContractsSidebarOpen(false)}
+            />
+            <ExportDrawer
+                open={isExportDrawerOpen}
+                onOpenChange={setIsExportDrawerOpen}
+                title={activeTab === 'Existing' ? 'Export Existing Customers' : 'Export Potential Customers'}
+                exportRoute="customerinfo.companies.export"
+                searchState={searchState}
+                showTypeFilter={activeTab === 'Existing'}
+                typeLabel="Categories"
+                typeOptions={categories.map((cat) => ({ id: cat, name: cat }))}
+                statusOptions={[
+                    { id: '1', name: 'Active' },
+                    { id: '0', name: 'Inactive' },
+                ]}
             />
         </>
     );

@@ -41,7 +41,7 @@ export default function Dashboard() {
     <>
       <Head title="Customer Account Management Dashboard" />
 
-      <div className="mx-3 px-2 lg:px-8">
+      <div className="mx-3 px-2 lg:px-3 xl:px-6">
         <div className="flex items-center justify-between pb-0 pt-3 lg:py-5 mt-2">
           <h1 className="text-md font-medium text-gray-800">
           </h1>
@@ -70,7 +70,7 @@ export default function Dashboard() {
         </div>
 
         {/* Row 1: Stat cards. */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-5 pt-5 lg:pt-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-4 pt-5 lg:pt-6">
           {cards.map((card, index) => (
             <StatCard
               key={card.name}
@@ -93,15 +93,19 @@ export default function Dashboard() {
         </div>
 
         {/* Row 2: Pending approvals + expiring contracts.*/}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-5 pt-5 pb-5">
-          <PendingApprovalsPanel entity="roi" />
-          <PendingApprovalsPanel entity="sprf" />
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 lg:gap-4 pt-5 pb-5 mb-12 md:mb-0">
+          {/* Approvals */}
+          <div className="col-span-1 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-5">
+              <PendingApprovalsPanel entity="roi" />
+              <PendingApprovalsPanel entity="sprf" />
+          </div>
 
-          <div className="col-span-1 md:col-span-2 lg:col-span-1">
-            <ExpiringContractsPanel
-              activeTab={contractsTab}
-              onTabChange={setContractsTab}
-            />
+          {/* Expiring Contracts */}
+          <div className="col-span-1 lg:col-span-2">
+              <ExpiringContractsPanel
+                  activeTab={contractsTab}
+                  onTabChange={setContractsTab}
+              />
           </div>
         </div>
       </div>

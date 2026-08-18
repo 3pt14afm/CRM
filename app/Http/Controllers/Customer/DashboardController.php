@@ -103,9 +103,6 @@ class DashboardController extends Controller
                 ]);
         }
 
-        // Own in-progress entries — fetched unconditionally now (not just for
-        // non-approvers) so the "My Projects" sub-tab has data for approvers
-        // who also prepare their own ROI/SPRF entries.
         $roiMine = \App\Models\RoiCurrentProject::query()
             ->with('user:id,first_name,last_name')
             ->where('user_id', $userId)
@@ -384,7 +381,7 @@ class DashboardController extends Controller
 
         $visibleCompanyIds = $this->visibleCompanyIds();
 
-        $contracts = Contract::query()
+        $contracts = Contract::with('contractType')
             ->whereIn('company_id', $visibleCompanyIds)
             ->get();
 
@@ -399,15 +396,20 @@ class DashboardController extends Controller
             })
             ->map(function ($c) {
                 $effectiveDate = $c->latestExtendedDate() ?? optional($c->end_date)->format('Y-m-d');
-                $company = Company::find($c->company_id);
+                $company = Company::with('clientManager')->find($c->company_id);
 
                 return [
                     'id'             => $c->id,
                     'company_id'     => $c->company_id,
-                    // Trimmed for the same reason as contracts() above —
-                    // keeps this consistent with the trimmed company_name
-                    // the frontend gets everywhere else.
                     'company_name'   => trim($c->company_name ?? ''),
+                    'contract_type' => $c->contractType?->name ?? null,
+                    'id_client_mngr' => $company->id_client_mngr ?? null,
+                    'account_manager' => $company->clientManager
+                        ? trim(
+                            ($company->clientManager->first_name ?? '') . ' ' .
+                            ($company->clientManager->last_name ?? '')
+                        )
+                        : null,
                     'sap_code'       => $company->sap_code ?? null,
                     'expires_at'     => $effectiveDate,
                     'days_remaining' => $effectiveDate

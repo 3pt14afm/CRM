@@ -145,6 +145,6 @@ class Contract extends Model
 
     public function contractType()
     {
-        return $this->belongsTo(ContractType::class, 'ctid');
+        return $this->belongsTo(ContractType::class, 'ctid', 'id');
     }
 }

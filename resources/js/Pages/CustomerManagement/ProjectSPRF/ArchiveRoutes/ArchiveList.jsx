@@ -3,7 +3,7 @@ import { router, Head } from '@inertiajs/react';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import { FaFolderOpen } from 'react-icons/fa';
 import { IoTimeOutline } from 'react-icons/io5';
-import { MdCheckCircle, MdCancel, MdOutlineClose, MdCheck, MdOutlineCancel, MdVerifiedUser, } from 'react-icons/md';
+import { MdOutlineClose, MdCheck, MdOutlineCancel, MdVerifiedUser, } from 'react-icons/md';
 import { route as ziggyRoute } from 'ziggy-js';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SearchControl from '@/Components/roi/filters/SearchControl';
@@ -35,14 +35,18 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
 
   // ── Filter state ──
   const [search,        setSearch]        = useState(filters.search         ?? '');
-  const [statusFilter,  setStatusFilter]  = useState(filters.status         ?? '');
-  const [typeFilter,    setTypeFilter]    = useState(filters.type           ?? '');
+  const [statusFilter,  setStatusFilter]  = useState(filters.status ?? []);
+  const [typeFilter,    setTypeFilter]    = useState(filters.type   ?? []);
   const [perPage,       setPerPage]       = useState(filters.per_page       ?? 10);
   const [perPageInput,  setPerPageInput]  = useState(filters.per_page       ?? 10);
   const [preparedBy,    setPreparedBy]    = useState(filters.prepared_by    ?? '');
   const [dateFrom,      setDateFrom]      = useState(filters.date_from      ?? '');
   const [dateTo,        setDateTo]        = useState(filters.date_to        ?? '');
-  const [approvalLevel, setApprovalLevel] = useState(filters.approval_level ?? '');
+  const [approvalLevel, setApprovalLevel] = useState(() =>
+    Array.isArray(filters.approval_level) ? filters.approval_level
+      : filters.approval_level ? String(filters.approval_level).split(',').filter(Boolean)
+      : []
+  );
 
   // ── Sort state ──
   const [sortBy,    setSortBy]    = useState(filters.sort_by    ?? '');
@@ -64,13 +68,13 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
   const runQuery = (updatedParams = {}) => {
     const merged = {
       search,
-      status:         statusFilter,
-      type:           typeFilter,
+      status: Array.isArray(statusFilter) ? statusFilter.join(',') : statusFilter,
+      type:   Array.isArray(typeFilter)   ? typeFilter.join(',')   : typeFilter,
       per_page:       perPage,
       prepared_by:    preparedBy,
       date_from:      dateFrom,
       date_to:        dateTo,
-      approval_level: approvalLevel,
+      approval_level: Array.isArray(approvalLevel) ? approvalLevel.join(',') : approvalLevel,
       sort_by:        sortBy,
       sort_order:     sortOrder,
       page:           1,
@@ -91,9 +95,9 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
   };
 
   // ── Filter handlers ──
-  const handleStatusChange        = (val) => { setStatusFilter(val);  runQuery({ status: val }); };
-  const handleTypeChange          = (val) => { setTypeFilter(val);    runQuery({ type: val }); };
-  const handleApprovalLevelChange = (val) => { setApprovalLevel(val); runQuery({ approval_level: val }); };
+  const handleStatusChange = (val) => { setStatusFilter(val); runQuery({ status: val.join(',') }); };
+  const handleTypeChange   = (val) => { setTypeFilter(val);   runQuery({ type: val.join(',') }); };
+  const handleApprovalLevelChange = (arr) => { setApprovalLevel(arr); runQuery({ approval_level: arr.join(',') }); };
   const handlePreparedByApply     = (val) => { setPreparedBy(val);    runQuery({ prepared_by: val }); };
   const handleDateApply           = ()    => { runQuery(); };
   const handleDateClear           = ()    => {
@@ -109,14 +113,14 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
   // ── Clear All ──
   const handleClearAll = () => {
     setSearch('');
-    setStatusFilter('');
-    setTypeFilter('');
+    setStatusFilter([]);
+    setTypeFilter([]);
     setPerPage(10);
     setPerPageInput(10);
     setPreparedBy('');
     setDateFrom('');
     setDateTo('');
-    setApprovalLevel('');
+    setApprovalLevel([]);
     setSortBy('');
     setSortOrder('');
     setShowPreparedBy(false);
@@ -124,8 +128,8 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
   };
 
   const hasActiveFilters = !!(
-    search || statusFilter || typeFilter !== '' || dateFrom || dateTo ||
-    preparedBy || approvalLevel || perPage !== 10 || sortBy
+    search || statusFilter.length || typeFilter.length !== 0 || dateFrom || dateTo ||
+    preparedBy || approvalLevel.length || perPage !== 10 || sortBy
   );
 
   // ── Tiles ──
@@ -286,55 +290,6 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
     />
   );
 
-  /* ─── New Component-based Filter Toolbar ─── */
-  const statusIcon =
-    statusFilter === "approved"  ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
-    statusFilter === "rejected"  ? <MdCancel className="text-red-500 text-sm" /> :
-    statusFilter === "cancelled" ? <MdOutlineCancel className="text-red-500 text-sm" /> :
-    null;
-
-  // Custom Approval Level Dropdown
-  const approvalLevelSlot = (
-    <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
-      <MdVerifiedUser className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-      <select 
-        value={approvalLevel} 
-        onChange={(e) => handleApprovalLevelChange(e.target.value)}
-        className="h-7 md:h-9 w-[90px] md:w-36 sm:w-44 pl-5 md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer focus:outline-none focus:ring-0 focus:border-[#4FA34E] text-slate-700"
-      >
-        <option value="">All Levels</option>
-        <option value="DIRECTOR_CUSTOMER_ENGAGEMENT">Director - Customer Engagement</option>
-        <option value="ESD_ONLY">ESD Director</option>
-        <option value="VP_AND_CCTO">VP &amp; CCTO</option>
-        <option value="PRESIDENT_AND_CEO">President &amp; CEO</option>
-      </select>
-    </div>
-  );
-
-  // Custom Prepared By Popup (Using MdPerson)
-  // const preparedBySlot = (
-  //   <div className="relative flex-shrink-0" ref={preparedByRef}>
-  //     <FilterChip
-  //       active={!!preparedBy}
-  //       icon={<MdPerson size={15} />}
-  //       label="Prepared By"
-  //       value={preparedBy}
-  //       onClick={() => setShowPreparedBy((p) => !p)}
-  //       onClear={() => handlePreparedByApply("")}
-  //     />
-  //     <TextFilterPopup
-  //       open={showPreparedBy}
-  //       label="Prepared By"
-  //       placeholder="e.g. Maria Santos"
-  //       icon={<MdPerson size={14} className="text-[#4FA34E]" />}
-  //       value={preparedBy}
-  //       onChange={setPreparedBy}
-  //       onApply={handlePreparedByApply}
-  //       onClose={() => setShowPreparedBy(false)}
-  //     />
-  //   </div>
-  // );
-
   const filterToolbar = (
     <ListFilterToolbar
       hasActiveFilters={hasActiveFilters}
@@ -348,7 +303,6 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       ]}
       statusFilter={statusFilter}
       onStatusChange={handleStatusChange}
-      statusIcon={statusIcon}
       
       perPage={perPage}
       perPageInput={perPageInput}
@@ -363,10 +317,17 @@ function ArchiveList({ archiveProjects = null, stats = null, filters = {} }) {
       ]}
       typeFilter={typeFilter}
       onTypeChange={handleTypeChange}
-      
-      extraFilters={approvalLevelSlot}
-      // extraFiltersEnd={preparedBySlot}
-      
+
+      levelOptions={[
+        { value: "", label: "All Levels" },
+        { value: "DIRECTOR_CUSTOMER_ENGAGEMENT", label: "Director - Customer Engagement" },
+        { value: "ESD_ONLY", label: "ESD Director" },
+        { value: "VP_AND_CCTO", label: "VP & CCTO" },
+        { value: "PRESIDENT_AND_CEO", label: "President & CEO" },
+      ]}
+      levelFilter={approvalLevel}
+      onLevelChange={handleApprovalLevelChange}
+            
       // Date Range (Native)
       dateFrom={dateFrom}
       dateTo={dateTo}

@@ -690,7 +690,7 @@ function ApproverMatrix({ stats, matrices, sprfMatrices = [], errors = {}, filte
                 label="New Approver Matrix"
                 icon={IoAddCircle}
                 onClick={openCreateForActiveTab}
-                className="text-[#289800]"
+                className="text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35"
               />
             </div>
 

@@ -3,10 +3,11 @@ import axios from 'axios';
 import { route } from 'ziggy-js';
 import { MdClose, MdSearch, MdCalendarMonth, MdOutlineHistory, MdOutlineEdit, MdMoreVert, MdOutlineCancel, MdOutlineArchive, MdOutlinePictureAsPdf,  MdBlock, MdInbox, MdSchedule, MdExpandMore } from 'react-icons/md';
 import { GrDocumentTime } from 'react-icons/gr';
-import { FaFileUpload } from 'react-icons/fa';
 import { toast } from 'sonner';
 import { VscTag } from 'react-icons/vsc';
-
+import ViewButton from '@/Components/ViewButton';
+import DatePicker from '@/Components/DatePicker';
+import { HiOutlineUpload } from 'react-icons/hi';
 
 const STATUS_TABS = [
     { key: 'all',            label: 'All' },
@@ -22,7 +23,22 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     const [contractsList, setContractsList] = useState([]);
     const [statusFilter, setStatusFilter] = useState('active');
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedDate, setSelectedDate] = useState('');
+    
+    // ── DatePicker State ──
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const datePickerRef = useRef(null);
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    
+    const hasDateFilter = Boolean(dateFrom || dateTo);
+    const dateLabel = (dateFrom && dateTo) ? `${dateFrom} to ${dateTo}` : (dateFrom || dateTo);
+    
+    const handleDateClear = () => {
+        setDateFrom('');
+        setDateTo('');
+        setShowDatePicker(false);
+    };
+
     const [isLoadingContracts, setIsLoadingContracts] = useState(false);
     const contractsRequestRef = useRef(null);
 
@@ -130,7 +146,12 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         setContractsList([]);
         setStatusFilter(highlightContractId ? 'all' : 'active');
         setSearchQuery('');
-        setSelectedDate('');
+        
+        // Reset Custom Datepicker
+        setDateFrom('');
+        setDateTo('');
+        setShowDatePicker(false);
+        
         setFlippedIds({});
         hasScrolledToHighlightRef.current = false;
 
@@ -139,7 +160,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         return () => {
             if (contractsRequestRef.current) contractsRequestRef.current.abort();
         };
-    }, [modalRow]);
+    }, [modalRow, highlightContractId, fetchContracts]);
 
     // Format date to "Aug 8, 2026" style
     const formatDate = (dateStr) => {
@@ -190,11 +211,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
         }
 
         // 2. Filter by Status
-        // "Active" also includes contracts whose status is "extended" — an
-        // extended contract's current effective end date is still in the
-        // future, so it's active too, just with an extension on record. The
-        // dedicated "Extended" tab remains for anyone who wants to see only
-        // the ones that have been extended specifically.
         if (statusFilter === 'active') {
             result = result.filter((c) => c.status === 'active' || c.status === 'extended');
         } else if (statusFilter !== 'all') {
@@ -210,36 +226,29 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
             );
         }
 
-        // 4. Filter by selected Date (Must fall between start and end date)
-        if (selectedDate) {
-            const filterDate = new Date(selectedDate + 'T00:00:00');
-            filterDate.setHours(0, 0, 0, 0);
-
+        // 4. Filter by Date Range (Must intersect with contract start and end dates)
+        if (dateFrom || dateTo) {
+            const fromTime = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : -Infinity;
+            const toTime = dateTo ? new Date(dateTo + 'T00:00:00').getTime() : Infinity;
+        
             result = result.filter((c) => {
                 if (!c.start_date && !c.end_date) return false;
-
-                const start = c.start_date ? new Date(c.start_date + 'T00:00:00') : null;
-                const end = c.end_date ? new Date(c.end_date + 'T00:00:00') : null;
-
-                if (start) start.setHours(0, 0, 0, 0);
-                if (end) end.setHours(0, 0, 0, 0);
-
-                const isAfterStart = start ? filterDate >= start : true;
-                const isBeforeEnd = end ? filterDate <= end : true;
-
-                return isAfterStart && isBeforeEnd;
+        
+                const start = c.start_date ? new Date(c.start_date + 'T00:00:00').getTime() : -Infinity;
+                const end = c.end_date ? new Date(c.end_date + 'T00:00:00').getTime() : Infinity;
+        
+                // Returns true if the contract was active at any point during the selected range
+                return start <= toTime && end >= fromTime;
             });
         }
 
         return result;
-    }, [contractsList, selectedBranch, statusFilter, searchQuery, selectedDate]);
+    }, [contractsList, selectedBranch, statusFilter, searchQuery, dateFrom, dateTo]);
 
     const statusCounts = useMemo(() => {
         const scoped = contractsList.filter((c) => !selectedBranch || c.company_name === selectedBranch);
         return {
             all:            scoped.length,
-            // Active count includes extended contracts too — see the note
-            // in filteredContracts above.
             active:         scoped.filter((c) => c.status === 'active' || c.status === 'extended').length,
             expiring_soon:  scoped.filter((c) => c.status === 'expiring_soon').length,
             expired:        scoped.filter((c) => c.status === 'expired').length,
@@ -270,6 +279,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     const toggleFlip = (id) => {
         setFlippedIds((prevId) => (prevId === id ? null : id));
     };
+
     // ── Edit contract handler ──
     const handleEditClick = (contract) => {
         if (!contract?.can_edit || !onEdit) return;
@@ -337,9 +347,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                 toast.success('Contract extended successfully.');
             })
             .catch((err) => {
-                // Falls back to the same "expired more than 3 months ago..."
-                // message the server sends when this is caught late (e.g.
-                // stale data in this modal) rather than pre-empted above.
                 const message = err.response?.data?.message
                     || err.response?.data?.errors?.extended_end_date?.[0]
                     || 'Failed to extend contract. Please try again.';
@@ -350,10 +357,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     };
 
     // ── Terminate contract handlers ──
-    // Only offered while a contract is still "live" (active / extended /
-    // expiring_soon) — enforced server-side via c.can_terminate. Once
-    // terminated, a contract becomes final: view-only, no edit/extend/
-    // terminate/archive ever again.
     const openTerminateModal = (contract) => {
         if (!contract?.can_terminate) return;
         setOpenMenuId(null);
@@ -394,9 +397,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     };
 
     // ── Archive contract handlers ──
-    // Only offered once a contract has expired — enforced server-side via
-    // c.can_archive. Once archived, a contract becomes final: view-only,
-    // no edit/extend/terminate/archive ever again.
     const openArchiveModal = (contract) => {
         if (!contract?.can_archive) return;
         setOpenMenuId(null);
@@ -437,8 +437,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     };
 
     // ── Upload button handler ──
-    // Fires the parent's Add Contract modal, pre-filled with this branch's
-    // company name. Closes this modal so the two overlays don't stack.
     const handleUploadClick = () => {
         if (!modalRow || !onUpload) return;
         onUpload(modalRow, modalRow.company_name || '');
@@ -537,19 +535,23 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                     ))}
                 </div>
 
-                {/* Search bar and Date picker */}
+                {/* Search bar and Date picker Action Row */}
                 <div className="pt-3 md:pt-4 px-3 bg-slate-100 flex items-center gap-2 flex-shrink-0 flex-wrap">
 
-                    {/* Calendar Icon / Date Picker */}
-                    <label className="relative cursor-pointer h-9 w-9 flex items-center justify-center hover:bg-slate-50 rounded-lg" title="Filter by active date">
-                        <MdCalendarMonth className={selectedDate ? 'text-[#4FA34E]' : 'text-slate-500'} size={20} />
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                        />
-                    </label>
+                    {/* Custom Date Picker component */}
+                    <DatePicker
+                        showDatePicker={showDatePicker}
+                        setShowDatePicker={setShowDatePicker}
+                        datePickerRef={datePickerRef}
+                        dateFrom={dateFrom}
+                        setDateFrom={setDateFrom}
+                        dateTo={dateTo}
+                        setDateTo={setDateTo}
+                        hasDateFilter={hasDateFilter}
+                        dateLabel={dateLabel}
+                        handleDateClear={handleDateClear}
+                        tooltipLabel="Filter by active date range"
+                    />
 
                     {/* Search Bar */}
                     <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -559,36 +561,22 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search..."
-                            className="w-full h-8 md:h-9 pl-9 pr-3 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
+                            className="w-full h-8 pl-9 pr-3 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-[#4FA34E]"
                         />
                     </div>
 
-                    {/* Upload Contract button — opens the Add Contract modal
-                        pre-filled with this branch's company name. */}
-                    <button
-                        type="button"
-                        disabled={!modalRow?.can_upload}
+                    {/* Upload Contract button using custom ViewButton */}
+                    <ViewButton
                         onClick={handleUploadClick}
-                        title={modalRow?.can_upload ? `Upload a contract for ${modalRow.company_name || 'this company'}` : 'Only the assigned account manager can upload a contract for this company'}
-                        className={`flex items-center gap-1 h-9 px-3 rounded-lg text-[#4FA34E]  font-semibold transition-colors whitespace-nowrap flex-shrink-0 ${
-                            modalRow?.can_upload ? ' cursor-pointer' : 'cursor-not-allowed shadow-none'
+                        disabled={!modalRow?.can_upload}
+                        label={modalRow?.can_upload ? `Upload Contract` : 'Only the assigned account manager can upload a contract for this company'}
+                        icon={HiOutlineUpload}
+                        iconSize="text-base"
+                        className={`h-8 px-1.5 flex-shrink-0 whitespace-nowrap text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 hover:bg-[#B5EBA2]/55 hover:shadow-inner ${
+                            modalRow?.can_upload ? 'cursor-pointer' : 'cursor-not-allowed opacity-50 shadow-none'
                         }`}
-                    >
-                        <FaFileUpload className="text-xl md:text-2xl" />
-                     
-                    </button>
+                    />
 
-                      {/* Green X Clear Button - No BG, only shows if date is selected */}
-                    {selectedDate && (
-                        <button
-                            type="button"
-                            onClick={() => setSelectedDate('')}
-                            className="h-9 w-9 flex items-center justify-center text-[#4FA34E] hover:text-[#3d8f3c]"
-                            title="Clear date filter"
-                        >
-                            <MdClose size={20} />
-                        </button>
-                    )}
                 </div>
 
                 <div className="pt-3 md:pt-4 h-full overflow-y-auto rounded-b-lg p-3 bg-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2 md:gap-3">
@@ -643,7 +631,6 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                     }}
                                 >
                                     {/* ── Front face ── */}
-                                    {/* Changed gap-4 to gap-3 to tighten vertical spacing */}
                                     <div
                                         className={`relative bg-white rounded-2xl p-4 md:p-5 flex flex-col gap-2 md:gap-3 shadow-sm transition-all duration-300 ${
                                             isHighlighted ? `border ${meta.borderClass}` : 'border border-slate-200 group-hover:border-slate-200'
@@ -684,10 +671,13 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                                 <span className="text-slate-300 text-base">→</span>
                                                 <span>{formatDate(c.end_date)}</span>
                                             </div>
+                                            <div className="flex items-center gap-2 text-[11px] md:text-xs font-medium text-slate-600">
+                                                <span className="text-slate-400">AM:</span>
+                                                <span>{c.client_manager ?? "—"}</span>
+                                            </div>
                                         </div>
 
                                         {/* Status / Extension Message */}
-                                        {/* Decreased min-h to 16px and added py-0 to reduce height */}
                                         <div className="min-h-[16px] flex items-center py-0">
                                             {c.status === 'terminated' ? (
                                                 <span className="inline-flex items-center gap-1.5 text-[11px] text-red-600 font-medium">

@@ -98,14 +98,18 @@ class RoiCurrentProjectController extends Controller
         $user = $this->getAuthenticatedUser();
 
         $search           = $request->input('search');
-        $status           = $request->input('status');
-        $type             = $request->input('type');
+        $status           = $request->input('status');           
+        $type             = $request->input('type');              
         $dateFrom         = $request->input('date_from');
         $dateTo           = $request->input('date_to');
         $preparedBy       = $request->input('prepared_by');
         $preparedByUserId = $request->input('prepared_by_user_id');
-        $locationId       = $request->input('location_id');
+        $locationId       = $request->input('location_id');       
         $perPage          = (int) $request->input('per_page', 10);
+
+        $statusList   = $status !== null && $status !== ''     ? explode(',', $status)                    : [];
+        $typeList     = $type !== null && $type !== ''         ? array_map('intval', explode(',', $type)) : [];
+        $locationIds  = $locationId !== null && $locationId !== '' ? array_map('intval', explode(',', $locationId)) : [];
 
         $query = RoiCurrentProject::with([
             'items', 'fees', 'user',
@@ -120,6 +124,8 @@ class RoiCurrentProjectController extends Controller
 
         // Enforce user pipeline visibility constraints
         $this->applyCurrentVisibilityScope($query, $user);
+
+        $statsQuery = clone $query;
 
         // 1. Text search
         if (!empty($search)) {
@@ -137,35 +143,41 @@ class RoiCurrentProjectController extends Controller
         }
 
         // 2. Status filter
-        if (!empty($status)) {
-            match ($status) {
-                'for_review' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Review')
-                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 2));
-                }),
-                'for_checking' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Checking')
-                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 3));
-                }),
-                'for_endorsement' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Endorsement')
-                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 4));
-                }),
-                'for_confirmation' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Confirmation')
-                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 5));
-                }),
-                'for_approval' => $query->where(function ($q) {
-                    $q->where('roi_current_projects.status', '=', 'For Approval')
-                    ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 6));
-                }),
-                default => $query->where('roi_current_projects.status', '=', $status),
-            };
+        if (!empty($statusList)) {
+            $query->where(function ($outer) use ($statusList) {
+                foreach ($statusList as $statusVal) {
+                    $outer->orWhere(function ($q) use ($statusVal) {
+                        match ($statusVal) {
+                            'for_review' => $q->where(function ($q2) {
+                                $q2->where('roi_current_projects.status', '=', 'For Review')
+                                ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 2));
+                            }),
+                            'for_checking' => $q->where(function ($q2) {
+                                $q2->where('roi_current_projects.status', '=', 'For Checking')
+                                ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 3));
+                            }),
+                            'for_endorsement' => $q->where(function ($q2) {
+                                $q2->where('roi_current_projects.status', '=', 'For Endorsement')
+                                ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 4));
+                            }),
+                            'for_confirmation' => $q->where(function ($q2) {
+                                $q2->where('roi_current_projects.status', '=', 'For Confirmation')
+                                ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 5));
+                            }),
+                            'for_approval' => $q->where(function ($q2) {
+                                $q2->where('roi_current_projects.status', '=', 'For Approval')
+                                ->orWhere(fn($sub) => $sub->where('roi_current_projects.status', '=', 'Sent Back')->where('roi_current_projects.current_level', '=', 6));
+                            }),
+                            default => $q->where('roi_current_projects.status', '=', $statusVal),
+                        };
+                    });
+                }
+            });
         }
 
         // 3. Type filter
-        if ($type !== null && $type !== '') {
-            $query->where('roi_current_projects.type', '=', (int) $type);
+        if (!empty($typeList)) {
+            $query->whereIn('roi_current_projects.type', $typeList);
         }
 
         // 4. Prepared By filter
@@ -180,8 +192,8 @@ class RoiCurrentProjectController extends Controller
         }
 
         // 5. Location filter
-        if (!empty($locationId)) {
-            $query->where('roi_current_projects.location_id', '=', (int) $locationId);
+        if (!empty($locationIds)) {
+            $query->whereIn('roi_current_projects.location_id', $locationIds);
         }
 
         // 6. Date range filter
@@ -219,7 +231,7 @@ class RoiCurrentProjectController extends Controller
             'status'           => 'roi_current_projects.status',
         ];
 
-        $sortByKey = $request->input('sort_by'); // ← no default
+        $sortByKey = $request->input('sort_by');
         $sortCol   = $allowedSorts[$sortByKey] ?? null;
 
         $query->when(
@@ -239,8 +251,6 @@ class RoiCurrentProjectController extends Controller
                 END ASC, roi_current_projects.last_saved_at DESC
             ", [$userId, $userId, $userId, $userId, $userId, $userId])
         );
-
-        $statsQuery = clone $query;
 
         $currentProjects = $query->paginate($perPage)->withQueryString()->through(function ($p) use ($user) {
             $p->last_saved_display = $p->last_saved_at ? $p->last_saved_at->diffForHumans() : '—';
@@ -289,16 +299,16 @@ class RoiCurrentProjectController extends Controller
             'locations'       => $locations,
             'filters'         => [
                 'search'              => $search,
-                'status'              => $status,
+                'status'              => $statusList,
                 'date_from'           => $dateFrom,
                 'date_to'             => $dateTo,
                 'prepared_by'         => $preparedBy,
                 'prepared_by_user_id' => $preparedByUserId,
-                'location_id'         => $locationId,
+                'location_id'         => $locationIds,
                 'per_page'            => $perPage,
                 'sort_by'             => $sortByKey,
                 'sort_order'          => $sortOrder,
-                'type'                => $type,
+                'type'                => $typeList,
                 'mine'                => $request->boolean('mine'),
             ],
         ]);

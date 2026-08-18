@@ -8,8 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Contracts\Contract;
 use App\Models\Contracts\ContractType;
 use App\Models\CustomerInfo\Company;
-use App\Models\LocationDepartment;
-use App\Models\Preferences;
 use App\Models\User;
 use App\Services\ContractUploadLogger;
 use Carbon\Carbon;
@@ -81,10 +79,12 @@ class ContractController extends Controller
                 });
             })
             ->when($request->input('category'), function ($query, $category) {
-                $query->where('client_category', $category);
+                $categories = is_array($category) ? $category : explode(',', $category);
+                $query->whereIn('client_category', $categories);
             })
             ->when($request->input('delsan_company'), function ($query, $delsan) {
-                $query->where('delsan_company', $delsan);
+                $delsans = is_array($delsan) ? $delsan : explode(',', $delsan);
+                $query->whereIn('delsan_company', $delsans);
             });
 
         $contractTable = (new Contract())->getTable();
@@ -216,20 +216,29 @@ class ContractController extends Controller
             ]);
         }
 
+        $filters = $request->only([
+            'search', 'category', 'per_page', 'sort_by', 'sort_order', 'delsan_company',
+        ]);
+
+        if (!empty($filters['category']) && is_string($filters['category'])) {
+            $filters['category'] = explode(',', $filters['category']);
+        }
+        if (!empty($filters['delsan_company']) && is_string($filters['delsan_company'])) {
+            $filters['delsan_company'] = explode(',', $filters['delsan_company']);
+        }
+
         return Inertia::render('Contract/UploadContract', [
             'companies'  => $companies,
             'categories' => $categories,
             'contractTypes' => $contractTypes,
             'is_admin'   => $isAdmin,
-            'filters'    => $request->only([
-                'search', 'category', 'per_page', 'sort_by', 'sort_order', 'delsan_company',
-            ]),
+            'filters'    => $filters,
         ]);
     }
 
     public function contracts($companyId)
     {
-        $company = Company::with('mainLocation')->findOrFail($companyId);
+        $company = Company::with(['mainLocation', 'clientManager'])->findOrFail($companyId);
 
         if (!$this->canAccessCompanyContracts($company)) {
             abort(403, 'You are not authorized to view contracts for this company.');
@@ -290,7 +299,7 @@ class ContractController extends Controller
             ->map(fn ($u) => trim("{$u->first_name} {$u->last_name}"));
 
         $contracts = $contractsRaw
-            ->map(function ($c) use ($canManage, $employeeNamesById) {
+            ->map(function ($c) use ($canManage, $employeeNamesById, $company) {
                 $c->refreshStatus();
 
                 $isFinal = $c->isFinal();
@@ -303,6 +312,7 @@ class ContractController extends Controller
                     'ctid'               => $c->ctid,
                     'contract_type'      => $c->contractType->name ?? null,
                     'company_name'       => trim($c->company_name ?? ''),
+                    'client_manager'     => $company->clientManager ? trim( $company->clientManager->first_name . ' ' . $company->clientManager->last_name ) : null,
                     'start_date'         => optional($c->start_date)->format('Y-m-d'),
                     'end_date'           => optional($c->end_date)->format('Y-m-d'),
                     'extend_dates'       => collect($c->extend_dates ?? [])

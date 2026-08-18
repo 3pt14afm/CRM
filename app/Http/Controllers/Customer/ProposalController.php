@@ -123,7 +123,14 @@ class ProposalController extends Controller
         }
 
         if ($type !== '' && $type !== null) {
-            $query->where('roi_archive_projects.type', (int) $type);
+            $types = collect(explode(',', (string) $type))
+                ->map(fn ($t) => trim($t))
+                ->filter(fn ($t) => $t !== '')
+                ->map(fn ($t) => (int) $t)
+                ->all();
+            if (!empty($types)) {
+                $query->whereIn('roi_archive_projects.type', $types);
+            }
         }
 
         if ($dateFrom) {
@@ -144,7 +151,13 @@ class ProposalController extends Controller
         }
 
         if ($locationId) {
-            $query->where('roi_archive_projects.location_id', $locationId);
+            $locationIds = collect(explode(',', (string) $locationId))
+                ->map(fn ($id) => trim($id))
+                ->filter(fn ($id) => $id !== '')
+                ->all();
+            if (!empty($locationIds)) {
+                $query->whereIn('roi_archive_projects.location_id', $locationIds);
+            }
         }
 
         $sortableColumns = [
