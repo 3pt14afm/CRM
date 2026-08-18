@@ -2,11 +2,9 @@ import React, { useRef, useState } from 'react';
 import FilterChip from '@/Components/roi/filters/FilterChip';
 import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
 import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
-import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
-import {
-  MdOutlineFilterAlt, MdDateRange, MdExpandMore,
-  MdPerson, MdLocationOn,MdBusiness
-} from 'react-icons/md';
+import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
+import DatePicker from '@/Components/DatePicker';
+import { MdPerson, MdExpandMore, MdOutlineFilterAlt, MdVerifiedUser } from 'react-icons/md';
 import { TbLayoutRows } from 'react-icons/tb';
 
 function formatDateLabel(dateStr) {
@@ -17,6 +15,15 @@ function formatDateLabel(dateStr) {
   });
 }
 
+// Converts the old {value,label} select-option shape into ScrollableMultiSelect's
+// {id,name} shape, dropping the "All ..." placeholder entry (empty selection
+// already means "all" for a multiselect).
+function toMultiSelectOptions(options = []) {
+  return options
+    .filter((opt) => opt.value !== '' && opt.value !== null && opt.value !== undefined)
+    .map((opt) => ({ id: opt.value, name: opt.label }));
+}
+
 /**
  * ListFilterToolbar
  *
@@ -25,9 +32,12 @@ function formatDateLabel(dateStr) {
  *   onClearAll        {fn}
  *
  *   statusOptions     {Array<{ value: string, label: string }>}
- *   statusFilter      {string}
- *   onStatusChange    {fn(value)}
- *   statusIcon        {ReactNode} (optional) — icon shown left of the select
+ *   statusFilter      {Array<string>}
+ *   onStatusChange    {fn(Array<string>)}
+ *
+ *   typeOptions       {Array<{ value: string, label: string }>}
+ *   typeFilter        {Array<string>}
+ *   onTypeChange      {fn(Array<string>)}
  *
  *   perPage           {number}
  *   perPageInput      {string}
@@ -38,10 +48,9 @@ function formatDateLabel(dateStr) {
  *   onPreparedByChange {fn(string)}
  *   onPreparedByApply {fn(string)}
  *
- *   locationId        {string}
- *   selectedLocationName {string}
+ *   locationId        {Array<string>}
  *   locations         {Array<{ id, name }>}
- *   onLocationApply   {fn(string)}
+ *   onLocationApply   {fn(Array<string>)}
  *
  *   dateFrom          {string}
  *   dateTo            {string}
@@ -62,15 +71,14 @@ export default function ListFilterToolbar({
   hasActiveFilters,
   onClearAll,
 
-  // status
+  // status (multiselect)
   statusOptions = [],
-  statusFilter,
+  statusFilter = [],
   onStatusChange,
-  statusIcon,
 
-  // <-- ADD THESE PROPS -->
+  // type (multiselect)
   typeOptions = [],
-  typeFilter,
+  typeFilter = [],
   onTypeChange,
 
   // per page
@@ -79,16 +87,25 @@ export default function ListFilterToolbar({
   onPerPageInputChange,
   onPerPageApply,
 
-  // prepared by
+  // prepared by (unchanged — single text filter)
   preparedBy,
   onPreparedByChange,
   onPreparedByApply,
 
-  // location
-  locationId,
-  selectedLocationName,
+  // decided by (unchanged — single text filter)
+  decidedBy,
+  onDecidedByChange,
+  onDecidedByApply,
+
+  // location (multiselect)
+  locationId = [],
   locations = [],
   onLocationApply,
+
+  // level (multiselect)
+  levelOptions = [],
+  levelFilter = [],
+  onLevelChange,
 
   // date range
   dateFrom,
@@ -99,7 +116,7 @@ export default function ListFilterToolbar({
   onDateClear,
 
   // slot for extra filter chips (e.g. "Decided By" in Archive)
-  // rendered after Rows, before the native Type select
+  // rendered after Rows, before the Status multiselect
   extraFilters,
 
   // slot for extra filter chips rendered after Type, before Date Range
@@ -108,12 +125,13 @@ export default function ListFilterToolbar({
 }) {
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
   const [showPreparedBy,    setShowPreparedBy]    = useState(false);
-  const [showLocation,      setShowLocation]      = useState(false);
+  const [showDecidedBy, setShowDecidedBy] = useState(false);
   const [showDatePicker,    setShowDatePicker]    = useState(false);
 
   const perPagePickerRef = useRef(null);
   const preparedByRef    = useRef(null);
-  const locationRef      = useRef(null);
+  const decidedByRef = useRef(null);
+  const levelMultiOptions = toMultiSelectOptions(levelOptions);
   const datePickerRef    = useRef(null);
 
   // Close all popups when clicking outside
@@ -121,20 +139,14 @@ export default function ListFilterToolbar({
     const handler = (e) => {
       if (perPagePickerRef.current && !perPagePickerRef.current.contains(e.target)) setShowPerPagePicker(false);
       if (preparedByRef.current    && !preparedByRef.current.contains(e.target))    setShowPreparedBy(false);
-      if (locationRef.current      && !locationRef.current.contains(e.target))      setShowLocation(false);
+      if (decidedByRef.current    && !decidedByRef.current.contains(e.target))    setShowDecidedBy(false);
       if (datePickerRef.current    && !datePickerRef.current.contains(e.target))    setShowDatePicker(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const closeOthers = ({ keepPreparedBy, keepLocation, keepDate } = {}) => {
-    if (!keepPreparedBy) setShowPreparedBy(false);
-    if (!keepLocation)   setShowLocation(false);
-    if (!keepDate)       setShowDatePicker(false);
-  };
-
-  const hasDateFilter = dateFrom || dateTo;
+  const hasDateFilter = !!(dateFrom || dateTo);
   const dateLabel = (() => {
     if (dateFrom && dateTo) return `${formatDateLabel(dateFrom)} – ${formatDateLabel(dateTo)}`;
     if (dateFrom) return `From ${formatDateLabel(dateFrom)}`;
@@ -142,27 +154,134 @@ export default function ListFilterToolbar({
     return null;
   })();
 
+  const statusMultiOptions = toMultiSelectOptions(statusOptions);
+  const typeMultiOptions   = toMultiSelectOptions(typeOptions);
+
   return (
     <FilterToolbar hasActiveFilters={hasActiveFilters} onClearAll={onClearAll}>
 
-    {/* status */}
-    {statusOptions?.length > 0 && (
-          <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
-            {statusIcon
-              ? <span className="absolute left-1.5 md:left-2.5 text-sm pointer-events-none z-10">{statusIcon}</span>
-              : <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-            }
-            <select
-              value={statusFilter}
-              onChange={(e) => onStatusChange(e.target.value)}
-              className="h-7 md:h-9 w-[100px] md:w-36 pl-5 md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer focus:outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150 text-slate-700"
-            >
-              {statusOptions.map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-    )}
+      {/* Status (multiselect) */}
+      {statusMultiOptions.length > 0 && (
+        <div className="relative w-[110px] md:w-28 flex-shrink-0">
+          <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+          <ScrollableMultiSelect
+            values={statusFilter}
+            onChange={onStatusChange}
+            options={statusMultiOptions}
+            placeholder="Status"
+            pluralLabel="statuses"
+            isSearchable={false}
+            className="pl-5 md:pl-8"
+          />
+        </div>
+      )}
+
+      {/* Extra filters slot (e.g. Decided By in ArchiveList) */}
+      {extraFilters}
+      
+      {/* Type (multiselect, placed before Date Range) */}
+      {typeMultiOptions.length > 0 && (
+        <div className="relative w-[100px] md:w-28 flex-shrink-0">
+          <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+          <ScrollableMultiSelect
+            values={typeFilter}
+            onChange={onTypeChange}
+            options={typeMultiOptions}
+            placeholder="Types"
+            pluralLabel="types"
+            isSearchable={false}
+            className="pl-5 md:pl-8"
+          />
+        </div>
+      )}
+
+      {/* Prepared By — kept as-is. Rendered only when the parent actually wired
+          it up (ApprovedProjects.jsx uses "Decided By" via extraFilters instead
+          and doesn't pass these props). */}
+      {onPreparedByApply && (
+        <div className="relative flex-shrink-0" ref={preparedByRef}>
+          <FilterChip
+            active={!!preparedBy}
+            icon={<MdPerson size={15} />}
+            label="Prepared By"
+            value={preparedBy}
+            onClick={() => setShowPreparedBy((p) => !p)}
+            onClear={() => onPreparedByApply("")}
+          />
+          <TextFilterPopup
+            open={showPreparedBy}
+            label="Prepared By"
+            placeholder="e.g. Maria Santos"
+            icon={<MdPerson size={14} className="text-[#4FA34E]" />}
+            value={preparedBy}
+            onChange={onPreparedByChange}
+            onApply={onPreparedByApply}
+            onClose={() => setShowPreparedBy(false)}
+          />
+        </div>
+      )}
+
+      {/* Decided By */}
+      {onDecidedByApply && (
+        <div className="relative flex-shrink-0" ref={decidedByRef}>
+          <FilterChip
+            active={!!decidedBy}
+            icon={<MdVerifiedUser size={15} />}
+            label="Decided By"
+            value={decidedBy}
+            onClick={() => setShowDecidedBy((p) => !p)}
+            onClear={() => onDecidedByApply("")}
+          />
+          <TextFilterPopup
+            open={showDecidedBy}
+            label="Decided By"
+            placeholder="e.g. Juan dela Cruz"
+            icon={<MdVerifiedUser size={14} className="text-[#4FA34E]" />}
+            value={decidedBy}
+            onChange={onDecidedByChange}
+            onApply={onDecidedByApply}
+            onClose={() => setShowDecidedBy(false)}
+          />
+        </div>
+      )}
+
+      {/* Location (multiselect) */}
+      {locations?.length > 0 && (
+        <div className="relative w-32 md:w-32 flex-shrink-0">
+          <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+          <ScrollableMultiSelect
+            values={locationId}
+            onChange={onLocationApply}
+            options={locations}
+            placeholder="Locations"
+            pluralLabel="locations"
+            isSearchable
+            searchInDropdown
+            className="pl-5 md:pl-8"
+          />
+        </div>
+      )}
+
+      {/* Levels (multiselect) */}
+      {levelMultiOptions.length > 0 && (
+        <div className="relative w-[110px] md:w-28 flex-shrink-0">
+          <MdVerifiedUser className="absolute left-1.5 md:left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none z-10" />
+          <ScrollableMultiSelect
+            values={levelFilter}
+            onChange={onLevelChange}
+            options={levelMultiOptions}
+            placeholder="Levels"
+            pluralLabel="levels"
+            isSearchable={false}
+            className="pl-5 md:pl-8"
+          />
+        </div>
+      )}
+
+      {/* Extra filters slot rendered after Type (e.g. Archive's Prepared By) */}
+      {extraFiltersEnd}
+
+      
       {/* Per Page */}
       <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
         <button
@@ -200,123 +319,21 @@ export default function ListFilterToolbar({
         )}
       </div>
 
-      {/* Extra filters slot (e.g. Decided By in ArchiveList) */}
-      {extraFilters}
-
-      {/* Prepared By */}
-      {/* {preparedBy?.length > 0 && ( */}
-        <div className="relative flex-shrink-0" ref={preparedByRef}>
-          <FilterChip
-            active={!!preparedBy}
-            icon={<MdPerson size={15} />}
-            label="Prepared By"
-            value={preparedBy}
-            onClick={() => { setShowPreparedBy((p) => !p); closeOthers({ keepPreparedBy: true }); }}
-            onClear={() => onPreparedByApply("")}
-          />
-          <TextFilterPopup
-            open={showPreparedBy}
-            label="Prepared By"
-            placeholder="e.g. Maria Santos"
-            icon={<MdPerson size={14} className="text-[#4FA34E]" />}
-            value={preparedBy}
-            onChange={onPreparedByChange}
-            onApply={onPreparedByApply}
-            onClose={() => setShowPreparedBy(false)}
-          />
-        </div>
-      {/* )} */}
-      {/* Location */}
-      {locations?.length > 0 && (
-      <div className="relative flex-shrink-0" ref={locationRef}>
-        <FilterChip
-          active={!!locationId}
-          icon={<MdLocationOn size={15} />}
-          label="Location"
-          value={selectedLocationName}
-          onClick={() => { setShowLocation((p) => !p); closeOthers({ keepLocation: true }); }}
-          onClear={() => onLocationApply("")}
-        />
-        <LocationFilterPopup
-          open={showLocation}
-          locations={locations}
-          selectedId={locationId}
-          onApply={onLocationApply}
-          onClose={() => setShowLocation(false)}
-        />
-      </div>
-    )}
-
-      {/* Type (Placed before Date Range) */}
-      <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
-        <MdBusiness className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-        <select
-          value={typeFilter ?? ''}
-          onChange={(e) => onTypeChange(e.target.value)}
-          className="h-7 md:h-9 w-[90px] md:w-36 pl-[22px] md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer
-            focus:outline-none focus:ring-0 focus:border-[#4FA34E]
-            transition-[border-color,box-shadow] duration-150 text-slate-700"
-        >
-          {typeOptions.map(({ value, label }) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Extra filters slot rendered after Type (e.g. Archive's Prepared By) */}
-      {extraFiltersEnd}
-
-      {/* Date Range */}
-      <div className="relative flex-shrink-0" ref={datePickerRef}>
-        <FilterChip
-          active={!!hasDateFilter}
-          icon={<MdDateRange size={15} />}
-          label="Date Range"
-          value={dateLabel}
-          onClick={() => { setShowDatePicker((p) => !p); closeOthers({ keepDate: true }); }}
-          onClear={onDateClear}
-        />
-        {showDatePicker && (
-          <div className="absolute  top-11 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <MdDateRange size={16} className="text-[#4FA34E]" />
-              <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>
-            </div>
-            <div className="space-y-2">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => onDateFromChange(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-              />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => onDateToChange(e.target.value)}
-                className="w-full h-8 px-2 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E]"
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={onDateClear}
-                className="flex-1 h-8 text-[11px] font-medium border border-gray-200 rounded-lg text-slate-500 hover:bg-slate-50"
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                onClick={() => { onDateApply(); setShowDatePicker(false); }}
-                className="flex-1 h-8 text-[11px] font-semibold rounded-lg text-white bg-[#4FA34E] hover:bg-[#3d8f3c]"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-          
-        )}
-      </div>
-      
+      {/* Date Range — using shared DatePicker component */}
+      <DatePicker
+        showDatePicker={showDatePicker}
+        setShowDatePicker={setShowDatePicker}
+        datePickerRef={datePickerRef}
+        dateFrom={dateFrom}
+        setDateFrom={onDateFromChange}
+        dateTo={dateTo}
+        setDateTo={onDateToChange}
+        hasDateFilter={hasDateFilter}
+        dateLabel={dateLabel}
+        handleDateClear={() => { onDateClear(); setShowDatePicker(false); }}
+        onApply={onDateApply}
+        tooltipLabel="Filter by date"
+      />
 
     </FilterToolbar>
   );

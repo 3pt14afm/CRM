@@ -91,6 +91,7 @@ export default function NewPreferenceModal({
         {form.value_type === "employee_list" ? (
           <div>
             <ScrollableMultiSelect
+              showSelected={true}
               label="Authorized Employees"
               values={form.employee_ids}
               onChange={(ids) =>

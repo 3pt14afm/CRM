@@ -56,6 +56,8 @@ class SprfCurrentProjectController extends Controller
         }
         $query->whereIn('status', ['for_review', 'under_review', 'Sent Back']);
 
+        $statsQuery = clone $query;
+
         // ─── ALIGNED SPRF DYNAMIC FILTERS ────────────────────────────────────
 
         $query->when(filled($request->input('search')), function ($q) use ($request) {
@@ -83,9 +85,10 @@ class SprfCurrentProjectController extends Controller
             $q->where('sub_category', 'like', '%' . trim($request->input('sub_category')) . '%');
         });
 
-        $query->when($request->filled('type'), function ($q) use ($request) {
-            $q->where('type', (int) $request->input('type'));
-        });
+        $typeList = $request->filled('type') ? array_map('intval', explode(',', $request->input('type'))) : [];
+        if (!empty($typeList)) {
+            $query->whereIn('type', $typeList);
+        }
 
         if (filled($request->input('prepared_by_user_id'))) {
             $query->where('prepared_by_user_id', (int) $request->input('prepared_by_user_id'));
@@ -100,20 +103,25 @@ class SprfCurrentProjectController extends Controller
             $q->where('approval_level', $request->input('approval_level'));
         });
 
-        $query->when(filled($request->input('status')), function ($q) use ($request, $userId) {
-            $statusFilter = $request->input('status');
-
-            if ($statusFilter === 'for_review') {
-                // Rows where the logged-in user is the one it's currently sitting with
-                $q->where('current_approver_user_id', $userId);
-            } elseif ($statusFilter === 'under_review') {
-                // Rows in the pipeline but NOT with the logged-in user right now
-                $q->where(function ($sub) use ($userId) {
-                    $sub->where('current_approver_user_id', '!=', $userId)
-                        ->orWhereNull('current_approver_user_id');
-                });
-            }
-        });
+        $statusList = filled($request->input('status')) ? explode(',', $request->input('status')) : [];
+        if (!empty($statusList)) {
+            $query->where(function ($outer) use ($statusList, $userId) {
+                foreach ($statusList as $statusVal) {
+                    $outer->orWhere(function ($q) use ($statusVal, $userId) {
+                        if ($statusVal === 'for_review') {
+                            $q->where('current_approver_user_id', $userId);
+                        } elseif ($statusVal === 'under_review') {
+                            $q->where(function ($sub) use ($userId) {
+                                $sub->where('current_approver_user_id', '!=', $userId)
+                                    ->orWhereNull('current_approver_user_id');
+                            });
+                        } else {
+                            $q->where('status', $statusVal);
+                        }
+                    });
+                }
+            });
+        }
 
         $query->when(filled($request->input('date_from')), function ($q) use ($request) {
             $q->whereDate('updated_at', '>=', $request->input('date_from'));
@@ -187,7 +195,7 @@ class SprfCurrentProjectController extends Controller
                 ];
             });
 
-        $totalCurrentProjects = (clone $query)->count();
+        $totalCurrentProjects = (clone $statsQuery)->count();
 
         $recentlyAddedToday = SprfCurrentProject::query()
             ->where(function ($q) use ($userId) {
@@ -220,6 +228,9 @@ class SprfCurrentProjectController extends Controller
             'sort_order',
             'mine',
         ]);
+
+        $responseFilters['status'] = $statusList;
+        $responseFilters['type']   = $typeList;
 
         if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
             return response()->json([

@@ -6,7 +6,7 @@ import FilterChip from '@/Components/roi/filters/FilterChip';
 import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline, IoEyeOutline } from 'react-icons/io5';
-import { MdCheck, MdCheckCircle, MdCancel, MdVerifiedUser, MdOutlineClose, MdOutlineCancel, MdOutlineDescription } from 'react-icons/md';
+import { MdCheck, MdVerifiedUser, MdOutlineClose, MdOutlineCancel, MdOutlineDescription } from 'react-icons/md';
 import { route as ziggyRoute } from 'ziggy-js';
 import SearchControl from '@/Components/roi/filters/SearchControl';
 import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
@@ -227,8 +227,16 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
     const [localStats, setLocalStats] = useState(initialStats);
 
     const [search,       setSearch]       = useState(() => LS.get('search',      filters?.search      ?? ""));
-    const [typeFilter,   setTypeFilter]   = useState(() => LS.get('type',        filters?.type        ?? ""));
-    const [statusFilter, setStatusFilter] = useState(() => LS.get('status',      filters?.status      ?? ""));
+    const [typeFilter,   setTypeFilter]   = useState(() => {
+      const stored = LS.get('type', null);
+      if (stored !== null) return stored === "" ? [] : stored.split(',').map(Number);
+      return filters?.type ?? [];
+    });
+    const [statusFilter, setStatusFilter] = useState(() => {
+      const stored = LS.get('status', null);
+      if (stored !== null) return stored === "" ? [] : stored.split(',');
+      return filters?.status ?? [];
+    });
     const [perPage,      setPerPage]      = useState(() => {
       const stored = LS.get('per_page', "");
       const parsed = parseInt(stored, 10);
@@ -238,7 +246,11 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
     const [dateTo,       setDateTo]       = useState(() => LS.get('date_to',     filters?.date_to     ?? ""));
     const [decidedBy,    setDecidedBy]    = useState(() => LS.get('decided_by',  filters?.decided_by  ?? ""));
     const [preparedBy,   setPreparedBy]   = useState(() => LS.get('prepared_by', filters?.prepared_by ?? ""));
-    const [locationId,   setLocationId]   = useState(() => LS.get('location_id', filters?.location_id ?? ""));
+    const [locationId,   setLocationId]   = useState(() => {
+      const stored = LS.get('location_id', null);
+      if (stored !== null) return stored === "" ? [] : stored.split(',').map(Number);
+      return filters?.location_id ?? [];
+    });
     const [currentPage,  setCurrentPage]  = useState(() => {
       const stored = LS.get('page', "");
       const parsed = parseInt(stored, 10);
@@ -274,13 +286,13 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
     // Persist filters to localStorage whenever they change
     useEffect(() => {
       LS.set('search',      search);
-      LS.set('status',      statusFilter);
-      LS.set('type',        String(typeFilter));
+      LS.set('status',      statusFilter.join(','));
+      LS.set('type',        typeFilter.join(','));
       LS.set('date_from',   dateFrom);
       LS.set('date_to',     dateTo);
       LS.set('decided_by',  decidedBy);
       LS.set('prepared_by', preparedBy);
-      LS.set('location_id', String(locationId));
+      LS.set('location_id', locationId.join(','));
       LS.set('per_page',    String(perPage));
       LS.set('page',        String(currentPage));
       LS.set('sort_by',     sortBy);
@@ -326,10 +338,10 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
   };
 
     const selectedLocationName = useMemo(() =>
-      locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
+      locationId?.length ? (locations.find((l) => String(l.id) === String(locationId[0]))?.name ?? "") : ""
     , [locationId, locations]);
 
-    const hasActiveFilters = !!(search || statusFilter || typeFilter !== "" || dateFrom || dateTo || decidedBy || preparedBy || locationId || perPage !== 10 || sortBy !== "" || sortOrder !== "");
+    const hasActiveFilters = !!(search || statusFilter.length || typeFilter.length || dateFrom || dateTo || decidedBy || preparedBy || locationId.length || perPage !== 10 || sortBy !== "" || sortOrder !== "");
 
     const tiles = useMemo(() => {
       const totalArchiveProjects  = localStats?.totalArchiveProjects  ?? localArchiveProjects?.total ?? 0;
@@ -545,16 +557,16 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
           params: {
             page:        targetPage,
             search:      currentSearch     || undefined,
-            status:      currentStatus     || undefined,
+            status:      currentStatus?.length     ? currentStatus.join(',')     : undefined,
             per_page:    currentPerPage,
             date_from:   currentDateFrom   || undefined,
             date_to:     currentDateTo     || undefined,
             decided_by:  currentDecidedBy  || undefined,
             prepared_by: currentPreparedBy || undefined,
-            location_id: currentLocationId || undefined,
+            location_id: currentLocationId?.length   ? currentLocationId.join(',') : undefined,
             sort_by:     currentSortBy     || undefined,  // ← dynamic now
             sort_order:  currentSortOrder  || undefined,
-            type:        currentType !== "" ? currentType : undefined,
+            type:        currentType?.length         ? currentType.join(',')      : undefined,
           },
           headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
         });
@@ -578,11 +590,11 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
       return () => clearTimeout(t);
     }, [search]);
 
-    const handleStatusChange    = (val) => { setStatusFilter(val); fetchArchivedData({ currentStatus: val,     targetPage: 1 }); };
-    const handleTypeChange      = (val) => { setTypeFilter(val);   fetchArchivedData({ currentType: val,       targetPage: 1 }); };
+    const handleStatusChange    = (arr) => { setStatusFilter(arr); fetchArchivedData({ currentStatus: arr,     targetPage: 1 }); };
+    const handleTypeChange      = (arr) => { setTypeFilter(arr);   fetchArchivedData({ currentType: arr,       targetPage: 1 }); };
     const handleDecidedByApply  = (val) => { setDecidedBy(val);    fetchArchivedData({ currentDecidedBy: val,  targetPage: 1 }); };
     const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchArchivedData({ currentPreparedBy: val, targetPage: 1 }); };
-    const handleLocationApply   = (val) => { setLocationId(val);   fetchArchivedData({ currentLocationId: val, targetPage: 1 }); };
+    const handleLocationApply   = (arr) => { setLocationId(arr);   fetchArchivedData({ currentLocationId: arr, targetPage: 1 }); };
     const handleDateApply       = ()    => { setShowDatePicker(false); fetchArchivedData({ targetPage: 1 }); };
     const handleDateClear       = ()    => {
       setDateFrom("");
@@ -599,13 +611,13 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
 
     const handleClearAllFilters = () => {
       setSearch("");
-      setStatusFilter("");
-      setTypeFilter("");
+      setStatusFilter([]);
+      setTypeFilter([]);
       setDateFrom("");
       setDateTo("");
       setDecidedBy("");
       setPreparedBy("");
-      setLocationId("");
+      setLocationId([]);
       setPerPage(10);
       setPerPageInput("10");
       // Reset sort to defaults
@@ -624,13 +636,13 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
 
       fetchArchivedData({
         currentSearch:     "",
-        currentStatus:     "",
-        currentType:       "",
+        currentStatus:     [],
+        currentType:       [],
         currentDateFrom:   undefined,
         currentDateTo:     undefined,
         currentDecidedBy:  "",
         currentPreparedBy: "",
-        currentLocationId: "",
+        currentLocationId: [],
         currentSortBy:     "",
         currentSortOrder:  "",
         
@@ -668,35 +680,6 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
       />
     );
 
-    const decidedBySlot = (
-      <div className="relative flex-shrink-0" ref={decidedByRef}>
-        <FilterChip
-          active={!!decidedBy}
-          icon={<MdVerifiedUser />}
-          label="Decided By"
-          value={decidedBy}
-          onClick={() => setShowDecidedBy((p) => !p)}
-          onClear={() => handleDecidedByApply("")}
-        />
-        <TextFilterPopup
-          open={showDecidedBy}
-          label="Decided By"
-          placeholder="e.g. Juan dela Cruz"
-          icon={<MdVerifiedUser className="text-[#4FA34E]" />}
-          value={decidedBy}
-          onChange={setDecidedBy}
-          onApply={handleDecidedByApply}
-          onClose={() => setShowDecidedBy(false)}
-        />
-      </div>
-    );
-
-    const statusIcon =
-      statusFilter === "approved"  ? <MdCheckCircle className="text-[#4FA34E] text-sm" /> :
-      statusFilter === "rejected"  ? <MdCancel className="text-red-500 text-sm" /> :
-      statusFilter === "cancelled" ? <MdOutlineCancel className="text-red-500 text-sm" /> :
-      null;
-
     const filterToolbar = (
       <ListFilterToolbar
         hasActiveFilters={hasActiveFilters}
@@ -716,17 +699,17 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
         onTypeChange={handleTypeChange}
         statusFilter={statusFilter}
         onStatusChange={handleStatusChange}
-        statusIcon={statusIcon}
         perPage={perPage}
         perPageInput={perPageInput}
         onPerPageInputChange={setPerPageInput}
         onPerPageApply={handlePerPageInputApply}
-        extraFilters={decidedBySlot}
+        decidedBy={decidedBy}
+        onDecidedByChange={setDecidedBy}
+        onDecidedByApply={handleDecidedByApply}
         preparedBy={preparedBy}
         onPreparedByChange={setPreparedBy}
         onPreparedByApply={handlePreparedByApply}
         locationId={locationId}
-        selectedLocationName={selectedLocationName}
         locations={locations}
         onLocationApply={handleLocationApply}
         dateFrom={dateFrom}
@@ -738,7 +721,6 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
       />
     );
 
-    // --- Mobile card layout (below md) ---
     // --- Mobile card layout (below md) ---
     const renderArchiveCard = (r) => {
       const s = String(r.status ?? "").toLowerCase();

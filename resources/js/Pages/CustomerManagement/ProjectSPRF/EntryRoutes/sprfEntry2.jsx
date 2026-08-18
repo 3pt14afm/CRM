@@ -957,7 +957,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   </div>
 
                   <div className="grid grid-cols-2 w-full md:w-[60%] gap-1 md:gap-2">
-                    <SprfAddNotes scopeKey="sprf-main" />
+                    <SprfAddNotes scopeKey="sprf-main" formVersion={sourceProject?.form_version} />
                     <SprfAddComments comments={initialProject?.comments} scopeKey="entry2" />
                   </div>
                 </div>

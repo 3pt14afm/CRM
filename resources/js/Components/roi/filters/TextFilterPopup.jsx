@@ -10,7 +10,7 @@ export default function TextFilterPopup({ icon, label, placeholder, value, onCha
 
   if (!open) return null;
   return (
-    <div className="absolute left-0 top-11 z-50 lg:w-64 w-48 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
+    <div className="absolute left-0 top-11 z-50 lg:w-72 w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
       <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#E9F7E7] border border-[#4FA34E]/20">{icon}</div>
@@ -25,7 +25,9 @@ export default function TextFilterPopup({ icon, label, placeholder, value, onCha
         <input autoFocus type="text" value={draft} placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && apply()}
-          className="w-full h-9 px-3 text-[13px] bg-white text-slate-700 border border-gray-200 rounded-lg outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150" />
+          className="w-full h-8 px-3 text-[13px] bg-slate-50 text-slate-700 border border-gray-200 rounded-lg
+            focus:outline-none focus:ring-[3px] focus:ring-[#4FA34E]/15 focus:border-[#4FA34E]
+            transition-[border-color,box-shadow] duration-150" />
       </div>
       <div className="px-3 pb-3 flex items-center gap-2 border-t border-gray-100 pt-3">
         <button type="button" onClick={clear}

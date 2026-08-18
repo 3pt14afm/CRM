@@ -12,8 +12,8 @@ import ProjectListSection from '@/Components/roi/ProjectListSection';
 import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
 import { FaRegFilePdf, FaRegUser } from 'react-icons/fa6';
 import ViewButton from '@/Components/ViewButton';
+import ExportDrawer from '@/Components/ExportDrawer';
 
-// const STORAGE_KEY = 'contract_monitoring_filters_v2';
 
 const DEFAULT_FILTERS = {
     search:         '',
@@ -25,16 +25,6 @@ const DEFAULT_FILTERS = {
     sort_by:        'company_name',
     sort_order:     'asc',
 };
-
-// function loadPersistedFilters() {
-//     try {
-//         const raw = localStorage.getItem(STORAGE_KEY);
-//         if (!raw) return null;
-//         return JSON.parse(raw);
-//     } catch {
-//         return null;
-//     }
-// }
 
 const STATUS_CLASSES = {
     active:          'text-[#2da300] bg-[#e9f7e7] border-[#2DA300]/20',
@@ -185,6 +175,8 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             onFinish: () => setIsRefreshing(false),
         });
     };
+
+    const [exportDrawerOpen, setExportDrawerOpen] = useState(false);
 
     const [searchResults, setSearchResults] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
@@ -521,12 +513,12 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                             />
                         </div>
 
-                        <p className="flex items-center justify-between text-[11px] font-medium truncate mt-1">
+                        <div className="flex items-center justify-between text-[11px] font-medium truncate mt-1">
                             <div className="flex items-center gap-1">
                                 <FaRegUser/><span>{r.client_manager || r.id_client_mngr || ''}</span>
                             </div>
                             <span className="uppercase">{r.delsan_company ?? '—'}</span>
-                        </p>
+                        </div>
 
                         <div className="flex items-center justify-between text-[11px] mt-1">
                             <span className="flex items-center gap-1">
@@ -955,12 +947,28 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
                         searchControl={searchControl}
                         onRefresh={handleRefresh}
                         refreshing={isRefreshing}
+                        onExport={() => setExportDrawerOpen(true)}
                         filterControl={filterToolbar}
                         loading={isSearching || isRefreshing}
                         emptyText="No contracts found."
                         renderCard={renderMonitoringCard}
                     />
                 </div>
+
+                <ExportDrawer
+                    open={exportDrawerOpen}
+                    onOpenChange={setExportDrawerOpen}
+                    title="Export Contracts"
+                    description="Export everything, or narrow it down by Delsan company, contract type, and status."
+                    exportRoute="contract.monitoring.export"
+                    searchState={searchState}
+                    statusOptions={mappedStatusOptions}
+                    typeOptions={contractTypes}
+                    showTypeFilter={true}
+                    typeLabel="Contract Types"
+                    extraParams={{ include_no_contracts: '0' }}
+                    statusNote="Unchecked = default (active, extended, expiring, expired)."
+                />
             </div>
         </>
     );

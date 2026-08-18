@@ -9,9 +9,13 @@ use App\Models\CustomerInfo\Company;
 use App\Models\CustomerInfo\PotentialCustomer;
 use App\Models\LocationDepartment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class CustomerInfoController extends Controller
 {
@@ -19,7 +23,172 @@ class CustomerInfoController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = $request->integer('per_page', 12);
+        $ctx = $this->buildExistingCompaniesContext($request);
+
+        $page = $request->integer('page', 1);
+
+        $companiesForPage = (clone $ctx['companiesQuery'])
+            ->forPage($page, $ctx['perPage'])
+            ->get();
+
+        $companies = new \Illuminate\Pagination\LengthAwarePaginator(
+            $companiesForPage,
+            $ctx['totalGroups'],
+            $ctx['perPage'],
+            $page,
+            [
+                'path'  => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        $companies->setCollection(
+            $this->hydrateExistingCompanies($companiesForPage, $ctx)
+        );
+
+        $categories = Company::query()
+            ->whereNotNull('client_category')
+            ->where('client_category', '!=', '')
+            ->distinct()
+            ->orderBy('client_category')
+            ->pluck('client_category')
+            ->values();
+
+        // ── Potential customers ─────────────────────────────────────────────
+
+        $sortBy    = $ctx['sortBy'];
+        $sortOrder = $ctx['sortOrder'];
+        $statusParam = $ctx['statusParam'];
+        $perPage   = $ctx['perPage'];
+
+        $allowedPotentialSorts = ['id', 'company_name', 'address', 'status', 'created_at', 'client_manager'];
+        $potentialSortBy = in_array($sortBy, $allowedPotentialSorts) ? $sortBy : 'company_name';
+        $potentialTable = (new PotentialCustomer())->getTable();
+
+        $qualify = fn (string $table, string $column) =>
+            '`' . str_replace('.', '`.`', $table) . '`.`' . $column . '`';
+
+        $potentials = PotentialCustomer::query()
+            ->leftJoin('users as client_managers', function ($join) use ($potentialTable) {
+                $join->on(
+                    DB::raw("{$potentialTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
+                    '=',
+                    DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
+                );
+            })
+            ->select("{$potentialTable}.*")
+            ->with('clientManager')
+            ->when(true, $ctx['applyVisibility'])
+            ->when($request->input('search'), function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('company_name', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%");
+                });
+            })
+            ->when($statusParam !== null && $statusParam !== '', function ($query) use ($statusParam, $potentialTable) {
+                $statuses = array_filter(explode(',', $statusParam), fn($v) => $v !== '');
+                if (!empty($statuses)) {
+                    $query->whereIn("{$potentialTable}.status", $statuses);
+                }
+            })
+            ->when($potentialSortBy === 'client_manager', function ($query) use ($sortOrder) {
+                $query->orderByRaw(
+                    "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) {$sortOrder}"
+                );
+            })
+            ->when($potentialSortBy !== 'client_manager' && in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder, $potentialTable) {
+                $query->orderBy("{$potentialTable}.{$potentialSortBy}", $sortOrder);
+            })
+            ->when($potentialSortBy !== 'client_manager' && !in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder, $potentialTable, $qualify) {
+                $query->orderByRaw("LOWER({$qualify($potentialTable, $potentialSortBy)}) {$sortOrder}");
+            })
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $potentials->getCollection()->transform(fn($p) => [
+            'id'             => $p->id,
+            'company_name'   => $p->company_name,
+            'address'        => $p->address,
+            'contact_no'     => $p->contact_no,
+            'id_client_mngr' => $p->id_client_mngr,
+            'client_manager' => $p->clientManager ? $p->clientManager->first_name . ' ' . $p->clientManager->last_name : null,
+            'delsan_company' => $p->clientManager?->delsan,
+            'status'         => $p->status,
+            'created_at'     => $p->created_at?->toDateTimeString(),
+        ]);
+
+        // ── AJAX (axios) search request: bypass Inertia, return raw paginators ──
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
+            return response()->json([
+                'companies'  => $companies,
+                'potentials' => $potentials,
+            ]);
+        }
+
+        // ── Render ──────────────────────────────────────────────────────────
+
+        return Inertia::render('CustomerManagement/CustomerInfo/Index', [
+            'companies'  => $companies,
+            'potentials' => $potentials,
+            'categories' => $categories,
+            'filters'    => $request->only([
+                'search',
+                'category',
+                'status',
+                'per_page',
+                'sort_by',
+                'sort_order',
+                'delsan_company',
+            ]),
+        ]);
+    }
+
+    public function exportExisting(Request $request)
+    {
+        $ctx = $this->buildExistingCompaniesContext($request);
+
+        $allCompanies = $ctx['companiesQuery']->get();
+
+        $rows = $this->hydrateExistingCompanies($allCompanies, $ctx);
+
+        $flatRows = collect();
+
+        foreach ($rows as $row) {
+            $flatRows->push([
+                'row_type'        => 'Main',
+                'sap_code'        => $row['sap_code'],
+                'delsan_company'  => $row['delsan_company'],
+                'company_name'    => $row['company_name'],
+                'client_category' => $row['client_category'],
+                'contracts'       => $row['contracts_own'],
+                'address'         => $row['address'],
+                'client_manager'  => $row['client_manager'],
+                'status'          => $row['status'],
+            ]);
+
+            foreach ($row['branches'] as $branchGroup) {
+                foreach ($branchGroup['addresses'] as $addr) {
+                    $flatRows->push([
+                        'row_type'        => 'Branch',
+                        'sap_code'        => $row['sap_code'],
+                        'delsan_company'  => $addr['delsan_company'] ?? $row['delsan_company'],
+                        'company_name'    => $addr['company_name'],
+                        'client_category' => $addr['client_category'] ?? $row['client_category'],
+                        'contracts'       => $addr['contracts'] ?? 0,
+                        'address'         => $addr['address'],
+                        'client_manager'  => $addr['client_manager'] ?? $row['client_manager'],
+                        'status'          => $addr['status'],
+                    ]);
+                }
+            }
+        }
+
+        return $this->streamExistingCompaniesXlsx($flatRows);
+    }
+
+    private function buildExistingCompaniesContext(Request $request): array
+    {
+        $perPage = $request->integer('per_page', 100);
 
         if ($perPage < 1) {
             $perPage = 12;
@@ -27,9 +196,16 @@ class CustomerInfoController extends Controller
             $perPage = 100;
         }
 
-        $sortBy    = $request->input('sort_by', 'company_name');
-        $sortOrder = $request->input('sort_order', 'asc');
-        $statusParam = $request->input('status', '1'); // default to Active only
+        $sortBy      = $request->input('sort_by', 'company_name');
+        $sortOrder   = $request->input('sort_order', 'asc');
+        $statusParam = $request->input('status', '1'); 
+
+        if (is_array($statusParam)) {
+            $statusParam = implode(',', $statusParam);
+        }
+        if ($statusParam === 'all') {
+            $statusParam = '';
+        }
 
         $currentUser = Auth::user();
         $userId      = (int) ($currentUser->id ?? 0);
@@ -90,8 +266,7 @@ class CustomerInfoController extends Controller
             '`' . str_replace('.', '`.`', $table) . '`.`' . $column . '`';
 
         $baseFilteredQuery = function () use ($companyTable, $request, $statusParam, $applyVisibility) {
-            
-            $categoryParam = $request->input('category');
+            $categoryParam = $request->input('category', $request->input('type'));
             $categories = is_array($categoryParam) ? $categoryParam : array_filter(explode(',', $categoryParam ?? ''));
 
             $delsanParam = $request->input('delsan_company');
@@ -130,13 +305,9 @@ class CustomerInfoController extends Controller
                 });
         };
 
-        // Group key: sap_code when present/non-empty, otherwise the row's own
-        // id (so sap_code-less rows never get merged with anything).
         $groupKeyExpr = "CASE WHEN {$companyTable}.sap_code IS NULL OR {$companyTable}.sap_code = '' "
             . "THEN CONCAT('__row_', {$companyTable}.id) ELSE {$companyTable}.sap_code END";
 
-        // One representative id per group = lowest id among the rows that
-        // currently match the filters (including status).
         $representativeIds = $baseFilteredQuery()
             ->selectRaw("MIN({$companyTable}.id) as rep_id")
             ->groupByRaw($groupKeyExpr)
@@ -144,9 +315,6 @@ class CustomerInfoController extends Controller
 
         $totalGroups = $representativeIds->count();
 
-        // Contract count for a row's whole sap_code group (falls back to the
-        // row's own id when it has no sap_code) — mirrors $groupKeyExpr /
-        // $contractsCountBySapCode below so sort order matches what's shown.
         $contractsCountSubquery = "(
             SELECT COUNT(*) FROM contracts
             WHERE contracts.company_id IN (
@@ -191,33 +359,38 @@ class CustomerInfoController extends Controller
                 $query->orderByRaw("LOWER({$qualify($companyTable, $sortBy)}) {$sortOrder}");
             });
 
-        $page = $request->integer('page', 1);
+        return [
+            'perPage'         => $perPage,
+            'sortBy'          => $sortBy,
+            'sortOrder'       => $sortOrder,
+            'statusParam'     => $statusParam,
+            'companyTable'    => $companyTable,
+            'companiesQuery'  => $companiesQuery,
+            'totalGroups'     => $totalGroups,
+            'isAdmin'         => $isAdmin,
+            'isPrivileged'    => $isPrivileged,
+            'employeeId'      => $employeeId,
+            'applyVisibility' => $applyVisibility,
+        ];
+    }
 
-        $companiesForPage = (clone $companiesQuery)
-            ->forPage($page, $perPage)
-            ->get();
+    private function hydrateExistingCompanies(Collection $companies, array $ctx): Collection
+    {
+        $statusParam = $ctx['statusParam'];
+        $isAdmin     = $ctx['isAdmin'];
+        $isPrivileged = $ctx['isPrivileged'];
+        $employeeId   = $ctx['employeeId'];
 
-        $companies = new \Illuminate\Pagination\LengthAwarePaginator(
-            $companiesForPage,
-            $totalGroups,
-            $perPage,
-            $page,
-            [
-                'path'  => $request->url(),
-                'query' => $request->query(),
-            ]
-        );
-
-        $sapCodesOnPage = $companiesForPage
+        $sapCodesOnSet = $companies
             ->pluck('sap_code')
             ->filter(fn ($v) => $v !== null && $v !== '')
             ->unique()
             ->values();
 
-        $siblingsBySap = $sapCodesOnPage->isEmpty()
+        $siblingsBySap = $sapCodesOnSet->isEmpty()
             ? collect()
             : Company::query()
-                ->whereIn('sap_code', $sapCodesOnPage)
+                ->whereIn('sap_code', $sapCodesOnSet)
                 ->when($statusParam !== null && $statusParam !== '', function ($query) use ($statusParam) {
                     $statuses = array_filter(explode(',', $statusParam), fn($v) => $v !== '');
                     if (!empty($statuses)) {
@@ -225,24 +398,20 @@ class CustomerInfoController extends Controller
                     }
                 })
                 ->orderBy('address')
-                ->with('mainLocation')
-                ->get(['id', 'sap_code', 'company_name', 'address', 'main_location', 'contact_no', 'status'])
+                ->with('mainLocation', 'clientManager')
+                ->get(['id', 'sap_code', 'company_name', 'address', 'main_location', 'contact_no', 'status', 'client_category', 'delsan_company', 'id_client_mngr'])
                 ->groupBy('sap_code');
 
-        // Sibling branches can grant upload permission through a shared
-        // sap_code — a manager assigned to any branch in the group can
-        // upload for every branch in that group. Mirrors the same rule
-        // used by ContractController::upload().
-        $managerIdsBySapCode = $sapCodesOnPage->isEmpty()
+        $managerIdsBySapCode = $sapCodesOnSet->isEmpty()
             ? collect()
             : Company::query()
                 ->select('sap_code', 'id_client_mngr')
-                ->whereIn('sap_code', $sapCodesOnPage)
+                ->whereIn('sap_code', $sapCodesOnSet)
                 ->get()
                 ->groupBy('sap_code')
                 ->map(fn ($group) => $group->pluck('id_client_mngr')->filter()->unique()->values());
 
-        $contractCompanyIds = $companiesForPage->pluck('id')
+        $contractCompanyIds = $companies->pluck('id')
             ->merge($siblingsBySap->flatten(1)->pluck('id'))
             ->unique()
             ->values();
@@ -270,14 +439,14 @@ class CustomerInfoController extends Controller
             return 'default';
         });
 
-        $contractsCountBySapCode = $companiesForPage
+        $contractsCountBySapCode = $companies
             ->filter(fn ($c) => $c->sap_code)
             ->mapWithKeys(function ($c) use ($siblingsBySap, $contractsCountByCompanyId) {
                 $allIds = ($siblingsBySap[$c->sap_code] ?? collect())->pluck('id')->push($c->id)->unique();
                 return [$c->sap_code => $allIds->sum(fn ($id) => $contractsCountByCompanyId[$id] ?? 0)];
             });
 
-        $statusBySapCode = $companiesForPage
+        $statusBySapCode = $companies
             ->filter(fn ($c) => $c->sap_code)
             ->mapWithKeys(function ($c) use ($siblingsBySap, $statusByCompanyId) {
                 $allIds = ($siblingsBySap[$c->sap_code] ?? collect())->pluck('id')->push($c->id)->unique();
@@ -289,7 +458,7 @@ class CustomerInfoController extends Controller
                         : ($statuses->contains('ok') ? 'ok' : 'default'))];
             });
 
-        $companies->getCollection()->transform(function ($c) use (
+        return $companies->map(function ($c) use (
             $siblingsBySap, $contractsCountBySapCode, $contractsCountByCompanyId,
             $statusBySapCode, $statusByCompanyId,
             $managerIdsBySapCode, $isAdmin, $isPrivileged, $employeeId
@@ -302,17 +471,23 @@ class CustomerInfoController extends Controller
 
                 $branchGroups = $siblings
                     ->groupBy('main_location')
-                    ->map(function ($group) {
+                    ->map(function ($group) use ($contractsCountByCompanyId) {
                         $first = $group->first();
                         return [
                             'main_location_id'   => $first->main_location,
                             'main_location_name' => $first->mainLocation->branch_name ?? null,
                             'addresses' => $group->map(fn ($b) => [
-                                'id'           => $b->id,
-                                'company_name' => $b->company_name,
-                                'address'      => $b->address,
-                                'contact_no'   => $b->contact_no,
-                                'status'       => $b->status,
+                                'id'              => $b->id,
+                                'company_name'    => $b->company_name,
+                                'address'         => $b->address,
+                                'contact_no'      => $b->contact_no,
+                                'status'          => $b->status,
+                                'client_category' => $b->client_category,
+                                'delsan_company'  => $b->delsan_company,
+                                'client_manager'  => $b->clientManager
+                                    ? (trim($b->clientManager->first_name . ' ' . $b->clientManager->last_name) ?: null)
+                                    : null,
+                                'contracts'       => $contractsCountByCompanyId[$b->id] ?? 0,
                             ])->values()->all(),
                         ];
                     })
@@ -341,105 +516,58 @@ class CustomerInfoController extends Controller
                 'id_client_mngr'     => $c->id_client_mngr,
                 'client_manager'     => $c->clientManager ? $c->clientManager->first_name . ' ' . $c->clientManager->last_name : null,
                 'status'             => $c->status,
-                'contracts'        => $c->sap_code
+                'contracts'          => $c->sap_code
                     ? ($contractsCountBySapCode[$c->sap_code] ?? 0)
                     : ($contractsCountByCompanyId[$c->id] ?? 0),
+                'contracts_own'      => $contractsCountByCompanyId[$c->id] ?? 0,
                 'contracts_status'  => $c->sap_code
                     ? ($statusBySapCode[$c->sap_code] ?? 'ok')
                     : ($statusByCompanyId[$c->id] ?? 'ok'),
                 'can_upload'         => $isAdmin || $isPrivileged || $isDirectManager || $isGroupManager,
-                    ];
-        });
+            ];
+        })->values();
+    }
 
-        $categories = Company::query()
-            ->whereNotNull('client_category')
-            ->where('client_category', '!=', '')
-            ->distinct()
-            ->orderBy('client_category')
-            ->pluck('client_category')
-            ->values();
+    private function streamExistingCompaniesXlsx(Collection $rows)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Existing Customers');
 
-        // ── Potential customers ─────────────────────────────────────────────
+        $headers = ['Type', 'SAP Code', 'Delsan', 'Company Name', 'Category', 'Contracts', 'Address', 'Account Manager', 'Status'];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:I1')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('E9F7E7');
 
-        $allowedPotentialSorts = ['id', 'company_name', 'address', 'status', 'created_at', 'client_manager'];
-
-        $potentialSortBy = in_array($sortBy, $allowedPotentialSorts) ? $sortBy : 'company_name';
-
-        $potentialTable = (new PotentialCustomer())->getTable();
-
-        $potentials = PotentialCustomer::query()
-            ->leftJoin('users as client_managers', function ($join) use ($potentialTable) {
-                $join->on(
-                    DB::raw("{$potentialTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
-                    '=',
-                    DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
-                );
-            })
-            ->select("{$potentialTable}.*")
-            ->with('clientManager')
-            ->when(true, $applyVisibility)
-            ->when($request->input('search'), function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('company_name', 'like', "%{$search}%")
-                    ->orWhere('address', 'like', "%{$search}%");
-                });
-            })
-            ->when($statusParam !== null && $statusParam !== '', function ($query) use ($statusParam, $potentialTable) {
-                $statuses = array_filter(explode(',', $statusParam), fn($v) => $v !== '');
-                if (!empty($statuses)) {
-                    $query->whereIn("{$potentialTable}.status", $statuses);
-                }
-            })
-            ->when($potentialSortBy === 'client_manager', function ($query) use ($sortOrder) {
-                $query->orderByRaw(
-                    "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) {$sortOrder}"
-                );
-            })
-            ->when($potentialSortBy !== 'client_manager' && in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder, $potentialTable) {
-                $query->orderBy("{$potentialTable}.{$potentialSortBy}", $sortOrder);
-            })
-            ->when($potentialSortBy !== 'client_manager' && !in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder, $potentialTable, $qualify) {
-                $query->orderByRaw("LOWER({$qualify($potentialTable, $potentialSortBy)}) {$sortOrder}");
-            })
-            ->paginate($perPage)
-            ->withQueryString();
-
-        $potentials->getCollection()->transform(fn($p) => [
-            'id'             => $p->id,
-            'company_name'   => $p->company_name,
-            'address'        => $p->address,
-            'contact_no'     => $p->contact_no,
-            'id_client_mngr' => $p->id_client_mngr,
-            'client_manager' => $p->clientManager ? $p->clientManager->first_name . ' ' . $p->clientManager->last_name : null,
-            'delsan_company' => $p->clientManager?->delsan,
-            'status'         => $p->status,
-            'created_at'     => $p->created_at?->toDateTimeString(),
-        ]);
-
-        // ── AJAX (axios) search request: bypass Inertia, return raw paginators ──
-        // Only for plain axios calls — never for Inertia's own visits, which send X-Inertia.
-        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
-            return response()->json([
-                'companies'  => $companies,
-                'potentials' => $potentials,
-            ]);
+        $r = 2;
+        foreach ($rows as $row) {
+            $sheet->fromArray([
+                $row['row_type'],
+                $row['sap_code'],
+                $row['delsan_company'],
+                $row['company_name'],
+                $row['client_category'],
+                $row['contracts'],
+                $row['address'],
+                $row['client_manager'],
+                (string) $row['status'] === '1' ? 'Active' : 'Inactive',
+            ], null, "A{$r}");
+            $r++;
         }
 
-        // ── Render ──────────────────────────────────────────────────────────
+        foreach (range('A', 'I') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
 
-        return Inertia::render('CustomerManagement/CustomerInfo/Index', [
-            'companies'  => $companies,
-            'potentials' => $potentials,
-            'categories' => $categories,
-            'filters'    => $request->only([
-                'search',
-                'category',
-                'status',
-                'per_page',
-                'sort_by',
-                'sort_order',
-                'delsan_company',
-            ]),
+        $filename = 'existing-customers-' . now()->format('Y-m-d_His') . '.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 

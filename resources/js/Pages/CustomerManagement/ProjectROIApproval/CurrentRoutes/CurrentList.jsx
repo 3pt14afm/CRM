@@ -63,33 +63,21 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const [localStats, setLocalStats] = useState(initialStats);
   const [scope, setScope] = useState(() => (filters?.mine ? "mine" : "all"));
   const [preparedByUserId, setPreparedByUserId] = useState(() => filters?.prepared_by_user_id ?? "");
-  const [search,       setSearch]       = useState(() => LS.get('search',      filters?.search      ?? ""));
-  const [statusFilter, setStatusFilter] = useState(() => LS.get('status',      filters?.status      ?? ""));
-  const [typeFilter,   setTypeFilter]   = useState(() => LS.get('type',        filters?.type        ?? ""));
-  const [dateFrom,     setDateFrom]     = useState(() => LS.get('date_from',   filters?.date_from   ?? ""));
-  const [dateTo,       setDateTo]       = useState(() => LS.get('date_to',     filters?.date_to     ?? ""));
-  const [preparedBy,   setPreparedBy]   = useState(() => LS.get('prepared_by', filters?.prepared_by ?? ""));
-  const [locationId,   setLocationId]   = useState(() => LS.get('location_id', filters?.location_id ?? ""));
-  const [perPage,      setPerPage]      = useState(() => {
-    const stored = LS.get('per_page', "");
-    const parsed = parseInt(stored, 10);
-    return !isNaN(parsed) && parsed > 0 ? parsed : (filters?.per_page ?? 10);
-  });
-  const [currentPage, setCurrentPage] = useState(() => {
-    const stored = LS.get('page', "");
-    const parsed = parseInt(stored, 10);
-    return !isNaN(parsed) && parsed > 0 ? parsed : 1;
-  });
+  const [search,       setSearch]       = useState(() => filters?.search      ?? "");
+  const [statusFilter, setStatusFilter] = useState(() => filters?.status      ?? []);
+  const [typeFilter,   setTypeFilter]   = useState(() => filters?.type        ?? []);
+  const [dateFrom,     setDateFrom]     = useState(() => filters?.date_from   ?? "");
+  const [dateTo,       setDateTo]       = useState(() => filters?.date_to     ?? "");
+  const [preparedBy,   setPreparedBy]   = useState(() => filters?.prepared_by ?? "");
+  const [locationId,   setLocationId]   = useState(() => filters?.location_id ?? []);
+  const [perPage,      setPerPage]      = useState(() => filters?.per_page ?? 10);
+  const [currentPage,  setCurrentPage]  = useState(1);
 
   // ── Sort state ──
-const [sortBy,    setSortBy]    = useState(() => LS.get('sort_by',    filters?.sort_by    ?? ""));
-const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.sort_order ?? ""));
+  const [sortBy,    setSortBy]    = useState(() => filters?.sort_by    ?? "");
+  const [sortOrder, setSortOrder] = useState(() => filters?.sort_order ?? "");
 
-  const [perPageInput, setPerPageInput] = useState(() => {
-    const stored = LS.get('per_page', "");
-    const parsed = parseInt(stored, 10);
-    return !isNaN(parsed) && parsed > 0 ? String(parsed) : String(filters?.per_page ?? 10);
-  });
+  const [perPageInput, setPerPageInput] = useState(() => String(filters?.per_page ?? 10));
 
   const [showDatePicker,    setShowDatePicker]    = useState(false);
   const [showPerPagePicker, setShowPerPagePicker] = useState(false);
@@ -108,21 +96,6 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     day: "2-digit", month: "2-digit", year: "2-digit",
   }).format(today);
-
-  // Persist filters
-  useEffect(() => {
-    LS.set('search',      search);
-    LS.set('status',      statusFilter);
-    LS.set('type',        String(typeFilter));
-    LS.set('date_from',   dateFrom);
-    LS.set('date_to',     dateTo);
-    LS.set('prepared_by', preparedBy);
-    LS.set('location_id', String(locationId));
-    LS.set('per_page',    String(perPage));
-    LS.set('page',        String(currentPage));
-    LS.set('sort_by',     sortBy);
-    LS.set('sort_order',  sortOrder);
-  }, [search, statusFilter, typeFilter, dateFrom, dateTo, preparedBy, locationId, perPage, currentPage, sortBy, sortOrder]);
 
   useEffect(() => {
     setLocalCurrentProjects(initialCurrentProjects);
@@ -167,13 +140,9 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
     fetchCurrentData({ currentSortBy: key, currentSortOrder: newOrder });
   };
 
-  const selectedLocationName = useMemo(() =>
-    locationId ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? "") : ""
-  , [locationId, locations]);
-
   const hasActiveFilters = !!(
-    search || statusFilter || typeFilter !== "" || dateFrom || dateTo ||
-    preparedBy || preparedByUserId || locationId || perPage !== 10 ||
+    search || statusFilter.length || typeFilter.length || dateFrom || dateTo ||
+    preparedBy || preparedByUserId || locationId.length || perPage !== 10 ||
     sortBy !== "" || sortOrder !== ""
   );
 
@@ -413,16 +382,16 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
         params: {
           page:                targetPage,
           search:              currentSearch     || undefined,
-          status:              currentStatus     || undefined,
+          status:              currentStatus?.length ? currentStatus.join(',') : undefined,
           per_page:            currentPerPage,
           date_from:           currentDateFrom   || undefined,
           date_to:             currentDateTo     || undefined,
           prepared_by:         currentPreparedBy || undefined,
           prepared_by_user_id: currentPreparedByUserId || undefined,
-          location_id:         currentLocationId || undefined,
+          location_id:         currentLocationId?.length ? currentLocationId.join(',') : undefined,
           sort_by:             currentSortBy     || undefined,
           sort_order:          currentSortOrder  || undefined,
-          type:                currentType !== "" ? currentType : undefined,
+          type:                currentType?.length ? currentType.join(',') : undefined,
           mine:                currentScope === "mine" ? 1 : undefined,
         },
         headers: {
@@ -450,10 +419,10 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
     return () => clearTimeout(t);
   }, [search]);
 
-  const handleStatusChange    = (val) => { setStatusFilter(val); fetchCurrentData({ currentStatus: val,     targetPage: 1 }); };
-  const handleTypeChange      = (val) => { setTypeFilter(val);   fetchCurrentData({ currentType: val,       targetPage: 1 }); };
+  const handleStatusChange  = (arr) => { setStatusFilter(arr); fetchCurrentData({ currentStatus: arr,     targetPage: 1 }); };
+  const handleTypeChange    = (arr) => { setTypeFilter(arr);   fetchCurrentData({ currentType: arr,       targetPage: 1 }); };
   const handlePreparedByApply = (val) => { setPreparedBy(val);   fetchCurrentData({ currentPreparedBy: val, targetPage: 1 }); };
-  const handleLocationApply   = (val) => { setLocationId(val);   fetchCurrentData({ currentLocationId: val, targetPage: 1 }); };
+  const handleLocationApply = (arr) => { setLocationId(arr);   fetchCurrentData({ currentLocationId: arr, targetPage: 1 }); };
   const handleDateApply       = ()    => { setShowDatePicker(false); fetchCurrentData({ targetPage: 1 }); };
   const handleDateClear = () => {
     setDateFrom("");
@@ -469,17 +438,14 @@ const [sortOrder, setSortOrder] = useState(() => LS.get('sort_order', filters?.s
   };
 
 const handleClearAllFilters = () => {
-  LS.clearAll();
-  LS.set('per_page', "10");
-
   setSearch("");
-  setStatusFilter("");
-  setTypeFilter("");
+  setStatusFilter([]);
+  setTypeFilter([]);
   setDateFrom("");
   setDateTo("");
   setPreparedBy("");
   setPreparedByUserId("");
-  setLocationId("");
+  setLocationId([]);
   setPerPage(10);
   setPerPageInput("10");
   setSortBy("");
@@ -489,14 +455,8 @@ const handleClearAllFilters = () => {
   setShowLocation(false);
 
   axios.get(route("roi.current"), {
-    params: {
-      page:     1,
-      per_page: 10,
-    },
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest',
-      'Accept': 'application/json',
-    },
+    params: { page: 1, per_page: 10 },
+    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
   }).then((response) => {
     const projectsPayload = response.data?.props?.currentProjects ?? response.data?.currentProjects ?? response.data;
     setLocalCurrentProjects(projectsPayload);
@@ -661,7 +621,6 @@ const clearPreparedByUserIdFilter = () => {
       onPreparedByApply={handlePreparedByApply}
 
       locationId={locationId}
-      selectedLocationName={selectedLocationName}
       locations={locations}
       onLocationApply={handleLocationApply}
 

@@ -152,6 +152,8 @@ class SprfController extends Controller
             });
         }
 
+        $statsQuery = clone $archiveQuery;
+
         // 1. Search
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -164,19 +166,26 @@ class SprfController extends Controller
         }
 
         // 2. Status
-        if ($request->filled('status')) {
-            $archiveQuery->where('status', $request->input('status'));
+        $statusList = filled($request->input('status')) ? explode(',', $request->input('status')) : [];
+        if (!empty($statusList)) {
+            $archiveQuery->whereIn('status', $statusList);
         }
 
         // 3. Type
-        if ($request->filled('type')) {
-            $archiveQuery->where('type', (int) $request->input('type'));
+        $typeList = filled($request->input('type')) ? array_map('intval', explode(',', $request->input('type'))) : [];
+        if (!empty($typeList)) {
+            $archiveQuery->whereIn('type', $typeList);
         }
 
+        $filters['status'] = $statusList;
+        $filters['type']   = $typeList;
+
         // 4. Approval Level
-        if ($request->filled('approval_level')) {
-            $archiveQuery->where('approval_level', $request->input('approval_level'));
+        $approvalLevelList = filled($request->input('approval_level')) ? explode(',', $request->input('approval_level')) : [];
+        if (!empty($approvalLevelList)) {
+            $archiveQuery->whereIn('approval_level', $approvalLevelList);
         }
+        $filters['approval_level'] = $approvalLevelList;
 
         // 5. Prepared By
         if ($request->filled('prepared_by')) {
@@ -225,9 +234,6 @@ class SprfController extends Controller
                     ->orderByRaw("CONCAT(users.first_name, ' ', users.last_name) {$sortOrder}")
                     ->select('sprf_archive_projects.*');
             } elseif ($sortBy === 'decided_at') {
-                // Sort by whichever decision date is set (approved_at, rejected_at,
-                // or — for cancelled projects, which have neither — created_at,
-                // i.e. the moment this archive row was written)
                 $archiveQuery->orderByRaw(
                     "COALESCE(approved_at, rejected_at, created_at) {$sortOrder}"
                 );
@@ -235,7 +241,6 @@ class SprfController extends Controller
                 $archiveQuery->orderBy($allowedSorts[$sortBy], $sortOrder);
             }
         } else {
-            // Default: newest decision first
             $archiveQuery->orderByRaw("COALESCE(approved_at, rejected_at, created_at) DESC");
         }
 
@@ -277,7 +282,7 @@ class SprfController extends Controller
             'archiveProjects' => $archiveProjects,
             'filters'         => $filters,
             'stats'           => [
-                'totalArchiveProjects'  => (clone $archiveQuery)->count(),
+                'totalArchiveProjects'  => (clone $statsQuery)->count(),
                 'recentlyArchivedToday' => SprfArchiveProject::whereIn('status', ['approved', 'rejected', 'cancelled'])
                     ->where(fn($q) => $q
                         ->whereDate('approved_at', now()->toDateString())
@@ -584,29 +589,29 @@ class SprfController extends Controller
     }
 
     /**
- * Resolves a signature image URL for a given user ID by employee_id.
- * Mirrors SprfCurrentProjectController::signatureFor() / ROI's signatureFor().
- */
-private function signatureFor(?int $userId): ?string
-{
-    if (! $userId) {
-        return null;
-    }
-
-    $employeeId = User::query()->whereKey($userId)->value('employee_id');
-
-    if (! $employeeId) {
-        return null;
-    }
-
-    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-        $path = 'signatures/' . $employeeId . '.' . $ext;
-
-        if (Storage::disk('public')->exists($path)) {
-            return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+     * Resolves a signature image URL for a given user ID by employee_id.
+     * Mirrors SprfCurrentProjectController::signatureFor() / ROI's signatureFor().
+     */
+    private function signatureFor(?int $userId): ?string
+    {
+        if (! $userId) {
+            return null;
         }
-    }
 
-    return null;
-}
+        $employeeId = User::query()->whereKey($userId)->value('employee_id');
+
+        if (! $employeeId) {
+            return null;
+        }
+
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = 'signatures/' . $employeeId . '.' . $ext;
+
+            if (Storage::disk('public')->exists($path)) {
+                return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+            }
+        }
+
+        return null;
+    }
 }

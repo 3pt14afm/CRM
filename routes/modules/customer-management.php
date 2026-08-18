@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])
         Route::get('/renewal', [ContractController::class, 'renewal'])->name('renewal');
         Route::get('/review', [ContractController::class, 'review'])->name('review');
         Route::get('/monitoring', [ContractMonitoringController::class, 'index'])->name('monitoring');
+        Route::get('/monitoring/export', [ContractMonitoringController::class, 'export'])->name('monitoring.export');
     });
 
 Route::middleware(['auth', 'verified'])
@@ -202,6 +203,7 @@ Route::middleware(['auth', 'verified'])
         ->name('customerinfo.')
         ->group(function () {
             Route::get('/companies', [CustomerInfoController::class, 'index'])->name('companies.index');
+            Route::get('/companies/export', [CustomerInfoController::class, 'exportExisting'])->name('companies.export');
             Route::get('/companies/{id}', [CustomerInfoController::class, 'show'])->name('companies.show');
             Route::get('/customer-info/potentials', [PotentialCustomerController::class, 'index'])->name('customerinfo.potentials.index');
             Route::patch('/potentials/{potential}', [CustomerInfoController::class, 'updatePotential'])->name('potentials.update');

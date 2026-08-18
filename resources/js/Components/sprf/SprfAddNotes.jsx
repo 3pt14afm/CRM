@@ -47,7 +47,7 @@ function formatDateTime(date) {
  *   • route           – "entry" | "current" | "archive"
  *   • auth            – { user: { id } }
  */
-export default function SprfAddNotes({ scopeKey = "default" }) {
+export default function SprfAddNotes({ scopeKey = "default", formVersion = null }) {
   const { projectData } = useProjectData();
   const page = usePage();
 
@@ -63,6 +63,7 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
   const isCurrentRoute = pageRoute === "current";
   const isArchiveRoute = pageRoute === "archive";
   const isEntryRoute   = !isCurrentRoute && !isArchiveRoute;
+  const isEntry2       = Number(formVersion) === 2;  
 
   // Entry controller passes `initialProject`; current controller passes `project`
   const project = initialProject ?? inertiaProject ?? null;
@@ -177,6 +178,8 @@ export default function SprfAddNotes({ scopeKey = "default" }) {
     // Current notes go to SprfCurrentProjectController::storeNote()
     const noteRoute = isCurrentRoute
       ? route("sprf.current.notes.store", projectId)
+      : isEntry2
+      ? route("sprf.entry2.projects.notes.store", projectId)
       : route("sprf.entry.projects.notes.store", projectId);
 
     router.post(

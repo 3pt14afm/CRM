@@ -8,6 +8,7 @@ import FilterPill from "@/Components/FilterPill";
 import SortHeader from "@/Components/SortHeader";
 import { MdAddLocationAlt, MdEdit, MdLocationPin } from "react-icons/md";
 import { FiSearch, FiX } from "react-icons/fi";
+import ViewButton from "@/Components/ViewButton";
 
 function LocationMaster({ stats, locations, filters = {} }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -555,15 +556,12 @@ function LocationMaster({ stats, locations, filters = {} }) {
                         />
                       </div>
                       
-                      <button
-                        type="button"
-                        title="Add Location"
-                        aria-label="Add Location"
-                        className="shrink-0 rounded-lg px-1 text-sm font-semibold text-[#289800] hover:brightness-95"
+                      <ViewButton
+                        label="Add Location"
+                        icon={MdAddLocationAlt}
                         onClick={openCreateModal}
-                      >
-                        <MdAddLocationAlt className="w-6 h-6" />
-                      </button>
+                        className="text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 shrink-0"
+                      />
                     </div>
                   }
                 />

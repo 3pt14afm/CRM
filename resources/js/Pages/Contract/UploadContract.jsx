@@ -7,10 +7,14 @@ import ContractsModal from './ContractsModal';
 import { route } from 'ziggy-js';
 import { toast } from 'sonner';
 import { MdSearch, MdOutlineFilterAlt, MdExpandMore, MdClose } from 'react-icons/md';
-import { FaFileUpload, FaRegFileAlt } from 'react-icons/fa';
+import { FaRegFileAlt } from 'react-icons/fa';
 import { TbLayoutRows } from 'react-icons/tb';
 import SortHeader from '@/Components/SortHeader';
 import ScrollableSelect from '@/Components/ScrollableSelect';
+import { HiOutlineUpload } from 'react-icons/hi';
+import ViewButton from '@/Components/ViewButton';
+import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
+import FilterToolbar from '@/Components/roi/filters/FilterToolbar';
 
 const STORAGE_KEY = 'contract_upload_filters';
 
@@ -87,11 +91,6 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
         setShowCompanyNameDropdown(false);
     };
 
-    // Opens the same modal pre-filled with an existing contract's data.
-    // Gated on the backend's per-contract `can_edit` flag (admin or the
-    // contract's owning account manager only) — the ContractsModal already
-    // checks this before calling us, but we re-check here too since this
-    // function is reachable directly.
     const openEditModal = (row, contract) => {
         if (!contract?.can_edit) return;
         setModalCompany(row);
@@ -126,9 +125,6 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
         setShowCompanyNameDropdown(false);
     };
 
-    // True when editing and at least one field (or a newly-picked PDF)
-    // actually differs from the contract's original values. Used to keep
-    // "Save Changes" disabled until there's something to save.
     const hasEditChanges = useMemo(() => {
         if (!editingContract) return false;
         if (pdfFile) return true;
@@ -210,8 +206,6 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
         router.post(
             url,
             {
-                // On edit, the PDF is optional — omitting it keeps the file
-                // already on record.
                 pdf: pdfFile,
                 doc_num: docNum,
                 start_date: startDate,
@@ -228,9 +222,6 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
                     setCompanyNameOptions([]);
                     setSelectedCompanyName('');
                     setCompanyNameQuery('');
-                    // The Contracts modal (if open) stays open behind the
-                    // upload modal — refresh its list so the new/edited
-                    // contract shows up without closing/reopening it.
                     contractsModalRef.current?.refresh();
                     toast.success(isEditing ? 'Contract updated successfully.' : 'Contract uploaded successfully.');
                 },
@@ -267,9 +258,6 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
     const [perPageInput, setPerPageInput] = useState(String(searchState.per_page));
     const perPagePickerRef = useRef(null);
 
-    // UI-only grouping: the backend still returns one row per branch, but
-    // rows sharing a sap_code are collapsed into a single row here and can
-    // be expanded to reveal the sibling branches underneath it.
     const [expandedSapCodes, setExpandedSapCodes] = useState(() => new Set());
     const toggleGroup = (sapCode) => {
         if (!sapCode) return;
@@ -280,9 +268,6 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
         });
     };
 
-    // Collapsed group parent: first click expands the branches instead of
-    // opening the modal. Once expanded (or for any non-group / child row),
-    // a click opens the Contracts modal as usual.
     const handleRowClick = (r) => {
         const groupCount = r._groupCount ?? 1;
         const isExpanded = r.sap_code && expandedSapCodes.has(r.sap_code);
@@ -298,15 +283,6 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
     const searchDebounceRef = useRef(null);
     const searchAbortRef = useRef(null);
 
-    // Some handlers (e.g. the sort-header onClick) end up baked into
-    // memoized JSX (existingColumns) that only recomputes when sort_by/
-    // sort_order change. If those handlers closed over `searchState`
-    // directly, they'd merge filters using a stale snapshot whenever other
-    // filters (like per_page) changed without a sort change in between —
-    // e.g. setting "Rows: 20" then clicking sort would silently revert
-    // per_page back to whatever it was the last time the memo recomputed.
-    // This ref is always current regardless of which render's closure is
-    // calling into it.
     const searchStateRef = useRef(searchState);
     useEffect(() => {
         searchStateRef.current = searchState;
@@ -445,11 +421,11 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
                         disabled={!allowed}
                         title={allowed ? undefined : 'Only the assigned account manager can upload a contract for this company'}
                         onClick={(e) => { e.stopPropagation(); openUploadModal(r); }}
-                        className={`flex items-center gap-1 h-6 px-2 rounded-lg text-white text-[10px] font-semibold transition-colors shadow-sm whitespace-nowrap ${
-                            allowed ? 'bg-[#4FA34E] hover:bg-[#3d8f3c] cursor-pointer' : 'bg-slate-300 cursor-not-allowed shadow-none'
+                        className={`flex items-center gap-1 h-7 px-1.5 rounded-lg font-semibold transition-colors shadow-sm whitespace-nowrap ${
+                            allowed ? 'text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 cursor-pointer' : 'bg-slate-300 cursor-not-allowed shadow-none'
                         }`}
                     >
-                        <FaFileUpload className="text-xs" />
+                        <HiOutlineUpload className="text-base" />
                     </button>
                 </div>
                 <div className="flex flex-col gap-1 min-w-0">
@@ -579,19 +555,17 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
             cell: (r) => {
                 const allowed = canUploadFor(r);
                 return (
-                    <div className="flex items-center justify-center">
-                        <button
-                            type="button"
-                            disabled={!allowed}
-                            title={allowed ? "Upload Contract" : 'Only the assigned account manager can upload a contract for this company'}
+                    <div className="flex items-center text- justify-center">
+                        <ViewButton
                             onClick={(e) => { e.stopPropagation(); openUploadModal(r); }}
-                            className={`flex items-center gap-1 h-7 px-2.5 rounded-lg text-[#4FA34E] text-[11px] font-semibold transition-colors  whitespace-nowrap ${
-                                allowed ? 'cursor-pointer' : ' cursor-not-allowed shadow-none'
+                            disabled={!allowed}
+                            label={allowed ? "Upload Contract" : 'Only the assigned account manager can upload a contract for this company'}
+                            icon={HiOutlineUpload}
+                            iconSize="text-base"
+                            className={`h-7 px-1 flex-shrink-0 text-[#289800] border border-[#B5EBA2]/70 bg-[#B5EBA2]/35 hover:bg-[#B5EBA2]/55 hover:shadow-inner font-semibold transition-colors whitespace-nowrap ${
+                                allowed ? 'cursor-pointer' : 'cursor-not-allowed shadow-none'
                             }`}
-                        >
-                            <FaFileUpload className="text-xl" />
-                            
-                        </button>
+                        />
                     </div>
                 );
             },
@@ -669,33 +643,41 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
     );
 
     const filterToolbar = (
-        <div className="flex flex-wrap items-center gap-1 md:gap-2 rounded-xl border border-gray-200 bg-white p-1 md:p-2 shadow-sm">
-            <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
+        <FilterToolbar hasActiveFilters={isFiltered} onClearAll={clearAllFilters}>
+            {/* Delsan Filter */}
+            <div className="relative w-[100px] md:w-28 flex items-center flex-shrink-0">
                 <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-                <select
-                    value={searchState.delsan_company}
-                    onChange={(e) => updateFilters({ delsan_company: e.target.value })}
-                    className="h-7 md:h-9 w-[90px] md:w-36 pl-[21px] md:pl-8 pr-4 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer truncate focus:outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150 text-slate-700"
-                >
-                    <option value="">All Delsan</option>
-                    <option value="DBIC">DBIC</option>
-                    <option value="DOSC">DOSC</option>
-                    <option value="DDTC">DDTC</option>
-                </select>
+                <ScrollableMultiSelect
+                    placeholder="Delsan"
+                    options={[
+                        { id: "DBIC", name: "DBIC" },
+                        { id: "DOSC", name: "DOSC" },
+                        { id: "DDTC", name: "DDTC" },
+                    ]}
+                    values={Array.isArray(searchState.delsan_company) ? searchState.delsan_company : (searchState.delsan_company ? [searchState.delsan_company] : [])}
+                    onChange={(val) => updateFilters({ delsan_company: val.length > 0 ? val : '' })}
+                    showSelected={false}
+                    isSearchable={false}
+                    className="!pl-[22px] md:!pl-8 !border-gray-200 !py-0 !h-7 md:!h-9 shadow-none hover:shadow-none"
+                />
             </div>
 
-            <div className="relative h-7 md:h-9 flex items-center flex-shrink-0">
+            {/* Category Filter */}
+            <div className="relative w-[115px] md:w-36 flex items-center flex-shrink-0">
                 <MdOutlineFilterAlt className="absolute left-1.5 md:left-2.5 text-slate-400 text-sm pointer-events-none z-10" />
-                <select
-                    value={searchState.category}
-                    onChange={(e) => updateFilters({ category: e.target.value })}
-                    className="h-7 md:h-9 w-[90px] md:w-36 pl-[21px] truncate md:pl-8 pr-6 py-0 text-[11px] md:text-[13px] border border-gray-200 rounded-lg bg-white appearance-none cursor-pointer focus:outline-none focus:ring-0 focus:border-[#4FA34E] transition-[border-color,box-shadow] duration-150 text-slate-700"
-                >
-                    <option value="">All Categories</option>
-                    {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
+                <ScrollableMultiSelect
+                    placeholder="Categories"
+                    options={categories.map((cat) => ({ id: cat, name: cat }))}
+                    values={Array.isArray(searchState.category) ? searchState.category : (searchState.category ? [searchState.category] : [])}
+                    onChange={(val) => updateFilters({ category: val.length > 0 ? val : '' })}
+                    showSelected={false}
+                    isSearchable={true}
+                    searchInDropdown={true}
+                    className="!pl-[22px] md:!pl-8 !border-gray-200 !py-0 !h-7 md:!h-9 shadow-none hover:shadow-none"
+                />
             </div>
 
+            {/* Per Page Picker */}
             <div className="relative h-7 md:h-9 flex items-center flex-shrink-0" ref={perPagePickerRef}>
                 <button
                     type="button"
@@ -715,7 +697,7 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
                                 type="number"
                                 min="1"
                                 max="100"
-                                value={perPageInput}
+                                value={perPageInput ?? ''}
                                 onChange={(e) => setPerPageInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handlePerPageInputApply()}
                                 className="w-16 h-6 md:h-7 px-2 text-[11px] sm:text-xs md:text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:border-[#4FA34E] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0"
@@ -725,14 +707,7 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
                     </div>
                 )}
             </div>
-
-            {isFiltered && (
-                <button type="button" onClick={clearAllFilters} className="flex items-center gap-0.5 md:gap-1 text-[11px] md:text-xs font-medium bg-[#B5EBA2]/50 text-emerald-900 hover:bg-red-100 hover:text-red-400 hover:shadow-inner shadow p-1 px-2 pr-2.5 rounded-lg transition-colors duration-150">
-                    <MdClose className="md:size-3" />
-                    <span>Clear</span>
-                </button>
-            )}
-        </div>
+        </FilterToolbar>
     );
 
     return (
@@ -772,18 +747,19 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
                 <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4" onClick={closeUploadModal}>
                     <div className="lg:w-[50%] bg-white rounded-2xl shadow-xl p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-start justify-between mb-1">
-                            <div>
-                                <h2 className="flex items-center gap-2 text-md md:text-lg font-semibold text-slate-900">
-                                   <FaRegFileAlt size={17}/> {editingContract ? 'Edit Contract' : 'Add Contract'}
-                                </h2>
-                                <p className="text-xs text-slate-500 mt-3">{modalCompany.company_name}</p>
-                            </div>
+                            <h2 className="flex items-center gap-2 text-md font-semibold text-slate-900">
+                                <FaRegFileAlt size={16}/> {editingContract ? 'Edit Contract' : 'Upload Contract'}
+                            </h2>
                             <button type="button" onClick={closeUploadModal} disabled={isUploading} className="text-slate-400 hover:text-slate-600 disabled:opacity-40">
                                 <MdClose size={20} />
                             </button>
                         </div>
+                        <div className="flex flex-col gap-1 rounded-lg p-2 px-3 mt-4 border">
+                            <span className="text-sm font-semibold">{modalCompany.company_name}</span>
+                            <span className="text-xs text-slate-500"> {modalCompany.client_manager ?? modalCompany.id_client_mngr ?? '—'}</span>
+                        </div>
 
-                        <div className="mt-5 flex flex-col gap-5">
+                        <div className="mt-4 flex flex-col gap-5">
                             {/* Searchable Company name dropdown */}
                             {/* <div className="relative lg:w-[80%]">
                                 <label className="block text-xs font-medium text-slate-600 mb-1">Company Name</label>
@@ -831,6 +807,7 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
                                     onChange={(val) => setCtid(val)}
                                     options={contractTypes}
                                     placeholder="Select contract type"
+                                    showSelected
                                 />
                                 {formErrors.ctid && <p className="text-[11px] text-[#C40000] mt-1">{formErrors.ctid}</p>}
                             </div>

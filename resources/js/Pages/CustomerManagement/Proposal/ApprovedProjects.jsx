@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import ProjectListSection from '@/Components/roi/ProjectListSection';
 import FilterChip from '@/Components/roi/filters/FilterChip';
-import LocationFilterPopup from '@/Components/roi/filters/LocationFilterPopup';
 import TextFilterPopup from '@/Components/roi/filters/TextFilterPopup';
 import { FaFolderOpen, FaRegClock } from 'react-icons/fa';
 import { IoTimeOutline } from 'react-icons/io5';
@@ -20,6 +19,14 @@ import { formatDateLabel } from '@/utils/proposal/dateFormat';
 
 const LS = createStorage('approve_filter');
 
+// type / location are now multiselect — normalize whatever comes in
+// (comma-joined string from localStorage/backend, array, or empty) into an array.
+function parseArrayParam(value) {
+  if (Array.isArray(value)) return value.map(String);
+  if (value === null || value === undefined || value === '') return [];
+  return String(value).split(',').filter(Boolean);
+}
+
 function ApproveProjects({
   roiProjects: initialRoiProjects,
   sprfProjects: initialSprfProjects,
@@ -34,7 +41,7 @@ function ApproveProjects({
   const [localStats, setLocalStats] = useState(initialStats);
 
   const [search, setSearch] = useState(() => LS.get('search', filters?.search ?? ''));
-  const [typeFilter, setTypeFilter] = useState(() => LS.get('type', filters?.type ?? ''));
+  const [typeFilter, setTypeFilter] = useState(() => parseArrayParam(LS.get('type', filters?.type ?? '')));
   const [perPage, setPerPage] = useState(() => {
     const stored = LS.get('per_page', '');
     const parsed = parseInt(stored, 10);
@@ -43,7 +50,7 @@ function ApproveProjects({
   const [dateFrom, setDateFrom] = useState(() => LS.get('date_from', filters?.date_from ?? ''));
   const [dateTo, setDateTo] = useState(() => LS.get('date_to', filters?.date_to ?? ''));
   const [decidedBy, setDecidedBy] = useState(() => LS.get('decided_by', filters?.decided_by ?? ''));
-  const [locationId, setLocationId] = useState(() => LS.get('location_id', filters?.location_id ?? ''));
+  const [locationId, setLocationId] = useState(() => parseArrayParam(LS.get('location_id', filters?.location_id ?? '')));
   const [currentPage, setCurrentPage] = useState(() => {
     const stored = LS.get('page', '');
     const parsed = parseInt(stored, 10);
@@ -74,11 +81,11 @@ function ApproveProjects({
   // Persist filters (incl. active tab) to localStorage whenever they change
   useEffect(() => {
     LS.set('search', search);
-    LS.set('type', String(typeFilter));
+    LS.set('type', typeFilter.join(','));
     LS.set('date_from', dateFrom);
     LS.set('date_to', dateTo);
     LS.set('decided_by', decidedBy);
-    LS.set('location_id', String(locationId));
+    LS.set('location_id', locationId.join(','));
     LS.set('per_page', String(perPage));
     LS.set('page', String(currentPage));
     LS.set('sort_by', sortBy);
@@ -130,18 +137,13 @@ function ApproveProjects({
     fetchApproveData({ currentSortBy: key, currentSortOrder: newOrder });
   };
 
-  const selectedLocationName = useMemo(
-    () => (locationId ? locations.find((l) => String(l.id) === String(locationId))?.name ?? '' : ''),
-    [locationId, locations]
-  );
-
   const hasActiveFilters = !!(
     search ||
-    typeFilter !== '' ||
+    typeFilter.length > 0 ||
     dateFrom ||
     dateTo ||
     decidedBy ||
-    locationId ||
+    locationId.length > 0 ||
     perPage !== 10 ||
     sortBy !== '' ||
     sortOrder !== ''
@@ -152,12 +154,26 @@ function ApproveProjects({
 
   const tiles = useMemo(() => {
     const totalArchiveProjects = activeTab === 'sprf' ? sprfCount : roiCount;
+    const totalArchiveLabel =
+        activeTab === 'sprf' ? 'Total SPRF Archives' : 'Total ROI Archives';
+
     const recentlyArchivedToday = localStats?.recentlyArchivedToday ?? '—';
+
     return [
-      { label: 'Total Archives', value: totalArchiveProjects, icon: <FaFolderOpen />, variant: 'normal' },
-      { label: 'Recently Archived', value: recentlyArchivedToday, icon: <IoTimeOutline />, variant: 'normal' },
+        {
+            label: totalArchiveLabel,
+            value: totalArchiveProjects,
+            icon: <FaFolderOpen />,
+            variant: 'normal',
+        },
+        {
+            label: 'Recently Archived',
+            value: recentlyArchivedToday,
+            icon: <IoTimeOutline />,
+            variant: 'normal',
+        },
     ];
-  }, [localStats, activeTab, roiCount, sprfCount]);
+}, [localStats, activeTab, roiCount, sprfCount]);
 
   // ─── ROI columns (unchanged) ─────────────────────────────────
   const roiColumns = useMemo(
@@ -303,10 +319,10 @@ function ApproveProjects({
           date_from: currentDateFrom || undefined,
           date_to: currentDateTo || undefined,
           decided_by: currentDecidedBy || undefined,
-          location_id: currentLocationId || undefined,
+          location_id: currentLocationId?.length ? currentLocationId.join(',') : undefined,
           sort_by: currentSortBy || undefined,
           sort_order: currentSortOrder || undefined,
-          type: currentType !== '' ? currentType : undefined,
+          type: currentType?.length ? currentType.join(',') : undefined,
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
       });
@@ -335,17 +351,17 @@ function ApproveProjects({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  const handleTypeChange = (val) => {
-    setTypeFilter(val);
-    fetchApproveData({ currentType: val, targetPage: 1 });
+  const handleTypeChange = (arr) => {
+    setTypeFilter(arr);
+    fetchApproveData({ currentType: arr, targetPage: 1 });
   };
   const handleDecidedByApply = (val) => {
     setDecidedBy(val);
     fetchApproveData({ currentDecidedBy: val, targetPage: 1 });
   };
-  const handleLocationApply = (val) => {
-    setLocationId(val);
-    fetchApproveData({ currentLocationId: val, targetPage: 1 });
+  const handleLocationApply = (arr) => {
+    setLocationId(arr);
+    fetchApproveData({ currentLocationId: arr, targetPage: 1 });
   };
   const handleDateApply = () => {
     setShowDatePicker(false);
@@ -368,11 +384,11 @@ function ApproveProjects({
 
   const handleClearAllFilters = () => {
     setSearch('');
-    setTypeFilter('');
+    setTypeFilter([]);
     setDateFrom('');
     setDateTo('');
     setDecidedBy('');
-    setLocationId('');
+    setLocationId([]);
     setPerPage(10);
     setPerPageInput('10');
     setSortBy('');
@@ -388,11 +404,11 @@ function ApproveProjects({
 
     fetchApproveData({
       currentSearch: '',
-      currentType: '',
+      currentType: [],
       currentDateFrom: undefined,
       currentDateTo: undefined,
       currentDecidedBy: '',
-      currentLocationId: '',
+      currentLocationId: [],
       currentSortBy: '',
       currentSortOrder: '',
       targetPage: 1,
@@ -466,7 +482,6 @@ function ApproveProjects({
         onPerPageApply={handlePerPageInputApply}
         extraFilters={decidedBySlot}
         locationId={locationId}
-        selectedLocationName={selectedLocationName}
         locations={locations}
         onLocationApply={handleLocationApply}
         dateFrom={dateFrom}

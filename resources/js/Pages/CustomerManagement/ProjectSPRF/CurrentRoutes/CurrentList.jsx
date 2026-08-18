@@ -67,8 +67,16 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   }).format(today);
 
   const [search,         setSearch]         = useState(() => LS.get('search',         filters?.search         ?? ""));
-  const [statusFilter,   setStatusFilter]   = useState(() => LS.get('status',         filters?.status         ?? ""));
-  const [typeFilter,     setTypeFilter]     = useState(() => LS.get('type',           filters?.type           ?? ""));
+  const [statusFilter,   setStatusFilter]   = useState(() => {
+  const stored = LS.get('status', null);
+    if (stored !== null) return stored === "" ? [] : stored.split(',');
+    return filters?.status ?? [];
+  });
+  const [typeFilter,     setTypeFilter]     = useState(() => {
+    const stored = LS.get('type', null);
+    if (stored !== null) return stored === "" ? [] : stored.split(',').map(Number);
+    return filters?.type ?? [];
+  });
   const [dateFrom,       setDateFrom]       = useState(() => LS.get('date_from',      filters?.date_from      ?? ""));
   const [dateTo,         setDateTo]         = useState(() => LS.get('date_to',        filters?.date_to        ?? ""));
   const [preparedBy,     setPreparedBy]     = useState(() => LS.get('prepared_by',    filters?.prepared_by    ?? ""));
@@ -101,8 +109,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   // Persist filters
   useEffect(() => {
     LS.set('search',         search);
-    LS.set('status',         statusFilter);
-    LS.set('type',           String(typeFilter));
+    LS.set('status', statusFilter.join(','));
+    LS.set('type',   typeFilter.join(','));
     LS.set('date_from',      dateFrom);
     LS.set('date_to',        dateTo);
     LS.set('prepared_by',    preparedBy);
@@ -142,7 +150,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         params: {
           page:                targetPage,
           search:              currentSearch        || undefined,
-          status:              currentStatus        || undefined,
+          status:              currentStatus?.length ? currentStatus.join(',') : undefined,
           per_page:            currentPerPage,
           date_from:           currentDateFrom      || undefined,
           date_to:             currentDateTo        || undefined,
@@ -151,7 +159,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
           approval_level:      currentApprovalLevel || undefined,
           sort_by:             currentSortBy        || undefined,
           sort_order:          currentSortOrder     || undefined,
-          type:                currentType !== "" ? currentType : undefined,
+          type:                currentType?.length   ? currentType.join(',')   : undefined,
           mine:                currentScope === "mine" ? 1 : undefined,
         },
         headers: {
@@ -250,8 +258,8 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     LS.set('per_page', "10");
 
     setSearch("");
-    setStatusFilter("");
-    setTypeFilter("");
+    setStatusFilter([]);
+    setTypeFilter([]);
     setDateFrom("");
     setDateTo("");
     setPreparedBy("");
@@ -282,7 +290,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const goToPage = (p) => fetchCurrentData({ targetPage: p });
 
   const hasActiveFilters = !!(
-    search || statusFilter || typeFilter !== "" || dateFrom || dateTo ||
+    search || statusFilter.length || typeFilter.length !== 0 || dateFrom || dateTo ||
     preparedBy || preparedByUserId || approvalLevel || perPage !== 10 ||
     sortBy !== "" || sortOrder !== ""
   );
