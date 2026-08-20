@@ -58,6 +58,8 @@ function useRowRenderData({ row, contractType, errors, showOutrightErrors, showM
   const isOutrightOnly = normalizedContractType.includes('outright') && normalizedContractType.includes('only');
   const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
 
+  const isMachineRow = row.type === ROW_TYPE.MACHINE;
+
   let rowForCalcs = row;
   let displayQty = row.qty || 1;
   let qtyEditable = isQtyEditable(row, contractType);
@@ -66,7 +68,7 @@ function useRowRenderData({ row, contractType, errors, showOutrightErrors, showM
   if (isOthers && shouldEnforcePrinterQty) {
     const baseQty = Number(row.qty) || 1;
     const effectiveQty = Math.round(baseQty * (printerQtyTotal || 1) * 100) / 100;
-    
+
     rowForCalcs = { ...row, qty: effectiveQty };
     displayQty = effectiveQty;
     qtyEditable = false; // Lock input so it behaves exactly like Mono/Color
@@ -78,8 +80,7 @@ function useRowRenderData({ row, contractType, errors, showOutrightErrors, showM
   const flags = getRowDisplayFlags(row, contractType, errors, showOutrightErrors);
   const { isYieldDisabled, isPriceProhibited, isYieldError, isPriceError } = flags;
 
-  const isMachineRow      = row.type === ROW_TYPE.MACHINE;
-  const isAutoOrMonoColor = !!row.autoAdded || modeStr === MODE.MONO || modeStr === MODE.COLOR || isOthers;
+  const isAutoOrMonoColor  = !!row.autoAdded || modeStr === MODE.MONO || modeStr === MODE.COLOR || isOthers;
   const isMandatory       = !!row.isMandatory;
   const keyOf             = (field) => `${row.id}:${field}`;
   const isFocused         = (field) => focusedField === keyOf(field);

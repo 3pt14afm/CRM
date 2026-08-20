@@ -38,6 +38,27 @@ const isRowMandatoryDataEntered = (row) =>
     String(row?.remarks || '').trim()
   );
 
+// Fixed Monthly Only allows exactly one printer — the mandatory row, whose
+// qty is now user-entered directly and totals on its own. Strip any other
+// MACHINE-type row (e.g. left over from a prior Outright Only session,
+// where a machine row is optional, or stale persisted data) so it never
+// renders as a second printer. Blank stray rows are dropped outright; ones
+// with real user data are kept but un-typed back to a plain consumable row
+// rather than losing the data.
+const stripStrayFixedMonthlyPrinters = (rows, contractType) => {
+  const normalized = String(contractType || '').trim().toLowerCase();
+  if (normalized !== 'fixed monthly only') return rows;
+  const hasStrayPrinter = rows.some((r) => r.type === ROW_TYPE.MACHINE && !r.isMandatory);
+  if (!hasStrayPrinter) return rows;
+  return rows
+    .filter((r) => !(r.type === ROW_TYPE.MACHINE && !r.isMandatory && !isRowMandatoryDataEntered(r)))
+    .map((r) =>
+      r.type === ROW_TYPE.MACHINE && !r.isMandatory
+        ? { ...r, type: ROW_TYPE.CONSUMABLE, selectedMachineId: '', mode: '' }
+        : r
+    );
+};
+
 const makeMandatoryRow = (overrides = {}) => ({
   id:                   MANDATORY_ROW_ID,
   sku:                  '',
@@ -124,10 +145,10 @@ const isMonoColorConsumable = (row) =>
   row?.type === ROW_TYPE.CONSUMABLE && (row?.mode === MODE.MONO || row?.mode === MODE.COLOR);
 
 // "fixed monthly only" and exact "Outright Only" (1yr) are the two exception
-// contracts: printer qty stays locked at 1 and consumable mono/color qty
-// stays user-entered — the pre-existing behavior. Every other contract
-// flips this: printer qty becomes editable, and mono/color consumable qty
-// is derived (locked, not directly editable) from the printer qty total.
+// contracts for CONSUMABLE mono/color qty: it stays user-entered there, and
+// is derived (locked, not directly editable) from the printer qty total
+// everywhere else. (Mandatory printer qty itself is always user-editable in
+// every contract type — see isQtyEditable below.)
 const isExceptionContract = (contractType = '') => {
   const ct = (contractType || '').toLowerCase().trim();
   return ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
@@ -146,14 +167,18 @@ const isQtyEditable = (row, contractType = '') => {
 
   if (isPrinterRow(row)) {
     if (!row.isMandatory) {
-      // Any printer row besides the mandatory one (e.g. a blank row the
-      // user checked "H" on) is a follower: its qty always mirrors the
-      // mandatory printer's qty and is never directly editable.
-      return false;
+      // Under Outright Only (1yr), a machine row is optional so it's never
+      // flagged "mandatory" — but it's still the sole printer entry for
+      // that contract, so its qty is user-editable just like the
+      // mandatory row is elsewhere. Everywhere else, a non-mandatory
+      // printer row is a follower whose qty mirrors the mandatory row.
+      return isOutrightOnlyContract(contractType);
     }
-    // Mandatory printer qty: editable everywhere except the two exception
-    // contracts, where it stays locked at 1 (unchanged legacy behavior).
-    return !exception;
+    // Mandatory printer qty is always user-editable, in every contract
+    // type — including the two exception contracts (Fixed Monthly Only /
+    // Outright Only), which previously locked it at 1. Every other
+    // contract type's behavior here is unchanged.
+    return true;
   }
 
   if (isMonoColorConsumable(row)) {
@@ -191,7 +216,7 @@ const enforceRowQty = (row, contractType = '', printerQtyTotal = 1) => {
 // ── Hydration ──────────────────────────────────────────────────────────────
 function buildHydratedRows(
   { machine = [], consumable = [] },
-  { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable, includeMandatory = true }
+  { hydrateMachineFields, inferSelectedConsumableId, isPersistedAutoConsumable, includeMandatory = true, contractType = '' }
 ) {
   const persistedMandatory = machine.find((r) => r.id === MANDATORY_ROW_ID);
   const otherMachines      = machine.filter((r) => r.id !== MANDATORY_ROW_ID);
@@ -278,7 +303,8 @@ function buildHydratedRows(
 
   // Always leave at least one row on screen — a plain blank row (not
   // pinned as machine or consumable) if nothing else was hydrated in.
-  return combined.length > 0 ? combined : [makeBlankRow()];
+  const deduped = stripStrayFixedMonthlyPrinters(combined, contractType);
+  return deduped.length > 0 ? deduped : [makeBlankRow()];
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────
@@ -340,6 +366,7 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
         inferSelectedConsumableId,
         isPersistedAutoConsumable,
         includeMandatory: !isOutrightOnlyContract(projectData.companyInfo?.contractType),
+        contractType: projectData.companyInfo?.contractType || '',
       }
     );
 
@@ -391,15 +418,47 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   // to optional/removable) so we never silently discard real data.
   useEffect(() => {
     const requiresMandatoryMachine = !isOutrightOnlyContract(contractType);
+
     setRows((prev) => {
       const mandatoryIdx = prev.findIndex((r) => r.id === MANDATORY_ROW_ID && r.isMandatory);
       const hasMandatory = mandatoryIdx !== -1;
 
-      if (requiresMandatoryMachine && !hasMandatory) {
-        return [makeMandatoryRow(), ...prev];
-      }
+      let next = prev;
 
-      if (!requiresMandatoryMachine && hasMandatory) {
+      if (requiresMandatoryMachine && !hasMandatory) {
+        // Leaving Outright Only (the only contract type without a
+        // mandatory row) for any other contract type. Outright Only starts
+        // with — and may still have sitting around — a blank, never-
+        // touched starter row (unchecked "H", no mode picked). Carrying
+        // that forward would show up as a second, pointless row next to
+        // the newly-required mandatory printer, so drop anything blank.
+        // Rows the user actually put data into are kept as-is.
+        const preserved = prev.filter((r) => isRowMandatoryDataEntered(r));
+
+        // If the user had already checked a row into a printer/machine
+        // row under Outright Only, promote that exact row into the
+        // mandatory printer instead of creating a brand new empty one
+        // alongside it — otherwise the old row was left stranded as a
+        // second, separate row.
+        const existingPrinterIdx = preserved.findIndex((r) => r.type === ROW_TYPE.MACHINE);
+
+        if (existingPrinterIdx !== -1) {
+          const oldId = preserved[existingPrinterIdx].id;
+          next = preserved.map((r, i) => {
+            if (i === existingPrinterIdx) {
+              return { ...r, id: MANDATORY_ROW_ID, isMandatory: true, type: ROW_TYPE.MACHINE, mode: '' };
+            }
+            // Keep any auto-added consumables (from selecting a catalog
+            // machine) linked to their printer row under its new id.
+            if (r.type === ROW_TYPE.CONSUMABLE && r.linkedMachineRowId === oldId) {
+              return { ...r, linkedMachineRowId: MANDATORY_ROW_ID };
+            }
+            return r;
+          });
+        } else {
+          next = [makeMandatoryRow(), ...preserved];
+        }
+      } else if (!requiresMandatoryMachine && hasMandatory) {
         const row = prev[mandatoryIdx];
         const isBlank = !isRowMandatoryDataEntered(row);
         if (isBlank) {
@@ -411,7 +470,7 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
         return prev.map((r, i) => (i === mandatoryIdx ? { ...r, isMandatory: false } : r));
       }
 
-      return prev;
+      return stripStrayFixedMonthlyPrinters(next, contractType);
     });
   }, [contractType]);
 
@@ -608,6 +667,11 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
   const toggleMachine = (id, isMachine) => {
     const target = rows.find((r) => r.id === id);
     if (target?.isMandatory) return;
+
+    // Fixed Monthly Only allows exactly one printer — the mandatory row.
+    // Its qty is user-entered directly, so a second checked-in printer row
+    // wouldn't have anywhere meaningful to feed into; refuse the toggle.
+    if (isMachine && String(contractType || '').trim().toLowerCase() === 'fixed monthly only') return;
 
     setRows((prev) => {
       const withoutLinked = prev.filter(
