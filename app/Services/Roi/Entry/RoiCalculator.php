@@ -407,15 +407,22 @@ class RoiCalculator
         // --- PROCESS MACHINES ---
         $processedMachines = array_map(function(array $m) use ($flags, $percentMargin, $printerMachineQty, $shouldEnforcePrinterQty): array {
             $unitSell = 0.0;
-            $fixedQty = 1;
-            $machineQty = $fixedQty;
             $mType = strtolower($m['type'] ?? '');
             $isMachineRow = $mType === 'machine';
             $mode = strtolower($m['mode'] ?? '');
             $isModeOthers = in_array($mode, ['others', 'other']);
 
+            // "Others"-mode machine rows recompute from a base of 1: their
+            // stored qty is already last year's *result* of multiplying by
+            // printerMachineQty, so starting from that here would double-
+            // count. An ordinary printer row has no such multiplier step —
+            // its qty is simply how many units are deployed, which doesn't
+            // change between Year 1 and Succeeding Years, so it must be
+            // carried forward as-is instead of being reset to a hardcoded 1.
+            $machineQty = $isModeOthers ? 1.0 : $this->orFallback($m['qty'] ?? 1, 1.0);
+
             if ($isModeOthers && $shouldEnforcePrinterQty) {
-                $machineQty = $this->to2Decimals($fixedQty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
+                $machineQty = $this->to2Decimals(1 * ($printerMachineQty > 0 ? $printerMachineQty : 1));
             }
 
             $unitMargin = 0.0;

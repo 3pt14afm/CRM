@@ -54,17 +54,24 @@ export const succeedingYears = (projectData) => {
   // 2. PROCESS MACHINES
   const processedMachines = rawMachines.map(m => {
     const unitSell = 0;
-    const fixedQty = 1;
-    let machineQty = fixedQty;
-    
+
     const mType = (m.type || "").toLowerCase();
     const isMachineRow = mType === "machine";
     const mode = (m.mode || "").toLowerCase();
     const isModeOthers = mode === "others" || mode === "other";
 
+    // "Others"-mode machine rows recompute from a base of 1: their stored
+    // qty is already last year's *result* of multiplying by
+    // printerMachineQty, so starting from that here would double-count.
+    // An ordinary printer row has no such multiplier step — its qty is
+    // simply how many units are deployed, which doesn't change between
+    // Year 1 and Succeeding Years, so it must be carried forward as-is
+    // instead of being reset to a hardcoded 1.
+    let machineQty = isModeOthers ? 1 : (Number(m.qty) || 1);
+
     if (isModeOthers) {
       if (shouldEnforcePrinterQty) {
-        machineQty = Math.round(fixedQty * (printerMachineQty || 1) * 100) / 100;
+        machineQty = Math.round(1 * (printerMachineQty || 1) * 100) / 100;
       }
     }
 

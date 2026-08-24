@@ -61,7 +61,7 @@ function useRowRenderData({ row, contractType, errors, showOutrightErrors, showM
   const isMachineRow = row.type === ROW_TYPE.MACHINE;
 
   let rowForCalcs = row;
-  let displayQty = row.qty || 1;
+  let displayQty = Number(row.qty) || 1;
   let qtyEditable = isQtyEditable(row, contractType);
 
   // Handle 'Others' mode: lock input and multiply qty by printerQtyTotal
@@ -72,8 +72,14 @@ function useRowRenderData({ row, contractType, errors, showOutrightErrors, showM
     rowForCalcs = { ...row, qty: effectiveQty };
     displayQty = effectiveQty;
     qtyEditable = false; // Lock input so it behaves exactly like Mono/Color
+  } else if (isOutrightOnly && isMachineRow) {
+    // Outright Only: machine qty is user-editable — do NOT enforce
+    rowForCalcs = row;
+    displayQty = Number(row.qty) || 1;
   } else {
     rowForCalcs = enforceRowQty(row, contractType, printerQtyTotal);
+    // Ensure displayQty syncs with enforceRowQty if it changed the qty
+    displayQty = Number(rowForCalcs.qty) || 1;
   }
 
   const calcs = getRowCalculations(rowForCalcs, projectData);
@@ -690,6 +696,9 @@ function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
           const baseQty = Number(row.qty) || 1;
           const effectiveQty = Math.round(baseQty * (printerQtyTotal || 1) * 100) / 100;
           rowForCalcs = { ...row, qty: effectiveQty };
+      } else if (isOutrightOnly && row.type === ROW_TYPE.MACHINE) {
+          // Outright Only: use the row's exact quantity without enforcing
+          rowForCalcs = row;
       } else {
           rowForCalcs = handlers.enforceRowQty(row, contractType, printerQtyTotal);
       }
