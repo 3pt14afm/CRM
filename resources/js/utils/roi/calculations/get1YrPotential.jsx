@@ -71,7 +71,10 @@ export const get1YrPotential = (projectData) => {
     let machineQty = getSafeNumber(m.qty, 0);
 
     if (isModeOthers) {
-      if (shouldEnforcePrinterQty) {
+      if (isOutrightOnly) {
+        // Outright Only: Respect user-entered qty for "Others" machine rows
+        machineQty = getSafeNumber(m.qty, 1);
+      } else if (shouldEnforcePrinterQty) {
         const baseQty = getSafeNumber(m.qty, 1);
         machineQty = to2Decimals(baseQty * (printerMachineQty || 1));
       } else {

@@ -162,30 +162,19 @@ const isQtyEditable = (row, contractType = '') => {
 
   if (isPrinterRow(row)) {
     if (!row.isMandatory) {
-      // Under every other contract type, a non-mandatory printer row is a
-      // follower that mirrors the mandatory row's qty and is never
-      // directly editable. Outright Only (1yr) is the one contract with
-      // no mandatory row at all (it's excluded from the table entirely),
-      // so a printer row the user adds there isn't a follower of
-      // anything — it's the only machine on the table, and its qty must
-      // be directly user-entered so it can actually be totaled.
       return outrightOnly;
     }
-    // Mandatory printer qty is locked at 1 for the two exception contracts
-    // (Fixed Monthly Only / Outright Only 1yr) — not user-editable there.
-    // Editable everywhere else.
     return !exception;
   }
 
   if (isMonoColorConsumable(row)) {
-    // Consumable mono/color qty: user-entered only for the two exception
-    // contracts (unchanged legacy behavior). Everywhere else it's derived
-    // from printer qty and not directly editable.
     return exception;
   }
 
-  // "others" rows (machine or consumable) are always locked to 1.
-  return false;
+  // "others" rows (machine or consumable) are user-entered for exception
+  // contracts (Fixed Monthly Only / Outright Only 1yr) so users can directly
+  // specify quantities. Everywhere else they are locked/derived.
+  return exception;
 };
 
 const enforceRowQty = (row, contractType = '', printerQtyTotal = 1) => {

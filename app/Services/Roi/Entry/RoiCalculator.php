@@ -212,7 +212,10 @@ class RoiCalculator
             $isModeOthers  = in_array($mode, ['others', 'other']);
 
             if ($isModeOthers) {
-                if ($shouldEnforcePrinterQty) {
+                if ($flags['isOutrightOnly']) {
+                    // Outright Only: Respect user-entered qty for "Others" machine rows
+                    $machineQty = $this->toFloat($m['qty'] ?? 1, 1);
+                } elseif ($shouldEnforcePrinterQty) {
                     $baseQty = $this->toFloat($m['qty'] ?? 1, 1);
                     $machineQty = $this->to2Decimals($baseQty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
                 } else {
