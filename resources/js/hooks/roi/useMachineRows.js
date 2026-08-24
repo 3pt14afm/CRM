@@ -42,12 +42,26 @@ const isRowMandatoryDataEntered = (row) =>
 const stripStrayFixedMonthlyPrinters = (rows, contractType) => {
   const normalized = String(contractType || '').trim().toLowerCase();
   if (normalized !== 'fixed monthly only') return rows;
-  const hasStrayPrinter = rows.some((r) => r.type === ROW_TYPE.MACHINE && !r.isMandatory);
+
+  const isOthersMode = (r) => {
+    const m = String(r?.mode || '').toLowerCase();
+    return m === 'others' || m === 'other';
+  };
+
+  // Only an ORDINARY (non-Others) non-mandatory MACHINE row counts as a
+  // "second printer" that needs stripping. An Others-mode machine row is
+  // a legitimate, independently qty-editable row under Fixed Monthly Only
+  // (see isExceptionContract/isQtyEditable below) — it must never be
+  // caught by this rule, or it silently gets demoted back to a plain
+  // consumable row (mode wiped, "Others" unchecked) on every hydration.
+  const isStrayPrinter = (r) => r.type === ROW_TYPE.MACHINE && !r.isMandatory && !isOthersMode(r);
+
+  const hasStrayPrinter = rows.some(isStrayPrinter);
   if (!hasStrayPrinter) return rows;
   return rows
-    .filter((r) => !(r.type === ROW_TYPE.MACHINE && !r.isMandatory && !isRowMandatoryDataEntered(r)))
+    .filter((r) => !(isStrayPrinter(r) && !isRowMandatoryDataEntered(r)))
     .map((r) =>
-      r.type === ROW_TYPE.MACHINE && !r.isMandatory
+      isStrayPrinter(r)
         ? { ...r, type: ROW_TYPE.CONSUMABLE, selectedMachineId: '', mode: '' }
         : r
     );
@@ -178,12 +192,9 @@ const isQtyEditable = (row, contractType = '') => {
 };
 
 const enforceRowQty = (row, contractType = '', printerQtyTotal = 1) => {
-  // If it's editable, enforceRowQty should do nothing and return the row exactly as is.
   if (isQtyEditable(row, contractType)) return row;
 
   // Non-mandatory printer rows always mirror the mandatory printer's qty
-  // (== printerQtyTotal, since only the mandatory row feeds that total)
-  // instead of being counted separately or locked to 1.
   if (isPrinterRow(row) && !row.isMandatory) {
     return { ...row, qty: printerQtyTotal || 1 };
   }
@@ -194,8 +205,13 @@ const enforceRowQty = (row, contractType = '', printerQtyTotal = 1) => {
     return { ...row, qty: printerQtyTotal };
   }
 
+  // FIX: Do NOT overwrite "others" rows to 1. Preserve whatever the user entered.
+  if (row.mode === MODE.OTHERS) {
+    return { ...row, qty: Number(row.qty) || 1 };
+  }
+
   // Everything else not covered above (mandatory printer row under the
-  // two exception contracts, "others" rows) stays locked at 1.
+  // two exception contracts) stays locked at 1.
   return { ...row, qty: 1 };
 };
 
@@ -370,14 +386,37 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     prevContractTypeRef.current = contractType;
     if (prevContractType === contractType) return; // skip on initial mount
 
+    // Outright Only is the only contract where a non-mandatory printer row
+    // or an "Others" row's qty is freely user-entered. Leaving it for any
+    // other contract means that qty is about to become locked/derived —
+    // it should reset to 0 rather than carry over the stale user-entered
+    // number (which would otherwise just get locked to 1 by enforceRowQty
+    // and look like a phantom leftover value).
+    const leavingOutrightOnly =
+      isOutrightOnlyContract(prevContractType) && !isOutrightOnlyContract(contractType);
+
     setRows((prev) => {
       const adjusted = prev.map((row) => {
         const wasEditable = isQtyEditable(row, prevContractType);
         const isEditable  = isQtyEditable(row, contractType);
+
+        if (leavingOutrightOnly && wasEditable && !isEditable) {
+          return { ...row, qty: 0, __resetFromOutrightOnly: true };
+        }
+
         return (!wasEditable && isEditable) ? { ...row, qty: 1 } : row;
       });
+
       const printerQtyTotal = computePrinterQtyTotal(adjusted);
-      return adjusted.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
+      return adjusted.map((row) => {
+        // Skip enforceRowQty for rows we just reset to 0 above — its
+        // fallback would otherwise re-lock them to qty: 1.
+        if (row.__resetFromOutrightOnly) {
+          const { __resetFromOutrightOnly, ...rest } = row;
+          return rest;
+        }
+        return enforceRowQty(row, contractType, printerQtyTotal);
+      });
     });
   }, [contractType]);
 
@@ -489,9 +528,10 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     setProjectData((prev) => ({
       ...prev,
       machineConfiguration: {
+        ...prev.machineConfiguration, // <--- ADD THIS LINE TO PRESERVE SUCCEEDING YEARS/CALCS
         machine:    machines,
-        consumable:  consumables,
-        totals:      totalsObj,
+        consumable: consumables,
+        totals:     totalsObj,
       },
     }));
   }, [

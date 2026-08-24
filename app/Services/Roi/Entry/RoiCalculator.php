@@ -145,7 +145,14 @@ class RoiCalculator
             'inputtedCost'       => $rawCost,
             'computedCost'       => $finalComputedCost,
             'basePerYear'        => $basePerYear,
-            'totalCost'          => $isMachine ? $finalComputedCost * $qty : $rawCost * $qty,
+            // Machine Config's own Total Cost column is plain qty x unit
+            // cost — no interest markup, for machines or consumables. The
+            // financed/interest-loaded cost is still available via
+            // computedCost above and machineMarginTotal below; downstream
+            // calcs (1st Year Potential, Succeeding Years) read those two
+            // fields directly and never read this totalCost, so this only
+            // affects Machine Config. Mirrors getRowCalculations.jsx.
+            'totalCost'          => $rawCost * $qty,
             'yields'             => $yields,
             'costCpp'            => $safeYields > 0 ? $rawCost / $safeYields : 0.0,
             'price'              => $price,
@@ -215,6 +222,21 @@ class RoiCalculator
                 if ($flags['isOutrightOnly']) {
                     // Outright Only: Respect user-entered qty for "Others" machine rows
                     $machineQty = $this->toFloat($m['qty'] ?? 1, 1);
+                } elseif ($flags['isMonthlyRental']) {
+                    // Fixed Monthly Only: "Others" machine qty is user-entered/
+                    // editable (see frontend useMachineRows.js enforceRowQty),
+                    // same as Outright Only above. Respect it whenever it's
+                    // actually set; only derive from yields as a fallback for
+                    // rows where nothing was entered.
+                    $enteredQty = $this->toFloat($m['qty'] ?? 0);
+                    if ($enteredQty > 0) {
+                        $machineQty = $enteredQty;
+                    } else {
+                        $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
+                        $machineQty = $this->hasValidYield($machineYields) && $base > 0
+                            ? $this->getQtyFromYields($base, $machineYields)
+                            : 1;
+                    }
                 } elseif ($shouldEnforcePrinterQty) {
                     $baseQty = $this->toFloat($m['qty'] ?? 1, 1);
                     $machineQty = $this->to2Decimals($baseQty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
@@ -424,8 +446,17 @@ class RoiCalculator
             // carried forward as-is instead of being reset to a hardcoded 1.
             $machineQty = $isModeOthers ? 1.0 : $this->orFallback($m['qty'] ?? 1, 1.0);
 
-            if ($isModeOthers && $shouldEnforcePrinterQty) {
-                $machineQty = $this->to2Decimals(1 * ($printerMachineQty > 0 ? $printerMachineQty : 1));
+            if ($isModeOthers) {
+                $enteredQty = $this->toFloat($m['qty'] ?? 0);
+                if (($flags['isOutrightOnly'] || $flags['isMonthlyRental']) && $enteredQty > 0) {
+                    // Outright Only and Fixed Monthly Only: "Others" machine
+                    // qty is user-entered/editable and must carry through to
+                    // succeeding years unchanged, same as the 1st-year branch
+                    // above. Mirrors succeedingYears.jsx.
+                    $machineQty = $enteredQty;
+                } elseif ($shouldEnforcePrinterQty) {
+                    $machineQty = $this->to2Decimals(1 * ($printerMachineQty > 0 ? $printerMachineQty : 1));
+                }
             }
 
             $unitMargin = 0.0;

@@ -55,11 +55,9 @@ export const get1YrPotential = (projectData) => {
     return isPerCartridge ? Math.ceil(qty) : qty;
   };
 
-  // Only the mandatory printer row drives this total — any other
-  // printer-type row a user added just mirrors the mandatory row's qty
-  // (see useMachineRows.js) and must not be counted a second time.
+  // Make printerMachineQty robust by checking ID or isMandatory
   const printerMachineQty = rawMachines
-    .filter(m => (m.mode?.toLowerCase() || '') !== 'others' && m.isMandatory)
+    .filter(m => (m.mode?.toLowerCase() || '') !== 'others' && (m.id === '__mandatory_printer__' || m.isMandatory))
     .reduce((sum, m) => sum + getSafeNumber(m.qty, 0), 0);
 
   // 2. PROCESS MACHINES
@@ -71,18 +69,37 @@ export const get1YrPotential = (projectData) => {
     let machineQty = getSafeNumber(m.qty, 0);
 
     if (isModeOthers) {
+      // Only Outright Only allows a user-entered "Others" qty to stand as-
+      // is; every other contract (Fixed Monthly Only aside) derives it
+      // from printer qty, regardless of whatever raw qty happens to be
+      // stored (it's locked to 1 by useMachineRows.js for those contracts
+      // anyway, so checking qty > 0 here would always be true and would
+      // permanently bypass the printer multiplier). Mirrors RoiCalculator.php.
       if (isOutrightOnly) {
-        // Outright Only: Respect user-entered qty for "Others" machine rows
         machineQty = getSafeNumber(m.qty, 1);
+      } else if (isMonthlyRental) {
+        // Fixed Monthly Only: "others" machine qty is user-entered/editable
+        // (see useMachineRows.js enforceRowQty's explicit "do NOT overwrite
+        // others rows" fix), so it must be respected here just like
+        // Outright Only above. Only fall back to yield-derivation/1 when
+        // nothing was actually entered.
+        const enteredQty = getSafeNumber(m.qty, 0);
+        if (enteredQty > 0) {
+          machineQty = enteredQty;
+        } else if (hasValidYield(machineYields)) {
+          const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
+          machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : 1;
+        } else {
+          machineQty = 1;
+        }
       } else if (shouldEnforcePrinterQty) {
-        const baseQty = getSafeNumber(m.qty, 1);
-        machineQty = to2Decimals(baseQty * (printerMachineQty || 1));
+        machineQty = to2Decimals(1 * (printerMachineQty || 1));
       } else {
         if (hasValidYield(machineYields)) {
           const baseYields = annualMonoYields > 0 ? annualMonoYields : annualColorYields;
-          machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : getSafeNumber(m.qty, 1);
+          machineQty = baseYields > 0 ? getQtyFromYields(baseYields, machineYields) : 1;
         } else {
-          machineQty = getSafeNumber(m.qty, 1);
+          machineQty = 1;
         }
       }
     } else if (!machineQty || machineQty <= 0) {

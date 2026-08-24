@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
+// Adjust the import path below if your folder structure is different
+import { succeedingYears } from '@/utils/roi/calculations/succeedingYears';
 
 function MachConSucceMerged() {
   const { projectData } = useProjectData();
@@ -14,7 +16,7 @@ function MachConSucceMerged() {
   const normalMachines = filteredMachine.filter((m) => m.mode !== 'others' && m.type !== 'others');
   const othersMachines = filteredMachine.filter((m) => m.mode === 'others' || m.type === 'others');
 
-  const yearData = projectData?.yearlyBreakdown?.[2] || {};
+  const yearData = useMemo(() => succeedingYears(projectData), [projectData]);
   const { machines = [], consumables = [] } = yearData;
 
   const contractType = projectData?.companyInfo?.contractType || '';
@@ -190,7 +192,6 @@ function MachConSucceMerged() {
               <ItemCard
                 key={`m-mobile-${index}`}
                 sku={row.left?.sku || ''}
-                // FIX: Use inputtedCost to avoid displaying 22,400
                 cost={row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}
                 yearQty={formatQty(0)}
                 yearTotalCost={format(0)}
@@ -239,7 +240,6 @@ function MachConSucceMerged() {
               <ItemCard
                 key={`o-mobile-${index}`}
                 sku={row.left?.sku || ''}
-                // FIX: Use inputtedCost to avoid displaying 22,400
                 cost={row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}
                 yearQty={formatQty(0)}
                 yearTotalCost={format(0)}
@@ -291,7 +291,7 @@ function MachConSucceMerged() {
               <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Gross Sales</th>
               <th className="bg-[#f8f8f8] print:bg-white"></th>
               <th className="px-1 py-2 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase">Qty</th>
-              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase">Total Cost</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-gray-300 uppercase">Total Cost</th>
               <th className="px-1 py-2 text-[13px] text-center font-medium border-t border-gray-300 uppercase">Gross Sales</th>
             </tr>
           </thead>
@@ -309,7 +309,6 @@ function MachConSucceMerged() {
             {machineRows.map((row, index) => (
               <tr key={`machine-row-${index}`} className="border-x border-x-gray-300 bg-white align-middle">
                 <td className="px-7 py-3 break-words uppercase border-r border-gray-200">{row.left?.sku || ''}</td>
-                {/* FIX: Use inputtedCost to avoid displaying 22,400 */}
                 <td className="px-3 py-3 text-center border-r border-gray-300">{row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}</td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                 <td className="px-1 py-3 text-center border-x border-gray-200">{formatQty(0)}</td>
@@ -359,7 +358,6 @@ function MachConSucceMerged() {
                 {othersRows.map((row, index) => (
                   <tr key={`others-row-${index}`} className="border-x border-x-gray-300 bg-white align-middle">
                     <td className="px-7 py-3 break-words uppercase border-r border-b border-gray-200">{row.left?.sku || ''}</td>
-                    {/* FIX: Use inputtedCost to avoid displaying 22,400 */}
                     <td className="px-3 py-3 text-center border-r border-r-gray-300 border-b border-gray-200">{row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}</td>
                     <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
                     <td className="px-1 py-3 text-center border-r border-r-gray-200 border-b border-gray-200">{formatQty(0)}</td>

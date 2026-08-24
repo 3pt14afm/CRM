@@ -44,11 +44,9 @@ export const succeedingYears = (projectData) => {
     };
   }
 
-  // Only the mandatory printer row drives this total — any other
-  // printer-type row a user added just mirrors the mandatory row's qty
-  // (see useMachineRows.js) and must not be counted a second time.
+  // Make printerMachineQty robust by checking ID or isMandatory
   const printerMachineQty = rawMachines
-    .filter(m => (m.mode?.toLowerCase() || '') !== 'others' && m.isMandatory)
+    .filter(m => (m.mode?.toLowerCase() || '') !== 'others' && (m.id === '__mandatory_printer__' || m.isMandatory))
     .reduce((sum, m) => sum + (Number(m.qty) || 0), 0);
 
   // 2. PROCESS MACHINES
@@ -60,17 +58,25 @@ export const succeedingYears = (projectData) => {
     const mode = (m.mode || "").toLowerCase();
     const isModeOthers = mode === "others" || mode === "other";
 
-    // "Others"-mode machine rows recompute from a base of 1: their stored
-    // qty is already last year's *result* of multiplying by
-    // printerMachineQty, so starting from that here would double-count.
-    // An ordinary printer row has no such multiplier step — its qty is
-    // simply how many units are deployed, which doesn't change between
-    // Year 1 and Succeeding Years, so it must be carried forward as-is
-    // instead of being reset to a hardcoded 1.
     let machineQty = isModeOthers ? 1 : (Number(m.qty) || 1);
 
     if (isModeOthers) {
-      if (shouldEnforcePrinterQty) {
+      // Only Outright Only allows a user-entered "Others" qty to stand as-
+      // is; every other contract derives it from printer qty regardless of
+      // whatever raw qty happens to be stored (it's locked to 1 by
+      // useMachineRows.js for those contracts anyway, so checking qty > 0
+      // here would always be true and would permanently bypass the printer
+      // multiplier). Mirrors RoiCalculator.php.
+      if (isOutrightOnly && Number(m.qty) > 0) {
+        machineQty = Number(m.qty);
+      } else if (isMonthlyRental && Number(m.qty) > 0) {
+        // Fixed Monthly Only: "others" machine qty is user-entered/editable
+        // (mirrors the Outright Only branch above and useMachineRows.js's
+        // enforceRowQty, which explicitly preserves it), so it must carry
+        // through to succeeding years instead of collapsing to the
+        // isModeOthers ? 1 default set above.
+        machineQty = Number(m.qty);
+      } else if (shouldEnforcePrinterQty) {
         machineQty = Math.round(1 * (printerMachineQty || 1) * 100) / 100;
       }
     }
@@ -114,7 +120,10 @@ export const succeedingYears = (projectData) => {
       return { ...c, qty, yields: 0, price: 0, totalCost: qty * unitCost, totalSell: 0 };
     }
 
-    if (mode === 'mono' || mode === 'color' || isModeOthers) {
+    if (isOutrightOnly && (mode === 'mono' || mode === 'color' || isModeOthers)) {
+      // Outright Only: Respect user-entered qty for consumables
+      qty = getSafeNumber(c.qty, 1);
+    } else if (mode === 'mono' || mode === 'color' || isModeOthers) {
       if (hasValidYield(itemYields)) {
         let baseYields = mode === 'color' ? annualColorYields : annualMonoYields;
         if (isModeOthers) {
