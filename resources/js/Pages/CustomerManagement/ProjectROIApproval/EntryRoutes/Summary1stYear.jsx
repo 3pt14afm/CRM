@@ -30,7 +30,7 @@ function Summary1stYear() {
         <div className="print-avoid-break">
           <CompanyInfoSum />
 
-          <div className='lg:grid lg:grid-cols-[40%_60%] gap-4 mt-4 items-start print:[grid-template-columns:45%_55%] print:p-0 print:gap-0'>
+          <div className='lg:grid lg:grid-cols-[40%_60%] gap-4 mt-4 items-start print:grid print:grid-cols-[45%_55%] print:p-0 print:gap-0'>
             <div className="max-w-4xl w-full mt-3 print:ml-0 print:mt-0 print:mr-0">
               <TotalMVP />
             </div>

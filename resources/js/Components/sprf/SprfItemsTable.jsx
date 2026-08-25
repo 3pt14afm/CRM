@@ -56,6 +56,7 @@ export default function SprfItemsTable({
   totals,
   summary = {},
   readOnly = false,
+  errors = {},
 }) {
   const showActionColumn = !readOnly;
   const [expanded, setExpanded] = useState({});
@@ -63,6 +64,10 @@ export default function SprfItemsTable({
     ...p, 
     [key]: p[key] === undefined ? false : !p[key] 
   }));
+
+  const getQtyError = (groupIndex, subIndex) => {
+    return errors?.[`items.${groupIndex}.subitems.${subIndex}.qty`];
+  };
 
   const inputClass =
     'w-full min-w-0 min-h-5 text-[10px] sm:text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-0 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
@@ -88,6 +93,7 @@ export default function SprfItemsTable({
         onRemoveSubitem={onRemoveSubitem}
         totals={totals}
         readOnly={readOnly}
+        errors={errors}
       />
 
       {/* ── DESKTOP: original table (unchanged, md and up) ─────────────── */}
@@ -343,7 +349,7 @@ export default function SprfItemsTable({
                           const value = e.target.value;
                           onUpdateSubitem(groupIndex, subIndex, 'qty', value === '' ? '' : String(Math.floor(Number(value))));
                         }}
-                        className={`${inputClass} py-0.5`}
+                        className={`${inputClass} py-0.5 ${getQtyError(groupIndex, subIndex) ? '!border-red-500 !border-solid' : ''}`}
                         placeholder="0"
                       />
                     )}

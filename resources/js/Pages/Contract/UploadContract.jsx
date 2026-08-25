@@ -22,7 +22,7 @@ const DEFAULT_FILTERS = {
     search:         '',
     category:       '',
     delsan_company: '',
-    per_page:       12,
+    per_page:       20,
     sort_by:        'company_name',
     sort_order:     'asc',
 };
@@ -245,6 +245,9 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
         return {
             ...DEFAULT_FILTERS,
             ...(persisted ?? {}),
+            // The per_page the server actually used to fetch `companies` always wins over a
+            // stale persisted value, so "Rows: X" never disagrees with what's rendered.
+            ...(companies?.per_page !== undefined ? { per_page: companies.per_page } : {}),
             ...(filters.search         !== undefined ? { search:         filters.search }         : {}),
             ...(filters.category       !== undefined ? { category:       filters.category }       : {}),
             ...(filters.delsan_company !== undefined ? { delsan_company: filters.delsan_company } : {}),
@@ -320,6 +323,21 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
         });
     };
 
+    // On a fresh load with no explicit ?per_page= in the URL, the server defaults to 12.
+    // If the user had previously picked a different rows-per-page, refetch to honor it instead
+    // of just relabeling the button.
+    useEffect(() => {
+        const persisted = loadPersistedFilters();
+        if (
+            filters.per_page === undefined &&
+            persisted?.per_page !== undefined &&
+            persisted.per_page !== companies?.per_page
+        ) {
+            updateFilters({ per_page: persisted.per_page });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const runSearch = (value, currentFilters) => {
         if (searchAbortRef.current) searchAbortRef.current.abort();
         const controller = new AbortController();
@@ -360,9 +378,9 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
     const isFiltered = useMemo(() => (
         searchState.search         !== DEFAULT_FILTERS.search         ||
         searchState.category       !== DEFAULT_FILTERS.category       ||
-        searchState.delsan_company !== DEFAULT_FILTERS.delsan_company ||
-        searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
-        searchState.sort_order     !== DEFAULT_FILTERS.sort_order
+        searchState.delsan_company !== DEFAULT_FILTERS.delsan_company // ||
+        // searchState.sort_by        !== DEFAULT_FILTERS.sort_by        ||
+        // searchState.sort_order     !== DEFAULT_FILTERS.sort_order
     ), [searchState]);
 
     const clearAllFilters = () => {

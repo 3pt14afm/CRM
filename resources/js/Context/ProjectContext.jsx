@@ -199,7 +199,7 @@ const ProjectDataProvider = ({ children }) => {
   const saveDraft = useCallback((updater) => {
     setProjectData((prev) => {
       const nextRaw = typeof updater === "function" ? updater(prev) : updater;
-      const next = mergeWithDefaults(cloneDefault(), nextRaw);
+      const next = mergeWithDefaults(prev, nextRaw);
 
       if (typeof window !== "undefined") {
         try {

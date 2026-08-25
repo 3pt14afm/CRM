@@ -39,6 +39,33 @@ trait ManagesCompanyContracts
         return $query->pluck('id');
     }
 
+    // protected function visibleCompanyIds(?int $asUserId = null)
+    // {
+    //     $callerIsAdmin      = $this->isAdmin();
+    //     $callerIsPrivileged = $this->isCompanyVisibilityPrivileged();
+
+    //     if (!$asUserId && ($callerIsAdmin || $callerIsPrivileged)) {
+    //         return Company::query()->where('status', 1)->pluck('id');
+    //     }
+
+    //     $companyTable = (new Company())->getTable();
+
+    //     $query = Company::query()
+    //         ->leftJoin('users as client_managers', function ($join) use ($companyTable) {
+    //             $join->on(
+    //                 DB::raw("{$companyTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
+    //                 '=',
+    //                 DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
+    //             );
+    //         })
+    //         ->where("{$companyTable}.status", 1)
+    //         ->select("{$companyTable}.id");
+
+    //     $this->applyCompanyVisibility($query, ($callerIsAdmin || $callerIsPrivileged) ? $asUserId : null);
+
+    //     return $query->pluck('id');
+    // }
+
     protected function isAdmin(): bool
     {
         $currentUser = Auth::user();

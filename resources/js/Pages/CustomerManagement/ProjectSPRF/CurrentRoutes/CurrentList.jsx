@@ -551,7 +551,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   );
 
   const scopeControl = (
-    <div className="inline-flex gap-1 rounded-full bg-gray-100 p-0.5 flex-shrink-0">
+    <div className="inline-flex gap-1 rounded-full shadow-inner bg-gray-100 p-0.5 flex-shrink-0">
       {[
         { key: "mine", label: "My Approvals" },
         { key: "all",  label: "All" },

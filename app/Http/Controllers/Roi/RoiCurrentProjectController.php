@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Roi;
 
+use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
 use App\Http\Controllers\Controller;
 use App\Models\RoiCurrentProject;
 use App\Models\User;
@@ -15,6 +16,7 @@ use Inertia\Inertia;
 
 class RoiCurrentProjectController extends Controller
 {
+    use ChecksPreferenceAccess;
     protected RoiCurrentWorkflowService $workflowService;
 
     public function __construct(RoiCurrentWorkflowService $workflowService)
@@ -44,7 +46,7 @@ class RoiCurrentProjectController extends Controller
 
     private function applyCurrentVisibilityScope($query, $user)
     {
-        if ((int) $user->id === 1) return;
+        if ((int) $user->id === 1 || $this->isRoiViewAllPrivileged()) return;
 
         $userId = (int) $user->id;
 
@@ -73,7 +75,7 @@ class RoiCurrentProjectController extends Controller
     private function ensureCanView(RoiCurrentProject $project, $user): void
     {
         // Super Viewer
-        if ($user->id === 1) {
+        if ($user->id === 1 || $this->isRoiViewAllPrivileged()) {
             return;
         }
 

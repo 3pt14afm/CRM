@@ -704,7 +704,7 @@ class SprfCurrentWorkflowService
     private function dispatchMail(string $to, \Illuminate\Mail\Mailable $mailable): void
     {
         try {
-            Mail::to($to)->send($mailable);
+            Mail::to($to)->queue($mailable);
         } catch (\Throwable $e) {
             Log::error('[SPRF Mail] Failed to send ' . get_class($mailable), [
                 'to'      => $to,

@@ -10,17 +10,29 @@ import PendingApprovalsPanel from "@/Components/PendingApprovalsPanel";
 import ExpiringContractsPanel from "@/Components/ExpiringContractsPanel";
 import { cardThemes, defaultCardTheme } from "@/Config/cardThemes";
 import { BiSolidUserCheck } from "react-icons/bi";
+import ScrollableSelect from "@/Components/ScrollableSelect";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const { auth } = usePage().props;
   const [contractsTab, setContractsTab] = useState("expiring_soon");
+  const [clientManagers, setClientManagers] = useState([]);
+  const [viewAsUserId, setViewAsUserId] = useState("");
 
   useEffect(() => {
     axios
-      .get(route("customers.stats"))
+      .get(route("customers.stats"), {
+        params: viewAsUserId ? { as_user_id: viewAsUserId } : {},
+      })
       .then((res) => setStats(res.data))
       .catch((err) => console.error("Failed to load dashboard stats", err));
+  }, [viewAsUserId]);
+
+  useEffect(() => {
+    axios
+      .get(route("dashboard.clientManagers"))
+      .then((res) => setClientManagers(res.data ?? []))
+      .catch((err) => console.error("Failed to load client managers", err));
   }, []);
 
   const statsLoading = stats === null;
@@ -60,6 +72,17 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center justify-end gap-2 lg:gap-3">
+            {/* {clientManagers.length > 0 && (
+              <ScrollableSelect
+                value={viewAsUserId}
+                onChange={setViewAsUserId}
+                options={[{ id: "", name: "My View" }, ...clientManagers]}
+                placeholder="View as..."
+                isSearchable
+                showSelected
+                className="w-40 lg:w-48"
+              />
+            )} */}
             <Link href={route("roi.entry.create")} className="flex items-center gap-1 lg:gap-2 text-[11px] lg:text-xs font-medium shadow-md pl-1.5 pr-2.5 py-1.5 lg:pl-3 lg:pr-4 lg:py-2.5 rounded-lg bg-gradient-to-br from-emerald-200/70 via-emerald-100/80 to-emerald-200/70 text-emerald-900 hover:from-emerald-600 hover:to-teal-600 transition-colors hover:text-white">
               <MdAdd className="size-3 lg:size-4" />New ROI Entry
             </Link>

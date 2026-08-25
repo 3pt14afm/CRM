@@ -3,6 +3,7 @@
 namespace App\Mail\Roi;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -13,7 +14,7 @@ use Illuminate\Queue\SerializesModels;
  * Recipient: Preparer
  * Trigger: On project submission (RoiEntryProjectController::submit)
  */
-class RoiSubmittedMail extends Mailable
+class RoiSubmittedMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

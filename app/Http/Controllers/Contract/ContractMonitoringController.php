@@ -43,9 +43,9 @@ class ContractMonitoringController extends Controller
     {
         $ctx = $this->buildFilteredCompaniesQuery($request);
 
-        $perPage = $request->integer('per_page', 12);
+        $perPage = $request->integer('per_page', 100);
         if ($perPage < 1) {
-            $perPage = 12;
+            $perPage = 100;
         } elseif ($perPage > 100) {
             $perPage = 100;
         }
@@ -192,9 +192,10 @@ class ContractMonitoringController extends Controller
                 'value' => $value,
                 'label' => $label,
             ])->values(),
-            'filters' => $request->only([
-                'search', 'delsan_company', 'type', 'status', 'include_no_contracts', 'per_page', 'sort_by', 'sort_order',
-            ]),
+            'filters' => array_merge(
+                $request->only(['search', 'delsan_company', 'type', 'status', 'include_no_contracts', 'sort_by', 'sort_order']),
+                ['per_page' => $perPage] // always echo the resolved value, not just what was in the request
+            ),
         ]);
     }
 

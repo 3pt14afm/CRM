@@ -147,7 +147,7 @@ const InterestCalcuSum = () => {
         {/* Right Column: Summary ROI Box */}
         <div className="flex justify-end w-full print:ml-2">
           <div className="shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 rounded-xl overflow-hidden w-full mr-4 bg-white print:shadow-none print:border-[1px] print:border-gray-300">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-[11px] table-fixed">
               <colgroup>
                 <col className="w-[40%] " />
                 <col className="w-[60%] " />

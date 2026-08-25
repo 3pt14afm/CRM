@@ -333,6 +333,7 @@ export default function ListFilterToolbar({
         handleDateClear={() => { onDateClear(); setShowDatePicker(false); }}
         onApply={onDateApply}
         tooltipLabel="Filter by date"
+        align="left"
       />
 
     </FilterToolbar>

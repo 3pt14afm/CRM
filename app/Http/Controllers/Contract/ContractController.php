@@ -28,10 +28,10 @@ class ContractController extends Controller
 
     public function upload(Request $request)
     {
-        $perPage = $request->integer('per_page', 12);
+        $perPage = $request->integer('per_page', 20);
 
         if ($perPage < 1) {
-            $perPage = 12;
+            $perPage = 20;
         } elseif ($perPage > 100) {
             $perPage = 100;
         }
@@ -50,10 +50,15 @@ class ContractController extends Controller
 
         $numericColumns = ['id'];
         $companyTable   = (new Company())->getTable();
+        $contractTable  = (new Contract())->getTable();
 
-        $qualify = fn (string $table, string $column) =>
+        $qualify      = fn (string $table, string $column) =>
             '`' . str_replace('.', '`.`', $table) . '`.`' . $column . '`';
+        $qualifyTable = fn (string $table) => '`' . str_replace('.', '`.`', $table) . '`';
 
+        // Shared filter/visibility base. No select() or with() here — Step 1
+        // (group counting) and Step 2 (row fetching) each need different
+        // columns, so both are applied per-step, not on this shared query.
         $baseQuery = Company::query()
             ->leftJoin('users as client_managers', function ($join) use ($companyTable) {
                 $join->on(
@@ -62,8 +67,6 @@ class ContractController extends Controller
                     DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
                 );
             })
-            ->select("{$companyTable}.*")
-            ->with('clientManager')
             ->where("{$companyTable}.status", 1)
             ->when(true, fn ($query) => $this->applyCompanyVisibility($query))
             ->when($request->input('search'), function ($query, $search) {
@@ -87,39 +90,86 @@ class ContractController extends Controller
                 $query->whereIn('delsan_company', $delsans);
             });
 
-        $contractTable = (new Contract())->getTable();
+        // A "group" = all companies (branches) sharing a sap_code. Companies
+        // with no sap_code are their own single-row group, keyed by id so
+        // they don't all collapse into one NULL group.
+        $groupKeyExpr = "CASE WHEN {$companyTable}.sap_code IS NULL OR {$companyTable}.sap_code = ''
+                            THEN CONCAT('__id_', {$companyTable}.id)
+                            ELSE {$companyTable}.sap_code
+                        END";
 
-        $qualifyTable = fn (string $table) => '`' . str_replace('.', '`.`', $table) . '`';
+        // Group-level sort value — must be an aggregate since Step 1 only
+        // SELECTs group_key + this value (ONLY_FULL_GROUP_BY compliance).
+        // Since a sap_code group can only ever have one client_manager,
+        // MIN() here is just a safe way to pull "the" value, not a
+        // tie-breaking choice between differing managers.
+        $groupSortExpr = match (true) {
+            $sortBy === 'sap_code' =>
+                "CAST(REGEXP_REPLACE(MIN({$companyTable}.sap_code), '^[A-Za-z-]+', '') AS UNSIGNED)",
+            $sortBy === 'client_manager' =>
+                "MIN(LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)))",
+            $sortBy === 'contracts_count' =>
+                // Sums per-row contract counts across all siblings in the group,
+                // matching the "group total" already shown on the frontend.
+                "SUM((SELECT COUNT(*) FROM {$qualifyTable($contractTable)} AS ct
+                    WHERE ct.company_id = {$companyTable}.id))",
+            in_array($sortBy, $numericColumns, true) => "MIN({$companyTable}.{$sortBy})",
+            default => "MIN(LOWER({$qualify($companyTable, $sortBy)}))",
+        };
 
-        $companies = $baseQuery
-            ->when($sortBy === 'sap_code', function ($query) use ($sortOrder) {
-                $query->orderByRaw(
-                    "CAST(REGEXP_REPLACE(sap_code, '^[A-Za-z-]+', '') AS UNSIGNED) {$sortOrder},
-                    sap_code {$sortOrder}"
-                );
-            })
-            ->when($sortBy === 'client_manager', function ($query) use ($sortOrder) {
-                $query->orderByRaw(
-                    "LOWER(CONCAT(client_managers.first_name, ' ', client_managers.last_name)) {$sortOrder}"
-                );
-            })
-            ->when($sortBy === 'contracts_count', function ($query) use ($sortOrder, $companyTable, $contractTable, $qualifyTable) {
-                $query->orderByRaw("
-                    (
-                        SELECT COUNT(*)
-                        FROM {$qualifyTable($contractTable)} AS ct
-                        WHERE ct.company_id = {$companyTable}.id
-                    ) {$sortOrder}
-                ");
-            })
-            ->when(!in_array($sortBy, ['sap_code', 'client_manager', 'contracts_count']) && in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable) {
-                $query->orderBy("{$companyTable}.{$sortBy}", $sortOrder);
-            })
-            ->when(!in_array($sortBy, ['sap_code', 'client_manager', 'contracts_count']) && !in_array($sortBy, $numericColumns), function ($query) use ($sortBy, $sortOrder, $companyTable, $qualify) {
-                $query->orderByRaw("LOWER({$qualify($companyTable, $sortBy)}) {$sortOrder}");
-            })
-            ->paginate($perPage)
-            ->withQueryString();
+        // Secondary tiebreak so groups with equal sort_val (e.g. same numeric
+        // sap_code prefix) order consistently across requests/pages instead
+        // of arbitrary DB order.
+        $groupTieBreakExpr = "MIN({$companyTable}.sap_code)";
+
+        // STEP 1: paginate GROUPS, not rows. $perPage now genuinely means
+        // "20 sap_code groups."
+        $groupPage = (clone $baseQuery)
+            ->select(DB::raw("{$groupKeyExpr} AS group_key"))
+            ->selectRaw("{$groupSortExpr} AS sort_val")
+            ->selectRaw("{$groupTieBreakExpr} AS tie_val")
+            ->groupBy('group_key')
+            ->orderBy('sort_val', $sortOrder)
+            ->orderBy('tie_val', $sortOrder)
+            ->paginate($perPage);
+
+        $groupKeysOnPage = collect($groupPage->items())->pluck('group_key')->values();
+
+        // Guard: last page / no-results edge case. An empty IN()/FIELD() list
+        // is invalid SQL, so short-circuit instead of querying.
+        if ($groupKeysOnPage->isEmpty()) {
+            $companies = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(),
+                $groupPage->total(),
+                $perPage,
+                $groupPage->currentPage(),
+                ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query()]
+            );
+        } else {
+            $placeholders = implode(',', array_fill(0, $groupKeysOnPage->count(), '?'));
+
+            // STEP 2: fetch every row (rep + siblings) belonging to the page's
+            // groups. whereRaw (not havingRaw) — this is plain row filtering,
+            // there's no GROUP BY on this query.
+            $companiesCollection = (clone $baseQuery)
+                ->with('clientManager') // real columns exist here, safe to eager load
+                ->selectRaw("{$groupKeyExpr} AS group_key")
+                ->addSelect("{$companyTable}.*")
+                ->whereRaw("({$groupKeyExpr}) IN ({$placeholders})", $groupKeysOnPage->all())
+                ->orderByRaw("FIELD(({$groupKeyExpr}), {$placeholders})", $groupKeysOnPage->all())
+                ->orderBy("{$companyTable}.id") // deterministic sibling order within a group
+                ->get();
+
+            $companies = new \Illuminate\Pagination\LengthAwarePaginator(
+                $companiesCollection,
+                $groupPage->total(),
+                $perPage,
+                $groupPage->currentPage(),
+                ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query()]
+            );
+        }
+
+        // --- Everything below is unchanged from the original method ---
 
         $sapCodesOnPage = $companies->getCollection()->pluck('sap_code')->filter()->unique()->values();
 

@@ -63,7 +63,7 @@ function Entry({
   canCancel: canCancelProp = false,
   signatures = {},
 }) {
-  const { auth } = usePage().props;
+  const { auth, errors } = usePage().props;
 
   const sourceProject = initialProject ?? project;
 
@@ -932,6 +932,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   totals={itemTotals}
                   summary={summary}
                   readOnly={readOnly}
+                  errors={errors}
                 />
               </div>
 

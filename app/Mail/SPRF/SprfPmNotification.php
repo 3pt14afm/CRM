@@ -3,6 +3,7 @@
 namespace App\Mail\SPRF;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -19,7 +20,7 @@ use Illuminate\Queue\SerializesModels;
  *   withdrawn  → #11 Withdrawn
  *   cancelled  → #11 Cancelled
  */
-class SprfPmNotification extends Mailable
+class SprfPmNotification extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

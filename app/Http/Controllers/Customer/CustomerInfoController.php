@@ -25,7 +25,7 @@ class CustomerInfoController extends Controller
     {
         $ctx = $this->buildExistingCompaniesContext($request);
 
-        $page = $request->integer('page', 1);
+        $page = $request->integer('company_page', 1);
 
         $companiesForPage = (clone $ctx['companiesQuery'])
             ->forPage($page, $ctx['perPage'])
@@ -102,7 +102,7 @@ class CustomerInfoController extends Controller
             ->when($potentialSortBy !== 'client_manager' && !in_array($potentialSortBy, ['id', 'status']), function ($query) use ($potentialSortBy, $sortOrder, $potentialTable, $qualify) {
                 $query->orderByRaw("LOWER({$qualify($potentialTable, $potentialSortBy)}) {$sortOrder}");
             })
-            ->paginate($perPage)
+            ->paginate($perPage, ['*'], 'potential_page')
             ->withQueryString();
 
         $potentials->getCollection()->transform(fn($p) => [

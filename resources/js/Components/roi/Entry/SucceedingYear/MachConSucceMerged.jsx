@@ -275,9 +275,9 @@ function MachConSucceMerged() {
       <div className="hidden md:block print:block rounded-xl overflow-hidden">
         <table className="w-full bg-[#f8f8f8] print:bg-white border-collapse table-fixed">
           <colgroup>
-            <col className="w-[30.7%]" /><col className="w-[9.7%]" /><col className="w-[1.2%]" />
-            <col className="w-[7.2%]" /><col className="w-[10.7%]" /><col className="w-[10.7%]" />
-            <col className="w-[1.2%]" /><col className="w-[7.2%]" /><col className="w-[10.7%]" />
+            <col className="w-[30.7%]" /><col className="w-[9.7%]" /><col className="w-[1%]" />
+            <col className="w-[7.4%]" /><col className="w-[10.7%]" /><col className="w-[10.7%]" />
+            <col className="w-[1%]" /><col className="w-[7.4%]" /><col className="w-[10.7%]" />
             <col className="w-[10.7%]" />
           </colgroup>
 
@@ -302,7 +302,7 @@ function MachConSucceMerged() {
               <td colSpan={2} className="px-4 py-1 font-semibold border border-gray-200 border-x-0 border-l border-l-gray-300">MACHINE</td>
               <td className="bg-[#f8f8f8] print:bg-white border-x border-gray-300"></td>
               <td colSpan={3} className="border border-gray-200 border-x-0 border-r border-r-gray-300"></td>
-              <td className="bg-[#f8f8f8] print:bg-white"></td>
+              <td className="bg-[#f8f8f8] print:bg-white border-x border-gray-300"></td>
               <td colSpan={3} className="border border-gray-200 border-x-0 border-r border-r-gray-300"></td>
             </tr>
 

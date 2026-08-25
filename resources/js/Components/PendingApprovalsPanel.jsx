@@ -5,7 +5,7 @@ import { FaRegFileAlt } from "react-icons/fa";
 import { MdDonutLarge, MdShowChart, MdChecklist } from "react-icons/md";
 import { PieChart, Pie, Cell, Tooltip, XAxis, YAxis, CartesianGrid, Sector, BarChart, Bar, matchByDataKey } from "recharts";
 
-const MAX_VISIBLE = 3;
+const MAX_VISIBLE = 5;
 
 const STATUS_COLORS = {
   pending: "#fcd34d",

@@ -53,6 +53,9 @@ function Index({ companies, potentials, filters, categories = [] }) {
         return {
             ...DEFAULT_FILTERS,
             ...(persisted?.per_page !== undefined ? { per_page: persisted.per_page } : {}),
+            // The per_page the server actually used to fetch `companies` always wins over a
+            // stale persisted value, so "Rows: X" never disagrees with what's rendered.
+            ...(companies?.per_page !== undefined ? { per_page: companies.per_page } : {}),
             // URL params always win over persisted (user navigated with explicit params)
             ...(filters.search         !== undefined ? { search:         filters.search }         : {}),
             ...(filters.category       !== undefined ? { category:       filters.category }       : {}),
@@ -122,6 +125,18 @@ function Index({ companies, potentials, filters, categories = [] }) {
             if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
             if (searchAbortRef.current) searchAbortRef.current.abort();
         };
+    }, []);
+
+    useEffect(() => {
+        const persisted = loadPersistedFilters();
+        if (
+            filters.per_page === undefined &&
+            persisted?.per_page !== undefined &&
+            persisted.per_page !== companies?.per_page
+        ) {
+            updateFilters({ per_page: persisted.per_page });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const updateFilters = (newFilters) => {
@@ -579,11 +594,10 @@ const handleSearchChange = (value) => {
 
     /* ── Pagination ── */
     const goToPage = (p) => {
-        router.get(
-            route('customerinfo.companies.index'),
-            { ...searchState, page: p },
-            { preserveState: true, preserveScroll: true }
-        );
+        router.get(route('customerinfo.companies.index'), { ...searchState, company_page: p }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     // Use axios search results when available (search term active), otherwise fall back to Inertia props
@@ -808,7 +822,6 @@ const handleSearchChange = (value) => {
                             columns={existingColumns}
                             rows={rows}
                             rowKey={(r) => String(r.id)}
-                            pagination={pagination}
                             searchControl={searchControl}
                             onRefresh={handleRefresh}
                             refreshing={isRefreshing}
@@ -821,6 +834,7 @@ const handleSearchChange = (value) => {
                             }}
                             emptyText="No company records found."
                             renderCard={renderExistingCard}
+                            pagination={pagination}
                         />
                     )}
 
@@ -831,7 +845,7 @@ const handleSearchChange = (value) => {
                             columns={potentialsColumns}
                             rows={effectivePotentials?.data ?? []}
                             rowKey={(r) => String(r.id)}
-                             loading={isSearching}
+                            loading={isSearching}
                             pagination={
                                 effectivePotentials && typeof effectivePotentials.current_page === 'number'
                                     ? {
@@ -840,7 +854,7 @@ const handleSearchChange = (value) => {
                                         total:        effectivePotentials.total ?? 0,
                                         onPageChange: (p) => router.get(
                                             route('customerinfo.companies.index'),
-                                            { ...searchState, page: p },
+                                            { ...searchState, potential_page: p },
                                             { preserveState: true, preserveScroll: true }
                                         ),
                                     }
