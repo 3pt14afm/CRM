@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Roi;
 
+use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Location;
 use App\Models\RoiArchiveProject;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Log;
 
 class RoiArchiveController extends Controller
 {
+    use ChecksPreferenceAccess;
     /**
      * Display a listing of the archived projects.
      */
@@ -49,7 +51,7 @@ public function index(Request $request)
 
     // Row-level visibility: non-admins only see projects they own or
     // are/were part of the approval chain for. Mirrors ensureCanViewArchive().
-    if (!$isAdmin) {
+    if (!$isAdmin && !$this->isRoiViewAllPrivileged()) {
         $query->where(function ($q) use ($userId) {
             $q->where('roi_archive_projects.user_id', $userId)
               ->orWhere('roi_archive_projects.reviewed_by', $userId)
@@ -572,7 +574,7 @@ private function ensureCanViewArchive(RoiArchiveProject $project): void
     $userId  = (int) (Auth::id() ?? 0);
     $isAdmin = $userId === 1;
 
-    if ($isAdmin) {
+    if ($isAdmin || $this->isRoiViewAllPrivileged()) {
         return;
     }
 

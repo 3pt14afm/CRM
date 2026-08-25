@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Roi\Entry;
 
+use App\Models\RoiEntryProject;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -65,11 +66,30 @@ class StoreRoiDraftRequest extends FormRequest
 
         if ($monoMonthly > 4000 || $colorMonthly > 2000) {
             $remarks = trim((string) $this->input('entryRemarks.remarks', ''));
-           $keptAttachmentsCount = collect(
-             data_get($this->all(), 'entryRemarks.attachments', []))
-                ->filter(fn ($item) => is_array($item) && !empty($item['id']))
-                ->count();
-            $newAttachmentsCount = count(Arr::wrap($this->file('entry_remarks_attachments')));
+           $newAttachmentsCount = count(Arr::wrap($this->file('entry_remarks_attachments')));
+
+            if ($this->has('entryRemarks.attachments')) {
+                // Attachment state explicitly present in the request → trust it fully.
+                $keptAttachmentsCount = collect(data_get($this->all(), 'entryRemarks.attachments', []))
+                    ->filter(fn ($item) => is_array($item) && !empty($item['id']))
+                    ->count();
+            } else {
+                // Attachment state omitted → this request doesn't speak to it,
+                // fall back to what's already persisted for this project.
+                $project = $this->route('project'); // bound directly on submit()
+
+                if (!$project) {
+                    // saveDraft route has no {project} binding — resolve from payload instead.
+                    $projectId = $this->input('metadata.projectId');
+                    $project = $projectId ? RoiEntryProject::find($projectId) : null;
+                }
+
+                $persistedAttachments = $project?->entry_remarks_attachments;
+                $keptAttachmentsCount = is_array($persistedAttachments)
+                    ? count($persistedAttachments)
+                    : 0;
+            }
+
             $totalAttachmentsCount = $keptAttachmentsCount + $newAttachmentsCount;
 
             $errors = [];

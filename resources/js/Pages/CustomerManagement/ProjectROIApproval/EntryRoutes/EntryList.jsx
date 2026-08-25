@@ -267,7 +267,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
             <div className="h-4 w-16 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
             <span className="font-mono text-xs lg:text-sm text-[#33721c] flex items-center">
-              {r.company_sap_code ?? "—"}
+              {r.company_sap_code ?? ""}
             </span>
           ),
         },
@@ -348,7 +348,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
                   px-2 rounded-full text-[9px] font-bold uppercase tracking-wider      
                   md:text-[8px] md:px-1
                   lg:text-[9px] lg:px-[6px]
-                  xl:text-[10px] xl:px-2
+                  xl:px-2
                   ${isSentBack 
                     ? "bg-red-100 text-red-700 border border-red-200" 
                     : isDraft

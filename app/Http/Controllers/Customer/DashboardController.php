@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Customer;
 
+use App\Http\Controllers\Concerns\AppliesCompanyVisibility;
 use App\Http\Controllers\Concerns\ManagesCompanyContracts;
 use App\Http\Controllers\Controller;
 use App\Models\Contracts\Contract;
@@ -16,14 +17,21 @@ use App\Models\SPRF\SprfArchiveProject;
 use App\Models\LocationDepartment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     use ManagesCompanyContracts;
-
+    use AppliesCompanyVisibility;
+    
     public function customerStats(Request $request)
     {
-        $companyTable = (new Company())->getTable();
+        $companyTable   = (new Company())->getTable();
+        $potentialTable = (new PotentialCustomer())->getTable();
+
+        $asUserId = $request->integer('as_user_id') ?: null;
+        
+        $visibleCompanyIds = $this->visibleCompanyIds();
 
         $groupKeyExpr = "CASE WHEN {$companyTable}.sap_code IS NULL OR {$companyTable}.sap_code = '' "
             . "THEN CONCAT('__row_', {$companyTable}.id) ELSE {$companyTable}.sap_code END";
@@ -31,23 +39,72 @@ class DashboardController extends Controller
         // Active Accounts: dedup by sap_code (one sap_code can have many branches).
         $activeCustomers = Company::query()
             ->where("{$companyTable}.status", 1)
+            ->whereIn("{$companyTable}.id", $visibleCompanyIds)
             ->selectRaw("MIN({$companyTable}.id) as rep_id")
             ->groupByRaw($groupKeyExpr)
             ->get()
             ->count();
 
         // Total Customer: all active branches, ungrouped, prospects excluded.
-        $totalCustomers = Company::query()
-            ->where("{$companyTable}.status", 1)
-            ->count();
+        $totalCustomers = $visibleCompanyIds->count();
 
-        $prospectCustomers = PotentialCustomer::count();
+        $prospectCustomers = PotentialCustomer::query()
+            ->leftJoin('users as client_managers', function ($join) use ($potentialTable) {
+                $join->on(
+                    DB::raw("{$potentialTable}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
+                    '=',
+                    DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
+                );
+            })
+            ->when(true, fn ($q) => $this->applyCompanyVisibility($q, $asUserId))
+            ->count();
 
         return response()->json([
             'total_customers'    => $totalCustomers,
             'active_accounts'    => $activeCustomers,
             'prospect_customers' => $prospectCustomers,
         ]);
+    }
+
+    public function clientManagerOptions(Request $request)
+    {
+        $isAdmin      = ((int) Auth::id()) === 1;
+        $isPrivileged = $this->isCompanyVisibilityPrivileged();
+
+        if (!$isAdmin && !$isPrivileged) {
+            return response()->json([]);
+        }
+
+        $companyTable = (new Company())->getTable();
+
+        $managers = \App\Models\User::query()
+            ->whereIn(DB::raw('employee_id COLLATE utf8mb4_unicode_ci'), function ($q) use ($companyTable) {
+                $q->select(DB::raw('id_client_mngr COLLATE utf8mb4_unicode_ci'))
+                  ->from($companyTable)
+                  ->whereNotNull('id_client_mngr')
+                  ->where('id_client_mngr', '!=', '')
+                  ->where('status', 1);
+            })
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name'])
+            ->map(fn ($u) => [
+                'id'   => $u->id,
+                'name' => trim("{$u->first_name} {$u->last_name}"),
+            ])
+            ->values();
+
+        return response()->json($managers);
+    }
+
+    private function joinClientManagers($query, string $table)
+    {
+        return $query->leftJoin('users as client_managers', function ($join) use ($table) {
+            $join->on(
+                DB::raw("{$table}.id_client_mngr COLLATE utf8mb4_unicode_ci"),
+                    '=',
+                DB::raw('client_managers.employee_id COLLATE utf8mb4_unicode_ci')
+            );
+        });
     }
 
     public function pendingApprovals(Request $request)
@@ -315,7 +372,7 @@ class DashboardController extends Controller
     {
         $counts = ['expiring_soon' => 0, 'active' => 0, 'expired' => 0];
 
-        $visibleCompanyIds = $this->visibleCompanyIds();
+        $visibleCompanyIds = $this->visibleCompanyIds($request->integer('as_user_id') ?: null);
         $companyIdsWithContracts = [];
 
         Contract::query()
@@ -379,7 +436,7 @@ class DashboardController extends Controller
 
         $limit = 50;
 
-        $visibleCompanyIds = $this->visibleCompanyIds();
+        $visibleCompanyIds = $this->visibleCompanyIds($request->integer('as_user_id') ?: null);
 
         $contracts = Contract::with('contractType')
             ->whereIn('company_id', $visibleCompanyIds)

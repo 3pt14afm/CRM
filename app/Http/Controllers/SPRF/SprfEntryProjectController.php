@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SPRF;
 
 use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
+use App\Http\Controllers\Concerns\ValidatesSprfRowQuantities;
 use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfApprovalMatrix;
 use App\Models\SPRF\SprfCurrentProject;
@@ -28,7 +29,7 @@ use Illuminate\Support\Facades\Storage;
 
 class SprfEntryProjectController extends Controller
 {
-    use ChecksPreferenceAccess;
+    use ChecksPreferenceAccess,ValidatesSprfRowQuantities;
 
     public function __construct(
         private readonly SprfItemCalculationService $itemCalc,
@@ -252,6 +253,11 @@ class SprfEntryProjectController extends Controller
         $companyInfo = (array) data_get($payload, 'company_info', []);
         $this->validateCompanyIntegrity($companyInfo);
 
+        $this->assertRowsWithValuesHaveQty(
+            (array) data_get($payload, 'items', []),
+            (array) data_get($payload, 'other_expenses', [])
+        );
+
         $revenue           = (float) data_get($payload, 'summary.revenue', $project->revenue);
         $cogs              = (float) data_get($payload, 'summary.cogs', $project->cogs);
         $otherExpenseTotal = (float) data_get($payload, 'summary.otherExpense', $project->other_expense_total);
@@ -421,7 +427,7 @@ class SprfEntryProjectController extends Controller
             abort(404);
         }
 
-        if (! in_array($project->status, ['draft', 'Returned'], true)) {
+        if (! in_array($project->status, ['draft', 'Returned', 'withdrawn'], true)) {
             throw ValidationException::withMessages([
                 'project' => 'Only draft SPRF projects can be deleted.',
             ]);

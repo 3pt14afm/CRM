@@ -157,7 +157,7 @@ function ContractDetails() {
 
   const colWidths = showContractTypeColumn
     ? ["26%", "18%", "8%", "16%", "16%", "16%"]
-    : ["35%", "7%", "18%", "18%", "22%"];
+    : ["33%", "10%", "17%", "18%", "22%"];
 
   // ---- Mobile card helpers (desktop table below is untouched) ----
 
@@ -294,8 +294,8 @@ function ContractDetails() {
       </div>
 
       {/* ---------------- DESKTOP VIEW (md and up) — unchanged ---------------- */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-center border-collapse">
+      <div className="hidden md:block print:block overflow-x-auto">
+        <table className="w-full text-center border-collapse table-fixed">
           <colgroup>
             {colWidths.map((width, i) => (
               <col key={i} style={{ width }} />

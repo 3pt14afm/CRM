@@ -658,7 +658,7 @@ class RoiCurrentWorkflowService
     private function dispatchMail(string $to, \Illuminate\Mail\Mailable $mailable): void
     {
         try {
-            Mail::to($to)->send($mailable);
+            Mail::to($to)->queue($mailable);
         } catch (\Throwable $e) {
             Log::error('[ROI Mail] Failed to send ' . get_class($mailable), [
                 'to'      => $to,

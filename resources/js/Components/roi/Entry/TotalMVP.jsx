@@ -39,7 +39,7 @@ function TotalMVP() {
                 
                 <tbody className="text-gray-700">
                     <tr className="border-b border-gray-200">
-                        <td className="px-4 py-2 print:py-1 font-medium border-r border-gray-300 text-xs print:text-xs">Mono AMVP</td>
+                        <td className="px-4 py-2 print:py-1 font-medium border-r border-gray-300 text-xs print:text-xs">Mono AMPV</td>
                         <td className="px-4 py-2 print:py-1 text-right text-xs border-r border-gray-300">
                             {formatNum(monoMonthly)}
                         </td>
@@ -49,7 +49,7 @@ function TotalMVP() {
                     </tr>
                     
                     <tr className="border-b border-gray-200">
-                        <td className="px-4 py-2 print:py-1 font-medium border-r border-gray-300 text-xs print:text-xs">Color AMVP</td>
+                        <td className="px-4 py-2 print:py-1 font-medium border-r border-gray-300 text-xs print:text-xs">Color AMPV</td>
                         <td className="px-4 py-2 print:py-1 text-right text-xs border-r border-gray-300">
                             {formatNum(colorMonthly)}
                         </td>

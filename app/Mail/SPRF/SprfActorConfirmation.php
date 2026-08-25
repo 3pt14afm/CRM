@@ -3,6 +3,7 @@
 namespace App\Mail\SPRF;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -17,7 +18,7 @@ use Illuminate\Queue\SerializesModels;
  *   returned_to_entry → #8  Confirmation: Returned (sent back to PM)
  *   sent_back         → #10 Confirmation: Returned (sent back within pipeline)
  */
-class SprfActorConfirmation extends Mailable
+class SprfActorConfirmation extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

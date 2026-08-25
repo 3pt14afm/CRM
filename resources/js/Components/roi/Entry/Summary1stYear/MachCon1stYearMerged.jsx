@@ -409,8 +409,8 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
             <col className="w-[7.3%]" />
             <col className="w-[9.1%]" />
             <col className="w-[7.3%]" />
-            <col className="w-[1%]" />
-            <col className="w-[5.4%]" />
+            <col className="w-[0.5%]" />
+            <col className="w-[5.9%]" />
             <col className="w-[10.7%]" />
             <col className="w-[10.7%]" />
           </colgroup>

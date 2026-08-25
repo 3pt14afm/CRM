@@ -24,10 +24,17 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            // employee_id is varchar(4) unique — keep it short and unique.
+            'employee_id' => fake()->unique()->numerify('E###'),
+            'department_id' => null,
+            'position' => null,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'primary_location_id' => null,
+            'is_banned' => false,
             'remember_token' => Str::random(10),
         ];
     }

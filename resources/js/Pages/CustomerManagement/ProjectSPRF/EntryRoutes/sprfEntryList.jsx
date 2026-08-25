@@ -185,8 +185,12 @@ const tiles = useMemo(() => {
               onClick={() => {
                 toast.dismiss(t.id);
                 document.removeEventListener('mousedown', handleOutsideClick);
+                
+                const destroyRoute = row.form_version === 2 
+                    ? route('sprf.entry2.projects.destroy', row.id) 
+                    : route('sprf.entry.projects.destroy', row.id);
 
-                router.delete(route('sprf.entry.projects.destroy', row.id), {
+                router.delete(destroyRoute, {
                   preserveScroll: true,
                   onStart: () => {
                     toast.loading('Deleting draft...', { id: 'deleteDraft' });

@@ -58,4 +58,55 @@ trait AppliesCompanyVisibility
             }
         });
     }
+
+    // protected function applyCompanyVisibility($query, ?int $asUserId = null): void
+    // {
+    //     $currentUser = Auth::user();
+    //     $callerId    = (int) ($currentUser->id ?? 0);
+    //     $callerIsAdmin      = $callerId === 1;
+    //     $callerIsPrivileged = $this->isCompanyVisibilityPrivileged();
+
+    //     // "View as" only honored for admin/privileged callers; everyone else
+    //     // always sees their own scope regardless of what's passed in.
+    //     $targetUserId = ($asUserId && ($callerIsAdmin || $callerIsPrivileged))
+    //         ? $asUserId
+    //         : null;
+
+    //     // No impersonation + caller is admin/privileged -> see everything, as before.
+    //     if (!$targetUserId && ($callerIsAdmin || $callerIsPrivileged)) {
+    //         return;
+    //     }
+
+    //     $targetUser = $targetUserId
+    //         ? \App\Models\User::find($targetUserId)
+    //         : $currentUser;
+
+    //     $employeeId = $targetUser->employee_id ?? null;
+    //     $lookupUserId = $targetUserId ?? $callerId;
+
+    //     $approverLocationDepts = LocationDepartment::query()
+    //         ->where(function ($q) use ($lookupUserId) {
+    //             $q->where('reviewed_by', $lookupUserId)
+    //               ->orWhere('checked_by', $lookupUserId)
+    //               ->orWhere('endorsed_by', $lookupUserId)
+    //               ->orWhere('confirmed_by', $lookupUserId)
+    //               ->orWhere('approved_by', $lookupUserId);
+    //         })
+    //         ->get(['location_id', 'department_id']);
+
+    //     $query->where(function ($q) use ($employeeId, $approverLocationDepts) {
+    //         $q->where('client_managers.employee_id', $employeeId);
+
+    //         if ($approverLocationDepts->isNotEmpty()) {
+    //             $q->orWhere(function ($qOr) use ($approverLocationDepts) {
+    //                 foreach ($approverLocationDepts as $ld) {
+    //                     $qOr->orWhere(function ($qPair) use ($ld) {
+    //                         $qPair->where('client_managers.primary_location_id', $ld->location_id)
+    //                               ->where('client_managers.department_id', $ld->department_id);
+    //                     });
+    //                 }
+    //             });
+    //         }
+    //     });
+    // }
 }

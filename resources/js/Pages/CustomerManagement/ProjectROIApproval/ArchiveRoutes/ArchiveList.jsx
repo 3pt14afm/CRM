@@ -480,10 +480,10 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
           const isApproved  = s === "approved";
           const isCancelled = s === "cancelled";
           return (
-            <div className={`inline-flex items-center gap-1 max-w-full whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-0.5 rounded-xl
-              ${isRejected ? 'bg-[#FDECEC] text-[#C40000] border border-[#C40000]/20'
+            <div className={`inline-flex items-center gap-1 max-w-full whitespace-nowrap text-[9px] xl:text-[10px] font-medium px-1 py-[1px] rounded-xl
+              ${isRejected ? 'bg-[#FDECEC] text-[#C40000] border border-[#C40000]/50'
                 : isApproved ? 'bg-[#E9F7E7] text-[#2DA300] border border-[#2DA300]/20'
-                : isCancelled ? 'bg-red-600/10 text-red-600 border border-red-300'
+                : isCancelled ? 'bg-red-600/10 text-red-500 border border-red-200'
                 : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
               {isRejected ? <MdOutlineClose className="text-[11px] xl:text-[13px] shrink-0" />
                 : isApproved ? <MdCheck className="text-[11px] xl:text-[13px] shrink-0" />

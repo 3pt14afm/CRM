@@ -45,7 +45,7 @@ function CompanyInfoSum() {
                     {details.map((item, index) => (
                         <div
                             key={index}
-                            className={`flex flex-col min-w-0 ${item.wide ? 'col-span-2 sm:col-span-3 lg:col-span-1' : ''}`}
+                            className={`flex flex-col min-w-0 ${item.wide ? 'col-span-2 sm:col-span-3 lg:col-span-1 print:col-span-1' : ''}`}
                         >
                             <p className='text-[10px] text-gray-400 font-bold uppercase tracking-wider print:font-medium'>
                                 {item.label}

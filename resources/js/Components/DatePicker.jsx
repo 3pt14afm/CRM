@@ -20,7 +20,8 @@ export default function DatePicker({
   handleDateClear,
   onApply,
   tooltipLabel = "Filter by date",
-  side = "top"
+  side = "top",
+  align = "right"
 }) {
   // Close datepicker when clicking outside or pressing Escape
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function DatePicker({
       </TooltipProvider>
 
       {showDatePicker && (
-        <div className="absolute right-0 top-11 z-[9999] w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+        <div className={`absolute top-11 z-[9999] w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-4 ${align === "right" ? "right-0" : "left-0"}`}>
           <div className="flex items-center gap-2 mb-3">
             <MdDateRange size={16} className="text-[#4FA34E]" />
             <span className="text-[12px] font-semibold text-slate-700 tracking-wide">Filter by Date</span>

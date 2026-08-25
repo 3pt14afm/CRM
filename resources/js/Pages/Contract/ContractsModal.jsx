@@ -551,6 +551,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                         dateLabel={dateLabel}
                         handleDateClear={handleDateClear}
                         tooltipLabel="Filter by active date range"
+                        align="left"
                     />
 
                     {/* Search Bar */}

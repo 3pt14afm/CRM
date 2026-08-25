@@ -153,6 +153,8 @@ class SprfCurrentProjectController extends Controller
             'last_saved_at'   => 'updated_at',
         ];
 
+        // "For review" rows float to the top ONLY in the default (no explicit column sort) view.
+        // Once the user picks a column to sort by, that sort takes full priority instead.
         if ($sortBy && array_key_exists($sortBy, $allowedSorts)) {
             if ($sortBy === 'prepared_by') {
                 $query->join('users', 'users.id', '=', 'sprf_current_projects.prepared_by_user_id')
@@ -162,7 +164,10 @@ class SprfCurrentProjectController extends Controller
                 $query->orderBy($allowedSorts[$sortBy], $sortOrder);
             }
         } else {
-            $query->orderByDesc('updated_at');
+            $query->orderByRaw(
+                'CASE WHEN sprf_current_projects.current_approver_user_id = ? THEN 0 ELSE 1 END',
+                [$userId]
+            )->orderByDesc('updated_at');
         }
 
         $currentProjects = (clone $query)

@@ -13,4 +13,9 @@ export default defineConfig({
         react(),
         svgr(),
     ],
+    test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: ['./vitest.setup.js'],
+    },
 });

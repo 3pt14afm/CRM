@@ -280,8 +280,9 @@ class RoiProjectService
                 'comments' => $project->comments ?? [],
             ]);
 
-            foreach ($project->items as $item) {
-                RoiCurrentItem::create([
+            if ($project->items->isNotEmpty()) {
+                $now = now();
+                $itemRows = $project->items->map(fn ($item) => [
                     'roi_current_project_id' => $newProject->id,
                     'client_row_id' => $item->client_row_id,
                     'kind' => $item->kind,
@@ -301,11 +302,16 @@ class RoiProjectService
                     'sell_cpp' => $item->sell_cpp,
                     'machine_margin' => $item->machine_margin,
                     'machine_margin_total' => $item->machine_margin_total,
-                ]);
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->all();
+
+                RoiCurrentItem::insert($itemRows);
             }
 
-            foreach ($project->fees as $fee) {
-                RoiCurrentFee::create([
+            if ($project->fees->isNotEmpty()) {
+                $now = now();
+                $feeRows = $project->fees->map(fn ($fee) => [
                     'roi_current_project_id' => $newProject->id,
                     'client_row_id' => $fee->client_row_id,
                     'payer' => $fee->payer,
@@ -316,7 +322,11 @@ class RoiProjectService
                     'qty' => $fee->qty,
                     'total' => $fee->total,
                     'is_machine' => $fee->is_machine,
-                ]);
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->all();
+
+                RoiCurrentFee::insert($feeRows);
             }
 
         if (empty($project->company_sap_code)) {

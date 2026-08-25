@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified'])
         Route::get('/dashboard', [CustomerManagementController::class, 'dashboard'])->name('customers.dashboard');
 
         Route::get('/customer-stats', [DashboardController::class, 'customerStats'])->name('customers.stats');
+        Route::get('/dashboard/client-managers', [DashboardController::class, 'clientManagerOptions'])->name('dashboard.clientManagers');
         Route::get('/pending-approvals', [DashboardController::class, 'pendingApprovals'])->name('customers.pending-approvals');
         Route::get('/distribution-stats', [DashboardController::class, 'distributionStats'])->name('customers.distribution-stats');
         Route::get('/entries-by-month', [DashboardController::class, 'entriesByMonth'])->name('customers.entries-by-month');
