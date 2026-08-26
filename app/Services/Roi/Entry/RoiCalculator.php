@@ -238,8 +238,11 @@ class RoiCalculator
                             : 1;
                     }
                 } elseif ($shouldEnforcePrinterQty) {
-                    $baseQty = $this->toFloat($m['qty'] ?? 1, 1);
-                    $machineQty = $this->to2Decimals($baseQty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
+                    // Base is always 1 here, not the row's own qty — this
+                    // mirrors succeedingYears() below and get1YrPotential.jsx,
+                    // where "others" rows under a printer-enforced contract
+                    // are always derived as 1 x printerMachineQty.
+                    $machineQty = $this->to2Decimals(1 * ($printerMachineQty > 0 ? $printerMachineQty : 1));
                 } else {
                     $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
                     $machineQty = $this->hasValidYield($machineYields) && $base > 0
@@ -253,7 +256,10 @@ class RoiCalculator
                     : 1;
             }
 
-            $rawCost = $this->toFloat($m['inputtedCost'] ?? $m['cost'] ?? 0);
+            // Mirrors JS `Number(m.inputtedCost || m.cost) || 0`: falls back
+            // to m.cost when inputtedCost is 0 too, not just null/unset —
+            // orFallback (not ??) is required here for that reason.
+            $rawCost = $this->orFallback($m['inputtedCost'] ?? 0, $this->toFloat($m['cost'] ?? 0));
             $mType = strtolower($m['type'] ?? '');
             $isMachineRow = $mType === 'machine';
 
@@ -461,7 +467,9 @@ class RoiCalculator
 
             $unitMargin = 0.0;
             if (!$flags['isOutright'] && $isMachineRow && !$isModeOthers) {
-                $rawCost = $this->toFloat($m['inputtedCost'] ?? $m['cost'] ?? 0);
+                // Mirrors JS `Number(m.inputtedCost || m.cost) || 0` — see
+                // matching comment in get1YrPotential() above.
+                $rawCost = $this->orFallback($m['inputtedCost'] ?? 0, $this->toFloat($m['cost'] ?? 0));
                 $unitMargin = $rawCost * $percentMargin;
             }
 

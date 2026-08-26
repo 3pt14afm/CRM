@@ -20,9 +20,6 @@ export function getRowDisplayFlags(row, contractType, errors = {}, showOutrightE
 
   // ── Contract type flags ──────────────────────────────────────────────────
   const isOutright      = ct.includes(CONTRACT_TYPE.OUTRIGHT);
-  const isOutrightClick = ct.includes(CONTRACT_TYPE.OUTRIGHT_CLICK);
-  const isRental        = ct.includes(CONTRACT_TYPE.RENTAL);
-  const isFreeUse       = ct.includes(CONTRACT_TYPE.FREE_USE);
   const isClick         = ct.includes(CONTRACT_TYPE.CLICK);
   const isFixed         = ct.includes(CONTRACT_TYPE.FIXED);
 
@@ -33,14 +30,14 @@ export function getRowDisplayFlags(row, contractType, errors = {}, showOutrightE
   // ── Selling price ────────────────────────────────────────────────────────
   // Prohibited when:
   //   • Non-outright machine rows
-  //   • Mono/color consumables in click-based rental/free-use models
+  //   • Any consumable row (mono/color/others alike) under a click-charge
+  //     contract — Click Charge, Rental + Click Charge, Free Use + Click
+  //     Charge, and Outright + Click Charge all share this via isClick
   //   • All fixed contract rows
-  //   • Outright+click consumable rows
   const isPriceProhibited =
     (isMachineRow && !isOutright) ||
-    (isConsumable && (isRental || isFreeUse) && isClick && isMonoColor) ||
-    isFixed ||
-    (isOutrightClick && isConsumable);
+    (isConsumable && isClick) ||
+    isFixed;
 
   // ── Validation errors ────────────────────────────────────────────────────
   const hasGlobalError = !!errors?.machineConfiguration || showOutrightErrors;

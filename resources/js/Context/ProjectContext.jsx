@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useRef,
 } from "react";
 
 const ProjectContext = createContext();
@@ -123,6 +124,21 @@ const ProjectDataProvider = ({ children }) => {
     return mergeWithDefaults(cloneDefault(), parsed);
   });
 
+  // Holds the latest getCurrentMachineConfig() from whichever component
+  // currently owns useMachineRows. Lets any consumer (e.g. save/submit
+  // handlers in Entry.jsx) pull a synchronous, up-to-the-keystroke
+  // machineConfiguration without prop/ref drilling through the layout
+  // tree (MachineConfigTab -> MachineConfig -> useMachineRows).
+  const machineConfigGetterRef = useRef(null);
+
+  const registerMachineConfigGetter = useCallback((fn) => {
+    machineConfigGetterRef.current = fn;
+  }, []);
+
+  const getCurrentMachineConfig = useCallback(() => {
+    return machineConfigGetterRef.current ? machineConfigGetterRef.current() : null;
+  }, []);
+
   const updateSection = useCallback((section, newData) => {
     setProjectData((prev) => ({
       ...prev,
@@ -234,6 +250,8 @@ const ProjectDataProvider = ({ children }) => {
         setContractDetails,
         saveDraft,
         resetProject,
+        registerMachineConfigGetter,
+        getCurrentMachineConfig,
       }}
     >
       {children}

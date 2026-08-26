@@ -50,6 +50,7 @@ export const getRowCalculations = (row, projectData) => {
     // =========================
     let finalComputedCost = rawCost;
     let basePerYear = 0;
+    let machineMargin = 0;
     let machineMarginTotal = 0;
 
     const isInterestModel = isMachine && !isOutright;
@@ -58,10 +59,12 @@ export const getRowCalculations = (row, projectData) => {
         basePerYear = rawCost / contractYears;
         const interestAmount = basePerYear * annualInterestRate;
         finalComputedCost = (basePerYear + interestAmount) * contractYears; // = rawCost * (1 + rate)
+        machineMargin = basePerYear * percentMargin; // per-year margin, mirrors RoiCalculator.php
         machineMarginTotal = rawCost * percentMargin; // reported separately, NOT folded into totalCost
     } else {
         finalComputedCost = rawCost;
         basePerYear = rawCost;
+        machineMargin = 0;
         machineMarginTotal = 0;
     }
 
@@ -85,6 +88,7 @@ export const getRowCalculations = (row, projectData) => {
         totalSell: price * qty,
         sellCpp: yields > 0 ? price / yields : 0,
 
+        machineMargin, // per-year margin; mirrors RoiCalculator.php's machineMargin
         machineMarginTotal, // reported alongside totalCost, not merged in
     };
 };

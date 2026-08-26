@@ -44,7 +44,7 @@ export default function Entry({
     year: "2-digit",
   }).format(today);
 
-  const { projectData } = useProjectData();
+  const { projectData, getCurrentMachineConfig } = useProjectData();
 
   const projectRef =
     entryProject?.reference ||
@@ -92,6 +92,7 @@ const {
     validateEntryRemarks,
     buildPayload,
     buildFormDataPayload,
+    getCurrentMachineConfig,
   });
 
   const {

@@ -702,21 +702,26 @@ function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
       } else {
           rowForCalcs = handlers.enforceRowQty(row, contractType, printerQtyTotal);
       }
-      
-      const calcs = getRowCalculations(rowForCalcs, projectData);
+
+      // Same "isPriceProhibited" rule the row's own Selling Price input uses
+      // (e.g. click-charge consumables, mono/color/others alike) — keep the
+      // footer totals in sync with what's actually shown/editable per row.
+      const { isPriceProhibited } = getRowDisplayFlags(row, contractType, errors, showOutrightErrors);
+      const calcRow = isPriceProhibited ? { ...rowForCalcs, price: '' } : rowForCalcs;
+      const calcs = getRowCalculations(calcRow, projectData);
       
       acc.unitCost += Number(row.cost) || 0;
       acc.qty += Number(rowForCalcs.qty) || 0;
       acc.totalCost += Number(calcs.totalCost) || 0;
       acc.yields += Number(row.yields) || 0;
       acc.costCpp += Number(calcs.costCpp) || 0;
-      acc.sellingPrice += Number(row.price) || 0;
+      acc.sellingPrice += isPriceProhibited ? 0 : (Number(row.price) || 0);
       acc.totalSell += Number(calcs.totalSell) || 0;
       acc.sellCpp += Number(calcs.sellCpp) || 0;
       
       return acc;
     }, { ...EMPTY_TOTALS });
-  }, [rows, handlers, contractType, projectData]);
+  }, [rows, handlers, contractType, projectData, errors, showOutrightErrors]);
 
   const hasInvalidRows = showModeErrors && rows.some(isRowMissingMode);
 

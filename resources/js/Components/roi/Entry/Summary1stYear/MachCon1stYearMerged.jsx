@@ -9,7 +9,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
   // =========================
   // FROM MachCon1stY
   // =========================
-  const { machine = [], consumable = [], totals = {} } = projectData.machineConfiguration || {};
+  const { machine = [], consumable = [] } = projectData.machineConfiguration || {};
 
   const contractType = projectData?.companyInfo?.contractType || "";
   const isOutright = contractType.toLowerCase().includes("outright");
@@ -34,18 +34,53 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
   const machineSellCppTotal = [...normalMachines, ...othersMachines].reduce((sum, m) => {
     const effectivePrice = isOutright ? (Number(m.price) || 0) : 0;
     const yields = Number(m.yields) || 0;
-    const itemCpp = yields > 0 ? effectivePrice / yields : 0;
+    const itemCpp = yields > 0 ? Math.round((effectivePrice / yields) * 100) / 100 : 0;
     return sum + itemCpp;
   }, 0);
 
   const consumableSellCppTotal = filteredConsumable.reduce((sum, c) => {
     const price = Number(c.price) || 0;
     const yields = Number(c.yields) || 0;
-    const itemCpp = yields > 0 ? price / yields : 0;
+    const itemCpp = yields > 0 ? Math.round((price / yields) * 100) / 100 : 0;
     return sum + itemCpp;
   }, 0);
 
   const manualTotalSellCpp = machineSellCppTotal + consumableSellCppTotal;
+
+  // --- Footer Cost/Yields/Cost CPP, derived locally from the same raw
+  // machine/consumable arrays as Selling Price/Sell CPP above, instead of
+  // from projectData.machineConfiguration.totals. That stored `totals`
+  // object is recomputed asynchronously by useMachineRows's sync effect
+  // and can briefly go stale/zero right after a draft save triggers a
+  // rows-rehydration render — deriving it here removes that dependency
+  // entirely, so this footer can never blank out.
+  const manualTotalUnitCost = [
+    ...normalMachines.map(m => Number(m.inputtedCost || m.cost) || 0),
+    ...othersMachines.map(m => Number(m.inputtedCost || m.cost) || 0),
+    ...filteredConsumable.map(c => Number(c.cost) || 0)
+  ].reduce((sum, val) => sum + val, 0);
+
+  const manualTotalYields = [
+    ...normalMachines.map(m => Number(m.yields) || 0),
+    ...othersMachines.map(m => Number(m.yields) || 0),
+    ...filteredConsumable.map(c => Number(c.yields) || 0)
+  ].reduce((sum, val) => sum + val, 0);
+
+  const machineCostCppTotal = [...normalMachines, ...othersMachines].reduce((sum, m) => {
+    const cost = Number(m.inputtedCost || m.cost) || 0;
+    const yields = Number(m.yields) || 0;
+    const itemCpp = yields > 0 ? Math.round((cost / yields) * 100) / 100 : 0;
+    return sum + itemCpp;
+  }, 0);
+
+  const consumableCostCppTotal = filteredConsumable.reduce((sum, c) => {
+    const cost = Number(c.cost) || 0;
+    const yields = Number(c.yields) || 0;
+    const itemCpp = yields > 0 ? Math.round((cost / yields) * 100) / 100 : 0;
+    return sum + itemCpp;
+  }, 0);
+
+  const manualTotalCostCpp = machineCostCppTotal + consumableCostCppTotal;
 
   const formatNum = (val, decimals = 2) => {
     const num = Number(val) || 0;
@@ -335,9 +370,9 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
         <div className="rounded-lg bg-[#E2F4D8]/70 p-3 flex flex-col gap-2">
           <p className="text-[11px] font-bold uppercase text-gray-700">Totals</p>
           <div className="grid grid-cols-3 gap-2">
-            <MobileStat label="Unit Cost" value={formatNum(totals.unitCost)} />
-            <MobileStat label="Yields" value={Number(totals.yields || 0) !== 0 ? Number(totals.yields).toLocaleString() : ''} />
-            <MobileStat label="Cost CPP" value={formatNum(totals.costCpp)} className="text-green-700" />
+            <MobileStat label="Unit Cost" value={formatNum(manualTotalUnitCost)} />
+            <MobileStat label="Yields" value={manualTotalYields !== 0 ? manualTotalYields.toLocaleString() : ''} />
+            <MobileStat label="Cost CPP" value={formatNum(manualTotalCostCpp)} className="text-green-700" />
             <MobileStat label="Selling Price" value={formatNum(manualTotalSellingPrice)} />
             <MobileStat label="Sell CPP" value={formatNum(manualTotalSellCpp)} />
           </div>
@@ -655,13 +690,13 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
             <tr className="bg-[#E2F4D8]/70 font-semibold border-x border-x-gray-300 text-[12px]">
               <td className="px-4 py-3 text-left border border-gray-300">TOTALS</td>
               <td className="text-center border border-gray-300">
-                {formatNum(totals.unitCost)}
+                {formatNum(manualTotalUnitCost)}
               </td>
               <td className="text-center border border-gray-300">
-                {Number(totals.yields || 0) !== 0 ? Number(totals.yields).toLocaleString() : ''}
+                {manualTotalYields !== 0 ? manualTotalYields.toLocaleString() : ''}
               </td>
               <td className="text-center border border-gray-300 text-green-700">
-                {formatNum(totals.costCpp)}
+                {formatNum(manualTotalCostCpp)}
               </td>
               <td className="text-center border border-gray-300">
                 {formatNum(manualTotalSellingPrice)}

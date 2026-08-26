@@ -11,10 +11,12 @@ import { getAttachmentFileObject } from '@/Components/roi/Entry/EntryRemarks'; /
 export function useEntryPayload({ entryProject, formattedDate }) {
   const { projectData } = useProjectData();
 
-  const buildPayload = () => ({
+  const buildPayload = (overrides = {}) => ({
     ...projectData,
+    ...overrides,
     metadata: {
       ...projectData?.metadata,
+      ...overrides?.metadata,
       projectId: entryProject?.id ?? projectData?.metadata?.projectId ?? null,
       lastSaved: formattedDate,
       status:
@@ -24,6 +26,7 @@ export function useEntryPayload({ entryProject, formattedDate }) {
     },
     companyInfo: {
       ...projectData?.companyInfo,
+      ...overrides?.companyInfo,
       projectUid:
         entryProject?.project_uid ??
         projectData?.companyInfo?.projectUid ??
@@ -69,8 +72,8 @@ export function useEntryPayload({ entryProject, formattedDate }) {
     formData.append(key, value);
   };
 
-  const buildFormDataPayload = () => {
-    const payload = buildPayload();
+  const buildFormDataPayload = (overrides = {}) => {
+    const payload = buildPayload(overrides);
     const formData = new FormData();
 
     const attachments = Array.isArray(payload.entryRemarks?.attachments)

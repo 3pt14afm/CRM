@@ -162,6 +162,31 @@ const isExceptionContract = (contractType = '') => {
   return ct === 'fixed monthly only' || isOutrightOnlyContract(ct);
 };
 
+// Outright Only requires a selling price (you're buying the machine).
+// Other exception contracts (like Fixed Monthly Only) do not.
+// Regular contracts require a selling price.
+const requiresSellingPrice = (contractType = '') => {
+  if (isOutrightOnlyContract(contractType)) return true;
+  if (isExceptionContract(contractType)) return false;
+  return true;
+};
+
+// Click Charge and Outright + Click Charge both bill per click, so nothing
+// except the actual printer row carries its own selling price under either.
+// Keyed off !isPrinterRow (not row.type) because an "Others"-mode row can
+// still have type MACHINE (e.g. a secondary machine toggled to "Others") —
+// isPrinterRow already excludes mode === OTHERS regardless of type, so this
+// correctly covers consumable rows AND machine-type "others" rows alike,
+// while the real printer/mandatory row is untouched.
+const isClickChargeContract = (contractType = '') =>
+  String(contractType || '').trim().toLowerCase().includes(CONTRACT_TYPE.CLICK);
+
+const rowNeedsSellingPrice = (row, contractType = '') => {
+  if (!requiresSellingPrice(contractType)) return false;
+  if (isClickChargeContract(contractType) && !isPrinterRow(row)) return false;
+  return true;
+};
+
 // Sum of qty across every MANDATORY printer row currently on the table —
 // this is what non-exception-contract consumable mono/color qty (and any
 // secondary printer row) is locked to. Only the mandatory row counts here:
@@ -311,7 +336,7 @@ function buildHydratedRows(
 
 // ── Hook ───────────────────────────────────────────────────────────────────
 export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, canEditRemarks }) {
-  const { setProjectData, projectData } = useProjectData();
+  const { setProjectData, projectData, registerMachineConfigGetter } = useProjectData();
 
   const [rows, setRows] = useState(() =>
     isOutrightOnlyContract(projectData.companyInfo?.contractType) ? [makeBlankRow()] : [makeMandatoryRow()]
@@ -386,37 +411,20 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     prevContractTypeRef.current = contractType;
     if (prevContractType === contractType) return; // skip on initial mount
 
-    // Outright Only is the only contract where a non-mandatory printer row
-    // or an "Others" row's qty is freely user-entered. Leaving it for any
-    // other contract means that qty is about to become locked/derived —
-    // it should reset to 0 rather than carry over the stale user-entered
-    // number (which would otherwise just get locked to 1 by enforceRowQty
-    // and look like a phantom leftover value).
-    const leavingOutrightOnly =
-      isOutrightOnlyContract(prevContractType) && !isOutrightOnlyContract(contractType);
-
     setRows((prev) => {
-      const adjusted = prev.map((row) => {
-        const wasEditable = isQtyEditable(row, prevContractType);
-        const isEditable  = isQtyEditable(row, contractType);
-
-        if (leavingOutrightOnly && wasEditable && !isEditable) {
-          return { ...row, qty: 0, __resetFromOutrightOnly: true };
-        }
-
-        return (!wasEditable && isEditable) ? { ...row, qty: 1 } : row;
-      });
+      // HARD RESET on contract switch: Wipe qty (back to default 1), yields,
+      // and price to prevent stale values from carrying over and causing
+      // calculation bugs. Preserve sku and cost so user doesn't have to
+      // type them again.
+      const adjusted = prev.map((row) => ({
+        ...row,
+        qty: 1,
+        yields: '',
+        price: ''
+      }));
 
       const printerQtyTotal = computePrinterQtyTotal(adjusted);
-      return adjusted.map((row) => {
-        // Skip enforceRowQty for rows we just reset to 0 above — its
-        // fallback would otherwise re-lock them to qty: 1.
-        if (row.__resetFromOutrightOnly) {
-          const { __resetFromOutrightOnly, ...rest } = row;
-          return rest;
-        }
-        return enforceRowQty(row, contractType, printerQtyTotal);
-      });
+      return adjusted.map((row) => enforceRowQty(row, contractType, printerQtyTotal));
     });
   }, [contractType]);
 
@@ -462,16 +470,25 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     });
   }, [contractType]);
 
-  // ── Sync to ProjectContext ───────────────────────────────────────────────
-  useEffect(() => {
-    const isMonthlyRental = contractType.toLowerCase() === 'rental + supplies';
-    const isBundleChecked = projectData.companyInfo?.bundledStdInk === true;
+  // ── Pure derivation: rows + contract context → { machine, consumable, totals } ──
+  // No state writes here — safe to call from the sync effect below AND
+  // on-demand right before save/submit (via getCurrentMachineConfig), so a
+  // click can never race an effect that hasn't committed to context yet.
+  const buildMachineConfig = (currentRows, currentContractType, currentProjectData) => {
+    const isMonthlyRental = currentContractType.toLowerCase() === 'rental + supplies';
+    const isBundleChecked = currentProjectData.companyInfo?.bundledStdInk === true;
 
-    const printerQtyTotal = computePrinterQtyTotal(rows);
+    const printerQtyTotal = computePrinterQtyTotal(currentRows);
 
-    const rowsWithCalculations = rows.map((r) => {
-      const normalized = enforceRowQty(r, contractType, printerQtyTotal);
-      const calcs      = getRowCalculations(normalized, projectData);
+    const rowsWithCalculations = currentRows.map((r) => {
+      const normalized = enforceRowQty(r, currentContractType, printerQtyTotal);
+      const rowNeedsPrice = rowNeedsSellingPrice(normalized, currentContractType);
+
+      // If price isn't needed, don't let getRowCalculations see it 
+      // so it doesn't compute totalSell based on a hidden price
+      const rowForCalc = rowNeedsPrice ? normalized : { ...normalized, price: '' };
+      
+      const calcs = getRowCalculations(rowForCalc, currentProjectData);
       return {
         ...normalized,
         linkedMachineRowId:  r.linkedMachineRowId ?? null,
@@ -482,12 +499,12 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
         basePerYear:         calcs.basePerYear,
         totalCost:           calcs.totalCost,
         yields:              calcs.yields,
-        price:               calcs.price,
+        price:               rowNeedsPrice ? calcs.price : normalized.price,
         costCpp:             calcs.costCpp,
-        totalSell:           calcs.totalSell,
-        sellCpp:             calcs.sellCpp,
-        machineMargin:       calcs.machineMargin,
-        machineMarginTotal:  calcs.machineMarginTotal,
+        totalSell:           rowNeedsPrice ? calcs.totalSell : 0,
+        sellCpp:             rowNeedsPrice ? calcs.sellCpp : 0,
+        machineMargin:       rowNeedsPrice ? calcs.machineMargin : 0,
+        machineMarginTotal:  rowNeedsPrice ? calcs.machineMarginTotal : 0,
       };
     });
 
@@ -509,29 +526,52 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
       }, 0);
     }
 
-    const totalsObj = rowsWithCalculations.reduce(
+    // No second getRowCalculations pass on already-processed rows (that was
+    // silently double-financing machine costs); every accumulator is now
+    // NaN/undefined-guarded so one bad row can't poison the whole sum.
+    const totals = rowsWithCalculations.reduce(
       (acc, r) => {
-        const calcs = getRowCalculations(r, projectData);
-        acc.unitCost     += r.inputtedCost;
+        acc.unitCost     += Number(r.inputtedCost) || 0;
         acc.qty          += Number(r.qty) || 0;
-        acc.totalCost    += r.totalCost;
-        acc.yields       += Number(calcs.yields) || 0;
-        acc.costCpp      += r.costCpp;
-        acc.sellingPrice += Number(calcs.price) || 0;
-        acc.totalSell    += r.totalSell;
-        acc.sellCpp      += r.sellCpp;
+        acc.totalCost    += Number(r.totalCost) || 0;
+        acc.yields       += Number(r.yields) || 0;
+        acc.costCpp      += Number(r.costCpp) || 0;
+        // Explicitly ignore the preserved hidden price if this row doesn't use it
+        // (contract-level exclusion, or a click-charge consumable row)
+        acc.sellingPrice += rowNeedsSellingPrice(r, currentContractType) ? (Number(r.price) || 0) : 0;
+        acc.totalSell    += Number(r.totalSell) || 0;
+        acc.sellCpp      += Number(r.sellCpp) || 0;
         return acc;
       },
       { unitCost: 0, qty: 0, totalCost: 0, yields: 0, costCpp: 0, sellingPrice: 0, totalSell: 0, sellCpp: 0, totalBundledPrice: calculatedBundledPrice }
     );
 
+    return { machine: machines, consumable: consumables, totals };
+  };
+
+  // On-demand getter — computes fresh from whatever `rows` currently holds,
+  // with no dependency on the effect below having already fired. This is
+  // what save/submit should call instead of trusting context state, so a
+  // click can never grab a stale totals snapshot.
+  const getCurrentMachineConfig = () => buildMachineConfig(rows, contractType, projectData);
+
+  // Keep the context's registered getter pointed at the freshest closure —
+  // rows/contractType/projectData change on every keystroke, so this must
+  // re-register every render, not just on mount. Cheap: just swaps a ref,
+  // triggers no render.
+  useEffect(() => {
+    registerMachineConfigGetter(getCurrentMachineConfig);
+    return () => registerMachineConfigGetter(null);
+  });
+
+  // ── Sync to ProjectContext (thin wrapper around buildMachineConfig) ─────
+  useEffect(() => {
+    const config = buildMachineConfig(rows, contractType, projectData);
     setProjectData((prev) => ({
       ...prev,
       machineConfiguration: {
-        ...prev.machineConfiguration, // <--- ADD THIS LINE TO PRESERVE SUCCEEDING YEARS/CALCS
-        machine:    machines,
-        consumable: consumables,
-        totals:     totalsObj,
+        ...prev.machineConfiguration, // preserve succeeding years/calcs
+        ...config,
       },
     }));
   }, [
@@ -787,5 +827,6 @@ export function useMachineRows({ machineCatalog = [], consumableCatalog = {}, ca
     enforceRowQty,
     isQtyEditable,
     computePrinterQtyTotal,
+    getCurrentMachineConfig,
   };
 }

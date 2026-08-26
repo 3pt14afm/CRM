@@ -20,6 +20,7 @@ export function useEntryActions({
   validateEntryRemarks,
   buildPayload,
   buildFormDataPayload,
+  getCurrentMachineConfig,
 }) {
   const { projectData, resetProject, saveDraft, setProjectData } = useProjectData();
   const [buttonClicked, setButtonClicked] = useState(false);
@@ -49,11 +50,17 @@ export function useEntryActions({
       return;
     }
 
-    const payload = buildPayload();
+    // Recompute machineConfiguration synchronously from the live rows state
+    // instead of trusting whatever's cached in context — closes the race
+    // where useMachineRows's sync effect hasn't committed yet at click time.
+    const machineConfiguration = getCurrentMachineConfig?.() ?? undefined;
+    const overrides = machineConfiguration ? { machineConfiguration } : {};
+
+    const payload = buildPayload(overrides);
     saveDraft(payload);
     
     // buildFormDataPayload() now handles attaching the real files perfectly!
-    const formData = buildFormDataPayload();
+    const formData = buildFormDataPayload(overrides);
 
     router.post(ziggyRoute("roi.entry.draft.save"), formData, {
       preserveScroll: true,
@@ -126,7 +133,8 @@ export function useEntryActions({
     }
 
     // buildFormDataPayload() now handles attaching the real files perfectly!
-    const formData = buildFormDataPayload();
+    const machineConfiguration = getCurrentMachineConfig?.() ?? undefined;
+    const formData = buildFormDataPayload(machineConfiguration ? { machineConfiguration } : {});
     formData.append("_method", "patch");
 
     // Force the query parameter explicitly into the destination URI

@@ -381,6 +381,13 @@ class RoiProjectService
         // Calculations performed via the Backend Calculator engine using the safely modified array
         $calculated = $this->calculator->calculateAll($data);
 
+        // Machine Config's own footer totals (unitCost, qty, totalCost, yields,
+        // costCpp, sellingPrice, totalSell, sellCpp, totalBundledPrice) — computed
+        // client-side in useMachineRows.js::buildMachineConfig and sent as-is.
+        // RoiCalculator::get1YrPotential() already trusts this same object for
+        // totalBundledPrice; these mc_* columns mirror that.
+        $mcTotals = $data['machineConfiguration']['totals'] ?? [];
+
         // Map payload calculations safely
         $project->update([
           'company_name' => (string) ($company['companyName'] ?? ''),
@@ -405,11 +412,16 @@ class RoiProjectService
             'color_yield_annual' => $colorMonthly * 12,
             'entry_remarks' => (string) ($entryRemarks['remarks'] ?? ''),
             'entry_remarks_attachments' => $attachments,
-            
-            'mc_unit_cost' => 0,
-            'mc_qty' => 0,
+
+            'mc_unit_cost' => (float) ($mcTotals['unitCost'] ?? 0),
+            'mc_qty' => (float) ($mcTotals['qty'] ?? 0),
             'mc_total_cost' => (float) ($calculated['breakdown']['machine']      ?? 0),
+            'mc_yields' => (float) ($mcTotals['yields'] ?? 0),
+            'mc_cost_cpp' => (float) ($mcTotals['costCpp'] ?? 0),
+            'mc_selling_price' => (float) ($mcTotals['sellingPrice'] ?? 0),
             'mc_total_sell' => (float) ($calculated['firstYear']['totalMachineSales'] ?? 0),
+            'mc_sell_cpp' => (float) ($mcTotals['sellCpp'] ?? 0),
+            'mc_total_bundled_price' => (float) ($mcTotals['totalBundledPrice']  ?? 0),
             'fees_total' => (float) ($calculated['feesTotal']                    ?? 0),
             'grand_total_cost' => (float) ($calculated['grandTotalCost']         ?? 0),
             'grand_total_revenue' => (float) ($calculated['grandTotalRevenue']   ?? 0),
@@ -731,7 +743,8 @@ class RoiProjectService
             'company_name', 'company_sap_code', 'contract_years', 'contract_type', 'purpose',
             'bundled_std_ink', 'annual_interest', 'percent_margin', 'mono_yield_monthly',
             'color_yield_monthly', 'entry_remarks', 'mc_unit_cost', 'mc_qty', 'mc_total_cost',
-            'mc_selling_price', 'mc_total_sell', 'fees_total', 'grand_total_cost',
+            'mc_yields', 'mc_cost_cpp', 'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp',
+            'mc_total_bundled_price', 'fees_total', 'grand_total_cost',
             'grand_total_revenue', 'grand_roi', 'grand_roi_percentage'
         ]);
     }
