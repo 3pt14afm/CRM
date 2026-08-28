@@ -446,6 +446,7 @@ class SprfController extends Controller
                         'disty'           => $sub->disty,
                         'costPerUnit'     => $sub->cost_per_unit,
                         'markupPercent'   => $sub->markup_percent,
+                        'sellingPricePerUnit' => $sub->selling_price_per_unit,
                         'totalCost'       => $sub->total_cost,
                     ])->values()->all(),
                 ];
@@ -515,6 +516,7 @@ class SprfController extends Controller
                         'disty'           => $sub->disty,
                         'costPerUnit'     => $sub->cost_per_unit,
                         'markupPercent'   => $sub->markup_percent,
+                        'sellingPricePerUnit' => $sub->selling_price_per_unit,
                         'totalCost'       => $sub->total_cost,
                     ])->values()->all(),
                 ];
