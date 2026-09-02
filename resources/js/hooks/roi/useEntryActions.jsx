@@ -106,22 +106,27 @@ export function useEntryActions({
       return;
     }
 
-    // Machine configuration check
-    const machines = projectData?.machineConfiguration?.machine || [];
-    const consumables = projectData?.machineConfiguration?.consumable || [];
+      const machines = projectData?.machineConfiguration?.machine || [];
+      const consumables = projectData?.machineConfiguration?.consumable || [];
 
-    if (machines.length === 0 && consumables.length === 0) {
-      toast.error("At least one machine or consumable is required before submitting.");
-      setTab("Machine");
-      return;
-    }
+      const contractType = String(
+        projectData?.companyInfo?.contractType ?? ""
+      ).toLowerCase();
+      const isOutrightOnly = contractType === "outright only (1 year)";
 
-    if (machines.length === 0) {
-      toast.error("At least one machine is required before submitting.");
-      setTab("Machine");
-      return;
-    }
+      if (!isOutrightOnly) {
+        if (machines.length === 0 && consumables.length === 0) {
+          toast.error("At least one machine or consumable is required before submitting.");
+          setTab("Machine");
+          return;
+        }
 
+        if (machines.length === 0) {
+          toast.error("At least one machine is required before submitting.");
+          setTab("Machine");
+          return;
+        }
+      }
     // 1. STRICT Business Logic Gate
     if (!validateBusinessLogic()) {
       return;
