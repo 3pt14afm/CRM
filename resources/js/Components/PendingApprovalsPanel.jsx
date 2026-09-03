@@ -401,7 +401,12 @@ function ApprovalsTab({ entity, approvals, loading, subTab }) {
                 className="flex items-center justify-between gap-2 py-1.5 -mx-2 px-2 rounded-2xl transition-colors border border-transparent hover:border-emerald-700"
               >
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] sm:text-xs text-gray-800 font-medium truncate">{item.company_name}</span>
+                  {item.is_group && (
+                    <span className="text-[8px] sm:text-[9px] font-semibold text-purple-600 tracking-wide truncate">
+                      {item.entry_count} entries
+                    </span>
+                  )}
+                  <span className="text-[11px] sm:text-xs text-gray-800 font-medium truncate py-0.5">{item.company_name}</span>
                   <span className="text-[10px] sm:text-[11px] text-black/50 truncate">{item.prepared_by}</span>
                 </div>
                 <span className="text-[10px] sm:text-[11px] font-medium px-2 sm:px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap flex-shrink-0">

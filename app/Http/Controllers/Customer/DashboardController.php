@@ -125,7 +125,7 @@ class DashboardController extends Controller
         $sprfPending = collect();
 
         if ($isApprover) {
-            $roiPending = \App\Models\RoiCurrentProject::query()
+            $roiPendingRows = \App\Models\RoiCurrentProject::query()
                 ->with('user:id,first_name,last_name')
                 ->where(function ($q) use ($userId) {
                     $q->where(fn($sub) => $sub->where('current_level', 2)->where('reviewed_by', $userId))
@@ -135,15 +135,32 @@ class DashboardController extends Controller
                     ->orWhere(fn($sub) => $sub->where('current_level', 6)->where('approved_by', $userId));
                 })
                 ->whereNotIn('status', ['Withdrawn', 'Cancelled', 'Approved', 'Rejected'])
+                ->where('sequence', '<=', 1)
                 ->orderByDesc('last_saved_at')
-                ->get()
-                ->map(fn ($p) => [
+                ->get();
+
+            $roiPendingCounts = \App\Models\RoiCurrentProject::query()
+                ->whereIn('reference', $roiPendingRows->pluck('reference'))
+                ->selectRaw('reference, COUNT(*) as entry_count')
+                ->groupBy('reference')
+                ->pluck('entry_count', 'reference');
+
+            $roiPending = $roiPendingRows->map(function ($p) use ($roiPendingCounts) {
+                $entryCount = $roiPendingCounts[$p->reference] ?? 1;
+                $isGroup = $entryCount > 1 || (bool) $p->from_group;
+
+                return [
                     'id'           => $p->id,
                     'prepared_by'  => trim(($p->user->first_name ?? '') . ' ' . ($p->user->last_name ?? '')) ?: '—',
                     'company_name' => $p->company_name,
                     'status'       => $p->status,
-                    'href'         => route('roi.current.show', $p->id),
-                ]);
+                    'is_group'     => $isGroup,
+                    'entry_count'  => $entryCount,
+                    'href'         => $isGroup
+                        ? route('roi.current.group.show', $p->reference)
+                        : route('roi.current.show', $p->id),
+                ];
+            });
 
             $sprfPending = \App\Models\SPRF\SprfCurrentProject::query()
                 ->with('preparer:id,first_name,last_name')
@@ -160,18 +177,35 @@ class DashboardController extends Controller
                 ]);
         }
 
-        $roiMine = \App\Models\RoiCurrentProject::query()
+        $roiMineRows = \App\Models\RoiCurrentProject::query()
             ->with('user:id,first_name,last_name')
             ->where('user_id', $userId)
+            ->where('sequence', '<=', 1)
             ->orderByDesc('last_saved_at')
-            ->get()
-            ->map(fn ($p) => [
+            ->get();
+
+        $roiMineCounts = \App\Models\RoiCurrentProject::query()
+            ->whereIn('reference', $roiMineRows->pluck('reference'))
+            ->selectRaw('reference, COUNT(*) as entry_count')
+            ->groupBy('reference')
+            ->pluck('entry_count', 'reference');
+
+        $roiMine = $roiMineRows->map(function ($p) use ($roiMineCounts) {
+            $entryCount = $roiMineCounts[$p->reference] ?? 1;
+            $isGroup = $entryCount > 1 || (bool) $p->from_group;
+
+            return [
                 'id'           => $p->id,
                 'prepared_by'  => trim(($p->user->first_name ?? '') . ' ' . ($p->user->last_name ?? '')) ?: '—',
                 'company_name' => $p->company_name,
                 'status'       => $p->status,
-                'href'         => route('roi.current.show', $p->id),
-            ]);
+                'is_group'     => $isGroup,
+                'entry_count'  => $entryCount,
+                'href'         => $isGroup
+                    ? route('roi.current.group.show', $p->reference)
+                    : route('roi.current.show', $p->id),
+            ];
+        });
 
         $sprfMine = \App\Models\SPRF\SprfCurrentProject::query()
             ->with('preparer:id,first_name,last_name')

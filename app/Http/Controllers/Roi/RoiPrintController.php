@@ -23,6 +23,18 @@ class RoiPrintController extends Controller
         return $this->renderPrint(RoiArchiveProject::class, $id, 'archive', false);
     }
 
+    public function printEntryGroup($reference) {
+        return $this->renderGroupPrint(RoiEntryProject::class, $reference, 'entry', true);
+    }
+
+    public function printCurrentGroup($reference) {
+        return $this->renderGroupPrint(RoiCurrentProject::class, $reference, 'current', false);
+    }
+
+    public function printArchiveGroup($reference) {
+        return $this->renderGroupPrint(RoiArchiveProject::class, $reference, 'archive', false);
+    }
+
     private function normalizeItems($items): array
     {
         return $items->map(fn($r) => [
@@ -63,6 +75,20 @@ class RoiPrintController extends Controller
         ])->toArray();
     }
 
+    private function signatureFor($userId)
+    {
+        if (!$userId) return null;
+        $employeeId = User::find($userId)?->employee_id;
+        if (!$employeeId) return null;
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = storage_path('app/public/signatures/' . $employeeId . '.' . $ext);
+            if (file_exists($path)) {
+                return asset('storage/signatures/' . $employeeId . '.' . $ext) . '?v=' . filemtime($path);
+            }
+        }
+        return null;
+    }
+
     private function renderPrint($modelClass, $id, $route, $showDraftWatermark)
     {
         $p = $modelClass::with(['items', 'fees', 'user'])->findOrFail($id);
@@ -83,26 +109,13 @@ class RoiPrintController extends Controller
                 'position' => $u->position ?? '—',
             ]);
 
-        $signatureFor = function ($userId) {
-            if (!$userId) return null;
-            $employeeId = User::find($userId)?->employee_id;
-            if (!$employeeId) return null;
-            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-                $path = storage_path('app/public/signatures/' . $employeeId . '.' . $ext);
-                if (file_exists($path)) {
-                    return asset('storage/signatures/' . $employeeId . '.' . $ext) . '?v=' . filemtime($path);
-                }
-            }
-            return null;
-        };
-
         $signatures = [
-            'preparer'     => $signatureFor($p->user_id),
-            'reviewed_by'  => $signatureFor($p->reviewed_by),
-            'checked_by'   => $signatureFor($p->checked_by),
-            'endorsed_by'  => $signatureFor($p->endorsed_by),
-            'confirmed_by' => $signatureFor($p->confirmed_by),
-            'approved_by'  => $signatureFor($p->approved_by),
+            'preparer'     => $this->signatureFor($p->user_id),
+            'reviewed_by'  => $this->signatureFor($p->reviewed_by),
+            'checked_by'   => $this->signatureFor($p->checked_by),
+            'endorsed_by'  => $this->signatureFor($p->endorsed_by),
+            'confirmed_by' => $this->signatureFor($p->confirmed_by),
+            'approved_by'  => $this->signatureFor($p->approved_by),
         ];
 
         // Normalize project data so the frontend always gets
@@ -112,20 +125,82 @@ class RoiPrintController extends Controller
             'fees'  => $this->normalizeFees($p->fees),
         ]);
 
-//     dd([
-//     'model'       => $modelClass,
-//     'items_count' => $p->items->count(),
-//     'fees_count'  => $p->fees->count(),
-//     'items_raw'   => $p->items->first()?->toArray(),
-//     'fees_raw'    => $p->fees->first()?->toArray(),
-// ]);
-
         return Inertia::render('CustomerManagement/ProjectROIApproval/EntryPrint', [
             'tab'                => request('tab', 'summary'),
             'storageKey'         => request('storageKey'),
             'autoprint'          => (bool) request('autoprint', false),
             'showDraftWatermark' => $showDraftWatermark,
             'entryProject'       => $normalizedProject,
+            'usersById'          => $usersById,
+            'route'              => $route,
+            'signatures'         => $signatures,
+            'hideSignatories'    => (bool) request('hideSignatories', false),
+        ]);
+    }
+
+    private function renderGroupPrint($modelClass, $reference, $route, $showDraftWatermark)
+    {
+        $rows = $modelClass::with(['items', 'fees', 'user'])
+            ->where('reference', $reference)
+            ->orderBy('sequence')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            abort(404);
+        }
+
+        // Master row (sequence <= 1) carries every workflow field, same
+        // scoping as the rest of multi-entry — signatures are sourced from
+        // it only.
+        $master = $rows->first();
+
+        // Union of user ids across every sibling, not just the master —
+        // mirrors showGroup()'s pattern, since usersById needs to resolve
+        // whichever entry-level user references exist on any row, even
+        // though the workflow columns (reviewed_by/approved_by/etc.) only
+        // ever live on the master.
+        $userIds = $rows->flatMap(fn($p) => [
+            $p->user_id, $p->status_updated_by, $p->reviewed_by,
+            $p->checked_by, $p->endorsed_by, $p->confirmed_by,
+            $p->approved_by, $p->rejected_by,
+        ])->filter()->unique()->values();
+
+        $usersById = User::query()
+            ->whereIn('id', $userIds)
+            ->get(['id', 'first_name', 'last_name', 'position', 'employee_id'])
+            ->keyBy(fn($u) => (string) $u->id)
+            ->map(fn($u) => [
+                'id'       => $u->id,
+                'name'     => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+                'position' => $u->position ?? '—',
+            ]);
+
+        $signatures = [
+            'preparer'     => $this->signatureFor($master->user_id),
+            'reviewed_by'  => $this->signatureFor($master->reviewed_by),
+            'checked_by'   => $this->signatureFor($master->checked_by),
+            'endorsed_by'  => $this->signatureFor($master->endorsed_by),
+            'confirmed_by' => $this->signatureFor($master->confirmed_by),
+            'approved_by'  => $this->signatureFor($master->approved_by),
+        ];
+
+        $entryProjects = $rows->map(fn($p) => array_merge($p->toArray(), [
+            'items' => $this->normalizeItems($p->items),
+            'fees'  => $this->normalizeFees($p->fees),
+        ]))->values()->toArray();
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/GroupEntryPrint', [
+            'tab'                => request('tab', 'overall'),
+            'storageKey'         => request('storageKey'),
+            'autoprint'          => (bool) request('autoprint', false),
+            'showDraftWatermark' => $showDraftWatermark,
+            'entryProjects'      => $entryProjects,
+            // Kept as a fallback single-object prop in case Names.jsx (which
+            // I don't have) reads `entryProject.user.name` off page props
+            // directly the way it does on the single-entry print page —
+            // flagged below, please confirm.
+            'entryProject'       => $entryProjects[0] ?? null,
+            'reference'          => $reference,
             'usersById'          => $usersById,
             'route'              => $route,
             'signatures'         => $signatures,

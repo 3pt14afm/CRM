@@ -1,9 +1,11 @@
 export const getRowCalculations = (row, projectData) => {
     // 1. RAW INPUTS
-    const rawCost = Number(row?.cost) || 0;
+    const toNonNegative = (val, fallback = 0) => Math.max(Number(val) || fallback, 0);
+
+    const rawCost = toNonNegative(row?.cost);
     const qty = Number(row?.qty) || 0;
     const rawYields = Number(row?.yields) || 0;
-    const rawPrice = Number(row?.price) || 0;
+    const rawPrice = toNonNegative(row?.price);
 
     // 2. PROJECT CONSTANTS
     const annualInterest = Number(projectData?.interest?.annualInterest) || 0;

@@ -11,8 +11,6 @@ function Names() {
   const status      = String(project?.status ?? '').toLowerCase();
   const isRejected  = isArchive && status === 'rejected';
 
-
-
   const nameOf = (id, fallback = '—') => {
     if (!id) return fallback;
     return usersById?.[String(id)]?.name ?? fallback;
@@ -46,17 +44,13 @@ function Names() {
   const timestampOf = (value) => (hasPageProject ? formatTimestamp(value) : '');
 
   const preparedBy = hasPageProject ? (project?.user?.name ?? nameOf(project?.user_id, '—')) : fromSnap('preparedBy');
-
   const reviewedBy = hasPageProject ? nameOf(project?.reviewed_by) : fromSnap('reviewedBy');
   const checkedBy = hasPageProject ? nameOf(project?.checked_by) : fromSnap('checkedBy');
   const endorsedBy = hasPageProject ? nameOf(project?.endorsed_by) : fromSnap('endorsedBy');
   const confirmedBy = hasPageProject ? nameOf(project?.confirmed_by) : fromSnap('confirmedBy');
   const approvedBy = hasPageProject ? nameOf(project?.approved_by) : fromSnap('approvedBy');
-
   const rejectedBy = hasPageProject ? (isRejected ? nameOf(project?.rejected_by) : '—') : fromSnap('rejectedBy');
-
   const rejectedLevel = Number(project?.rejected_by_level ?? 0);
-
   const preparedByPosition = hasPageProject ? positionOf(project?.user_id) : fromSnap('preparedByPosition');
   const reviewedByPosition = hasPageProject ? positionOf(project?.reviewed_by) : fromSnap('reviewedByPosition');
   const checkedByPosition = hasPageProject ? positionOf(project?.checked_by) : fromSnap('checkedByPosition');
@@ -64,10 +58,8 @@ function Names() {
   const confirmedByPosition = hasPageProject ? positionOf(project?.confirmed_by) : fromSnap('confirmedByPosition');
   const approvedByPosition = hasPageProject ? positionOf(project?.approved_by) : fromSnap('approvedByPosition');
   const rejectedByPosition = hasPageProject ? positionOf(project?.rejected_by) : fromSnap('rejectedByPosition');
-
   const isSentBack = status === 'sent back';
   const currentLevel = Number(project?.current_level ?? 0);
-
   const isCancelled = isArchive && status === 'cancelled';
 
   // "Prepared By" date shows the cancellation date when the project was cancelled,
@@ -165,9 +157,9 @@ function Names() {
 const Signatory = ({ label, name, title, timestamp, isRejectedAction, signatureUrl, isCancelledAction = false }) => (
   <div className="flex flex-col space-y-4 justify-center">
     <span className="text-[10px] font-extrabold text-gray-800 tracking-tight print:font-semibold">{label}</span>
-    <div className="pt-2">
+    <div>
       {/* Container for signature and name line */}
-      <div className="relative w-full h-16 ">
+      <div className="relative w-full h-16">
         {signatureUrl && (
           <img
             src={signatureUrl}

@@ -15,8 +15,23 @@ export const get1YrPotential = (projectData) => {
 
   // --- INTEREST / MARGIN CONSTANTS ---
   const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
-  const contractYears = Number(projectData?.companyInfo?.contractYears) || 1;
+  const contractYearsProvided = projectData?.companyInfo?.contractYears !== undefined;
+  const parsedContractYears = Number(projectData?.companyInfo?.contractYears);
+  const contractYears = contractYearsProvided && !isNaN(parsedContractYears) ? parsedContractYears : 1;
   const percentMargin = (annualInterest * contractYears) / 100;
+
+  // An explicit 0 is an invalid contract length — mirror succeedingYears(),
+  // which already treats 0 as "no valid contract" and returns all zeros.
+  if (contractYearsProvided && contractYears <= 0) {
+    return {
+      totalMachineQty: 0, totalMachineCost: 0, totalMachineSales: 0, totalMachineMargin: 0,
+      totalConsumableQty: 0, totalConsumableCost: 0, totalConsumableSales: 0,
+      totalCompanyFeesAmount: 0, totalCustomerFeesAmount: 0,
+      grandtotalCost: 0, grandtotalSell: 0, grossProfit: 0, roiPercentage: 0,
+      machines: [], consumables: [], companyFees: [], customerFees: [],
+      bundleDeduction: 0, firstYearTotalCost: 0, firstYearTotalSell: 0,
+    };
+  }
 
   const isBundleChecked = projectData?.companyInfo?.bundledStdInk === true;
   const bundleDeduction = (isMonthlyRental && isBundleChecked)
@@ -176,7 +191,8 @@ export const get1YrPotential = (projectData) => {
         qty = to2Decimals(qty * (printerMachineQty || 1));
       }
     } else {
-      qty = getSafeNumber(c.qty, 1);
+      const rawQty = getSafeNumber(c.qty, 1);
+      qty = rawQty < 0 ? 1 : rawQty;
     }
 
     qty = applyPerCartridgeRounding(qty); 

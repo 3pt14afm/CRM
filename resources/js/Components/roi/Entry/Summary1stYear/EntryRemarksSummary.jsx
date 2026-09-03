@@ -47,7 +47,7 @@ export default function EntryRemarksSummary() {
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-300 shadow-sm font-sans max-w-full my-6 mr-0 sm:mr-5 print:mr-0">
+    <div className="overflow-hidden rounded-xl border border-gray-300 shadow-sm font-sans max-w-full my-6 mr-0 sm:mr-5 print:mr-1">
       <div className="bg-[#E2F4D8] py-2 text-center border-b border-gray-300">
         <h2 className="text-[10px] font-bold tracking-widest text-gray-800 uppercase">
           Remarks
@@ -56,7 +56,7 @@ export default function EntryRemarksSummary() {
 
       <div className="p-3 sm:p-4 space-y-4 bg-white min-h-[100px]">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 print:text-[9px]">
             Remarks
           </div>
           <div className="text-[11px] text-slate-700 whitespace-pre-wrap break-words min-h-[63px]">
@@ -65,7 +65,7 @@ export default function EntryRemarksSummary() {
         </div>
 
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 print:text-[9px]">
             Attachments
           </div>
 

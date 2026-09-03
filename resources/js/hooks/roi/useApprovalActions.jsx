@@ -13,9 +13,17 @@ import { toast } from 'sonner';
  * sendBackType: 'comment' | 'note',
  * }} params
  */
-export function useApprovalActions({ entryProject, sendBackType }) {
+export function useApprovalActions({ entryProject, entryProjects = null, sendBackType }) {
   const [showSendBackModal, setShowSendBackModal] = useState(false);
   const [sendBackText, setSendBackText]           = useState('');
+  const [sendBackTargetId, setSendBackTargetId]   = useState(null);
+
+  const sendBackEntryOptions = (entryProjects && entryProjects.length > 1)
+    ? entryProjects.map((ep, i) => ({
+        id: ep.id,
+        label: `Entry ${i + 1}${ep.contract_type ? `: ${ep.contract_type}` : ''}`,
+      }))
+    : null;
 
   // ── Withdraw / Cancel modal state ──────────────────────────────
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -68,6 +76,7 @@ export function useApprovalActions({ entryProject, sendBackType }) {
   // ── Send Back ──────────────────────────────────────────────────
   const handleBackToSender = () => {
     setSendBackText('');
+    setSendBackTargetId(sendBackEntryOptions ? null : entryProject?.id ?? null);
     setShowSendBackModal(true);
   };
 
@@ -84,9 +93,14 @@ export function useApprovalActions({ entryProject, sendBackType }) {
       return;
     }
 
+    if (sendBackEntryOptions && !sendBackTargetId) {
+      toast.error('Please select which entry this is for.');
+      return;
+    }
+
     router.patch(
       ziggyRoute('roi.current.send-back', entryProject.id),
-      { body: trimmed, type: sendBackType },
+      { body: trimmed, type: sendBackType, target_entry_id: sendBackTargetId ?? entryProject.id },
       {
         preserveScroll: true,
         onStart:   () => toast.loading('Sending back...', { id: processId }),
@@ -273,5 +287,9 @@ export function useApprovalActions({ entryProject, sendBackType }) {
     setShowCancelModal,
     handleCancel,
     submitCancel,
+
+    sendBackTargetId,
+    setSendBackTargetId,
+    sendBackEntryOptions,
   };
 }

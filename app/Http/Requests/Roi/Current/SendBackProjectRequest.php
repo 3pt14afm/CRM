@@ -16,6 +16,7 @@ class SendBackProjectRequest extends FormRequest
         return [
             'body' => ['required', 'string', 'max:2000'],
             'type' => ['required', 'in:note,comment'],
+            'target_entry_id' => ['nullable', 'integer', 'exists:roi_current_projects,id'],
         ];
     }
 }

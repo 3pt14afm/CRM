@@ -34,7 +34,7 @@ class RoiCurrentWorkflowService
         6 => 'Approved By',
     ];
 
-    public function handleSendBack(RoiCurrentProject $project, User $user, array $validatedData): string
+    public function handleSendBack(RoiCurrentProject $project, User $user, array $validatedData, ?RoiCurrentProject $noteTarget = null): string
     {
         $fromLevel = (int) $project->current_level;
         $workflow = $this->getRoiWorkflow($project);
@@ -45,19 +45,27 @@ class RoiCurrentWorkflowService
             'note_or_comment_body' => trim($validatedData['body']),
         ];
 
-        $this->appendSendBackEntry($project, $user, $validatedData['type'], $validatedData['body']);
+        // Multi-entry send-back can target a sibling entry instead of the
+        // master row being transitioned — $noteTarget lets the caller (see
+        // RoiMultiEntryWorkflowService) redirect the note/comment there.
+        // Single-entry callers never pass $noteTarget, so this is identical
+        // to appending straight onto $project as before.
+        $noteTarget = $noteTarget ?? $project;
+        $this->appendSendBackEntry($noteTarget, $user, $validatedData['type'], $validatedData['body']);
+        if ($noteTarget->isNot($project)) {
+            $noteTarget->save();
+        }
+
         $toLevel    = $fromLevel - 1;
         $backStatus = $this->getBackStatusLabel($toLevel);
 
-        // Resolve the effective first level for the receiver (consecutive approver block)
-        $firstLevel = ($toLevel >= 2) ? $this->findFirstConsecutiveLevelForApprover($project, $toLevel) : $toLevel;
-
-        // Revert to entry if:
-        // 1. Natural send-back from level 2 → level 1, OR
-        // 2. The receiver at firstLevel is also the preparer
-        $receiverIsAlsoPreparer = $firstLevel >= 2 && $this->approverForLevel($project, $firstLevel) === (int) $project->user_id;
-
-        if ($toLevel === 1 || $receiverIsAlsoPreparer) {
+        // Only a natural send-back from level 2 → level 1 reverts all the way
+        // to Draft. The receiver being the same person as the preparer is not
+        // a reason to skip their level — it's a normal, allowed assignment;
+        // only a run of consecutive levels held by the SAME approver collapses
+        // (handled below via findFirstConsecutiveLevelForApprover), so that
+        // person isn't asked to approve the same project twice in a row.
+        if ($toLevel === 1) {
             $project->save();
             $project->refresh()->load(['items', 'fees', 'user']);
 
@@ -838,6 +846,7 @@ class RoiCurrentWorkflowService
         $entry = [
             'id' => (string) Str::ulid(), 'body' => trim($body), 'created_at' => now()->toISOString(),
             'author' => ['id' => $user->id, 'name' => $user->name, 'role' => $user->role],
+            'is_sendback' => true,
         ];
 
         if ($type === 'note') {
@@ -857,12 +866,12 @@ class RoiCurrentWorkflowService
                 'user_id', 'location_id', 'project_uid', 'reference', 'version', 'last_saved_at', 'status', 'submitted_at',
                 'reviewed_by', 'reviewed_at', 'checked_by', 'checked_at', 'endorsed_by', 'endorsed_at',
                 'confirmed_by', 'confirmed_at', 'approved_by','approved_at', 'entry_remarks', 'entry_remarks_attachments',
-                'company_name', 'company_sap_code', 'type', 'contract_years', 'contract_type', 'purpose', 'bundled_std_ink',
+                'company_id', 'company_name', 'company_sap_code', 'type', 'contract_years', 'contract_type', 'purpose', 'bundled_std_ink',
                 'annual_interest', 'percent_margin', 'mono_yield_monthly', 'mono_yield_annual', 'color_yield_monthly',
                 'color_yield_annual', 'mc_unit_cost', 'mc_qty', 'mc_total_cost', 'mc_yields', 'mc_cost_cpp',
                 'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price', 'fees_total',
                 'grand_total_cost', 'grand_total_revenue', 'grand_roi', 'grand_roi_percentage', 'yearly_breakdown', 
-                'notes', 'comments', 'cancelled_at', // <-- ADDED THIS FIELD
+                'notes', 'comments', 'cancelled_at',
             ]);
 
             $archived = RoiArchiveProject::create(array_merge($base, $archiveOverrides));

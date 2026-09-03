@@ -69,6 +69,12 @@ export default function SprfItemsTable({
     return errors?.[`items.${groupIndex}.subitems.${subIndex}.qty`];
   };
 
+  const getMarkupError = (groupIndex, subIndex) => {
+    return errors?.[
+      `items.${groupIndex}.subitems.${subIndex}.markupPercent`
+    ];
+  };
+
   const inputClass =
     'w-full min-w-0 min-h-5 text-[10px] sm:text-[11px] xl:text-xs text-center rounded-sm border-darkgreen/0 outline-none focus:outline-none focus:ring-0 focus:border-[#289800] bg-transparent px-0 [appearance-none] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none hover:border-[#28980080]';
 
@@ -424,9 +430,14 @@ export default function SprfItemsTable({
                         value={formatNumberInput(sub.markupPercent, 4)}
                         onChange={(e) => {
                           const rawValue = parseNumberInput(e.target.value, 4);
-                          onUpdateSubitem(groupIndex, subIndex, 'markupPercent', rawValue);
+                          onUpdateSubitem(
+                            groupIndex,
+                            subIndex,
+                            'markupPercent',
+                            rawValue
+                          );
                         }}
-                        className={`${inputClass} py-0.5`}
+                        className={`${inputClass} py-0.5 ${ getMarkupError(groupIndex, subIndex) ? '!border-red-500 !border-solid' : ''}`}
                         placeholder="0"
                       />
                     )}

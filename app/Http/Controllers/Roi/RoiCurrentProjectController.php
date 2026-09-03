@@ -8,7 +8,7 @@ use App\Models\RoiCurrentProject;
 use App\Models\User;
 use App\Http\Requests\Roi\Current\SendBackProjectRequest;
 use App\Models\Location;
-use App\Services\Roi\Current\RoiCurrentWorkflowService;
+use App\Services\Roi\Current\RoiMultiEntryWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -17,9 +17,9 @@ use Inertia\Inertia;
 class RoiCurrentProjectController extends Controller
 {
     use ChecksPreferenceAccess;
-    protected RoiCurrentWorkflowService $workflowService;
+    protected RoiMultiEntryWorkflowService $workflowService;
 
-    public function __construct(RoiCurrentWorkflowService $workflowService)
+    public function __construct(RoiMultiEntryWorkflowService $workflowService)
     {
         $this->workflowService = $workflowService;
     }
@@ -122,7 +122,8 @@ class RoiCurrentProjectController extends Controller
             'approvedByUser:id,first_name,last_name,employee_id',
         ])
         ->leftJoin('users', 'roi_current_projects.user_id', '=', 'users.id')
-        ->select('roi_current_projects.*');
+        ->select('roi_current_projects.*')
+        ->where('roi_current_projects.sequence', '<=', 1);
 
         // Enforce user pipeline visibility constraints
         $this->applyCurrentVisibilityScope($query, $user);
@@ -254,7 +255,24 @@ class RoiCurrentProjectController extends Controller
             ", [$userId, $userId, $userId, $userId, $userId, $userId])
         );
 
-        $currentProjects = $query->paginate($perPage)->withQueryString()->through(function ($p) use ($user) {
+        $currentProjects = $query->paginate($perPage)->withQueryString();
+
+        $currentReferences = $currentProjects->getCollection()->pluck('reference');
+        $currentEntryCounts = RoiCurrentProject::query()
+            ->whereIn('reference', $currentReferences)
+            ->selectRaw('reference, count(*) as cnt')
+            ->groupBy('reference')
+            ->pluck('cnt', 'reference');
+
+        $groupReferences = $currentEntryCounts->filter(fn ($cnt) => $cnt > 1)->keys();
+        $siblingsByReference = RoiCurrentProject::query()
+            ->whereIn('reference', $groupReferences)
+            ->where('sequence', '>', 1)
+            ->orderBy('sequence')
+            ->get(['id', 'reference', 'sequence', 'contract_type', 'contract_years', 'status'])
+            ->groupBy('reference');
+
+        $currentProjects = $currentProjects->through(function ($p) use ($user, $currentEntryCounts, $siblingsByReference) {
             $p->last_saved_display = $p->last_saved_at ? $p->last_saved_at->diffForHumans() : '—';
             $lvl = (int) ($p->current_level ?? 0);
             $p->level_display = ($lvl >= 1 && $lvl <= 6) ? ('Level ' . $lvl . ' — ' . $this->workflowService->levelLabel($lvl)) : '—';
@@ -274,6 +292,11 @@ class RoiCurrentProjectController extends Controller
             $p->viewer_is_preparer         = (int) $p->user_id === (int) $user->id;
             $p->viewer_is_current_approver = $this->currentProjectAssignedToUser($p, (int) $user->id);
 
+            $p->entry_count = $currentEntryCounts[$p->reference] ?? 1;
+            $p->is_group    = $p->entry_count > 1;
+
+            $p->sibling_entries = $p->is_group ? ($siblingsByReference[$p->reference] ?? collect())->values() : [];
+            
             return $p;
         });
 
@@ -315,35 +338,142 @@ class RoiCurrentProjectController extends Controller
             ],
         ]);
     }
- 
-    private function getViewerLevel(RoiCurrentProject $project, $user): int
-        {
-            $userId = (int) $user->id;
 
-            $levelMap = [
-                2 => 'reviewed_by',
-                3 => 'checked_by',
-                4 => 'endorsed_by',
-                5 => 'confirmed_by',
-                6 => 'approved_by',
-            ];
+    public function showGroup(string $reference, Request $request)
+    {
+        $user = $this->getAuthenticatedUser();
 
-            $currentLevel = (int) $project->current_level;
+        $projects = RoiCurrentProject::with([
+            'items', 'fees', 'user',
+            'reviewedByUser', 'checkedByUser', 'endorsedByUser', 'confirmedByUser', 'approvedByUser',
+        ])
+            ->where('reference', $reference)
+            ->orderBy('sequence')
+            ->get();
 
-            // First, check if the user matches the CURRENT level — highest priority
-            if (isset($levelMap[$currentLevel]) && (int) ($project->{$levelMap[$currentLevel]} ?? 0) === $userId) {
-                return $currentLevel;
-            }
+        abort_if($projects->isEmpty(), 404);
 
-            // Fallback: return any level they're assigned to (for view access)
-            foreach ($levelMap as $level => $column) {
-                if ((int) ($project->{$column} ?? 0) === $userId) {
-                    return $level;
+        // $projects is ordered by sequence ascending, so first() IS the master.
+        $master = $projects->first();
+        $this->ensureCanView($master, $user);
+
+        foreach ($projects as $project) {
+            $project->notes    = $this->workflowService->sortTimelineEntries($project->notes);
+            $project->comments = $this->workflowService->sortTimelineEntries($project->comments);
+        }
+
+        // Whichever entry is active client-side (?entry=) is the one AddComments/
+        // AddNotes/Names need as their singular "project" from usePage().props —
+        // its own id/notes/comments, but master's workflow columns (current_level,
+        // reviewed_by, etc.), since those only ever live on the master row per the
+        // multi-entry field-scoping decision. Previously no singular project/
+        // entryProject was sent at all, which broke signatures and per-entry
+        // commenting regardless of tab.
+        $activeIndex = max(0, (int) $request->query('entry', 0));
+        $activeEntry = $projects->get($activeIndex) ?? $master;
+
+        $workflowFields = [
+            'user_id', 'status', 'current_level', 'status_updated_by',
+            'reviewed_by', 'checked_by', 'endorsed_by', 'confirmed_by', 'approved_by',
+            'rejected_by', 'rejected_by_level',
+            'submitted_at', 'reviewed_at', 'checked_at', 'endorsed_at', 'confirmed_at',
+            'approved_at', 'rejected_at', 'cancelled_at',
+        ];
+        $entryProject = clone $activeEntry;
+        $entryProject->setRawAttributes(
+            array_merge(
+                $activeEntry->getAttributes(),
+                array_intersect_key($master->getAttributes(), array_flip($workflowFields))
+            ),
+            true
+        );
+
+        $userIds = collect([
+            $master->user_id, $master->status_updated_by, $master->reviewed_by,
+            $master->checked_by, $master->endorsed_by, $master->confirmed_by, $master->approved_by,
+        ])->filter()->unique()->values();
+
+        $usersById = User::query()->whereIn('id', $userIds)
+            ->get(['id', 'first_name', 'last_name', 'position'])
+            ->keyBy(fn ($u) => (string) $u->id)
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+                'position' => $u->position ?? '—',
+            ]);
+
+        $signatureFor = function ($userRelation) {
+            if (!$userRelation || !$userRelation->employee_id) return null;
+            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+                $path = 'signatures/' . $userRelation->employee_id . '.' . $ext;
+                if (Storage::disk('public')->exists($path)) {
+                    return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
                 }
             }
+            return null;
+        };
 
-            return 0;
+        $isSentBack   = strtolower((string) $master->status) === 'sent back';
+        $currentLevel = (int) $master->current_level;
+
+        $signatures = [
+            'preparer'     => $signatureFor($master->user),
+            'reviewed_by'  => (!$isSentBack || $currentLevel > 2) ? $signatureFor($master->reviewedByUser)  : null,
+            'checked_by'   => (!$isSentBack || $currentLevel > 3) ? $signatureFor($master->checkedByUser)   : null,
+            'endorsed_by'  => (!$isSentBack || $currentLevel > 4) ? $signatureFor($master->endorsedByUser)  : null,
+            'confirmed_by' => (!$isSentBack || $currentLevel > 5) ? $signatureFor($master->confirmedByUser) : null,
+            'approved_by'  => (!$isSentBack || $currentLevel > 6) ? $signatureFor($master->approvedByUser)  : null,
+        ];
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/GroupEntry', [
+            'reference'              => $reference,
+            'entryProjects'          => $projects,
+            'project'                => $entryProject,
+            'entryProject'           => $entryProject,
+            'readOnly'               => true,
+            'route'                  => 'current',
+            'activeEntryIndex'       => $activeIndex,
+            'createdBy'              => $master->user?->name ?? '—',
+            'viewerLevel'            => $this->getViewerLevel($master, $user),
+            'canActOnCurrentProject' => $this->currentProjectAssignedToUser($master, (int) $user->id),
+            'usersById'              => $usersById,
+            'projectNotes'           => $activeEntry->notes ?? [],
+            'projectComments'        => $activeEntry->comments ?? [],
+            'requiredSendBackType'   => $this->requiredSendBackTypeForLevel($currentLevel),
+            'machineCatalog'         => $this->buildMachineCatalog(),
+            'consumableCatalog'      => $this->buildConsumableCatalog(),
+            'signatures'             => $signatures,
+        ]);
+    }
+ 
+    private function getViewerLevel(RoiCurrentProject $project, $user): int
+    {
+        $userId = (int) $user->id;
+
+        $levelMap = [
+            2 => 'reviewed_by',
+            3 => 'checked_by',
+            4 => 'endorsed_by',
+            5 => 'confirmed_by',
+            6 => 'approved_by',
+        ];
+
+        $currentLevel = (int) $project->current_level;
+
+        // First, check if the user matches the CURRENT level — highest priority
+        if (isset($levelMap[$currentLevel]) && (int) ($project->{$levelMap[$currentLevel]} ?? 0) === $userId) {
+            return $currentLevel;
         }
+
+        // Fallback: return any level they're assigned to (for view access)
+        foreach ($levelMap as $level => $column) {
+            if ((int) ($project->{$column} ?? 0) === $userId) {
+                return $level;
+            }
+        }
+
+        return 0;
+    }
 
     public function show($id)
     {
@@ -432,6 +562,7 @@ class RoiCurrentProjectController extends Controller
         $project->update([
             'notes'         => $this->workflowService->sortTimelineEntries($notes),
             'last_saved_at' => now(),
+            'version'       => $project->version + 1,
         ]);
 
         try {
@@ -459,14 +590,19 @@ class RoiCurrentProjectController extends Controller
     {
         if (!$user) return false;
 
-        $userId = (int) $user->id;
-        $level  = (int) $project->current_level;
+        $master = $project->sequence > 1
+            ? RoiCurrentProject::where('reference', $project->reference)->where('sequence', '<=', 1)->first()
+            : $project;
 
+        if (!$master) return false;
+
+        $userId = (int) $user->id;
+        $level  = (int) $master->current_level;
         $column = $this->approverColumnForLevel($level);
 
         if (!$column) return false;
 
-        return (int) ($project->{$column} ?? 0) === $userId;
+        return (int) ($master->{$column} ?? 0) === $userId;
     }
 
     public function sendBack(SendBackProjectRequest $request, $id)
@@ -480,6 +616,15 @@ class RoiCurrentProjectController extends Controller
 
         $requiredType = $this->requiredSendBackTypeForLevel($fromLevel);
         abort_unless($request->input('type') === $requiredType, 422, "Invalid type for this level. Expected {$requiredType}.");
+
+        $targetEntryId = $request->validated()['target_entry_id'] ?? $project->id;
+        if ((int) $targetEntryId !== (int) $project->id) {
+            abort_unless(
+                RoiCurrentProject::where('id', $targetEntryId)->where('reference', $project->reference)->exists(),
+                422,
+                'Selected entry does not belong to this group.'
+            );
+        }
 
         $redirectTarget = $this->workflowService->handleSendBack($project, $user, $request->validated());
 

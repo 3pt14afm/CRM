@@ -1,3 +1,5 @@
+//not used
+
 import React, { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import PrintLayout from '@/Layouts/PrintLayout';
@@ -10,7 +12,6 @@ import { FaFileContract } from 'react-icons/fa6';
 import { FaRegUserCircle } from 'react-icons/fa';
 import { IoPrintSharp } from 'react-icons/io5';
 import ViewButton from '@/Components/ViewButton';
-
 
 const isBlank = (v) => v === null || v === undefined || v === '';
 const displayText = (value) => (isBlank(value) ? '---' : String(value));

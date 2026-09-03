@@ -271,8 +271,8 @@ export default function ProjectListSection({
   return (
     <div className="mx-4 md:mx-6 lg:mx-10">
     <div className="flex justify-start sm:justify-start md:grid md:grid-cols-12 gap-1 sm:gap-2 md:gap-4 xl:gap-6 ">
-      {tiles.map((t) => (
-        <div key={t.label} className="flex-1 md:flex-none col-span-12 md:col-span-3 ">
+      {tiles.map((t, i) => (
+        <div key={t.id ?? i} className="flex-1 md:flex-none col-span-12 md:col-span-3 ">
           <Tile {...t} />
         </div>
       ))}

@@ -15,6 +15,8 @@ class RoiCurrentProject extends Model
         'location_id',
         'project_uid',
         'reference',
+        'sequence',
+        'from_group',
         'version',
         'last_saved_at',
         'status',

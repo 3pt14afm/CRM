@@ -17,6 +17,7 @@ use App\Services\Roi\Entry\RoiCalculator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -358,7 +359,7 @@ class RoiProjectService
     /**
      * Map payload calculations, attach files, and overwrite items/fees records.
      */
-    public function persistDraftData(Request $request, RoiEntryProject $project, array $data): void
+    public function persistDraftData(Request $request, RoiEntryProject $project, array $data, ?array $attachmentFiles = null): void
     {
         $company = $data['companyInfo'] ?? [];
         $contractType = strtolower(trim($company['contractType'] ?? ''));
@@ -376,7 +377,7 @@ class RoiProjectService
         $monoMonthly = (int) ($yield['monoAmvpYields']['monthly'] ?? 0);
         $colorMonthly = (int) ($yield['colorAmvpYields']['monthly'] ?? 0);
 
-        $attachments = $this->storeEntryRemarkAttachments($request, $project);
+        $attachments = $this->storeEntryRemarkAttachments($request, $project, $attachmentFiles);
 
         // Calculations performed via the Backend Calculator engine using the safely modified array
         $calculated = $this->calculator->calculateAll($data);
@@ -617,82 +618,74 @@ class RoiProjectService
     //     return array_values($kept);
     // }
 
-    private function storeEntryRemarkAttachments(Request $request, RoiEntryProject $project): array
-{
-    $existing = is_array($project->entry_remarks_attachments) ? $project->entry_remarks_attachments : [];
- 
-    // FIX 1: Only touch existing attachments if the request actually sent
-    // attachment-related data (kept metadata or new files). If neither is
-    // present, this save didn't touch attachments at all — leave them alone.
-    $hasAttachmentsField = $request->has('entryRemarks.attachments')
-        || $request->hasFile('entry_remarks_attachments');
- 
-    if (!$hasAttachmentsField) {
-        return $existing;
-    }
- 
-    $keptIds = collect($request->input('entryRemarks.attachments', []))
-        ->map(fn ($item) => is_array($item) ? ($item['id'] ?? null) : null)
-        ->filter()->values()->all();
- 
-    $kept = collect($existing)->filter(fn ($item) => in_array($item['id'] ?? null, $keptIds, true))->values()->all();
-    $removed = collect($existing)->filter(fn ($item) => !in_array($item['id'] ?? null, $keptIds, true))->values()->all();
- 
-    $uploaded = $request->file('entry_remarks_attachments', []);
- 
-    // FIX 2: Enforce the cap BEFORE storing anything to disk.
-    if ((count($kept) + count($uploaded)) > 3) {
-        throw ValidationException::withMessages([
-            'entry_remarks_attachments' => 'You may attach up to 3 files only.',
-        ]);
-    }
- 
-    // Only delete removed files once we know the save will actually proceed
-    // past the cap check above — avoids deleting files on a request that's
-    // about to fail validation anyway.
-    foreach ($removed as $item) {
-        if (!empty($item['path']) && Storage::disk('local')->exists($item['path'])) {
-            Storage::disk('local')->delete($item['path']);
+    private function storeEntryRemarkAttachments(Request $request, RoiEntryProject $project, ?array $attachmentFiles = null): array
+    {
+        $existing = is_array($project->entry_remarks_attachments) ? $project->entry_remarks_attachments : [];
+
+        $hasAttachmentsField = $request->has('entryRemarks.attachments') || $request->hasFile('entry_remarks_attachments');
+    
+        if (!$hasAttachmentsField) {
+            return $existing;
         }
-    }
- 
-    $uploadedLogs = [];
- 
-    foreach ($uploaded as $file) {
-        $id = (string) Str::ulid();
-        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
-        $storedName = "{$id}.{$extension}";
-        $path = $file->storeAs('roi-entry-remarks', $storedName, 'local');
- 
-        $newAttachment = [
-            'id' => $id,
-            'original_name' => $file->getClientOriginalName(),
-            'stored_name' => $storedName,
-            'path' => $path,
-            'size' => $file->getSize(),
-        ];
- 
-        $kept[] = $newAttachment;
-        $uploadedLogs[] = $newAttachment;
-    }
- 
-    if (!empty($uploadedLogs) || !empty($removed)) {
-        try {
-            RoiActivityLogger::log(
-                activityType: 'update_attachments',
-                moduleType: 'ROI Entry',
-                details: 'Updated entry remark attachments for ROI #' . $project->reference,
-                subject: $project,
-                oldValues: ['removed_attachments' => collect($removed)->map(fn ($item) => ['id' => $item['id'] ?? null, 'original_name' => $item['original_name'] ?? null])->all()],
-                newValues: ['uploaded_attachments' => collect($uploadedLogs)->map(fn ($item) => ['id' => $item['id'] ?? null, 'original_name' => $item['original_name'] ?? null])->all(), 'kept_attachments_count' => count($kept)]
-            );
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('ROI attachment activity log failed', ['message' => $e->getMessage()]);
+    
+        $keptIds = collect($request->input('entryRemarks.attachments', []))
+            ->map(fn ($item) => is_array($item) ? ($item['id'] ?? null) : null)
+            ->filter()->values()->all();
+    
+        $kept = collect($existing)->filter(fn ($item) => in_array($item['id'] ?? null, $keptIds, true))->values()->all();
+        $removed = collect($existing)->filter(fn ($item) => !in_array($item['id'] ?? null, $keptIds, true))->values()->all();
+    
+        $uploaded = $attachmentFiles ?? $request->file('entry_remarks_attachments', []);
+    
+        if ((count($kept) + count($uploaded)) > 3) {
+            throw ValidationException::withMessages([
+                'entry_remarks_attachments' => 'You may attach up to 3 files only.',
+            ]);
         }
+    
+        foreach ($removed as $item) {
+            if (!empty($item['path']) && Storage::disk('local')->exists($item['path'])) {
+                Storage::disk('local')->delete($item['path']);
+            }
+        }
+    
+        $uploadedLogs = [];
+    
+        foreach ($uploaded as $file) {
+            $id = (string) Str::ulid();
+            $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
+            $storedName = "{$id}.{$extension}";
+            $path = $file->storeAs('roi-entry-remarks', $storedName, 'local');
+    
+            $newAttachment = [
+                'id' => $id,
+                'original_name' => $file->getClientOriginalName(),
+                'stored_name' => $storedName,
+                'path' => $path,
+                'size' => $file->getSize(),
+            ];
+    
+            $kept[] = $newAttachment;
+            $uploadedLogs[] = $newAttachment;
+        }
+    
+        if (!empty($uploadedLogs) || !empty($removed)) {
+            try {
+                RoiActivityLogger::log(
+                    activityType: 'update_attachments',
+                    moduleType: 'ROI Entry',
+                    details: 'Updated entry remark attachments for ROI #' . $project->reference,
+                    subject: $project,
+                    oldValues: ['removed_attachments' => collect($removed)->map(fn ($item) => ['id' => $item['id'] ?? null, 'original_name' => $item['original_name'] ?? null])->all()],
+                    newValues: ['uploaded_attachments' => collect($uploadedLogs)->map(fn ($item) => ['id' => $item['id'] ?? null, 'original_name' => $item['original_name'] ?? null])->all(), 'kept_attachments_count' => count($kept)]
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('ROI attachment activity log failed', ['message' => $e->getMessage()]);
+            }
+        }
+    
+        return array_values($kept);
     }
- 
-    return array_values($kept);
-}
 
     private function mapItemRow(int $projectId, array $row, string $kind): array
     {

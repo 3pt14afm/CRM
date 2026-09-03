@@ -43,6 +43,8 @@ import {
   hasValidCompanyInfo,
   hasValidItemGroups,
   validateDraft,
+  validateSubmit,
+  getInvalidMarkupFields,
   validateAdvance,
   formatDateTime,
   buildSigner,
@@ -199,6 +201,7 @@ const [companyInfo, setCompanyInfo] = useState({
   const [items, setItems] = useState([makeGroupRow()]);
   const [otherExpenses, setOtherExpenses] = useState(() => makeInitialExpenseRows());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [itemErrors, setItemErrors] = useState({});
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
   const [showSendBackModal, setShowSendBackModal] = useState(false);
@@ -596,25 +599,28 @@ const [companyInfo, setCompanyInfo] = useState({
   const handleSubmit = () => {
     if (isSubmitting || readOnly) return;
 
-    switch (true) {
-      case !sourceProject?.id:
-        toast.error('Please save draft first before submitting.');
-        return;
+    // Clear previous client-side item errors
+    setItemErrors({});
 
-      case !hasValidCompanyInfo(companyInfo):
-         toast.error("Company Information is required before submitting.");
-         return;
+    const submitCheck = validateSubmit({
+      sourceProject,
+      companyInfo,
+      items,
+      remarks,
+    });
 
-      case !hasValidItemGroups(items):
-        toast.error("Please add at least one item before submitting.");
-        return;
+    if (!submitCheck.ok) {
+      if (submitCheck.errors) {
+        setItemErrors(submitCheck.errors);
+      }
 
-      case !hasRemarksAttachment:
-        toast.error('Please attach at least one file in Remarks before submitting.');
-        return;
+      toast.error(submitCheck.message);
+      return;
+    }
 
-      default:
-        break;
+    if (!hasRemarksAttachment) {
+      toast.error('Please attach at least one file in Remarks before submitting.');
+      return;
     }
 
     setIsSubmitting(true);
@@ -627,8 +633,11 @@ const [companyInfo, setCompanyInfo] = useState({
         preserveState: true,
         onError: (errors) => {
           const firstError = Object.values(errors || {})[0];
+
           if (firstError) {
-            toast.error(Array.isArray(firstError) ? firstError[0] : firstError);
+            toast.error(
+              Array.isArray(firstError) ? firstError[0] : firstError
+            );
           }
         },
         onFinish: () => {
@@ -932,7 +941,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   totals={itemTotals}
                   summary={summary}
                   readOnly={readOnly}
-                  errors={errors}
+                  errors={{ ...errors, ...itemErrors }}
                 />
               </div>
 
