@@ -39,7 +39,7 @@ createInertiaApp({
 
         setTimeout(() => {
           toast.error(response?.data?.message || 'Forbidden', {
-            duration: 1000,
+            duration: 5000,
           });
         }, 50);
       }
@@ -52,8 +52,8 @@ createInertiaApp({
         <ProjectDataProvider>
           <Toaster
             position="top-center"
-            visibleToasts={2}
-            duration={2000}
+            visibleToasts={1}
+            duration={5000}
             richColors
             toastOptions={{
               dismissible: true,

@@ -14,6 +14,7 @@ import { IoAlertCircle } from 'react-icons/io5';
  *   projectRef: string,
  *   createdBy: string|null,
  *   showDraftWatermark: boolean,
+ *   groupData?: object|null,
  * }} params
  * @returns {{ openPrintPage: Function }}
  */
@@ -24,6 +25,7 @@ export function usePrintPage({
   projectRef,
   createdBy,
   showDraftWatermark,
+  groupData = null,
 }) {
   const { projectData } = useProjectData();
 
@@ -36,7 +38,80 @@ export function usePrintPage({
     approvedBy: entryProject?.approved_by_name ?? entryProject?.approved_by ?? null,
   });
 
+  const openAsNewTab = (printPath, params) => {
+    const href = `${printPath}?${params.toString()}`;
+    const a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const openOverallPrintPage = (autoPrint) => {
+    const reference = groupData?.metadata?.reference;
+
+    if (!reference) {
+      toast((t) => (
+        <div className="flex items-center gap-2 rounded-md text-sm">
+          <IoAlertCircle className="text-red-500 text-lg shrink-0" />
+          <span>
+            Please <b className="text-darkgreen/70">Save Draft</b> first before printing.
+          </span>
+        </div>
+      ), { duration: 1500 });
+
+      return;
+    }
+
+    let storageKey = null;
+
+    try {
+      storageKey = `roi-print:${projectRef}:${Date.now()}`;
+
+      // Snapshot the WHOLE group, not projectData (which only ever holds the
+      // active entry via GroupProjectContext's bridge) — Overall Summary
+      // renders every entry at once.
+      const snapshot = {
+        ...groupData,
+        metadata: {
+          ...(groupData?.metadata ?? {}),
+          signatories: buildSignatoriesForPrint(createdBy),
+        },
+      };
+
+      sessionStorage.setItem(storageKey, JSON.stringify(snapshot));
+    } catch (e) {
+      console.warn("Print snapshot too large; continuing without sessionStorage snapshot.", e);
+      storageKey = null;
+    }
+
+    let printPath = "";
+
+    if (routeName === "current") {
+      printPath = ziggyRoute("roi.current.group.print", reference);
+    } else if (routeName === "archive") {
+      printPath = ziggyRoute("roi.archive.group.print", reference);
+    } else {
+      printPath = ziggyRoute("roi.entry.group.print", reference);
+    }
+
+    const params = new URLSearchParams();
+    params.set("tab", "overall");
+    params.set("autoprint", autoPrint ? "1" : "0");
+    params.set("draftWatermark", showDraftWatermark ? "1" : "0");
+    if (storageKey) params.set("storageKey", storageKey);
+
+    openAsNewTab(printPath, params);
+  };
+
   const openPrintPage = (autoPrint = false) => {
+    if (tab === "Overall") {
+      openOverallPrintPage(autoPrint);
+      return;
+    }
+
     if (!(tab === "Summary" || tab === "Succeeding")) return;
 
     const projectId = entryProject?.id ?? projectData?.metadata?.projectId;
@@ -65,6 +140,7 @@ export function usePrintPage({
         metadata: {
           ...(projectData?.metadata ?? {}),
           signatories: buildSignatoriesForPrint(createdBy),
+          hideSignatories: (groupData?.entries?.length ?? 0) > 1,
         },
         projectNotes: entryProject?.notes ?? projectData?.projectNotes ?? [],
         projectComments: entryProject?.comments ?? projectData?.projectComments ?? [],
@@ -90,18 +166,11 @@ export function usePrintPage({
     params.set("tab", tabParam);
     params.set("autoprint", autoPrint ? "1" : "0");
     params.set("draftWatermark", showDraftWatermark ? "1" : "0");
+    params.set("hideSignatories", (groupData?.entries?.length ?? 0) > 1 ? "1" : "0");
 
     if (storageKey) params.set("storageKey", storageKey);
 
-    const href = `${printPath}?${params.toString()}`;
-
-    const a = document.createElement("a");
-    a.href = href;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    openAsNewTab(printPath, params);
   };
 
   return { openPrintPage };

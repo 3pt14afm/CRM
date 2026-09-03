@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProjectData } from '@/Context/ProjectContext';
 
-function mapEntryProjectToContext(entryProject) {
+// Exported so useGroupEntryHydration can reuse this exact mapping per row —
+// a group's rows are serialized identically to a single entryProject.
+export function mapEntryProjectToContext(entryProject) {
   const items = entryProject?.items ?? [];
   const fees = entryProject?.fees ?? [];
 
@@ -57,13 +59,13 @@ function mapEntryProjectToContext(entryProject) {
     companyInfo: {
       projectUid: entryProject.project_uid ?? "",
       companyName: entryProject.company_name ?? "",
-      companySapCode: entryProject.company_sap_code ?? "",  // ← add
+      companySapCode: entryProject.company_sap_code ?? "",
       contractYears: Number(entryProject.contract_years ?? 0),
       contractType: entryProject.contract_type ?? "",
       reference: entryProject.reference ?? "",
       purpose: entryProject.purpose ?? "",
       bundledStdInk: Boolean(entryProject.bundled_std_ink ?? false),
-      type: Number(entryProject.type ?? 0), 
+      type: Number(entryProject.type ?? 0),
     },
 
     interest: {
@@ -146,7 +148,6 @@ export function useEntryHydration(entryProject, activeTab) {
   const hydratedEntryIdRef = useRef(null);
   const hydratedVersionRef = useRef(null);
 
-  // Sync activeTab prop → internal tab state
   useEffect(() => {
     const next =
       activeTab === 'Summary' ? 'Summary' :
@@ -155,7 +156,6 @@ export function useEntryHydration(entryProject, activeTab) {
     setTab(next);
   }, [activeTab]);
 
-  // Reset everything when there is no entryProject (new entry mode)
   useEffect(() => {
     if (entryProject) return;
 
@@ -166,21 +166,20 @@ export function useEntryHydration(entryProject, activeTab) {
     setTab('Machine');
   }, [entryProject, resetProject]);
 
-  // Hydrate context from entryProject when it changes
-useEffect(() => {
-  if (!entryProject?.id) return;
+  useEffect(() => {
+    if (!entryProject?.id) return;
 
-  const versionKey = `${entryProject.id}:${entryProject.version}`;
-  if (hydratedVersionRef.current === versionKey) return;
+    const versionKey = `${entryProject.id}:${entryProject.version}`;
+    if (hydratedVersionRef.current === versionKey) return;
 
-  const mapped = mapEntryProjectToContext(entryProject);
-  setShowCompanyInfoErrors(false);
-  setProjectData(mapped);
-  saveDraft(mapped);
+    const mapped = mapEntryProjectToContext(entryProject);
+    setShowCompanyInfoErrors(false);
+    setProjectData(mapped);
+    saveDraft(mapped);
 
-  hydratedVersionRef.current = versionKey;
-  setResetKey((k) => k + 1);
-}, [entryProject, setProjectData, saveDraft]);
+    hydratedVersionRef.current = versionKey;
+    setResetKey((k) => k + 1);
+  }, [entryProject, setProjectData, saveDraft]);
 
   return {
     tab,

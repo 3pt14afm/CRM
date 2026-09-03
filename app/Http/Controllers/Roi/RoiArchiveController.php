@@ -28,215 +28,237 @@ class RoiArchiveController extends Controller
      * Display a listing of the archived projects.
      */
 
-public function index(Request $request)
-{
-    $user = Auth::user();
-    $perPage = $request->integer('per_page', 10);
-    $userId = (int) ($user->id ?? 0);
-    $isAdmin = $userId === 1;
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+        $perPage = $request->integer('per_page', 10);
+        $userId = (int) ($user->id ?? 0);
+        $isAdmin = $userId === 1;
 
-    // Build the query using Eloquent
-    $query = RoiArchiveProject::query()
-        ->with(['user', 'proposals'])
-        ->leftJoin('users as creator_user', 'roi_archive_projects.user_id', '=', 'creator_user.id')
-        ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
-        ->leftJoin('users as rejected_user', 'roi_archive_projects.rejected_by', '=', 'rejected_user.id')
-        ->selectRaw("
-            roi_archive_projects.*,
-            TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, ''))) as prepared_by_name,
-            TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, ''))) as approved_by_name,
-            TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, ''))) as rejected_by_name,
-            COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at) as decided_at
-        ");
+        // Build the query using Eloquent
+        $query = RoiArchiveProject::query()
+            ->with(['user', 'proposals'])
+            ->leftJoin('users as creator_user', 'roi_archive_projects.user_id', '=', 'creator_user.id')
+            ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
+            ->leftJoin('users as rejected_user', 'roi_archive_projects.rejected_by', '=', 'rejected_user.id')
+            ->selectRaw("
+                roi_archive_projects.*,
+                TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, ''))) as prepared_by_name,
+                TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, ''))) as approved_by_name,
+                TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, ''))) as rejected_by_name,
+                COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at) as decided_at
+            ")
+            ->where('roi_archive_projects.sequence', '<=', 1);;
 
-    // Row-level visibility: non-admins only see projects they own or
-    // are/were part of the approval chain for. Mirrors ensureCanViewArchive().
-    if (!$isAdmin && !$this->isRoiViewAllPrivileged()) {
-        $query->where(function ($q) use ($userId) {
-            $q->where('roi_archive_projects.user_id', $userId)
-              ->orWhere('roi_archive_projects.reviewed_by', $userId)
-              ->orWhere('roi_archive_projects.checked_by', $userId)
-              ->orWhere('roi_archive_projects.endorsed_by', $userId)
-              ->orWhere('roi_archive_projects.confirmed_by', $userId)
-              ->orWhere('roi_archive_projects.approved_by', $userId)
-              ->orWhere('roi_archive_projects.rejected_by', $userId);
-        });
-    }
+        // Row-level visibility: non-admins only see projects they own or
+        // are/were part of the approval chain for. Mirrors ensureCanViewArchive().
+        if (!$isAdmin && !$this->isRoiViewAllPrivileged()) {
+            $query->where(function ($q) use ($userId) {
+                $q->where('roi_archive_projects.user_id', $userId)
+                ->orWhere('roi_archive_projects.reviewed_by', $userId)
+                ->orWhere('roi_archive_projects.checked_by', $userId)
+                ->orWhere('roi_archive_projects.endorsed_by', $userId)
+                ->orWhere('roi_archive_projects.confirmed_by', $userId)
+                ->orWhere('roi_archive_projects.approved_by', $userId)
+                ->orWhere('roi_archive_projects.rejected_by', $userId);
+            });
+        }
 
-    // Apply Filters
-    $status        = $request->input('status');
-    $type          = $request->input('type');
-    $locationIdRaw = $request->input('location_id');
+        // Apply Filters
+        $status        = $request->input('status');
+        $type          = $request->input('type');
+        $locationIdRaw = $request->input('location_id');
 
-    $statusList  = $status !== null && $status !== ''        ? explode(',', $status)                    : [];
-    $typeList    = $type !== null && $type !== ''            ? array_map('intval', explode(',', $type)) : [];
-    $locationIds = $locationIdRaw !== null && $locationIdRaw !== '' ? array_map('intval', explode(',', $locationIdRaw)) : [];
+        $statusList  = $status !== null && $status !== ''        ? explode(',', $status)                    : [];
+        $typeList    = $type !== null && $type !== ''            ? array_map('intval', explode(',', $type)) : [];
+        $locationIds = $locationIdRaw !== null && $locationIdRaw !== '' ? array_map('intval', explode(',', $locationIdRaw)) : [];
 
-    if (!empty($statusList)) {
-        $query->whereIn('roi_archive_projects.status', $statusList);
-    }
+        if (!empty($statusList)) {
+            $query->whereIn('roi_archive_projects.status', $statusList);
+        }
 
-    if (!empty($typeList)) {
-        $query->whereIn('roi_archive_projects.type', $typeList);
-    }
+        if (!empty($typeList)) {
+            $query->whereIn('roi_archive_projects.type', $typeList);
+        }
 
-    if (!empty($locationIds)) {
-        $query->whereIn('roi_archive_projects.location_id', $locationIds);
-    }
+        if (!empty($locationIds)) {
+            $query->whereIn('roi_archive_projects.location_id', $locationIds);
+        }
 
-    if ($request->filled('date_from')) {
-        $query->whereRaw("COALESCE(rejected_at, approved_at, cancelled_at, last_saved_at) >= ?", [$request->date_from . ' 00:00:00']);
-    }
+        if ($request->filled('date_from')) {
+            $query->whereRaw("COALESCE(rejected_at, approved_at, cancelled_at, last_saved_at) >= ?", [$request->date_from . ' 00:00:00']);
+        }
 
-    if ($request->filled('date_to')) {
-        $query->whereRaw("COALESCE(rejected_at, approved_at, cancelled_at, last_saved_at) <= ?", [$request->date_to . ' 23:59:59']);
-    }
+        if ($request->filled('date_to')) {
+            $query->whereRaw("COALESCE(rejected_at, approved_at, cancelled_at, last_saved_at) <= ?", [$request->date_to . ' 23:59:59']);
+        }
 
-    if ($request->filled('decided_by')) {
-        $decidedBy = $request->decided_by;
-        $query->whereRaw("
-            CASE 
-                WHEN LOWER(roi_archive_projects.status) = 'rejected' 
-                THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
-                ELSE TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
-            END LIKE ?", ["%{$decidedBy}%"]);
-    }
+        if ($request->filled('decided_by')) {
+            $decidedBy = $request->decided_by;
+            $query->whereRaw("
+                CASE 
+                    WHEN LOWER(roi_archive_projects.status) = 'rejected' 
+                    THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
+                    ELSE TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
+                END LIKE ?", ["%{$decidedBy}%"]);
+        }
 
-    // General Search
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('company_name', 'like', "%{$search}%")
-              ->orWhere('reference', 'like', "%{$search}%")
-              ->orWhere('company_sap_code', 'like', "%{$search}%")
-              ->orWhereHas('user', function ($u) use ($search) {
-                  $u->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%");
-              });
-        });
-    }
+        // General Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('company_name', 'like', "%{$search}%")
+                ->orWhere('reference', 'like', "%{$search}%")
+                ->orWhere('company_sap_code', 'like', "%{$search}%")
+                ->orWhereHas('user', function ($u) use ($search) {
+                    $u->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%");
+                });
+            });
+        }
 
-    if ($request->filled('prepared_by')) {
-        $preparedBy = $request->prepared_by;
-        $query->whereHas('user', function ($q) use ($preparedBy) {
-            $q->where('first_name', 'like', "%{$preparedBy}%")
-              ->orWhere('last_name', 'like', "%{$preparedBy}%")
-              ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
-        });
-    }
+        if ($request->filled('prepared_by')) {
+            $preparedBy = $request->prepared_by;
+            $query->whereHas('user', function ($q) use ($preparedBy) {
+                $q->where('first_name', 'like', "%{$preparedBy}%")
+                ->orWhere('last_name', 'like', "%{$preparedBy}%")
+                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$preparedBy}%"]);
+            });
+        }
 
-    // Sorting and Pagination
-    $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
+        // Sorting and Pagination
+        $sortOrder = in_array($request->sort_order, ['asc', 'desc']) ? $request->sort_order : null;
 
-    $allowedSorts = [
-        'decided_at'       => "COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at, roi_archive_projects.last_saved_at)",
-        'prepared_by_name' => "TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, '')))",
-        'reference'        => 'roi_archive_projects.reference',
-        'company_sap_code' => 'roi_archive_projects.company_sap_code',
-        'company_name'     => 'roi_archive_projects.company_name',
-        'contract_years'   => 'roi_archive_projects.contract_years',
-        'contract_type'    => 'roi_archive_projects.contract_type',
-        'type'             => 'roi_archive_projects.type',
-        'status' => "
-            CASE LOWER(roi_archive_projects.status)
-                WHEN 'rejected'  THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
-                WHEN 'cancelled' THEN TRIM(CONCAT(COALESCE(creator_user.first_name,  ''), ' ', COALESCE(creator_user.last_name,  '')))
-                ELSE                  TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
-            END
-        ",
-    ];
+        $allowedSorts = [
+            'decided_at'       => "COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at, roi_archive_projects.last_saved_at)",
+            'prepared_by_name' => "TRIM(CONCAT(COALESCE(creator_user.first_name, ''), ' ', COALESCE(creator_user.last_name, '')))",
+            'reference'        => 'roi_archive_projects.reference',
+            'company_sap_code' => 'roi_archive_projects.company_sap_code',
+            'company_name'     => 'roi_archive_projects.company_name',
+            'contract_years'   => 'roi_archive_projects.contract_years',
+            'contract_type'    => 'roi_archive_projects.contract_type',
+            'type'             => 'roi_archive_projects.type',
+            'status' => "
+                CASE LOWER(roi_archive_projects.status)
+                    WHEN 'rejected'  THEN TRIM(CONCAT(COALESCE(rejected_user.first_name, ''), ' ', COALESCE(rejected_user.last_name, '')))
+                    WHEN 'cancelled' THEN TRIM(CONCAT(COALESCE(creator_user.first_name,  ''), ' ', COALESCE(creator_user.last_name,  '')))
+                    ELSE                  TRIM(CONCAT(COALESCE(approved_user.first_name, ''), ' ', COALESCE(approved_user.last_name, '')))
+                END
+            ",
+        ];
 
-    $sortByKey = $request->input('sort_by', 'decided_at');
-    $sortCol   = $allowedSorts[$sortByKey] ?? $allowedSorts['decided_at'];
+        $sortByKey = $request->input('sort_by', 'decided_at');
+        $sortCol   = $allowedSorts[$sortByKey] ?? $allowedSorts['decided_at'];
 
-    $archiveProjects = $query
-        ->when(
-            $sortOrder,
-            fn($q) => $q->orderByRaw("{$sortCol} {$sortOrder}"),
-            fn($q) => $q->orderByRaw("CASE WHEN roi_archive_projects.user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at, roi_archive_projects.last_saved_at) DESC", [$userId])
-        )
-        ->paginate($perPage)
-        ->withQueryString()
-        ->through(function ($p) use ($userId) {
-            $status = strtolower((string) ($p->status ?? ''));
-            $p->has_proposal = $p->proposals->isNotEmpty();
-            $p->decided_by_name = match ($status) {
-                'rejected'  => $p->rejected_by_name ?: '—',
-                'cancelled' => $p->prepared_by_name ?: '—',
-                default     => $p->approved_by_name ?: '—',
-            };
+        $archiveProjects = $query
+            ->when(
+                $sortOrder,
+                fn($q) => $q->orderByRaw("{$sortCol} {$sortOrder}"),
+                fn($q) => $q->orderByRaw("CASE WHEN roi_archive_projects.user_id = ? THEN 0 ELSE 1 END ASC, COALESCE(roi_archive_projects.rejected_at, roi_archive_projects.approved_at, roi_archive_projects.cancelled_at, roi_archive_projects.last_saved_at) DESC", [$userId])
+            )
+            ->paginate($perPage)
+            ->withQueryString();
 
-            $p->decided_at_display = match ($status) {
-                'rejected'  => $p->rejected_at,
-                'cancelled' => $p->cancelled_at,
-                default     => $p->approved_at,
-            };
+        $archiveReferences = $archiveProjects->getCollection()->pluck('reference');
+        $archiveEntryCounts = RoiArchiveProject::query()
+            ->whereIn('reference', $archiveReferences)
+            ->selectRaw('reference, count(*) as cnt')
+            ->groupBy('reference')
+            ->pluck('cnt', 'reference');
 
-            $p->is_owner = (int) $p->user_id === $userId;
+        $groupReferences = $archiveEntryCounts->filter(fn ($cnt) => $cnt > 1)->keys();
+        $siblingsByReference = RoiArchiveProject::query()
+            ->whereIn('reference', $groupReferences)
+            ->where('sequence', '>', 1)
+            ->orderBy('sequence')
+            ->get(['id', 'reference', 'sequence', 'contract_type', 'contract_years', 'status'])
+            ->groupBy('reference');
 
-            // Was this user assigned at ANY workflow level (2-6) on this specific project?
-            $p->is_approver = in_array($userId, array_filter([
-                (int) ($p->reviewed_by  ?? 0),
-                (int) ($p->checked_by   ?? 0),
-                (int) ($p->endorsed_by  ?? 0),
-                (int) ($p->confirmed_by ?? 0),
-                (int) ($p->approved_by  ?? 0),
-            ]), true);
+        $archiveProjects = $archiveProjects->through(function ($p) use ($userId, $archiveEntryCounts, $siblingsByReference) {
+                $status = strtolower((string) ($p->status ?? ''));
+                $p->has_proposal = $p->proposals->isNotEmpty();
+                $p->decided_by_name = match ($status) {
+                    'rejected'  => $p->rejected_by_name ?: '—',
+                    'cancelled' => $p->prepared_by_name ?: '—',
+                    default     => $p->approved_by_name ?: '—',
+                };
 
-            return $p;
-        });
+                $p->decided_at_display = match ($status) {
+                    'rejected'  => $p->rejected_at,
+                    'cancelled' => $p->cancelled_at,
+                    default     => $p->approved_at,
+                };
 
-    if ($request->wantsJson()) {
-        return response()->json([
+                $p->is_owner = (int) $p->user_id === $userId;
+
+                // Was this user assigned at ANY workflow level (2-6) on this specific project?
+                $p->is_approver = in_array($userId, array_filter([
+                    (int) ($p->reviewed_by  ?? 0),
+                    (int) ($p->checked_by   ?? 0),
+                    (int) ($p->endorsed_by  ?? 0),
+                    (int) ($p->confirmed_by ?? 0),
+                    (int) ($p->approved_by  ?? 0),
+                ]), true);
+
+                $p->entry_count = $archiveEntryCounts[$p->reference] ?? 1;
+                $p->is_group    = $p->entry_count > 1;
+                $p->sibling_entries = $p->is_group ? ($siblingsByReference[$p->reference] ?? collect())->values() : [];
+
+                return $p;
+            });
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'archiveProjects' => $archiveProjects,
+                'isAdmin' => $isAdmin,
+            ]);
+        }
+
+        // Stats scoped to what this user is actually allowed to see —
+        // same visibility rule as the main listing query above.
+        // Combined into a single query (COUNT + conditional SUM) instead of
+        // two separate count() calls, so the total and today's figures come
+        // from one identical row set with one round trip to the DB.
+        $statsQuery = RoiArchiveProject::query()->where('sequence', '<=', 1);
+        if (!$isAdmin) {
+            $statsQuery->where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                ->orWhere('reviewed_by', $userId)
+                ->orWhere('checked_by', $userId)
+                ->orWhere('endorsed_by', $userId)
+                ->orWhere('confirmed_by', $userId)
+                ->orWhere('approved_by', $userId)
+                ->orWhere('rejected_by', $userId);
+            });
+        }
+
+        $today = now()->toDateString();
+
+        $stats = $statsQuery
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN DATE(approved_at) = ? OR DATE(rejected_at) = ? THEN 1 ELSE 0 END) as today
+            ", [$today, $today])
+            ->first();
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
+            'filters' => array_merge(
+                $request->only(['search', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'per_page', 'sort_by', 'sort_order']),
+                [
+                    'status'      => $statusList,
+                    'type'        => $typeList,
+                    'location_id' => $locationIds,
+                ]
+            ),
             'archiveProjects' => $archiveProjects,
+            'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
             'isAdmin' => $isAdmin,
+            'stats' => [
+                'totalArchiveProjects' => (int) $stats->total,
+                'recentlyArchivedToday' => (int) $stats->today . ' Today',
+            ],
         ]);
     }
-
-    // Stats scoped to what this user is actually allowed to see —
-    // same visibility rule as the main listing query above.
-    // Combined into a single query (COUNT + conditional SUM) instead of
-    // two separate count() calls, so the total and today's figures come
-    // from one identical row set with one round trip to the DB.
-    $statsQuery = RoiArchiveProject::query();
-    if (!$isAdmin) {
-        $statsQuery->where(function ($q) use ($userId) {
-            $q->where('user_id', $userId)
-              ->orWhere('reviewed_by', $userId)
-              ->orWhere('checked_by', $userId)
-              ->orWhere('endorsed_by', $userId)
-              ->orWhere('confirmed_by', $userId)
-              ->orWhere('approved_by', $userId)
-              ->orWhere('rejected_by', $userId);
-        });
-    }
-
-    $today = now()->toDateString();
-
-    $stats = $statsQuery
-        ->selectRaw("
-            COUNT(*) as total,
-            SUM(CASE WHEN DATE(approved_at) = ? OR DATE(rejected_at) = ? THEN 1 ELSE 0 END) as today
-        ", [$today, $today])
-        ->first();
-
-    return Inertia::render('CustomerManagement/ProjectROIApproval/ArchiveRoutes/Archive', [
-        'filters' => array_merge(
-            $request->only(['search', 'date_from', 'date_to', 'decided_by', 'prepared_by', 'per_page', 'sort_by', 'sort_order']),
-            [
-                'status'      => $statusList,
-                'type'        => $typeList,
-                'location_id' => $locationIds,
-            ]
-        ),
-        'archiveProjects' => $archiveProjects,
-        'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
-        'isAdmin' => $isAdmin,
-        'stats' => [
-            'totalArchiveProjects' => (int) $stats->total,
-            'recentlyArchivedToday' => (int) $stats->today . ' Today',
-        ],
-    ]);
-}
+    
     /**
      * Display the specified archived project.
      */
@@ -319,6 +341,92 @@ public function index(Request $request)
         ]);
     }
 
+    public function showGroup(string $reference, Request $request)
+    {
+        $projects = RoiArchiveProject::with([
+            'items',
+            'fees',
+            'user:id,first_name,last_name,position,employee_id',
+            'reviewedByUser:id,first_name,last_name,position,employee_id',
+            'checkedByUser:id,first_name,last_name,position,employee_id',
+            'endorsedByUser:id,first_name,last_name,position,employee_id',
+            'confirmedByUser:id,first_name,last_name,position,employee_id',
+            'approvedByUser:id,first_name,last_name,position,employee_id',
+            'rejectedByUser:id,first_name,last_name,position,employee_id',
+            'cancelledByUser:id,first_name,last_name,position,employee_id',
+        ])
+            ->where('reference', $reference)
+            ->orderBy('sequence')
+            ->get();
+
+        abort_if($projects->isEmpty(), 404);
+
+        // Ordered by sequence ascending, so first() IS the master.
+        $master = $projects->first();
+        $this->ensureCanViewArchive($master);
+
+        // Same ?entry= convention as roi.current.group.show
+        $activeIndex = max(0, (int) $request->query('entry', 0));
+        $activeEntry = $projects->get($activeIndex) ?? $master;
+
+        $userIds = collect([
+            $master->user_id,
+            $master->approved_by,
+            $master->rejected_by,
+            $master->reviewed_by,
+            $master->checked_by,
+            $master->endorsed_by,
+            $master->confirmed_by,
+        ])->filter()->unique()->values();
+
+        $usersById = User::query()
+            ->whereIn('id', $userIds)
+            ->get(['id', 'first_name', 'last_name', 'position'])
+            ->mapWithKeys(fn ($u) => [
+                (string) $u->id => [
+                    'id'       => $u->id,
+                    'name'     => trim($u->first_name . ' ' . $u->last_name),
+                    'position' => $u->position,
+                ],
+            ]);
+
+        $signatureFor = function ($userRelation) {
+            if (!$userRelation || !$userRelation->employee_id) return null;
+            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+                $path = 'signatures/' . $userRelation->employee_id . '.' . $ext;
+                if (Storage::disk('public')->exists($path)) {
+                    return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+                }
+            }
+            return null;
+        };
+
+        $signatures = [
+            'preparer'     => $signatureFor($master->user),
+            'reviewed_by'  => $signatureFor($master->reviewedByUser),
+            'checked_by'   => $signatureFor($master->checkedByUser),
+            'endorsed_by'  => $signatureFor($master->endorsedByUser),
+            'confirmed_by' => $signatureFor($master->confirmedByUser),
+            'approved_by'  => $signatureFor($master->approvedByUser),
+        ];
+
+        return Inertia::render('CustomerManagement/ProjectROIApproval/EntryRoutes/GroupEntry', [
+            'reference'         => $reference,
+            'entryProjects'     => $projects,
+            'project'           => $activeEntry,
+            'entryProject'      => $activeEntry,
+            'readOnly'          => true,
+            'route'             => 'archive',
+            'activeEntryIndex'  => $activeIndex,
+            'createdBy'         => $master->user?->name ?? '—',
+            'role'              => Auth::user()->workflow_role,
+            'usersById'         => $usersById,
+            'signatures'        => $signatures,
+            'machineCatalog'    => $this->buildMachineCatalog(),
+            'consumableCatalog' => $this->buildConsumableCatalog(),
+        ]);
+    }
+
     /**
      * Stream the requested archive file attachment.
      * Everyone authenticated can view.
@@ -353,12 +461,26 @@ public function index(Request $request)
      * freshly generated project_uid + sequential reference (same rules as
      * a brand-new draft).
      */
-    public function withdraw(Request $request, $id)
+        public function withdraw(Request $request, $id)
     {
-         /** @var \App\Models\RoiArchiveProject $archived */
+        /** @var \App\Models\RoiArchiveProject $archived */
         $archived = RoiArchiveProject::with(['items', 'fees'])->findOrFail($id);
 
         $this->ensureCanWithdrawArchive($archived);
+
+        // Pull the full group (siblings sharing this reference), ordered by
+        // sequence. Single-entry projects naturally come back as a 1-item
+        // collection, so the rest of this method handles both cases uniformly.
+        $group = RoiArchiveProject::with(['items', 'fees'])
+            ->where('reference', $archived->reference)
+            ->orderBy('sequence')
+            ->get();
+
+        // Guard against a partially-approved group — every sibling must pass
+        // the same withdraw eligibility check as the row that was clicked.
+        foreach ($group as $sibling) {
+            $this->ensureCanWithdrawArchive($sibling);
+        }
 
         $actor = Auth::user();
 
@@ -374,96 +496,127 @@ public function index(Request $request)
         $oldValues = [
             'status'             => $archived->status,
             'archive_project_id' => $archived->id,
+            'group_size'         => $group->count(),
         ];
 
-        $entryProject = DB::transaction(function () use ($archived, $actor, $prefix) {
-            $projectData = $archived->only([
-                'user_id',
-                'location_id',
-                'version',
-                'last_saved_at',
-                'type',
-                'company_id',
-                'company_name',
-                'company_sap_code',
-                'contract_years',
-                'contract_type',
-                'purpose',
-                'bundled_std_ink',
-                'annual_interest',
-                'percent_margin',
-                'mono_yield_monthly',
-                'mono_yield_annual',
-                'color_yield_monthly',
-                'color_yield_annual',
-                'mc_unit_cost',
-                'mc_qty',
-                'mc_total_cost',
-                'mc_yields',
-                'mc_cost_cpp',
-                'mc_selling_price',
-                'mc_total_sell',
-                'mc_sell_cpp',
-                'mc_total_bundled_price',
-                'fees_total',
-                'grand_total_cost',
-                'grand_total_revenue',
-                'grand_roi',
-                'grand_roi_percentage',
-                'yearly_breakdown',
-                'entry_remarks',
-                'entry_remarks_attachments',
-                'notes',
-                'comments',
-            ]);
+        $entryProjects = DB::transaction(function () use ($group, $prefix) {
+            $created      = collect();
+            $newReference = null;
 
-            $projectData['status']        = 'duplicate';
-            $projectData['version']       = 1;
-            $projectData['last_saved_at'] = now();
+            foreach ($group as $index => $row) {
+                $projectData = $row->only([
+                    'user_id',
+                    'location_id',
+                    'version',
+                    'last_saved_at',
+                    'type',
+                    'company_id',
+                    'company_name',
+                    'company_sap_code',
+                    'contract_years',
+                    'contract_type',
+                    'purpose',
+                    'bundled_std_ink',
+                    'annual_interest',
+                    'percent_margin',
+                    'mono_yield_monthly',
+                    'mono_yield_annual',
+                    'color_yield_monthly',
+                    'color_yield_annual',
+                    'mc_unit_cost',
+                    'mc_qty',
+                    'mc_total_cost',
+                    'mc_yields',
+                    'mc_cost_cpp',
+                    'mc_selling_price',
+                    'mc_total_sell',
+                    'mc_sell_cpp',
+                    'mc_total_bundled_price',
+                    'fees_total',
+                    'grand_total_cost',
+                    'grand_total_revenue',
+                    'grand_roi',
+                    'grand_roi_percentage',
+                    'yearly_breakdown',
+                    'entry_remarks',
+                    'entry_remarks_attachments',
+                    'notes',
+                    'comments',
+                ]);
 
-            $entryProject = $this->createEntryWithUniqueReference($projectData, $prefix);
+                $projectData['status']        = 'duplicate';
+                $projectData['version']       = 1;
+                $projectData['last_saved_at'] = now();
 
-            // Bulk insert items
-            $itemRows = $archived->items->map(function ($item) use ($entryProject) {
-                $data = $item->toArray();
-                unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
-                $data['roi_entry_project_id'] = $entryProject->id;
-                $data['created_at'] = now();
-                $data['updated_at'] = now();
-                return $data;
-            })->all();
-            if (!empty($itemRows)) {
-                RoiEntryItem::insert($itemRows);
+                if ($index === 0) {
+                    // First row generates the new shared reference via the
+                    // existing collision-retry logic; group members below
+                    // reuse that reference.
+                    $entryProject = $this->createEntryWithUniqueReference($projectData, $prefix);
+                    $newReference = $entryProject->reference;
+
+                    // Explicit sequence: 0 for a standalone withdraw, 1 (master)
+                    // when this is the head of a group. createEntryWithUniqueReference()
+                    // never sets sequence, so this must be assigned here.
+                    $entryProject->sequence = $group->count() > 1 ? 1 : 0;
+                    $entryProject->save();
+                } else {
+                    $projectData['project_uid'] = (string) Str::ulid();
+                    $projectData['reference']   = $newReference;
+                    $projectData['sequence']    = $index + 1;
+
+                    $entryProject = RoiEntryProject::create($projectData);
+                }
+
+                // Bulk insert items
+                $itemRows = $row->items->map(function ($item) use ($entryProject) {
+                    $data = $item->toArray();
+                    unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
+                    $data['roi_entry_project_id'] = $entryProject->id;
+                    $data['created_at'] = now();
+                    $data['updated_at'] = now();
+                    return $data;
+                })->all();
+                if (!empty($itemRows)) {
+                    RoiEntryItem::insert($itemRows);
+                }
+
+                // Bulk insert fees
+                $feeRows = $row->fees->map(function ($fee) use ($entryProject) {
+                    $data = $fee->toArray();
+                    unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
+                    $data['roi_entry_project_id'] = $entryProject->id;
+                    $data['created_at'] = now();
+                    $data['updated_at'] = now();
+                    return $data;
+                })->all();
+                if (!empty($feeRows)) {
+                    RoiEntryFee::insert($feeRows);
+                }
+
+                $created->push($entryProject);
             }
 
-            // Bulk insert fees
-            $feeRows = $archived->fees->map(function ($fee) use ($entryProject) {
-                $data = $fee->toArray();
-                unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
-                $data['roi_entry_project_id'] = $entryProject->id;
-                $data['created_at'] = now();
-                $data['updated_at'] = now();
-                return $data;
-            })->all();
-            if (!empty($feeRows)) {
-                RoiEntryFee::insert($feeRows);
-            }
-
-            return $entryProject;
+            return $created;
         });
 
-        $this->logArchiveWithdraw($archived, $actor, $oldValues, $entryProject);
+        $this->logArchiveWithdraw($archived, $actor, $oldValues, $entryProjects);
+
+        $isGroup = $entryProjects->count() > 1;
 
         if ($request->wantsJson()) {
             return response()->json([
-                'message'        => 'Project withdrawn to draft.',
-                'entryProjectId' => $entryProject->id,
+                'message'         => $isGroup ? 'Project group withdrawn to draft.' : 'Project withdrawn to draft.',
+                'entryProjectId'  => $entryProjects->first()->id,
+                'entryProjectIds' => $entryProjects->pluck('id'),
             ]);
         }
 
         return redirect()
             ->route('roi.entry.list')
-            ->with('success', 'Project withdrawn back to draft as a duplicate.');
+            ->with('success', $isGroup
+                ? 'Project group withdrawn back to draft as duplicates.'
+                : 'Project withdrawn back to draft as a duplicate.');
     }
 
     /**
@@ -521,12 +674,15 @@ public function index(Request $request)
 
     /**
      * Logs the withdraw-from-archive action so it's traceable per user.
+     * One log entry per action regardless of group size — matches the
+     * established "no per-sibling activity logs" convention used elsewhere
+     * in the multi-entry workflow.
      */
     private function logArchiveWithdraw(
         RoiArchiveProject $archived,
         $actor,
         array $oldValues,
-        RoiEntryProject $entryProject
+        \Illuminate\Support\Collection $entryProjects
     ): void {
         $workflow = [
             'preparer_id'  => $archived->user_id,
@@ -537,19 +693,25 @@ public function index(Request $request)
             'approver_id'  => $archived->approved_by,
         ];
 
+        $primaryEntry = $entryProjects->first();
+        $isGroup      = $entryProjects->count() > 1;
+
         try {
             RoiActivityLogger::log(
                 activityType: 'withdraw',
                 moduleType:   'ROI Archive',
-                details:      'Withdrew ROI #' . $archived->reference . ' from Archive to Draft (duplicate) as #' . $entryProject->reference,
-                subject:      $entryProject,
+                details:      $isGroup
+                    ? 'Withdrew ROI group #' . $archived->reference . ' (' . $entryProjects->count() . ' entries) from Archive to Draft as #' . $primaryEntry->reference
+                    : 'Withdrew ROI #' . $archived->reference . ' from Archive to Draft (duplicate) as #' . $primaryEntry->reference,
+                subject:      $primaryEntry,
                 oldValues:    $oldValues,
                 newValues:    [
-                    'status'              => 'duplicate',
-                    'entry_project_id'    => $entryProject->id,
-                    'new_reference'       => $entryProject->reference,
-                    'archive_reference'   => $archived->reference,
-                    'withdrawn_by'        => $actor->id,
+                    'status'            => 'duplicate',
+                    'entry_project_id'  => $primaryEntry->id,
+                    'entry_project_ids' => $entryProjects->pluck('id')->all(),
+                    'new_reference'     => $primaryEntry->reference,
+                    'archive_reference' => $archived->reference,
+                    'withdrawn_by'      => $actor->id,
                 ],
                 workflow:     $workflow
             );

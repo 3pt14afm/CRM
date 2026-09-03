@@ -13,7 +13,7 @@ import MachCon1stYearMerged from '@/Components/roi/Entry/Summary1stYear/MachCon1
 import MachConSucceMerged from '@/Components/roi/Entry/SucceedingYear/MachConSucceMerged';
 import { useProjectData } from '@/Context/ProjectContext';
 
-function Summary1stYear() {
+function Summary1stYear({ hideSignatories = false }) {
   const { auth } = usePage().props;
   const { projectData } = useProjectData();
 
@@ -39,7 +39,7 @@ function Summary1stYear() {
             </div>
           </div>
 
-          <div className='mt-2 pt-8 print:mx-0 print:-mt-2 print:pt-7'>
+          <div className='mt-2 pt-8 print:mx-0 print:mr-0.5 print:-mt-2 print:pt-7'>
             <MachCon1stYearMerged />
           </div>
         </div>
@@ -49,11 +49,13 @@ function Summary1stYear() {
         <div>
           {showSucceedingYear && (
             <>
-              <div className='mt-8 pt-8 print:mt-0 print:mx-0 print:pt-7'>
+              <div className='mt-1 pt-8 print:mt-0 print:mx-0 print:mr-0.5 print:pt-0'>
                 <MachConSucceMerged />
               </div>
 
-              <SucceTotals />
+              <div className="print:mr-0.5">
+                <SucceTotals />
+              </div>
 
               <div className="print-page-break" />
             </>
@@ -67,7 +69,7 @@ function Summary1stYear() {
         <div className='lg:mx-20  print:mx-0 pt-5'>
           <AddComments />
 
-          <Names />
+          {!hideSignatories && <Names />}
         </div>
         </div>
       </div>

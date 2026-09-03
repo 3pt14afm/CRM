@@ -29,7 +29,7 @@ function ContractDetails() {
   const addFeesObj = projectData?.additionalFees || { company: [], customer: [], total: 0 };
   const companyFees = addFeesObj.company || [];
   const customerFees = addFeesObj.customer || [];
-  const allFees = [...companyFees, ...customerFees];
+  const allFees = useMemo(() => [...companyFees, ...customerFees], [companyFees, customerFees] );
 
   // Updated Formatter: Returns blank string if value is 0
   const formatCurrency = (val) => {

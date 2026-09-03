@@ -20,23 +20,18 @@ const SucceedingYears = forwardRef(function SucceedingYears(_props, ref) {
     return Array.from({ length: count }, (_, i) => i + 2);
   }, [contractYears]);
 
-  // ✅ Expose methods so Entry footer buttons won't break on Succeeding tab
   useImperativeHandle(ref, () => ({
     reject: () => {
       console.log('[SucceedingYears] reject');
-      // TODO: put your real workflow here
     },
     backToSender: () => {
       console.log('[SucceedingYears] backToSender');
-      // TODO
     },
     submitToNextLevel: () => {
       console.log('[SucceedingYears] submitToNextLevel');
-      // TODO
     },
     approve: () => {
       console.log('[SucceedingYears] approve');
-      // TODO
     },
     printPreview: () => {
       console.log('[SucceedingYears] printPreview');
