@@ -368,21 +368,23 @@ class DashboardController extends Controller
     }
 
     
-    private function excludeDdtcCompanyIds($companyIds)
-    {
-        $companyIds = collect($companyIds);
+private function excludeDdtcCompanyIds($companyIds)
+{
+    $companyIds = collect($companyIds);
 
-        if ($companyIds->isEmpty()) {
-            return $companyIds->values();
-        }
-
-        $ddtcIds = Company::query()
-            ->whereIn('id', $companyIds)
-            ->whereRaw("UPPER(TRIM(COALESCE(delsan_company, ''))) = 'DDTC'")
-            ->pluck('id');
-
-        return $companyIds->diff($ddtcIds)->values();
+    if ($companyIds->isEmpty()) {
+        return $companyIds->values();
     }
+
+    return Company::query()
+        ->whereIn('id', $companyIds)
+        ->where('status', 1)
+        ->whereNotNull('delsan_company')
+        ->where('delsan_company', '!=', '')
+        ->whereRaw("UPPER(TRIM(delsan_company)) != 'DDTC'")
+        ->pluck('id')
+        ->values();
+}
 
     public function statusStats(Request $request)
     {

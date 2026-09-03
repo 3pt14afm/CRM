@@ -68,7 +68,9 @@ class ContractController extends Controller
                 );
             })
             ->where("{$companyTable}.status", 1)
-            ->whereRaw("UPPER(TRIM(COALESCE({$companyTable}.delsan_company, ''))) != 'DDTC'")
+            ->whereNotNull("{$companyTable}.delsan_company")
+            ->where("{$companyTable}.delsan_company", '!=', '')
+            ->whereRaw("UPPER(TRIM({$companyTable}.delsan_company)) != 'DDTC'")
             ->when(true, fn ($query) => $this->applyCompanyVisibility($query))
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
