@@ -500,14 +500,14 @@ export default function Sidebar() {
                           <NavSubLink href={route('contract.upload')} active={route().current('contract.upload')}>
                             Upload Contract
                           </NavSubLink>
+                          <NavSubLink active={route().current('contract.review')}>
+                            Business Review
+                          </NavSubLink>
                           <NavSubLink  active={route().current('contract.create')}>
                             New Contract
                           </NavSubLink>
                           <NavSubLink  active={route().current('contract.renewal')}>
                             Contract Renewal
-                          </NavSubLink>
-                          <NavSubLink active={route().current('contract.review')}>
-                            Business Review
                           </NavSubLink>
                         </div>
                       )}

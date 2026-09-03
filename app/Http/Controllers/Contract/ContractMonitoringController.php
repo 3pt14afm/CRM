@@ -60,6 +60,7 @@ class ContractMonitoringController extends Controller
             ? collect()
             : Company::query()
                 ->where('status', 1)
+                ->whereRaw("UPPER(TRIM(COALESCE(delsan_company, ''))) != 'DDTC'")
                 ->whereIn('sap_code', $sapCodesOnPage)
                 ->with('mainLocation', 'clientManager')
                 ->get();
@@ -114,7 +115,13 @@ class ContractMonitoringController extends Controller
 
         $companiesById = $allCompanies->keyBy('id');
 
-        $contractsList = $contractsRaw->map(function ($c) use ($companiesById) {
+        $uploaderNamesByEmployeeId = User::query()
+            ->whereIn('employee_id', $contractsRaw->pluck('uploader')->filter()->unique()->values())
+            ->get(['employee_id', 'first_name', 'last_name'])
+            ->keyBy('employee_id')
+            ->map(fn ($u) => trim("{$u->first_name} {$u->last_name}"));
+
+        $contractsList = $contractsRaw->map(function ($c) use ($companiesById, $uploaderNamesByEmployeeId) {
             $company = $companiesById->get($c->company_id);
 
             return [
@@ -127,6 +134,7 @@ class ContractMonitoringController extends Controller
                     : null,
                 'id_client_mngr' => $company->id_client_mngr ?? null,
                 'delsan_company' => $company->delsan_company ?? null,
+                'uploader'       => $uploaderNamesByEmployeeId[$c->uploader] ?? null,
                 'start_date'     => optional($c->start_date)->format('Y-m-d'),
                 'end_date'       => optional($c->end_date)->format('Y-m-d'),
                 'location'       => $company->mainLocation->branch_name ?? null,
@@ -211,6 +219,7 @@ class ContractMonitoringController extends Controller
             ? collect()
             : Company::query()
                 ->where('status', 1)
+                ->whereRaw("UPPER(TRIM(COALESCE(delsan_company, ''))) != 'DDTC'")
                 ->whereIn('sap_code', $sapCodesAll)
                 ->with('mainLocation', 'clientManager')
                 ->get();
@@ -329,6 +338,7 @@ class ContractMonitoringController extends Controller
             return DB::table($companyTable)
                 ->select('id', 'sap_code')
                 ->where('status', 1)
+                ->whereRaw("UPPER(TRIM(COALESCE(delsan_company, ''))) != 'DDTC'")
                 ->get()
                 ->groupBy(fn ($c) => $c->sap_code ?: "solo:{$c->id}");
         });
@@ -419,6 +429,7 @@ class ContractMonitoringController extends Controller
             ->distinct()
             ->with('mainLocation', 'clientManager')
             ->where("{$companyTable}.status", 1)
+            ->whereRaw("UPPER(TRIM(COALESCE({$companyTable}.delsan_company, ''))) != 'DDTC'")
             ->when(true, fn ($query) => $this->applyCompanyVisibility($query))
             ->whereIn("{$companyTable}.id", $companyIdsToShow);
 

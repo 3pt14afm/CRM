@@ -368,11 +368,29 @@ class DashboardController extends Controller
     }
 
     
+    private function excludeDdtcCompanyIds($companyIds)
+    {
+        $companyIds = collect($companyIds);
+
+        if ($companyIds->isEmpty()) {
+            return $companyIds->values();
+        }
+
+        $ddtcIds = Company::query()
+            ->whereIn('id', $companyIds)
+            ->whereRaw("UPPER(TRIM(COALESCE(delsan_company, ''))) = 'DDTC'")
+            ->pluck('id');
+
+        return $companyIds->diff($ddtcIds)->values();
+    }
+
     public function statusStats(Request $request)
     {
         $counts = ['expiring_soon' => 0, 'active' => 0, 'expired' => 0];
 
-        $visibleCompanyIds = $this->visibleCompanyIds($request->integer('as_user_id') ?: null);
+        $visibleCompanyIds = $this->excludeDdtcCompanyIds(
+            $this->visibleCompanyIds($request->integer('as_user_id') ?: null)
+        );
         $companyIdsWithContracts = [];
 
         Contract::query()
@@ -436,7 +454,9 @@ class DashboardController extends Controller
 
         $limit = 50;
 
-        $visibleCompanyIds = $this->visibleCompanyIds($request->integer('as_user_id') ?: null);
+        $visibleCompanyIds = $this->excludeDdtcCompanyIds(
+            $this->visibleCompanyIds($request->integer('as_user_id') ?: null)
+        );
 
         $contracts = Contract::with('contractType')
             ->whereIn('company_id', $visibleCompanyIds)

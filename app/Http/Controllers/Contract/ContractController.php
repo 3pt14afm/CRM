@@ -68,6 +68,7 @@ class ContractController extends Controller
                 );
             })
             ->where("{$companyTable}.status", 1)
+            ->whereRaw("UPPER(TRIM(COALESCE({$companyTable}.delsan_company, ''))) != 'DDTC'")
             ->when(true, fn ($query) => $this->applyCompanyVisibility($query))
             ->when($request->input('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -189,7 +190,7 @@ class ContractController extends Controller
 
         $contractsForPage = Contract::query()
             ->whereIn('company_id', $companyIdsOnPage)
-            ->get(['id', 'company_id', 'company_name', 'status', 'end_date', 'extend_dates', 'terminated_at', 'archived_at']);
+            ->get(['id', 'company_id', 'company_name', 'status', 'end_date', 'extend_dates', 'terminated_at', 'archived_at', 'uploader', 'created_at']);
 
         $contractsForPage->each(fn ($c) => $c->refreshStatus());
 
@@ -216,17 +217,31 @@ class ContractController extends Controller
 
         $contractsCountByRowId  = collect();
         $contractsStatusByRowId = collect();
+        $uploaderIdByRowId      = collect();
 
         foreach ($companies->getCollection() as $c) {
             $group = $contractsForCompany($c);
             $contractsCountByRowId[$c->id]  = $group->count();
             $contractsStatusByRowId[$c->id] = $statusFromContracts($group);
+
+            // "Uploader" for a company row = whoever uploaded its most
+            // recently created contract (a company can have many).
+            $latestContract = $group->sort(fn ($a, $b) => [$b->created_at, $b->id] <=> [$a->created_at, $a->id])->first();
+            $uploaderIdByRowId[$c->id] = $latestContract->uploader ?? null;
         }
+
+        $uploaderNamesByEmployeeId = User::query()
+            ->whereIn('employee_id', $uploaderIdByRowId->filter()->unique()->values())
+            ->get(['employee_id', 'first_name', 'last_name'])
+            ->keyBy('employee_id')
+            ->map(fn ($u) => trim("{$u->first_name} {$u->last_name}"));
 
         $companies->getCollection()->transform(function ($c) use (
             $managerIdsBySapCode,
             $contractsCountByRowId,
             $contractsStatusByRowId,
+            $uploaderIdByRowId,
+            $uploaderNamesByEmployeeId,
             $isAdmin,
             $isPrivileged,
             $currentEmployeeId
@@ -246,6 +261,7 @@ class ContractController extends Controller
                 'delsan_company'        => $c->delsan_company,
                 'id_client_mngr'        => $c->id_client_mngr,
                 'client_manager'        => $c->clientManager ? $c->clientManager->first_name . ' ' . $c->clientManager->last_name : null,
+                'uploader'              => $uploaderNamesByEmployeeId[$uploaderIdByRowId[$c->id] ?? null] ?? null,
                 'can_upload'            => $isAdmin || $isPrivileged || $isDirectManager || $isGroupManager,
                 'contracts_count'       => $contractsCountByRowId[$c->id] ?? 0,
                 'contracts_status'      => $contractsStatusByRowId[$c->id] ?? 'good',
@@ -338,6 +354,7 @@ class ContractController extends Controller
         $employeeIdsToResolve = $extendedByIds
             ->merge($contractsRaw->pluck('terminated_by'))
             ->merge($contractsRaw->pluck('archived_by'))
+            ->merge($contractsRaw->pluck('uploader'))
             ->filter()
             ->unique()
             ->values();
@@ -372,6 +389,8 @@ class ContractController extends Controller
                         })
                         ->all(),
                     'status'             => $c->status,
+                    'uploader'           => $c->uploader,
+                    'uploader_name'      => $employeeNamesById[$c->uploader] ?? null,
                     'can_edit'           => $canManage && !$isFinal,
                     'can_extend'         => $canManage && !$isFinal && !$extensionWindowExpired,
                     'extension_expired'  => $extensionWindowExpired,

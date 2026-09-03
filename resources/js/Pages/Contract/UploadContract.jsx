@@ -568,6 +568,20 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
             ),
         },
         {
+            key: 'uploader',
+            header: <div>UPLOADER</div>,
+            cell: (r) => {
+                const isExpanded = r.sap_code && expandedSapCodes.has(r.sap_code);
+                const groupCount = r._groupCount ?? 1;
+                const isCollapsedGroupHead = !r._isGroupChild && groupCount > 1 && !isExpanded;
+                return (
+                    <span className={`font-medium flex items-center ${r._isGroupChild ? 'text-slate-600 font-normal' : ''}`}>
+                        {isCollapsedGroupHead ? '' : (r.uploader ?? '')}
+                    </span>
+                );
+            },
+        },
+        {
             key: 'action',
             header: <div className="text-center">ACTION</div>,
             cell: (r) => {
@@ -670,7 +684,7 @@ function UploadContract({ companies, filters = {}, categories = [], contractType
                     options={[
                         { id: "DBIC", name: "DBIC" },
                         { id: "DOSC", name: "DOSC" },
-                        { id: "DDTC", name: "DDTC" },
+                        // { id: "DDTC", name: "DDTC" },
                     ]}
                     values={Array.isArray(searchState.delsan_company) ? searchState.delsan_company : (searchState.delsan_company ? [searchState.delsan_company] : [])}
                     onChange={(val) => updateFilters({ delsan_company: val.length > 0 ? val : '' })}

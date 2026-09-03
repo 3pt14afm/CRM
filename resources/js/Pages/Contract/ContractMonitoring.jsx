@@ -704,6 +704,15 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
             ),
         },
         {
+            key: 'uploader',
+            header: <div>UPLOADER</div>,
+            cell: (r) => (
+                <div className="min-h-[32px] flex items-center font-medium">
+                    {r._type === 'contract' && !r._noContract ? (r.uploader ?? '') : ''}
+                </div>
+            ),
+        },
+        {
             key: 'delsan_company',
             header: <SortHeader label="DELSAN" sortKey="delsan_company" sortBy={searchState.sort_by} sortDirection={searchState.sort_order} onSort={handleSort} />,
             cell: (r) => (
@@ -830,7 +839,7 @@ function ContractMonitoring({ companies, filters = {}, contractTypes = [], statu
         { id: "", name: "All Delsan" },
         { id: "DBIC", name: "DBIC" },
         { id: "DOSC", name: "DOSC" },
-        { id: "DDTC", name: "DDTC" }
+        // { id: "DDTC", name: "DDTC" }
     ];
 
     const mappedStatusOptions = statusOptions.map((s) => ({ id: s.value, name: s.label }));

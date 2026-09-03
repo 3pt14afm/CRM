@@ -676,6 +676,10 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                                 <span className="text-slate-400">AM:</span>
                                                 <span>{c.client_manager ?? "—"}</span>
                                             </div>
+                                            <div className="flex items-center gap-2 text-[11px] md:text-xs font-medium text-slate-600">
+                                                <span className="text-slate-400">Uploader:</span>
+                                                <span>{c.uploader_name ?? c.uploader ?? "—"}</span>
+                                            </div>
                                         </div>
 
                                         {/* Status / Extension Message */}

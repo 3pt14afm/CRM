@@ -114,31 +114,18 @@ trait ManagesCompanyContracts
 
     protected function canManageCompanyContracts(Company $company): bool
     {
-        if ($this->isAdmin()) {
-            return true;
-        }
+        // if ($this->isAdmin()) {
+        //     return true;
+        // }
 
         if ($this->isContractUploadPrivileged()) {
             return true;
         }
 
-        $employeeId = Auth::user()->employee_id ?? null;
-        if (!$employeeId) {
-            return false;
-        }
-
-        if ((string) $company->id_client_mngr === (string) $employeeId) {
-            return true;
-        }
-
-        if ($company->sap_code) {
-            return Company::query()
-                ->where('status', 1)
-                ->where('sap_code', $company->sap_code)
-                ->where('id_client_mngr', $employeeId)
-                ->exists();
-        }
-
+        // Assigned client managers (direct or sibling-branch, matched via
+        // id_client_mngr) no longer have upload/edit/extend/terminate/archive
+        // rights on their own — only Admins and Privileged Employees can
+        // manage contracts now.
         return false;
     }
 }
