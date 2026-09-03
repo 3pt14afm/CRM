@@ -70,7 +70,7 @@ export default function Login({ status, canResetPassword }) {
 
                         {/* Right Side: Form */}
                         <div className="flex flex-col justify-center items-start flex-1 p-5 py-7 sm:p-8 md:p-6 lg:p-12">
-                            <img className="w-[300px] lg:w-[500px] mx-auto block" src="/images/derms4.png" alt="" />
+                            <img className="w-[300px] lg:w-[500px] mx-auto block" src="/images/erms.svg" alt="" />
 
                             <div className="mb-4 w-full">
                                 <p className="text-xs md:text-sm text-darkgreen text-center opacity-55">
