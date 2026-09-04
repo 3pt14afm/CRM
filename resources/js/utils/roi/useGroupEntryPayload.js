@@ -12,6 +12,7 @@ export function useGroupEntryPayload() {
   // — mirrors single-entry's override pattern for the getCurrentMachineConfig() race fix.
   const buildPayload = (overrides = {}) => {
     const entryOverridesByIndex = overrides.entries ?? {};
+    console.log('groupData.entries count:', groupData.entries.length, groupData.entries);
 
     return {
       companyInfo: {
@@ -41,7 +42,7 @@ export function useGroupEntryPayload() {
           machineConfiguration: entryOverrides.machineConfiguration ?? entry.machineConfiguration,
           additionalFees: entry.additionalFees,
           totalProjectCost: entry.totalProjectCost,
-          yearlyBreakdown: entry.yearlyBreakdown,
+          // yearlyBreakdown: entry.yearlyBreakdown,
         };
       }),
     };
