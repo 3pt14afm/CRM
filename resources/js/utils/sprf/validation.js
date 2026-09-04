@@ -142,6 +142,13 @@ export const validateSubmit = ({
     };
   }
 
+  if (!companyInfo?.deadline) {
+    return {
+      ok: false,
+      message: 'Deadline is required before submitting.',
+    };
+  }
+
   if (!hasValidItemGroups(items)) {
     return {
       ok: false,
