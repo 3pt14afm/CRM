@@ -12,6 +12,7 @@ class SprfCurrentProject extends Model
     protected $fillable = [
         'sprf_no',
         'document_datetime',
+        'deadline',
         'status',
         'current_level',
         'approval_level',
