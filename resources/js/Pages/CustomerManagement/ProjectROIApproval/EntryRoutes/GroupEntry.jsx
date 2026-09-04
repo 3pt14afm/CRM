@@ -209,11 +209,11 @@ function GroupEntryForm({
       duration: 5000,
       icon: <IoWarningOutline className="!text-red-500 text-xl" />,
       classNames: {
-        toast: '!bg-red-50 !border !border-red-200/50 !text-white !rounded-xl shadow-xl',
+        toast: '!bg-white !border !border-red-100/50 !text-white !rounded-xl shadow-xl',
         title: '!text-red-800 !font-semibold',
-        description: '!text-slate-700 !text-sm',
+        description: '!text-slate-700 !text-xs',
         actionButton: '!bg-red-500 !text-white !border !border-red-500/20 hover:!bg-red-800 !px-3 !py-4 !rounded-md !transition-colors !font-medium',
-        cancelButton: '!bg-white !text-slate-700 hover:!bg-gray-300 !border !border-zinc-700 !px-3 !py-4 !rounded-md !transition-colors',
+        cancelButton: '!bg-white !text-slate-700 hover:!bg-gray-300 !ring-1 !ring-inset !ring-slate-300 !px-3 !py-4 !rounded-md !transition-colors',
       },
       action: {
         label: 'Delete',
