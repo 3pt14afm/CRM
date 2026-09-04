@@ -2,6 +2,11 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import { debounce } from "lodash";
 import { IoIosArrowDown } from "react-icons/io";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function CompanyInfoBlock({ value, onChange, readOnly = false, showErrors = false }) {
   const [suggestions, setSuggestions] = useState([]);
@@ -457,6 +462,41 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
               placeholder="Enter Complete AM Name"
               className="h-7 sm:h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 text-[11px] sm:text-xs outline-none border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 placeholder:text-slate-300 hover:border-[#28980080]"
             />
+          )}
+        </div>
+
+        {/* DEADLINE */}
+        <div className="grid md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
+          <label className="pb-1 sm:pb-0 text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">DEADLINE</label>
+          {readOnly ? (
+            <div className="h-7 sm:min-h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs border-gray-200 bg-white flex items-center">
+              {value?.deadline ? format(new Date(value.deadline), "MMM d, yyyy") : "—"}
+            </div>
+          ) : (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={`h-7 sm:h-8 w-full flex items-center gap-2 rounded-md sm:rounded-xl border px-2 sm:px-3 text-[11px] sm:text-xs outline-none bg-white border-gray-200 focus:border-[#289800] focus:outline-none focus:ring-0 hover:border-[#28980080] ${
+                    !value?.deadline ? "text-slate-300" : ""
+                  }`}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <span className="truncate">
+                    {value?.deadline ? format(new Date(value.deadline), "MMM d, yyyy") : "Select deadline..."}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  captionLayout="dropdown"
+                  selected={value?.deadline ? new Date(value.deadline) : undefined}
+                  onSelect={(date) => handleFieldChange("deadline", date ? format(date, "yyyy-MM-dd") : null)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           )}
         </div>
       </div>

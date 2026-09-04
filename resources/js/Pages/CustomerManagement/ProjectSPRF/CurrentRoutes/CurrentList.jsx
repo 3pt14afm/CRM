@@ -33,7 +33,7 @@ function formatDateLabel(dateStr) {
   if (!dateStr) return null;
   const [year, month, day] = dateStr.split('-');
   return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    month: 'long', day: '2-digit', year: 'numeric',
+    month: 'short', day: '2-digit', year: 'numeric',
   });
 }
 
@@ -465,6 +465,35 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         ),
       },
       {
+        key: 'deadline',
+        header: (
+          <SortHeader
+            label="DEADLINE"
+            sortKey="deadline"
+            sortBy={sortBy}
+            sortDirection={sortOrder}
+            onSort={handleSort}
+          />
+        ),
+        cell: (r) => {
+          const isUrgent = r.deadline_aging === 'Overdue'
+            || r.deadline_aging === 'Due today'
+            || /^\d+d left$/.test(r.deadline_aging ?? '');
+          return (
+            <div className="w-full flex flex-col items-start">
+              <span className="text-[10px] xl:text-[11px] text-slate-600">
+                {formatDateLabel(r.deadline) ?? '—'}
+              </span>
+              {r.deadline && (
+                <span className={`text-[10px] italic ${isUrgent ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
+                  {r.deadline_aging}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         key: 'actions',
         header: <div className="text-center w-full">ACTIONS</div>,
         cell: (r) => (
@@ -534,6 +563,18 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
           </span>
           <span className="normal-case text-[10px] text-slate-500">{formatDateTime(r.submitted_at)}</span>
         </p>
+        {r.deadline && (
+          <p className="flex items-center justify-between text-[11px] mt-0.5">
+            <span className="normal-case text-[10px] text-slate-500 italic">deadline</span>
+            <span className={`normal-case text-[10px] ${
+              r.deadline_aging === 'Overdue' || r.deadline_aging === 'Due today' || /^\d+d left$/.test(r.deadline_aging ?? '')
+                ? 'text-red-600 font-medium'
+                : 'text-slate-500'
+            }`}>
+              {formatDateLabel(r.deadline)} · {r.deadline_aging}
+            </span>
+          </p>
+        )}
       </div>
     );
   };
