@@ -465,9 +465,9 @@ export default function CompanyInfoBlock({ value, onChange, readOnly = false, sh
           )}
         </div>
 
-        {/* DEADLINE */}
+        {/* NEEDED BY */}
         <div className="grid md:grid-cols-[135px_minmax(0,1fr)] xl:grid-cols-[150px_minmax(0,1fr)] items-center">
-          <label className="pb-1 sm:pb-0 text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">DEADLINE</label>
+          <label className="pb-1 sm:pb-0 text-[10px] sm:text-[11px] xl:text-xs font-bold tracking-[0.01em]">NEEDED BY</label>
           {readOnly ? (
             <div className="h-7 sm:min-h-8 rounded-md sm:rounded-xl border px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs border-gray-200 bg-white flex items-center">
               {value?.deadline ? format(new Date(value.deadline), "MMM d, yyyy") : "—"}
