@@ -468,7 +468,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         key: 'deadline',
         header: (
           <SortHeader
-            label="DEADLINE"
+            label="NEEDED BY"
             sortKey="deadline"
             sortBy={sortBy}
             sortDirection={sortOrder}
