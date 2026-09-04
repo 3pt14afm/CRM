@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SPRF;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
+use App\Http\Controllers\Concerns\ComputesDeadlineAging;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfEntryProject;
 use App\Models\User;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
 
 class SprfController extends Controller
 {
-    use ResolvesSprfApproverUsers, ChecksPreferenceAccess;
+    use ResolvesSprfApproverUsers, ChecksPreferenceAccess, ComputesDeadlineAging;
 
     public function entryList(Request $request)
     {
@@ -72,21 +73,22 @@ class SprfController extends Controller
             ->withQueryString()
             ->through(function (SprfEntryProject $project) {
                 return [
-                    'id' => $project->id,
-                    'sprf_no' => $project->sprf_no,
-                    'status' => $project->status,
-                    'type' => $project->type,
-                    'form_version' => $project->form_version,
-                    'company_name' => $project->account,
-                    'sub_category' => $project->sub_category,
-                    'account_manager' => $project->account_manager,
-                    'revenue' => $project->revenue,
-                    'gp_percent' => $project->gp_percent,
-                    'approval_level' => $project->approval_level,
+                    'id'                      => $project->id,
+                    'sprf_no'                 => $project->sprf_no,
+                    'status'                  => $project->status,
+                    'type'                    => $project->type,
+                    'form_version'            => $project->form_version,
+                    'company_name'            => $project->account,
+                    'sub_category'            => $project->sub_category,
+                    'account_manager'         => $project->account_manager,
+                    'deadline'                => $project->deadline,
+                    'revenue'                 => $project->revenue,
+                    'gp_percent'              => $project->gp_percent,
+                    'approval_level'          => $project->approval_level,
                     'sprf_approval_matrix_id' => $project->sprf_approval_matrix_id,
                     'approval_condition_code' => $project->approval_condition_code,
-                    'last_saved_at' => optional($project->updated_at)?->toISOString(),
-                    'updated_at' => optional($project->updated_at)?->format('m/d/y H:i'),
+                    'last_saved_at'           => optional($project->updated_at)?->toISOString(),
+                    'updated_at'              => optional($project->updated_at)?->format('m/d/y H:i'),
                 ];
             });
 
@@ -272,6 +274,7 @@ class SprfController extends Controller
                     'company_name'    => $project->account,
                     'sub_category'    => $project->sub_category,
                     'account_manager' => $project->account_manager,
+                    'deadline'        => $project->deadline,
                     'prepared_by'     => $preparedByName,
                     'decided_by_name' => $decidedByName,
                     'decided_at_display' => optional($decidedAt)->format('M d, Y') ?? '—',
@@ -421,6 +424,7 @@ class SprfController extends Controller
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
@@ -496,6 +500,7 @@ class SprfController extends Controller
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,

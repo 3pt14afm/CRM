@@ -163,8 +163,9 @@ class SprfEntryProjectController extends Controller
                 'sub_category'    => data_get($companyInfo, 'subCategory'),
                 'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
-                'type'            => (int) data_get($companyInfo, 'type', $existingProject->type ?? 0),   // NEW
-                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                            // NEW
+                'deadline'        => data_get($companyInfo, 'deadline'),
+                'type'            => (int) data_get($companyInfo, 'type', $existingProject->type ?? 0),   
+                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                            
                 'company_id'      => (int) data_get($companyInfo, 'type', 0) === 1
                     ? $this->resolveCompanyIdFromSapCode(data_get($companyInfo, 'companySapCode'))
                     : $existingProject->company_id ?? null,     
@@ -253,6 +254,12 @@ class SprfEntryProjectController extends Controller
         $companyInfo = (array) data_get($payload, 'company_info', []);
         $this->validateCompanyIntegrity($companyInfo);
 
+        if (empty(data_get($companyInfo, 'deadline'))) {
+            throw ValidationException::withMessages([
+                'company_info.deadline' => 'Deadline is required before submitting.',
+            ]);
+        }
+
         $this->assertRowsWithValuesHaveQty(
             (array) data_get($payload, 'items', []),
             (array) data_get($payload, 'other_expenses', [])
@@ -270,13 +277,10 @@ class SprfEntryProjectController extends Controller
 
         $hasRebate = $this->hasRebateValueFromMappedFees($fees);
 
-        $approvalConditionCode = $this->resolveApprovalConditionCode(
-            $payload, $revenue, $gpPercent, $hasRebate
-        );
+        $approvalConditionCode = $this->resolveApprovalConditionCode( $payload, $revenue, $gpPercent, $hasRebate);
 
         // Strict — hard fail if no active matrix found for this location + department
-        ['location_id' => $locationId, 'department_id' => $departmentId]
-            = $this->resolvePreparerLocationAndDepartment();
+        ['location_id' => $locationId, 'department_id' => $departmentId] = $this->resolvePreparerLocationAndDepartment();
 
         $matrix = $this->findActiveMatrixOrFail($locationId, $departmentId);
         $this->validateMatrixApprovers($matrix);
@@ -336,9 +340,10 @@ class SprfEntryProjectController extends Controller
                 'sub_category'    => data_get($companyInfo, 'subCategory'),
                 'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
+                'deadline'        => data_get($companyInfo, 'deadline'),
 
-                 'type'            => (int) data_get($companyInfo, 'type', $project->type ?? 0),           // NEW
-                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                             // NEW
+                'type'            => (int) data_get($companyInfo, 'type', $project->type ?? 0),           
+                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                          
                 'company_id'      => (int) data_get($companyInfo, 'type', 0) === 1
                     ? $this->resolveCompanyIdFromSapCode(data_get($companyInfo, 'companySapCode'))
                     : null,       
@@ -549,9 +554,10 @@ class SprfEntryProjectController extends Controller
             'company_info.subCategory'    => ['nullable', 'string', 'max:255'],
             'company_info.account'        => ['nullable', 'string', 'max:255'],
             'company_info.accountManager' => ['nullable', 'string', 'max:255'],
-            'company_info.type'           => ['nullable', 'integer', 'in:0,1'],          // NEW
+            'company_info.deadline'       => ['nullable', 'date'],
+            'company_info.type'           => ['nullable', 'integer', 'in:0,1'],       
             'company_info.companySapCode' => ['nullable', 'string', 'max:255'],         
-            'remarks'              => ['nullable', 'string'],
+            'remarks'                     => ['nullable', 'string'],
 
             // Attachments are keyed by remark row index, each holding multiple files,
             // e.g. remarks_attachments[2][] => file, remarks_attachments[2][] => file
@@ -561,8 +567,7 @@ class SprfEntryProjectController extends Controller
             // "rowIndex:savedSubIndex" keys of previously-saved attachments the user removed on this save
             'remarks_attachments_remove'   => ['nullable', 'array'],
             'remarks_attachments_remove.*' => ['string', 'regex:/^\d+:\d+$/'],
-
-            'rebate_justification'       => ['nullable', 'string'],
+            'rebate_justification'         => ['nullable', 'string'],
 
             'items'                              => ['nullable', 'array'],
             'items.*.rowKey'                     => ['nullable', 'string', 'max:255'],
@@ -1099,6 +1104,7 @@ class SprfEntryProjectController extends Controller
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
@@ -1173,6 +1179,7 @@ class SprfEntryProjectController extends Controller
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
