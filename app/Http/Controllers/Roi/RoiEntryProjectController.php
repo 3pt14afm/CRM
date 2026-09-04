@@ -403,8 +403,6 @@ class RoiEntryProjectController extends Controller
 
     public function saveGroupDraft(StoreRoiGroupDraftRequest $request)
     {
-        Log::info('entries received', ['count' => count($request->input('entries', []))]);
-
         $rows = $this->multiEntryService->handleSaveGroupDraft($request->validated(), Auth::user(), $request);
 
         $master = $rows->first(fn ($r) => (int) $r->sequence <= 1) ?? $rows->first();
