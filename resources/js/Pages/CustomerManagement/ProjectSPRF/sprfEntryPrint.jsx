@@ -387,7 +387,7 @@ export default function SprfEntryPrint({
                         ['SUB CATEGORY', resolved.companyInfo?.subCategory],
                         ['ACCOUNT', resolved.companyInfo?.account],
                         ['ACCOUNT MANAGER', resolved.companyInfo?.accountManager],
-                        ['DEADLINE', resolved.companyInfo?.deadline
+                        ['NEEDED BY', resolved.companyInfo?.deadline
                           ? new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(resolved.companyInfo.deadline))
                           : null],
                       ]}

@@ -92,8 +92,17 @@ export default function SprfItemsCardList({
   onRemoveSubitem,
   totals,
   readOnly = false,
+  errors = {},
 }) {
-  // One card per item lot (below md)
+
+  const getMarkupError = (groupIndex, subIndex) => {
+    return errors?.[`items.${groupIndex}.subitems.${subIndex}.markupPercent`];
+  };
+
+  const getCostError = (groupIndex, subIndex) => {
+    return errors?.[`items.${groupIndex}.subitems.${subIndex}.costPerUnit`];
+  };
+
   return (
     <div className="md:hidden flex flex-col gap-2 border border-[#CAD6C2]/70 p-2 rounded-xl bg-[#B5EBA2]/5 shadow-inner">
         {computedItems.map((group, groupIndex) => {
@@ -274,7 +283,7 @@ export default function SprfItemsCardList({
                                             const rawValue = parseNumberInput(e.target.value, 4);
                                             onUpdateSubitem(groupIndex, subIndex, 'markupPercent', rawValue);
                                             }}
-                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85"
+                                            className={`w-full text-xs border-b focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85 ${getMarkupError(groupIndex, subIndex) ? 'border-red-500' : 'border-darkgreen/20 focus:border-[#289800]'}`}
                                             placeholder="0"
                                         />
                                         )}
@@ -294,7 +303,7 @@ export default function SprfItemsCardList({
                                             const rawValue = parseCurrencyInput(e.target.value);
                                             onUpdateSubitem(groupIndex, subIndex, 'costPerUnit', rawValue);
                                             }}
-                                            className="w-full text-xs border-b border-darkgreen/20 focus:border-[#289800] focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85"
+                                            className={`w-full text-xs border-b focus:ring-0 outline-none p-1 bg-transparent placeholder:text-gray-300/85 ${getCostError(groupIndex, subIndex) ? 'border-red-500' : 'border-darkgreen/20 focus:border-[#289800]'}`}
                                             placeholder="0.00"
                                         />
                                         )}
