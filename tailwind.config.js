@@ -1,5 +1,6 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
 import forms from '@tailwindcss/forms';
+import tailwindcssAnimate from 'tailwindcss-animate';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -20,6 +21,7 @@ export default {
             },
             colors: {
                 // Shadcn Theme Variables
+                plain: "var(--plain)",
                 background: 'var(--background)',
                 foreground: 'var(--foreground)',
                 card: {
@@ -89,5 +91,5 @@ export default {
         },
     },
 
-    plugins: [forms],
+    plugins: [forms, tailwindcssAnimate],
 };

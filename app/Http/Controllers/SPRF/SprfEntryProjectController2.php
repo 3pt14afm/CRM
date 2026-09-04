@@ -171,8 +171,9 @@ class SprfEntryProjectController2 extends Controller
                 'sub_category'    => data_get($companyInfo, 'subCategory'),
                 'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
-                'type'            => (int) data_get($companyInfo, 'type', $existingProject->type ?? 0),   // NEW
-                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                            // NEW
+                'deadline'        => data_get($companyInfo, 'deadline'),
+                'type'            => (int) data_get($companyInfo, 'type', $existingProject->type ?? 0),   
+                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                            
                 'company_id'      => (int) data_get($companyInfo, 'type', 0) === 1
                     ? $this->resolveCompanyIdFromSapCode(data_get($companyInfo, 'companySapCode'))
                     : $existingProject->company_id ?? null,     
@@ -261,6 +262,12 @@ class SprfEntryProjectController2 extends Controller
         $companyInfo = (array) data_get($payload, 'company_info', []);
         $this->validateCompanyIntegrity($companyInfo);
 
+        if (empty(data_get($companyInfo, 'deadline'))) {
+            throw ValidationException::withMessages([
+                'company_info.deadline' => 'Deadline is required before submitting.',
+            ]);
+        }
+
         $this->assertRowsWithValuesHaveQty(
             (array) data_get($payload, 'items', []),
             (array) data_get($payload, 'other_expenses', [])
@@ -344,9 +351,10 @@ class SprfEntryProjectController2 extends Controller
                 'sub_category'    => data_get($companyInfo, 'subCategory'),
                 'account'         => data_get($companyInfo, 'account'),
                 'account_manager' => data_get($companyInfo, 'accountManager'),
+                'deadline'        => data_get($companyInfo, 'deadline'),
 
-                 'type'            => (int) data_get($companyInfo, 'type', $project->type ?? 0),           // NEW
-                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                             // NEW
+                'type'            => (int) data_get($companyInfo, 'type', $project->type ?? 0),           
+                'company_sap_code'=> data_get($companyInfo, 'companySapCode'),                             
                 'company_id'      => (int) data_get($companyInfo, 'type', 0) === 1
                     ? $this->resolveCompanyIdFromSapCode(data_get($companyInfo, 'companySapCode'))
                     : null,       
@@ -557,7 +565,8 @@ class SprfEntryProjectController2 extends Controller
             'company_info.subCategory'    => ['nullable', 'string', 'max:255'],
             'company_info.account'        => ['nullable', 'string', 'max:255'],
             'company_info.accountManager' => ['nullable', 'string', 'max:255'],
-            'company_info.type'           => ['nullable', 'integer', 'in:0,1'],          // NEW
+            'company_info.deadline'       => ['nullable', 'date'],
+            'company_info.type'           => ['nullable', 'integer', 'in:0,1'],        
             'company_info.companySapCode' => ['nullable', 'string', 'max:255'],         
             'remarks'              => ['nullable', 'string'],
 
@@ -1110,6 +1119,7 @@ class SprfEntryProjectController2 extends Controller
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
@@ -1187,6 +1197,7 @@ class SprfEntryProjectController2 extends Controller
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,

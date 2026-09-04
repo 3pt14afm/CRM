@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SPRF;
 
 use App\Http\Controllers\Concerns\ChecksPreferenceAccess;
+use App\Http\Controllers\Concerns\ComputesDeadlineAging;
 use App\Http\Controllers\Controller;
 use App\Models\SPRF\SprfArchiveProject;
 use App\Models\SPRF\SprfCurrentProject;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Storage;
 
 class SprfCurrentProjectController extends Controller
 {
-    use ChecksPreferenceAccess;
+    use ChecksPreferenceAccess, ComputesDeadlineAging;
 
     public function __construct(
         private readonly SprfCurrentWorkflowService $workflowService
@@ -141,7 +142,7 @@ class SprfCurrentProjectController extends Controller
             : 'desc';
 
         $allowedSorts = [
-            'prepared_by'     => null,   // handled via join below
+            'prepared_by'     => null,  
             'sprf_no'         => 'sprf_no',
             'sub_category'    => 'sub_category',
             'company_name'    => 'account',
@@ -151,6 +152,7 @@ class SprfCurrentProjectController extends Controller
             'status'          => 'status',
             'submitted_at'    => 'submitted_at',
             'last_saved_at'   => 'updated_at',
+            'deadline'        => 'deadline',
         ];
 
         // "For review" rows float to the top ONLY in the default (no explicit column sort) view.
@@ -167,6 +169,17 @@ class SprfCurrentProjectController extends Controller
             $query->orderByRaw(
                 'CASE WHEN sprf_current_projects.current_approver_user_id = ? THEN 0 ELSE 1 END',
                 [$userId]
+            )->orderByRaw(
+                "CASE
+                    WHEN sprf_current_projects.approval_level = 'PRESIDENT_AND_CEO' THEN 0
+                    WHEN sprf_current_projects.approval_level = 'VP_AND_CCTO' THEN 1
+                    WHEN sprf_current_projects.approval_level = 'ESD_ONLY' THEN 2
+                    ELSE 3
+                END"
+            )->orderByRaw(
+                'sprf_current_projects.deadline IS NULL'
+            )->orderBy(
+                'sprf_current_projects.deadline', 'asc'
             )->orderByDesc('updated_at');
         }
 
@@ -192,6 +205,8 @@ class SprfCurrentProjectController extends Controller
                     'revenue' => $project->revenue,
                     'gp_percent' => $project->gp_percent,
                     'submitted_at' => $project->submitted_at ? $project->submitted_at->toISOString() : null,
+                    'deadline' => $project->deadline,
+                    'deadline_aging' => $this->formatDeadlineAging($project->deadline),
                     'prepared_by' => $project->preparer ? $project->preparer->first_name . ' ' . $project->preparer->last_name : null,
                     'current_approver' => $project->currentApprover ? $project->currentApprover->first_name . ' ' . $project->currentApprover->last_name : null,
                     'last_saved_display' => $project->updated_at
@@ -876,6 +891,7 @@ public function show(SprfCurrentProject $project)
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
@@ -955,6 +971,7 @@ public function show(SprfCurrentProject $project)
                 'subCategory'        => $project->sub_category,
                 'account'            => $project->account,
                 'accountManager'     => $project->account_manager,
+                'deadline'           => $project->deadline,
                 'type'               => $project->type,
                 'companySapCode'     => $project->company_sap_code,
                 'potentialCompanyId' => (int) $project->type === 0 ? $project->company_id : null,
@@ -1013,25 +1030,25 @@ public function show(SprfCurrentProject $project)
     }
 
     private function signatureFor(?int $userId): ?string
-{
-    if (! $userId) {
-        return null;
-    }
-
-    $employeeId = User::query()->whereKey($userId)->value('employee_id');
-
-    if (! $employeeId) {
-        return null;
-    }
-
-    foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-        $path = 'signatures/' . $employeeId . '.' . $ext;
-
-        if (Storage::disk('public')->exists($path)) {
-            return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+    {
+        if (! $userId) {
+            return null;
         }
-    }
 
-    return null;
-}
+        $employeeId = User::query()->whereKey($userId)->value('employee_id');
+
+        if (! $employeeId) {
+            return null;
+        }
+
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = 'signatures/' . $employeeId . '.' . $ext;
+
+            if (Storage::disk('public')->exists($path)) {
+                return asset('storage/' . $path) . '?v=' . filemtime(storage_path('app/public/' . $path));
+            }
+        }
+
+        return null;
+    }
 }

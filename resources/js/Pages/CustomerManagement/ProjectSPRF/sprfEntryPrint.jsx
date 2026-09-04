@@ -387,6 +387,9 @@ export default function SprfEntryPrint({
                         ['SUB CATEGORY', resolved.companyInfo?.subCategory],
                         ['ACCOUNT', resolved.companyInfo?.account],
                         ['ACCOUNT MANAGER', resolved.companyInfo?.accountManager],
+                        ['DEADLINE', resolved.companyInfo?.deadline
+                          ? new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(resolved.companyInfo.deadline))
+                          : null],
                       ]}
                     />
 
@@ -604,18 +607,18 @@ function PrintItemsTable({ groups, totals }) {
         </colgroup>
 
         <thead>
-          <tr className="bg-lightgreen/30 text-[10px] uppercase">
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">#</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Product Code</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Item Description</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Qty</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Disty</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Cost / Unit</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Total Cost</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Selling Price/unit (VAT INC)</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Total Selling Price (VAT INC)</th>
-            <th className="border-b border-r border-darkgreen/15 p-1.5 py-2 font-semibold">Mark Up Value</th>
-            <th className="border-b border-darkgreen/15 p-1.5 py-2 font-semibold">Mark-up %</th>
+          <tr className="bg-lightgreen/30 text-[9px] uppercase">
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">#</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Product Code</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Item Description</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Qty</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Disty</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Cost / Unit</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Total Cost</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Selling Price/unit (VAT INC)</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Total Selling Price (VAT INC)</th>
+            <th className="border-b border-r border-darkgreen/15 p-1.5 py-1.5 font-semibold">Mark Up Value</th>
+            <th className="border-b border-darkgreen/15 p-1.5 py-1.5 font-semibold">Mark-up %</th>
           </tr>
         </thead>
 
@@ -934,10 +937,10 @@ function PrintSignatory({ name, title, timestamp = null, isRejector = false, sig
           <img
             src={signatureUrl}
             alt=""
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 max-h-[38px] max-w-[140px] object-contain pointer-events-none mix-blend-multiply print:max-h-[34px]"
+            className="absolute bottom-1 left-1/2 -translate-x-1/2 max-h-[50px] max-w-[140px] object-contain pointer-events-none mix-blend-multiply "
           />
         )}
-        <span className="relative text-[12px] font-semibold text-gray-900 text-center">
+        <span className="relative text-[12px] font-semibold uppercase text-gray-900 text-center">
           {displayText(name) || '—'}
         </span>
       </div>
