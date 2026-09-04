@@ -25,7 +25,7 @@ class StoreRoiGroupDraftRequest extends FormRequest
             'entries' => ['required', 'array', 'min:1'],
             'entries.*.projectUid' => ['nullable', 'string', 'max:255'],
             'entries.*.companyInfo.contractYears' => ['required', 'integer', 'min:0'],
-            'entries.*.companyInfo.contractType' => ['required', 'string', 'max:255'],
+            'entries.*.companyInfo.contractType' => ['nullable', 'string', 'max:255'],
             'entries.*.companyInfo.purpose' => ['nullable', 'string', 'max:5000'],
             'entries.*.companyInfo.bundledStdInk' => ['nullable'],
 

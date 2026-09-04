@@ -6,7 +6,7 @@ import MachineConfigTab from './MachineConfigTab';
 import SucceedingYears from './SucceedingYears';
 import OverallSummary from './OverallSummary';
 import { IoIosArrowBack } from 'react-icons/io';
-import { IoAddCircleOutline, IoRemoveCircleOutline, IoPrintSharp } from 'react-icons/io5';
+import { IoAddCircleOutline, IoRemoveCircleOutline, IoPrintSharp, IoArrowBackOutline, IoArrowForwardOutline, IoWarningOutline } from 'react-icons/io5';
 import { LuScanEye } from 'react-icons/lu';
 import { MdOutlineCancel, MdVerified } from 'react-icons/md';
 import { FaUndo } from 'react-icons/fa';
@@ -149,6 +149,7 @@ function GroupEntryForm({
     if (!isFirstEntry) {
       const targetIndex = activeEntryIndex - 1;
       switchActiveEntry(targetIndex);
+      
       if (reference) {
         router.reload({
           only: ['project', 'entryProject', 'projectNotes', 'projectComments', 'activeEntryIndex'],
@@ -157,9 +158,13 @@ function GroupEntryForm({
           preserveState: true,
         });
       }
+      
       const contractType = groupData.entries[targetIndex]?.companyInfo?.contractType;
-      toast(`Entry ${targetIndex + 1}${contractType ? `: ${contractType}` : ''}`, {
-        duration: 2500,
+      
+      toast(`Entry ${targetIndex + 1}`, {
+        description: contractType ? `Switched to ${contractType}` : 'Viewing previous entry',
+        icon: <IoArrowBackOutline className="text-zinc-400 text-lg" />,
+        duration: 3000,
       });
     }
   };
@@ -168,6 +173,7 @@ function GroupEntryForm({
     if (!isLastEntry) {
       const targetIndex = activeEntryIndex + 1;
       switchActiveEntry(targetIndex);
+      
       if (reference) {
         router.reload({
           only: ['project', 'entryProject', 'projectNotes', 'projectComments', 'activeEntryIndex'],
@@ -176,11 +182,52 @@ function GroupEntryForm({
           preserveState: true,
         });
       }
+      
       const contractType = groupData.entries[targetIndex]?.companyInfo?.contractType;
-      toast(`Entry ${targetIndex + 1}${contractType ? `: ${contractType}` : ''}`, {
-        duration: 2500,
+      
+      toast(`Entry ${targetIndex + 1}`, {
+        description: contractType ? `Switched to ${contractType}` : 'Viewing next entry',
+        icon: <IoArrowForwardOutline className="text-zinc-400 text-lg" />,
+        duration: 3000,
       });
     }
+  };
+
+  const handleAddEntry = () => {
+    addEntry();
+    // Using toast.success to automatically inherit your global success classNames
+    toast.success(`Added Entry #${entryCount + 1}`, {
+      description: 'New entry has been created successfully.',
+      duration: 5000,
+      icon: <IoAddCircleOutline className="text-lg" />,
+    });
+  };
+
+  const handleRemoveEntry = () => {
+    toast(`Remove Entry ${activeEntryIndex + 1}?`, {
+      description: 'This action cannot be undone.',
+      duration: 5000,
+      icon: <IoWarningOutline className="!text-red-500 text-xl" />,
+      classNames: {
+        toast: '!bg-red-50 !border !border-red-200/50 !text-white !rounded-xl shadow-xl',
+        title: '!text-red-800 !font-semibold',
+        description: '!text-slate-700 !text-sm',
+        actionButton: '!bg-red-500 !text-white !border !border-red-500/20 hover:!bg-red-800 !px-3 !py-4 !rounded-md !transition-colors !font-medium',
+        cancelButton: '!bg-white !text-slate-700 hover:!bg-gray-300 !border !border-zinc-700 !px-3 !py-4 !rounded-md !transition-colors',
+      },
+      action: {
+        label: 'Delete',
+        onClick: () => {
+          removeEntry(activeEntryIndex);
+          toast.success(`Entry ${activeEntryIndex + 1} removed`, { 
+            icon: <IoRemoveCircleOutline className="text-lg" /> 
+          });
+        },
+      },
+      cancel: {
+        label: 'Cancel',
+      },
+    });
   };
 
   const handleGoBack = () => {
@@ -314,10 +361,10 @@ function GroupEntryForm({
 
                 {!readOnly && (
                   <>
-                    <button type="button" onClick={addEntry} className="p-1.5 rounded-lg border border-darkgreen text-darkgreen hover:bg-lightgreen/30" aria-label="Add entry">
+                    <button type="button" onClick={handleAddEntry} className="p-1.5 rounded-lg border border-darkgreen text-darkgreen hover:bg-lightgreen/30" aria-label="Add entry">
                       <IoAddCircleOutline className="text-base" />
                     </button>
-                    <button type="button" onClick={() => removeEntry(activeEntryIndex)} disabled={entryCount <= 1} className="p-1.5 rounded-lg bg-red-50 border border-red-400 text-red-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-50" aria-label="Remove current entry">
+                    <button type="button" onClick={handleRemoveEntry} disabled={entryCount <= 1} className="p-1.5 rounded-lg bg-red-50 border border-red-400 text-red-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-50" aria-label="Remove current entry">
                       <IoRemoveCircleOutline className="text-base" />
                     </button>
                   </>

@@ -398,12 +398,12 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         const d = new Date(r.last_saved_at);
         const exactDate = !isNaN(d.getTime())
           ? d.toLocaleString('en-US', {
-              month: '2-digit',
+              month: 'long',
               day: '2-digit',
               year: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
-            })
+            }).replace(' at', ',')
           : '—';
 
         return (
@@ -414,7 +414,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
                   {relative}{relative !== "—" ? " ago" : ""}
                 </span>
               </TooltipTrigger>
-              <TooltipContent>Last saved at {exactDate}</TooltipContent>
+              <TooltipContent side="left">Last saved at <br></br> {exactDate}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         );
