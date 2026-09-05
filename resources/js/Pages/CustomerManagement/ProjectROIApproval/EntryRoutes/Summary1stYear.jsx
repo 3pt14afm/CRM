@@ -25,7 +25,7 @@ function Summary1stYear({ hideSignatories = false }) {
 
   return (
     <div className='mx-5 print:mx-0 bg-[#f8f8f8] print:bg-white border rounded-r-lg rounded-b-xl border-t-[#2c2c2e]/10 border-b-[#2c2c2e]/30 border-[#2c2c2e]/20 shadow-md print:shadow-none print:justify-center print:border-none print:bg-transparent'>
-      <div className='lg:mx-10 mx-4 print:mx-0 print:pt-0 pt-8'>
+      <div className='lg:mx-10 mx-4 print:mx-0.5 print:pt-0 pt-8'>
 
         <div className="print-avoid-break">
           <CompanyInfoSum />
@@ -56,21 +56,25 @@ function Summary1stYear({ hideSignatories = false }) {
               <div className="print:mr-0.5">
                 <SucceTotals />
               </div>
-
-              <div className="print-page-break" />
             </>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-5 items-start print:grid-cols-[70%_30%] print:gap-1 print:items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-5 items-start print:grid-cols-[70%_30%] print:gap-0.5 print:items-start print:break-inside-avoid">
             <ContractDetails />
             <EntryRemarksSummary />
           </div>
 
-        <div className='lg:mx-20  print:mx-0 pt-5'>
-          <AddComments />
+          <div className='lg:mx-20 print:mx-0 print:pt-1 pt-5'>
+            <div className="print-avoid-break print:break-inside-avoid">
+              <AddComments />
+            </div>
 
-          {!hideSignatories && <Names />}
-        </div>
+            {!hideSignatories && (
+              <div className="print-avoid-break print:break-inside-avoid">
+                <Names />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

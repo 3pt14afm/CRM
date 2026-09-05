@@ -353,7 +353,7 @@ export default function SprfEntryPrint({
             <button
               type="button"
               onClick={handlePrint}
-              className="px-4 py-2 rounded-md bg-darkgreen text-white text-sm font-medium"
+              className="px-5 py-2 rounded-3xl bg-darkgreen text-white text-sm font-medium"
             >
               Print
             </button>
@@ -361,7 +361,7 @@ export default function SprfEntryPrint({
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 rounded-md border border-slate-300 text-sm font-medium"
+              className="px-4 py-2 rounded-3xl border border-slate-300 text-sm font-medium"
             >
               Close
             </button>
@@ -387,7 +387,7 @@ export default function SprfEntryPrint({
                         ['SUB CATEGORY', resolved.companyInfo?.subCategory],
                         ['ACCOUNT', resolved.companyInfo?.account],
                         ['ACCOUNT MANAGER', resolved.companyInfo?.accountManager],
-                        ['DEADLINE', resolved.companyInfo?.deadline
+                        ['NEEDED BY', resolved.companyInfo?.deadline
                           ? new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(resolved.companyInfo.deadline))
                           : null],
                       ]}
@@ -426,8 +426,6 @@ export default function SprfEntryPrint({
                   rows={resolved.computedExpenses}
                   totalOtherExpense={resolved.summary.otherExpense}
                 />
-
-                
 
                 <div className="w-full flex flex-col items-start space-y-5">
                   <div className="flex w-full gap-3 items-start">
@@ -693,7 +691,7 @@ function PrintItemsTable({ groups, totals }) {
 
 function PrintOtherExpenseTable({ rows, totalOtherExpense }) {
   return (
-    <div className="w-[80%] print:break-before-page">
+    <div className="w-[80%] print:break-inside-avoid">
       <div className="mb-1 text-[11px] xl:text-xs ml-3 font-bold uppercase text-[#111]">
         Other Expense
       </div>
@@ -794,7 +792,7 @@ function PrintNamesBlock({
   ];
 
   return (
-    <div className="w-full">
+    <div className="w-full print:break-inside-avoid">
       <div className="grid grid-cols-2 mx-3 ml-8 gap-x-8 items-start">
         <div className="flex flex-col">
           <SectionLabel label="PREPARED BY:" />
@@ -874,7 +872,7 @@ function PrintNotesComments({ notes = [], comments = [] }) {
     ));
 
   return (
-    <div className="w-full flex gap-2">
+    <div className="w-full flex gap-2 print:break-inside-avoid">
       {hasNotes && (
         <div className="w-[50%]">
           <span className="text-[11px] font-medium text-gray-400 pl-2 uppercase tracking-wide">

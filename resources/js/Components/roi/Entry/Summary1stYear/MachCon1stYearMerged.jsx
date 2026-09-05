@@ -308,7 +308,7 @@ function MachCon1stYearMerged({ title = "1st Year Potential", yearNumber = 1 }) 
         <div></div>
         <div></div>
         <div className="text-center pr-1">
-          <span className="text-[17px] font-bold print:font-medium print:text-sm uppercase tracking-tight text-gray-700">
+          <span className="text-[17px] font-bold print:font-medium print:text-xs uppercase tracking-tight text-gray-700">
             {title}
           </span>
         </div>

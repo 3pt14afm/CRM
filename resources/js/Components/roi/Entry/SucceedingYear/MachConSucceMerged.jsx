@@ -155,13 +155,13 @@ function MachConSucceMerged() {
       <div className="hidden md:grid print:grid grid-cols-[30.7%_9.1%_1.4%_7.3%_10.7%_10.7%_1.4%_7.3%_10.7%_10.7%] mb-2">
         <div className="col-span-3"></div>
         <div className="col-span-3 text-center pr-1">
-          <span className="text-[17px] print:text-sm print:font-medium font-bold uppercase tracking-tight text-gray-700">
+          <span className="text-[17px] print:text-xs print:font-medium font-bold uppercase tracking-tight text-gray-700">
             {rangeTitle}
           </span>
         </div>
         <div></div>
         <div className="col-span-3 text-center pr-1">
-          <span className="text-[17px] print:text-sm print:font-medium font-bold uppercase tracking-tight text-gray-700">
+          <span className="text-[17px] print:text-xs print:font-medium font-bold uppercase tracking-tight text-gray-700">
             Total Succeeding Years
           </span>
         </div>
@@ -282,17 +282,17 @@ function MachConSucceMerged() {
           </colgroup>
 
           <thead className="bg-[#E2F4D8] border-x border-gray-300">
-            <tr className="h-14 print:h-10">
-              <th className="px-3 py-2 text-[13px] font-medium text-center border-r border-t border-gray-300 print:text-[10px]">MACHINE & CONSUMABLES</th>
-              <th className="px-3 py-2 text-[13px] font-medium text-center border-r border-t border-gray-300 print:text-[10px]">COST</th>
+            <tr className="h-14 print:h-7">
+              <th className="px-3 py-2 text-[13px] font-medium text-center border-r border-t border-gray-300 print:text-[10px] print:py-1">MACHINE & CONSUMABLES</th>
+              <th className="px-3 py-2 text-[13px] font-medium text-center border-r border-t border-gray-300 print:text-[10px] print:py-1">COST</th>
               <th className="bg-[#f8f8f8] print:bg-white"></th>
-              <th className="px-1 py-2 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase print:text-[10px]">Qty</th>
-              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase print:text-[10px]">Total Cost</th>
-              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase print:text-[10px]">Gross Sales</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase print:text-[10px] print:py-1">Qty</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase print:text-[10px] print:py-1">Total Cost</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase print:text-[10px] print:py-1">Gross Sales</th>
               <th className="bg-[#f8f8f8] print:bg-white"></th>
-              <th className="px-1 py-2 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase print:text-[10px]">Qty</th>
-              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase print:text-[10px]">Total Cost</th>
-              <th className="px-1 py-2 text-[13px] text-center font-medium border-t border-gray-300 uppercase print:text-[10px]">Gross Sales</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-x border-t border-gray-300 uppercase print:text-[10px] print:py-1">Qty</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-r border-t border-gray-300 uppercase print:text-[10px] print:py-1">Total Cost</th>
+              <th className="px-1 py-2 text-[13px] text-center font-medium border-t border-gray-300 uppercase print:text-[10px] print:py-1">Gross Sales</th>
             </tr>
           </thead>
 
@@ -308,16 +308,16 @@ function MachConSucceMerged() {
 
             {machineRows.map((row, index) => (
               <tr key={`machine-row-${index}`} className="border-x border-x-gray-300 bg-white align-middle">
-                <td className="px-4 py-3 print:py-2 break-words uppercase border-r border-gray-200">{row.left?.sku || ''}</td>
+                <td className="px-4 py-3 print:py-2 break-words uppercase border-r border-gray-200 print:text-[11px]">{row.left?.sku || ''}</td>
                 <td className="px-3 py-3 print:py-2 text-center border-r border-gray-300">{row.left ? formatNum(row.left.inputtedCost || row.left.cost) : ''}</td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
-                <td className="px-1 py-3 print:py-2 text-center border-x border-gray-200">{formatQty(0)}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-x border-gray-200">{format(0)}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-r border-gray-300">{format(0)}</td>
+                <td className="px-1 py-3 print:py-2 text-center border-x border-gray-200 print:text-[11px]">{formatQty(0)}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-x border-gray-200 print:text-[11px]">{format(0)}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-r border-gray-300 print:text-[11px]">{format(0)}</td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
-                <td className="px-1 py-3 print:py-2 text-center border-x border-gray-200">{formatQty(0)}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-x border-gray-200">{format(0)}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-r border-gray-300">{format(0)}</td>
+                <td className="px-1 py-3 print:py-2 text-center border-x border-gray-200 print:text-[11px]">{formatQty(0)}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-x border-gray-200 print:text-[11px]">{format(0)}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-r border-gray-300 print:text-[11px]">{format(0)}</td>
               </tr>
             ))}
 
@@ -332,16 +332,16 @@ function MachConSucceMerged() {
 
             {consumableRows.map((row, index) => (
               <tr key={`consumable-row-${index}`} className="border-x border-x-gray-300 bg-white align-middle">
-                <td className="px-4 py-3 print:py-2 break-words border-r border-b border-gray-200">{row.left?.sku || ''}</td>
-                <td className="px-3 py-3 print:py-2 text-center border-r border-r-gray-300 border-b border-gray-200">{row.left ? formatNum(row.left.cost) : ''}</td>
+                <td className="px-4 py-3 print:py-2 break-words border-r border-b border-gray-200 print:text-[11px]">{row.left?.sku || ''}</td>
+                <td className="px-3 py-3 print:py-2 text-center border-r border-r-gray-300 border-b border-gray-200 print:text-[11px]">{row.left ? formatNum(row.left.cost) : ''}</td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
-                <td className="px-1 py-3 print:py-2 text-center border-r border-r-gray-200 border-b border-gray-200">{row.middle ? formatConsumableQty(row.middle.qty) : ''}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-b border-gray-200">{row.middle ? format(row.middle.totalCost) : ''}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-r border-r-gray-300 border-b border-x border-gray-200">{row.middle ? format(row.middle.totalSell) : ''}</td>
+                <td className="px-1 py-3 print:py-2 text-center border-r border-r-gray-200 border-b border-gray-200 print:text-[11px]">{row.middle ? formatConsumableQty(row.middle.qty) : ''}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-b border-gray-200 print:text-[11px]">{row.middle ? format(row.middle.totalCost) : ''}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-r border-r-gray-300 border-b border-x border-gray-200 print:text-[11px]">{row.middle ? format(row.middle.totalSell) : ''}</td>
                 <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
-                <td className="px-1 py-3 print:py-2 text-center border-r border-r-gray-200 border-b border-gray-200">{row.right ? formatConsumableQty(n(row.right.qty) * succeedingYearCount) : ''}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-b border-gray-200">{row.right ? format(n(row.right.totalCost) * succeedingYearCount) : ''}</td>
-                <td className="text-center px-1 py-3 print:py-2 border-r border-r-gray-300 border-b border-x border-gray-200">{row.right ? format(n(row.right.totalSell) * succeedingYearCount) : ''}</td>
+                <td className="px-1 py-3 print:py-2 text-center border-r border-r-gray-200 border-b border-gray-200 print:text-[11px]">{row.right ? formatConsumableQty(n(row.right.qty) * succeedingYearCount) : ''}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-b border-gray-200 print:text-[11px]">{row.right ? format(n(row.right.totalCost) * succeedingYearCount) : ''}</td>
+                <td className="text-center px-1 py-3 print:py-2 border-r border-r-gray-300 border-b border-x border-gray-200 print:text-[11px]">{row.right ? format(n(row.right.totalSell) * succeedingYearCount) : ''}</td>
               </tr>
             ))}
 
@@ -376,14 +376,14 @@ function MachConSucceMerged() {
             <tr className="bg-[#E2F4D8]/70 border-x border-x-gray-300 font-semibold border-gray-100">
               <td className="px-4 py-3 print:py-2 border border-gray-300"></td>
               <td className="px-3 py-3 print:py-2 border border-gray-300"></td>
-              <td className="bg-[#f8f8f8] print:bg-white border border-gray-300"></td>
+              <td className="bg-[#f8f8f8] print:bg-white "></td>
               <td className="px-1 py-3 print:py-2 border border-gray-300"></td>
-              <td className="text-center px-1 py-3 print:py-2 border border-gray-300">{format(consumablesOnlyTotalCost)}</td>
-              <td className="text-center px-1 py-3 print:py-2 border border-gray-300">{format(consumablesOnlyTotalSales)}</td>
+              <td className="text-center px-1 py-3 print:py-2 border border-gray-300 print:text-[11px]">{format(consumablesOnlyTotalCost)}</td>
+              <td className="text-center px-1 py-3 print:py-2 border border-gray-300 print:text-[11px]">{format(consumablesOnlyTotalSales)}</td>
               <td className="bg-[#f8f8f8] print:bg-white border-r border-gray-300"></td>
               <td className="px-1 py-3 print:py-2 border border-gray-300"></td>
-              <td className="text-center px-1 py-3 print:py-2 border border-gray-300">{format(consumablesOnlyTotalCost * succeedingYearCount)}</td>
-              <td className="text-center px-1 py-3 print:py-2 border border-gray-300">{format(consumablesOnlyTotalSales * succeedingYearCount)}</td>
+              <td className="text-center px-1 py-3 print:py-2 border border-gray-300 print:text-[11px]">{format(consumablesOnlyTotalCost * succeedingYearCount)}</td>
+              <td className="text-center px-1 py-3 print:py-2 border border-gray-300 print:text-[11px]">{format(consumablesOnlyTotalSales * succeedingYearCount)}</td>
             </tr>
           </tbody>
         </table>

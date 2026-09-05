@@ -70,9 +70,11 @@ export default function SprfItemsTable({
   };
 
   const getMarkupError = (groupIndex, subIndex) => {
-    return errors?.[
-      `items.${groupIndex}.subitems.${subIndex}.markupPercent`
-    ];
+    return errors?.[`items.${groupIndex}.subitems.${subIndex}.markupPercent`];
+  };
+
+  const getCostError = (groupIndex, subIndex) => {
+    return errors?.[`items.${groupIndex}.subitems.${subIndex}.costPerUnit`];
   };
 
   const inputClass =
@@ -388,7 +390,7 @@ export default function SprfItemsTable({
                           const rawValue = parseNumberInput(e.target.value, 2);
                           onUpdateSubitem(groupIndex, subIndex, 'costPerUnit', rawValue);
                         }}
-                        className={`${inputClass} py-0.5`}
+                        className={`${inputClass} py-0.5 ${getCostError(groupIndex, subIndex) ? '!border-red-500 !border-solid' : ''}`}
                         placeholder="0.00"
                       />
                     )}
@@ -437,7 +439,7 @@ export default function SprfItemsTable({
                             rawValue
                           );
                         }}
-                        className={`${inputClass} py-0.5 ${ getMarkupError(groupIndex, subIndex) ? '!border-red-500 !border-solid' : ''}`}
+                        className={`${inputClass} py-0.5 ${getMarkupError(groupIndex, subIndex) ? '!border-red-500 !border-solid' : ''}`}                        
                         placeholder="0"
                       />
                     )}

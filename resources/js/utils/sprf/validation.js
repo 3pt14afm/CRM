@@ -173,6 +173,15 @@ export const validateSubmit = ({
     };
   }
 
+  const itemErrors = getIncompleteItemErrors(items);
+  if (Object.keys(itemErrors).length > 0) {
+    return {
+      ok: false,
+      message: 'Every item needs a Selling Price or Markup% — enter a value or it defaults to 0.',
+      errors: itemErrors,
+    };
+  }
+
   return { ok: true };
 };
 
@@ -193,4 +202,37 @@ export const validateAdvance = ({
   }
 
   return { ok: true };
+};
+
+// flags started rows missing both markup% and selling price
+export const getIncompleteItemErrors = (groups) => {
+  const errors = {};
+
+  groups.forEach((group, groupIndex) => {
+    (group.subitems || []).forEach((row, subIndex) => {
+      const isStarted = Boolean(
+        row.productCode?.trim() ||
+          row.itemDescription?.trim() ||
+          Number(row.qty) > 0 ||
+          Number(row.costPerUnit) > 0
+      );
+
+      if (!isStarted) return;
+
+      const hasCost = row.costPerUnit !== '' && row.costPerUnit !== null && row.costPerUnit !== undefined;
+      const hasMarkup = row.markupPercent !== '' && row.markupPercent !== null && row.markupPercent !== undefined;
+      const hasSellingPrice = row.sellingPricePerUnit !== '' && row.sellingPricePerUnit !== null && row.sellingPricePerUnit !== undefined;
+
+      if (!hasCost) {
+        errors[`items.${groupIndex}.subitems.${subIndex}.costPerUnit`] = true;
+      }
+
+      if (!hasMarkup && !hasSellingPrice) {
+        errors[`items.${groupIndex}.subitems.${subIndex}.markupPercent`] = true;
+        errors[`items.${groupIndex}.subitems.${subIndex}.sellingPricePerUnit`] = true;
+      }
+    });
+  });
+
+  return errors;
 };

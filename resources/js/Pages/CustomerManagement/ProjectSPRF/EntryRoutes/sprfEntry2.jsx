@@ -39,6 +39,7 @@ import {
   buildSprfPayload,
   hasValidCompanyInfo,
   hasValidItemGroups,
+  getIncompleteItemErrors,
   validateDraft,
   validateAdvance,
   formatDateTime,
@@ -209,6 +210,12 @@ const [companyInfo, setCompanyInfo] = useState({
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const hydratedProjectIdRef = useRef(null);
+  const [hasAttemptedItemsSubmit, setHasAttemptedItemsSubmit] = useState(false);
+
+  const itemErrors = useMemo(
+    () => (hasAttemptedItemsSubmit ? getIncompleteItemErrors(items) : {}),
+    [items, hasAttemptedItemsSubmit]
+  );
 
   useEffect(() => {
     const currentProjectId = sourceProject?.id ?? null;
@@ -601,6 +608,10 @@ const [companyInfo, setCompanyInfo] = useState({
   const handleSubmit = () => {
     if (isSubmitting || readOnly) return;
 
+    const incompleteErrors = getIncompleteItemErrors(items);
+    const hasCostError = Object.keys(incompleteErrors).some((key) => key.endsWith('.costPerUnit'));
+    const hasMarkupOrSellingError = Object.keys(incompleteErrors).some((key) => key.endsWith('.markupPercent'));
+
     switch (true) {
       case !sourceProject?.id:
         toast.error('Please save draft first before submitting.');
@@ -612,6 +623,16 @@ const [companyInfo, setCompanyInfo] = useState({
 
       case !hasValidItemGroups(items):
         toast.error("Please add at least one item before submitting.");
+        return;
+
+      case hasCostError:
+        setHasAttemptedItemsSubmit(true);
+        toast.error('Please enter a valid cost per unit. Enter 0 if none applies.', { duration: 5000 });
+        return;
+
+      case hasMarkupOrSellingError:
+        setHasAttemptedItemsSubmit(true);
+        toast.error('Please enter a valid selling price. Enter 0 if no selling price.', { duration: 5000 });
         return;
 
       case !hasRemarksAttachment:
@@ -937,7 +958,7 @@ const [companyInfo, setCompanyInfo] = useState({
                   totals={itemTotals}
                   summary={summary}
                   readOnly={readOnly}
-                  errors={errors}
+                  errors={{ ...errors, ...itemErrors }}
                 />
               </div>
 
