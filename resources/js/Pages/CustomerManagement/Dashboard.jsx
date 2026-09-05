@@ -83,7 +83,7 @@ export default function Dashboard() {
                 className="w-40 lg:w-48"
               />
             )} */}
-            <Link href={route("roi.entry.create")} className="flex items-center gap-1 lg:gap-2 text-[11px] lg:text-xs font-medium shadow-md pl-1.5 pr-2.5 py-1.5 lg:pl-3 lg:pr-4 lg:py-2.5 rounded-lg bg-gradient-to-br from-emerald-200/70 via-emerald-100/80 to-emerald-200/70 text-emerald-900 hover:from-emerald-600 hover:to-teal-600 transition-colors hover:text-white">
+            <Link href={route("roi.entry.group.create")} className="flex items-center gap-1 lg:gap-2 text-[11px] lg:text-xs font-medium shadow-md pl-1.5 pr-2.5 py-1.5 lg:pl-3 lg:pr-4 lg:py-2.5 rounded-lg bg-gradient-to-br from-emerald-200/70 via-emerald-100/80 to-emerald-200/70 text-emerald-900 hover:from-emerald-600 hover:to-teal-600 transition-colors hover:text-white">
               <MdAdd className="size-3 lg:size-4" />New ROI Entry
             </Link>
             <Link href={route("sprf.entry.create")} className="flex items-center gap-1 lg:gap-2 text-[11px] lg:text-xs font-medium shadow-md pl-1.5 pr-2.5 py-1.5 lg:pl-3 lg:pr-4 lg:py-2.5 rounded-lg bg-gradient-to-br from-amber-200/70 via-amber-100/80 to-amber-200/70 text-amber-900 hover:from-amber-600 hover:to-orange-600 transition-colors hover:text-white">
@@ -93,7 +93,7 @@ export default function Dashboard() {
         </div>
 
         {/* Row 1: Stat cards. */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-4 pt-5 lg:pt-6">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3 lg:gap-4 pt-5 lg:pt-6">
           {cards.map((card, index) => (
             <StatCard
               key={card.name}
@@ -111,7 +111,7 @@ export default function Dashboard() {
             index={cards.length}
             onStatusClick={setContractsTab}
             selectedStatus={contractsTab}
-            className="col-span-1 md:col-span-2"
+            className="col-span-3 md:col-span-2"
           />
         </div>
 

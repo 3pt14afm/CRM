@@ -78,15 +78,19 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/', [RoiController::class, 'entryList'])->name('roi.entry.list');
                 Route::get('/create', [RoiController::class, 'entryCreate'])->name('roi.entry.create');
                 Route::post('/draft', [RoiEntryProjectController::class, 'saveDraft'])->name('roi.entry.draft.save');
+                Route::post('/group/draft', [RoiEntryProjectController::class, 'saveGroupDraft'])->name('roi.entry.group.draft.save');
                 Route::get('/projects/{project}', [RoiEntryProjectController::class, 'show'])->name('roi.entry.projects.show');
+                Route::get('/group/create', [RoiController::class, 'groupCreate'])->name('roi.entry.group.create');
+                Route::get('/group/{reference}', [RoiEntryProjectController::class, 'showGroup'])->name('roi.entry.group.show');
                 Route::patch('/projects/{project}/submit', [RoiEntryProjectController::class, 'submit'])->name('roi.entry.projects.submit');
+                Route::patch('/group/{reference}/submit', [RoiEntryProjectController::class, 'submitGroup'])->name('roi.entry.group.submit');
                 Route::delete('/projects/{project}', [RoiEntryProjectController::class, 'destroy'])->name('roi.entry.projects.destroy');
                 Route::post('/projects/{project}/notes', [RoiEntryProjectController::class, 'storeNote'])->name('roi.entry.projects.notes.store');
-                Route::get('/roi/companies/search', [RoiEntryProjectController::class, 'getCompanySuggestions'])
-                    ->name('companies.search');
+                Route::get('/roi/companies/search', [RoiEntryProjectController::class, 'getCompanySuggestions'])->name('companies.search');
 
-                Route::get('/roi/potentials/search', [RoiEntryProjectController::class, 'getPotentialSuggestions'])
-                    ->name('potentials.search');                Route::get('/entry/projects/{project}/print', [RoiPrintController::class, 'printEntry'])->name('roi.entry.projects.print');
+                Route::get('/roi/potentials/search', [RoiEntryProjectController::class, 'getPotentialSuggestions'])->name('potentials.search');                
+                Route::get('/entry/projects/{project}/print', [RoiPrintController::class, 'printEntry'])->name('roi.entry.projects.print');
+                Route::get('/entry/group/{reference}/print', [RoiPrintController::class, 'printEntryGroup'])->name('roi.entry.group.print');
                 Route::get('/projects/{project}/attachments/{attachmentIndex}/{filename?}', [RoiEntryProjectController::class, 'showAttachment'])->name('roi.entry.projects.attachments.show');
             });
 
@@ -97,6 +101,7 @@ Route::middleware(['auth', 'verified'])
             */
             Route::prefix('current')->group(function () {
                 Route::get('/', [RoiCurrentProjectController::class, 'current'])->name('roi.current');
+                Route::get('/current/group/{reference}', [RoiCurrentProjectController::class, 'showGroup'])->name('roi.current.group.show');
                 Route::get('/{id}', [RoiCurrentProjectController::class, 'show'])->name('roi.current.show');
                 Route::patch('/{id}/send-back', [RoiCurrentProjectController::class, 'sendBack'])->name('roi.current.send-back');
                 Route::post('/{project}/notes', [RoiCurrentProjectController::class, 'storeNote'])->name('roi.current.notes.store');
@@ -106,6 +111,7 @@ Route::middleware(['auth', 'verified'])
                 Route::post('/{id}/reject', [RoiCurrentProjectController::class, 'reject'])->name('roi.current.reject');
                 Route::post('/{id}/approve', [RoiCurrentProjectController::class, 'approve'])->name('roi.current.approve');
                 Route::get('/current/{id}/print', [RoiPrintController::class, 'printCurrent'])->name('roi.current.print');
+                Route::get('/current/group/{reference}/print', [RoiPrintController::class, 'printCurrentGroup'])->name('roi.current.group.print');
               
                 // Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])->name('roi.current.attachments.show');
 
@@ -121,12 +127,13 @@ Route::middleware(['auth', 'verified'])
 
             //ROI ARCHIVE ROUTES
             Route::get('/archive', [RoiArchiveController::class, 'index'])->name('roi.archive');
+            Route::get('/archive/group/{reference}', [RoiArchiveController::class, 'showGroup'])->name('roi.archive.group.show');
             Route::get('/archive/{id}', [RoiArchiveController::class, 'show'])->name('roi.archive.show');
-            Route::post('/roi/archive/{id}/withdraw', [RoiArchiveController::class, 'withdraw'])
-            ->name('roi.archive.withdraw');
+            Route::post('/roi/archive/{id}/withdraw', [RoiArchiveController::class, 'withdraw'])->name('roi.archive.withdraw');
 
            // routes/web.php — archive print route
             Route::get('/archive/{id}/print', [RoiPrintController::class, 'printArchive'])->name('roi.archive.print');
+            Route::get('/archive/group/{reference}/print', [RoiPrintController::class, 'printArchiveGroup'])->name('roi.archive.group.print');
 
             // Route::get('/archive/{id}/attachments/{attachmentId}', [RoiController::class, 'showArchiveAttachment'])->name('roi.archive.attachments.show');
             

@@ -49,6 +49,51 @@ export const hasValidItemGroups = (groups) => {
   );
 };
 
+export const getInvalidMarkupFields = (groups) => {
+  const errors = {};
+
+  (groups || []).forEach((group, groupIndex) => {
+    (group.subitems || []).forEach((row, subIndex) => {
+      const cost = Number(String(row.costPerUnit ?? '').replace(/,/g, ''));
+
+      const hasCost = Number.isFinite(cost) && cost > 0;
+
+      const markupIsEmpty =
+        row.markupPercent === '' ||
+        row.markupPercent === null ||
+        row.markupPercent === undefined;
+
+      if (hasCost && markupIsEmpty) {
+        errors[
+          `items.${groupIndex}.subitems.${subIndex}.markupPercent`
+        ] = 'Add markup';
+      }
+    });
+  });
+
+  return errors;
+};
+
+export const hasValidItemMarkups = (groups) => {
+  return (groups || []).every((group) =>
+    (group.subitems || []).every((row) => {
+      const cost = Number(String(row.costPerUnit ?? '').replace(/,/g, ''));
+
+      // Only require markup when the item has a cost
+      if (!Number.isFinite(cost) || cost <= 0) {
+        return true;
+      }
+
+      // Empty is invalid, but 0 is valid
+      return !(
+        row.markupPercent === '' ||
+        row.markupPercent === null ||
+        row.markupPercent === undefined
+      );
+    })
+  );
+};
+
 export const hasValidExpenses = (expenses) => {
   return expenses.some((row) => {
     return (
@@ -108,6 +153,16 @@ export const validateSubmit = ({
     return {
       ok: false,
       message: 'Please add at least one item before submitting.',
+    };
+  }
+
+  const markupErrors = getInvalidMarkupFields(items);
+
+  if (Object.keys(markupErrors).length > 0) {
+    return {
+      ok: false,
+      message: 'Please add markup for all items with a cost. Enter 0 if there is no markup.',
+      errors: markupErrors,
     };
   }
 

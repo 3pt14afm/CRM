@@ -1,6 +1,10 @@
 import React from "react";
 
-export default function PrintLayout({ children, showDraftWatermark = false, watermarkText = "DRAFT" }) {
+export default function PrintLayout({
+  children,
+  showDraftWatermark = false,
+  watermarkText = "DRAFT",
+}) {
   const shouldShowDraftWatermark =
     showDraftWatermark === true ||
     showDraftWatermark === 1 ||
@@ -20,7 +24,18 @@ export default function PrintLayout({ children, showDraftWatermark = false, wate
       </div>
 
       <style>{`
-        @page { size: A4; margin: 12mm; }
+        @page {
+          size: A4;
+          margin: 12mm;
+        }
+
+        @page {
+          @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 9px;
+            color: #555;
+          }
+        }
 
         /* Screen preview "paper" */
         @media screen {
@@ -52,7 +67,7 @@ export default function PrintLayout({ children, showDraftWatermark = false, wate
             user-select: none;
             z-index: 9999;
             font-weight: 800;
-            font-size: 100px; /* Reduced from 100px */
+            font-size: 100px;
             letter-spacing: 0.25em;
             color: rgba(45, 120, 19, 0.2);
             transform: rotate(-32deg);
@@ -88,7 +103,7 @@ export default function PrintLayout({ children, showDraftWatermark = false, wate
             user-select: none;
             z-index: 9999;
             font-weight: 800;
-            font-size: 28mm; /* Reduced from 44mm */
+            font-size: 28mm;
             letter-spacing: 4mm;
             color: rgba(45, 120, 19, 0.2);
             transform: rotate(-32deg);

@@ -10,6 +10,9 @@ import ListFilterToolbar from '@/Components/roi/filters/ListFilterToolBar';
 import SortHeader from '@/Components/SortHeader';
 import { RiArrowDownSLine, RiArrowUpSLine, RiExpandUpDownLine } from 'react-icons/ri';
 import ViewButton from '@/Components/ViewButton';
+import { MdExpandMore } from 'react-icons/md';
+import { expandGroupRows } from '@/utils/roi/expandGroupRows';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/Components/ui/tooltip';
 
 function formatDateLabel(dateStr) {
   if (!dateStr) return null;
@@ -56,8 +59,6 @@ const LS = {
   },
 };
 
-
-
 function CurrentList({ currentProjects: initialCurrentProjects, stats: initialStats, filters, locations = [] }) {
   const [localCurrentProjects, setLocalCurrentProjects] = useState(initialCurrentProjects);
   const [localStats, setLocalStats] = useState(initialStats);
@@ -72,6 +73,16 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
   const [locationId,   setLocationId]   = useState(() => filters?.location_id ?? []);
   const [perPage,      setPerPage]      = useState(() => filters?.per_page ?? 10);
   const [currentPage,  setCurrentPage]  = useState(1);
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
+
+  const toggleGroup = (reference) => {
+    if (!reference) return;
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(reference)) next.delete(reference); else next.add(reference);
+      return next;
+    });
+  };
 
   // ── Sort state ──
   const [sortBy,    setSortBy]    = useState(() => filters?.sort_by    ?? "");
@@ -155,6 +166,16 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
     ];
   }, [localStats, localCurrentProjects]);
 
+  const goToCurrent = (r) => {
+    if (r.is_group || r._isSiblingRow) {
+      const reference = r._parentReference ?? r.reference;
+      const targetIndex = r._isSiblingRow ? r._entryNumber - 1 : 0;
+      router.visit(route("roi.current.group.show", reference) + `?entry=${targetIndex}`);
+    } else {
+      router.visit(route("roi.current.show", r.id));
+    }
+  };
+
   // ── Columns with SortHeader ──
   const columns = useMemo(() => [
     {
@@ -181,7 +202,34 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
           onSort={handleSort}
         />
       ),
-      cell: (r) => <span className="font-medium flex items-center">{r.reference ?? "—"}</span>,
+      cell: (r) => r._isSiblingRow ? (
+        <div className="flex items-center gap-1.5 pl-4 border-l-2 border-[#195c00]/15 py-1.5">
+          <span className="text-[11px] text-slate-600">Entry {r._entryNumber}</span>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between w-full gap-1">
+          <span className="font-medium">{r.reference ?? "—"}</span>
+          
+          {r.is_group && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="px-1 rounded-full text-[9px] font-bold tracking-wider bg-[#0565D2]/5 border border-[#0565D2]/50 text-[#0565D2] whitespace-nowrap">
+                {r.entry_count} entries
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleGroup(r.reference)}
+                title={expandedGroups.has(r.reference) ? "Collapse entries" : "Show entries"}
+                className="flex-shrink-0 text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                <MdExpandMore
+                  size={18}
+                  className={`transition-transform duration-200 ${expandedGroups.has(r.reference) ? 'rotate-180' : ''}`}
+                />
+              </button>
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       key: "company_sap_code",
@@ -232,7 +280,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       ),
       cell: (r) => (
         <span className="font-medium flex items-center">
-          {r.contract_years != null ? `${r.contract_years}` : "—"}
+          {r.is_group ? "" : (r.contract_years != null ? `${r.contract_years}` : "—")}
         </span>
       ),
     },
@@ -247,7 +295,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
           onSort={handleSort}
         />
       ),
-      cell: (r) => <span className="font-medium flex items-center">{r.contract_type ?? "—"}</span>,
+      cell: (r) => <span className="font-medium flex items-center">{r.is_group ? "" : (r.contract_type ?? "—")}</span>,
     },
     {
       key: "type",
@@ -312,33 +360,63 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
         </button>
       ),
       cell: (r) => {
-        const displayVal = r.last_saved_display ?? r.last_saved_at;
         const timeDiff = new Date().getTime() - new Date(r.last_saved_at).getTime();
-        const sevenDaysMs = 7 * 24 * 3600 * 1000;
-        const isPastOneWeek = displayVal && (
-          String(displayVal).includes('week') ||
-          String(displayVal).includes('weeks') ||
-          (String(displayVal).includes('day') && parseInt(displayVal) > 6) ||
-          timeDiff >= sevenDaysMs
-        );
-        let formattedDate = "—";
-        if (isPastOneWeek) {
-          const d = new Date(r.last_saved_at);
-          if (!isNaN(d.getTime())) {
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            const yy = String(d.getFullYear()).slice(-2);
-            formattedDate = `${mm}/${dd}/${yy}`;
+        const totalSeconds = Math.floor(timeDiff / 1000);
+
+        let relative = "—";
+        if (!isNaN(totalSeconds)) {
+          if (totalSeconds < 86400) {
+            // under 24 hours
+            if (totalSeconds < 60) {
+              relative = `${totalSeconds}s`;
+            } else {
+              const hours = Math.floor(totalSeconds / 3600);
+              const remAfterHours = totalSeconds % 3600;
+              const minutes = Math.floor(remAfterHours / 60);
+
+              const parts = [];
+              if (hours) parts.push(`${hours}h`);
+              if (minutes || parts.length === 0) parts.push(`${minutes}m`);
+              relative = parts.join(' ');
+            }
           } else {
-            formattedDate = displayVal;
+            // 24+ hours: show m w d
+            const totalDays = Math.floor(totalSeconds / 86400);
+            const months = Math.floor(totalDays / 30);
+            const remAfterMonths = totalDays % 30;
+            const weeks = Math.floor(remAfterMonths / 7);
+            const days = remAfterMonths % 7;
+
+            const parts = [];
+            if (months) parts.push(`${months}mo`);
+            if (weeks) parts.push(`${weeks}w`);
+            if (days || parts.length === 0) parts.push(`${days}d`);
+            relative = parts.join(' ');
           }
-        } else {
-          formattedDate = displayVal;
         }
+
+        const d = new Date(r.last_saved_at);
+        const exactDate = !isNaN(d.getTime())
+          ? d.toLocaleString('en-US', {
+              month: 'long',
+              day: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }).replace(' at', ',')
+          : '—';
+
         return (
-          <span className="text-slate-600 text-[10px] xl:text-[11px] flex items-center">
-            {formattedDate}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-slate-600 text-[10px] xl:text-[11px] flex items-center cursor-default">
+                  {relative}{relative !== "—" ? " ago" : ""}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left">Last saved at <br></br> {exactDate}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       },
     },
@@ -348,7 +426,7 @@ function CurrentList({ currentProjects: initialCurrentProjects, stats: initialSt
       cell: (r) => (
         <div className="flex justify-center items-center gap-2">
           <ViewButton
-            onClick={() => router.visit(route("roi.current.show", r.id))}
+            onClick={() => goToCurrent(r)}
             iconSize="text-[18px]"
             className="px-1.5 py-1 border border-[#B5EBA2]/40 hover:shadow-inner hover:bg-[#B5EBA2]/30"
           />
@@ -483,6 +561,11 @@ const clearPreparedByUserIdFilter = () => {
   })();
 
   const rows = localCurrentProjects?.data ?? [];
+  const displayRows = useMemo(
+    () => expandGroupRows(rows, expandedGroups),
+    [rows, expandedGroups]
+  );
+
   const pagination = localCurrentProjects && typeof localCurrentProjects.current_page === "number"
     ? {
         page:         localCurrentProjects.current_page,
@@ -518,7 +601,7 @@ const clearPreparedByUserIdFilter = () => {
   // --- Mobile card layout (below md) ---
   const renderCurrentCard = (r) => (
     <div
-      onClick={() => router.visit(route("roi.current.show", r.id))}
+      onClick={() => goToCurrent(r)}
       className="cursor-pointer px-2 py-3"
     >
       <div className="gap-2">
@@ -533,14 +616,21 @@ const clearPreparedByUserIdFilter = () => {
         </div>
 
         <div className="min-w-0 leading-relaxed pt-1">     
-            <p className="text-xs font-medium">{r.reference ?? '—'}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-medium">{r.reference ?? '—'}</p>
+              {r.is_group && (
+                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-[#0565D2]/15 border border-[#0565D2]/50 text-[#0565D2] whitespace-nowrap">
+                  {r.entry_count} entries
+                </span>
+              )}
+            </div>
             <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
             <p className="text-[11px] text-slate-800 font-semibold font-mono">{r.company_sap_code ?? '—'}</p>
         </div>
       </div>
 
       <div className="mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
-        <span>{r.contract_type ?? '—'}</span>
+        <span>{r.is_group ? '' : (r.contract_type ?? '—')}</span>
       </div>
       
       <p className="flex items-center justify-between text-[11px] text-slate-500">
@@ -685,7 +775,7 @@ const clearPreparedByUserIdFilter = () => {
           tableTitle="Current Projects"
           titleControl={scopeControl}
           columns={columns}
-          rows={rows}
+          rows={displayRows}
           rowKey={(r) => String(r.id)}
           pagination={pagination}
           searchControl={searchControl}

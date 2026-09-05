@@ -231,7 +231,7 @@ const nFormat = (val) => {
 
                 <thead className="bg-[#E2F4D8]/70 text-[11px]">
                   <tr className="font-medium">
-                    <th className="px-3 py-1 text-center uppercase border border-gray-300 font-medium">OTHERS</th>
+                    <th className="px-3 py-1 text-center uppercase border border-gray-300 font-medium print:text-[10px]">OTHERS</th>
                     <th className="px-3 py-1 text-center border border-gray-300 uppercase print:text-[10px] font-medium">Amount</th>
                     <th className="px-3 py-1 text-center bg-[#f8f8f8] print:bg-white"></th>
                     <th colSpan={3} className="px-3 py-1 text-center border border-gray-300"></th>
@@ -250,7 +250,7 @@ const nFormat = (val) => {
                       const displayTotal = isA3ColorClick ? 0 : (Number(fee.total) || 0);
                       return (
                         <tr key={fee.id || idx} className="border-x-gray-300">
-                          <td className="border border-x-gray-300 border-gray-100 px-4 py-2 text-[12px] truncate border-r">
+                          <td className="border border-x-gray-300 border-gray-100 px-4 py-2 text-[12px] truncate border-r print:text-[11px]">
                             {fee.label}
                           </td>
                           <td className="border border-x-gray-300 border-gray-100 px-3 py-2 text-[11px] text-right border-r">
@@ -315,35 +315,35 @@ const nFormat = (val) => {
                   {/* GRAND TOTAL ROW */}
                   <tr className="bg-[#f8f8f8] print:bg-white">
                     <td colSpan={3} rowSpan={3} className="border-0 p-0"></td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">Total</td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(year2Cost)}</td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(year2Revenue)}</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">Total</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(year2Cost)}</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(year2Revenue)}</td>
                     <td rowSpan={3} className="border-0 p-0 bg-[#f8f8f8] print:bg-white"></td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">Total</td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(overallSucceCost)}</td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(overallSucceRevenue)}</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">Total</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(overallSucceCost)}</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(overallSucceRevenue)}</td>
                   </tr>
 
                   {/* ROI ROW */}
                   <tr className="bg-[#f8f8f8] print:bg-white">
-                    <td className="py-3"></td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">ROI</td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(year2ROI)}</td>
-                    <td className="py-3"></td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">ROI</td>
-                    <td className="py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(overallSucceROI)}</td>
+                    <td className="py-3 print:py-2"></td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">ROI</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(year2ROI)}</td>
+                    <td className="py-3 print:py-2"></td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center uppercase text-[11px]">ROI</td>
+                    <td className="py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[11px]">{format(overallSucceROI)}</td>
                   </tr>
 
                   {/* ROI % ROW */}
                   <tr className="bg-[#f8f8f8] print:bg-white">
-                    <td className="py-3"></td>
-                    <td className="py-3"></td>
-                    <td className={`py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[10px] ${roiPercentage >= 0 ? "text-green-700" : "text-red-600"}`}>
+                    <td className="py-3 print:py-2"></td>
+                    <td className="py-3 print:py-2"></td>
+                    <td className={`py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[10px] ${roiPercentage >= 0 ? "text-green-700" : "text-red-600"}`}>
                       {roiPercentage !== 0 ? `${roiPercentage.toFixed(2)}%` : ""}
                     </td>
-                    <td className="py-3"></td>
-                    <td className="py-3"></td>
-                    <td className={`py-3 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[10px] ${overallSucceRoiPercentage >= 0 ? "text-green-700" : "text-red-600"}`}>
+                    <td className="py-3 print:py-2"></td>
+                    <td className="py-3 print:py-2"></td>
+                    <td className={`py-3 print:py-2 border border-gray-300 bg-[#E2F4D8] font-bold text-center text-[10px] ${overallSucceRoiPercentage >= 0 ? "text-green-700" : "text-red-600"}`}>
                       {overallSucceRoiPercentage !== 0 ? `${overallSucceRoiPercentage.toFixed(2)}%` : ""}
                     </td>
                   </tr>

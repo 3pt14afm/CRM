@@ -265,4 +265,5 @@ export const useProjectData = () => {
   return context;
 };
 
+export { ProjectContext };
 export default ProjectDataProvider;

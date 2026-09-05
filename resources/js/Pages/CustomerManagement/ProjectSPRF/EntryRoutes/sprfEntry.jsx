@@ -44,6 +44,8 @@ import {
   hasValidItemGroups,
   getIncompleteItemErrors,
   validateDraft,
+  validateSubmit,
+  getInvalidMarkupFields,
   validateAdvance,
   formatDateTime,
   buildSigner,
@@ -651,8 +653,11 @@ const [companyInfo, setCompanyInfo] = useState({
         preserveState: true,
         onError: (errors) => {
           const firstError = Object.values(errors || {})[0];
+
           if (firstError) {
-            toast.error(Array.isArray(firstError) ? firstError[0] : firstError);
+            toast.error(
+              Array.isArray(firstError) ? firstError[0] : firstError
+            );
           }
         },
         onFinish: () => {

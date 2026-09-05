@@ -42,8 +42,8 @@ export default function NotesAndComments({ scopeKey = "default" }) {
   const project = entryProject ?? inertiaProject ?? null;
 
   const projectId =
-    project?.id ??
     projectData?.metadata?.projectId ??
+    project?.id ??
     null;
 
   const userId =
@@ -102,12 +102,14 @@ export default function NotesAndComments({ scopeKey = "default" }) {
   const [noteDraft, setNoteDraft] = useState("");
 
   const serverNotes = useMemo(() => {
+    const fromContext = projectData?.metadata?.notes;
     const fromProject = project?.notes;
 
-    const rows =
-      Array.isArray(fromProject) && fromProject.length > 0
-        ? fromProject
-        : projectNotes ?? [];
+    const rows = Array.isArray(fromContext)
+      ? fromContext
+      : Array.isArray(fromProject) && fromProject.length > 0
+      ? fromProject
+      : projectNotes ?? [];
 
     if (!Array.isArray(rows)) return [];
 
@@ -116,7 +118,7 @@ export default function NotesAndComments({ scopeKey = "default" }) {
       const bTime = b?.created_at ? new Date(b.created_at).getTime() : 0;
       return bTime - aTime;
     });
-  }, [project, projectNotes]);
+  }, [projectData, project, projectNotes]);
 
   const noteModalRef = useRef(null);
   const noteTextareaRef = useRef(null);
@@ -185,7 +187,7 @@ export default function NotesAndComments({ scopeKey = "default" }) {
           }
 
           router.reload({
-            only: ["entryProject", "project", "projectNotes"],
+            only: ["entryProject", "project", "projectNotes","entryProjects"],
           });
 
           setIsSubmittingNote(false);
@@ -244,7 +246,7 @@ export default function NotesAndComments({ scopeKey = "default" }) {
     const fromProject = project?.comments;
 
     const rows =
-      Array.isArray(fromContext) && fromContext.length > 0
+      Array.isArray(fromContext)
         ? fromContext
         : Array.isArray(fromProject) && fromProject.length > 0
         ? fromProject
@@ -320,7 +322,7 @@ export default function NotesAndComments({ scopeKey = "default" }) {
           }
 
           router.reload({
-            only: ["entryProject", "project", "projectComments"],
+            only: ["entryProject", "project", "projectComments", "entryProjects"],
           });
 
           setIsSubmittingComment(false);
@@ -479,13 +481,18 @@ export default function NotesAndComments({ scopeKey = "default" }) {
                 className="bg-white border border-gray-200 rounded-xl px-3 sm:px-4 py-3 my-[3px] print:py-3 shadow-[0px_2px_10px_rgba(0,0,0,0.10)]"
               >
                 <div className="flex flex-wrap items-center justify-between gap-1">
-                  <div className="items-start flex gap-2 min-w-0">
+                  <div className="items-center flex gap-2 min-w-0">
                     <div className="flex items-center">
                       <FaRegUserCircle className="text-gray-400 text-sm shrink-0" />
                     </div>
                     <span className="block text-[11px] font-medium text-gray-900 truncate">
                       {n.author?.name ?? "Unknown"}
                     </span>
+                    {n.is_sendback && (
+                      <span className="text-[8px] font-semibold uppercase tracking-wide text-amber-600">
+                        Sent Back
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-[10px] text-gray-500 italic whitespace-nowrap">
@@ -515,6 +522,11 @@ export default function NotesAndComments({ scopeKey = "default" }) {
                     <span className="block text-[11px] font-medium text-gray-900 truncate">
                       {c.author?.name ?? "Unknown"}
                     </span>
+                    {c.is_sendback && (
+                      <span className="text-[8px] font-semibold uppercase tracking-wide text-amber-600">
+                        Sent Back
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] text-gray-500 italic whitespace-nowrap">
                     {formatDateTime(c.created_at)}

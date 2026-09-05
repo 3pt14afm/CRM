@@ -432,7 +432,12 @@ export default function SprfItemsTable({
                         value={formatNumberInput(sub.markupPercent, 4)}
                         onChange={(e) => {
                           const rawValue = parseNumberInput(e.target.value, 4);
-                          onUpdateSubitem(groupIndex, subIndex, 'markupPercent', rawValue);
+                          onUpdateSubitem(
+                            groupIndex,
+                            subIndex,
+                            'markupPercent',
+                            rawValue
+                          );
                         }}
                         className={`${inputClass} py-0.5 ${getMarkupError(groupIndex, subIndex) ? '!border-red-500 !border-solid' : ''}`}                        
                         placeholder="0"

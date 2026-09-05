@@ -1,18 +1,17 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-  import React, { useMemo, useState, useEffect, useRef } from "react";
-  import { Head, router } from "@inertiajs/react";
-  import { route } from "ziggy-js";
-  import ProjectListSection from "@/Components/roi/ProjectListSection";
-  import { formatLastSaved } from '@/utils/dateUtils';
-  import { toast } from 'sonner';
-  import axios from 'axios';
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { Head, router } from "@inertiajs/react";
+import { route } from "ziggy-js";
+import ProjectListSection from "@/Components/roi/ProjectListSection";
+import { toast } from 'sonner';
+import axios from 'axios';
+import { expandGroupRows } from '@/utils/roi/expandGroupRows';
 
-  // Icons matched perfectly
-  import { FaFolderOpen, FaPlus } from "react-icons/fa";
-  import { IoTimeOutline, IoAddCircleOutline } from "react-icons/io5";
-  import { MdDelete, MdEdit, MdSearch, MdOutlineFilterAlt, MdDateRange, MdClose } from 'react-icons/md';
-  import FlashMessages from '@/Components/FlashMessages';
-import { FiPlus } from 'react-icons/fi';
+// Icons matched perfectly
+import { FaFolderOpen, FaPlus } from "react-icons/fa";
+import { IoTimeOutline, IoAddCircleOutline } from "react-icons/io5";
+import { MdDelete, MdEdit, MdSearch, MdOutlineFilterAlt, MdExpandMore, } from 'react-icons/md';
+import FlashMessages from '@/Components/FlashMessages';
 import { IoMdMore } from 'react-icons/io';
 import ViewButton from '@/Components/ViewButton';
 import DatePicker from '@/Components/DatePicker';
@@ -27,10 +26,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
     });
   }
 
-  export default function EntryList({
-    drafts = null, // expected initial page layout props
-    stats = null,  
-  }) {
+  export default function EntryList({ drafts = null, stats = null,  }) {
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat("en-US", {
       day: "2-digit",
@@ -42,6 +38,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
     const [serverDrafts, setServerDrafts] = useState(drafts);
     const [serverStats, setServerStats] = useState(stats);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     
     const [search, setSearch] = useState("");
@@ -50,14 +47,25 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
     const [dateTo, setDateTo] = useState("");
     const [showDatePicker, setShowDatePicker] = useState(false);
     const datePickerRef = useRef(null);
+    const [showMobileCreateMenu, setShowMobileCreateMenu] = useState(false);
+
+    const [expandedGroups, setExpandedGroups] = useState(() => new Set());
+    const toggleGroup = (reference) => {
+      if (!reference) return;
+      setExpandedGroups((prev) => {
+        const next = new Set(prev);
+        if (next.has(reference)) next.delete(reference); else next.add(reference);
+        return next;
+      });
+    };
 
     useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)"); // matches your sm: breakpoint
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
+      const mq = window.matchMedia("(max-width: 639px)"); 
+      const update = () => setIsMobile(mq.matches);
+      update();
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }, []);
 
     // Sync server props context to local component lifecycle hooks state initially
     useEffect(() => {
@@ -107,42 +115,42 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
     };
 
     const MoreActionsMenu = ({ r, router, handleDelete }) => {
-    const [isOpen, setIsOpen] = useState(false);
+      const [isOpen, setIsOpen] = useState(false);
 
-    return (
-      <div className="relative">
-        {/* The "More" Trigger Button */}
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-          className="rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-        >
-          <IoMdMore className="text-xl" />
-        </button>
+      return (
+        <div className="relative">
+          {/* The "More" Trigger Button */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+            className="rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+          >
+            <IoMdMore className="text-xl" />
+          </button>
 
-        {isOpen && ( <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} /> )}
+          {isOpen && ( <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} /> )}
 
-        {isOpen && (
-          <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-xl z-50 p-1 flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); router.visit(route("roi.entry.projects.show", r.id)); }}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-[#289800] hover:bg-[#B5EBA2]/20"
-            >
-              <MdEdit className="text-sm" /> Edit
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); handleDelete(r); }}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-red-500 hover:bg-red-50"
-            >
-              <MdDelete className="text-sm" /> Delete
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
+          {isOpen && (
+            <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-100 rounded-lg shadow-xl z-50 p-1 flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setIsOpen(false); goToEntry(r); }}
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-[#289800] hover:bg-[#B5EBA2]/20"
+              >
+                <MdEdit className="text-sm" /> Edit
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setIsOpen(false); handleDelete(r); }}
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold text-red-500 hover:bg-red-50"
+              >
+                <MdDelete className="text-sm" /> Delete
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    };
 
     // Debounced listener engine parsing state parameters
     useEffect(() => {
@@ -163,42 +171,65 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
     }, [search, statusFilter, dateFrom, dateTo, serverDrafts?.current_page]);
 
     // --- Tiles Setup ---
-  const tiles = useMemo(() => {
-    const totalDrafts = serverStats?.totalDrafts ?? serverDrafts?.total ?? 0;
-    const recentlyModified = serverStats?.recentlyModifiedText ?? "—";
+    const tiles = useMemo(() => {
+      const totalDrafts = serverStats?.totalDrafts ?? serverDrafts?.total ?? 0;
+      const recentlyModified = serverStats?.recentlyModifiedText ?? "—";
 
-    const baseTiles = [
-      {
-        label: "Total Drafts",
-        value: totalDrafts,
-        icon: <FaFolderOpen />,
-        variant: "normal",
-      },
-      {
-        label: "Recently Modified",
-        value: recentlyModified,
-        icon: <IoTimeOutline />,
-        variant: "normal",
-      },
-    ];
+      const baseTiles = [
+        {
+          label: "Total Drafts",
+          value: totalDrafts,
+          icon: <FaFolderOpen />,
+          variant: "normal",
+        },
+        {
+          label: "Recently Modified",
+          value: recentlyModified,
+          icon: <IoTimeOutline />,
+          variant: "normal",
+        },
+      ];
 
-    if (!isMobile) {
-      baseTiles.push({
-        label: (
-          <>
-            <span className="sm:hidden">Create</span>
-            <span className="hidden sm:inline">Create New Draft</span>
-          </>
-        ),
-        value: null,
-        icon: <IoAddCircleOutline />,
-        variant: "action",
-        onClick: () => router.visit(route("roi.entry.create")),
-      });
-    }
+      if (!isMobile) {
+        // baseTiles.push({
+        //   label: (
+        //     <>
+        //       <span className="sm:hidden">Create</span>
+        //       <span className="hidden sm:inline">Create New Draft</span>
+        //     </>
+        //   ),
+        //   value: "Single Entry",
+        //   icon: <IoAddCircleOutline />,
+        //   variant: "action",
+        //   onClick: () => router.visit(route("roi.entry.create")),
+        // });
 
-    return baseTiles;
-  }, [serverStats, serverDrafts, isMobile]);
+        baseTiles.push({
+          label: (
+            <>
+              <span className="sm:hidden">Create</span>
+              <span className="hidden sm:inline">Create New Draft</span>
+            </>
+          ),
+          value: "Multiple Entry",
+          icon: <IoAddCircleOutline />,
+          variant: "action",
+          onClick: () => router.visit(route("roi.entry.group.create")),
+        });
+      }
+
+      return baseTiles;
+    }, [serverStats, serverDrafts, isMobile]);
+
+    const goToEntry = (r) => {
+      if (r.is_group || r._isSiblingRow) {
+        const reference = r._parentReference ?? r.reference;
+        const targetIndex = r._isSiblingRow ? r._entryNumber - 1 : 0;
+        router.visit(route("roi.entry.group.show", reference) + `?entry=${targetIndex}`);
+      } else {
+        router.visit(route("roi.entry.projects.show", r.id));
+      }
+    };
 
     const handleDelete = (row) => {
       const ref = row.reference ?? row.id;
@@ -254,10 +285,36 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
           header: "REFERENCE",
           cell: (r) => r.isSkeleton ? (
             <div className="h-4 w-24 bg-slate-200/80 rounded animate-pulse" />
+          ) : r._isSiblingRow ? (
+            <div className="flex items-center gap-1.5 pl-4 border-l-2 border-[#195c00]/15 py-1.5">
+              <span className="text-[11px] text-slate-500">Entry {r._entryNumber}</span>
+            </div>
           ) : (
-            <span className="text-[#195c00] font-semibold">
-              {r.reference}
-            </span>
+            <div className="flex items-center justify-between w-full gap-1">
+              <span className="text-[#195c00] font-semibold">
+                {r.reference}
+              </span>
+
+              {r.is_group && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-[#0565D2]/5 border border-[#0565D2]/50 text-[#0565D2] whitespace-nowrap">
+                    {r.entry_count} entries
+                  </span>
+                  
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(r.reference)}
+                    title={expandedGroups.has(r.reference) ? "Collapse entries" : "Show entries"}
+                    className="flex-shrink-0 text-slate-600 hover:text-slate-800 transition-colors"
+                  >
+                    <MdExpandMore
+                      size={18}
+                      className={`transition-transform duration-200 ${expandedGroups.has(r.reference) ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                </div>
+              )}
+            </div>
           ),
         },
         {
@@ -289,7 +346,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
             <div className="h-4 w-10 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
             <span className="font-medium flex items-center">
-              {r.contract_years != null ? `${r.contract_years}` : "—"}
+              {r.is_group ? "" : (r.contract_years != null ? `${r.contract_years}` : "—")}
             </span>
           ),
         },
@@ -300,7 +357,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
             <div className="h-4 w-20 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
             <span className="font-medium flex items-center">
-              {r.contract_type ?? "—"}
+              {r.is_group ? "" : (r.contract_type ?? "—")}
             </span>
           ),
         },
@@ -376,7 +433,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
             <div className="flex items-center justify-center gap-2 md:gap-1">
               {/* Edit Action Button */}
               <ViewButton
-                onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
+                onClick={() => goToEntry(r)}
                 icon={MdEdit}
                 label="Edit project"
                 iconSize="text-[10px] md:text-xs lg:text-sm xl:text-base"
@@ -400,67 +457,74 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
 
     // --- Mobile card layout (below md) ---
     const renderEntryCard = (r) => {
-    if (r.isSkeleton) {
-      return (
-        <div className="flex items-center gap-3 animate-pulse px-2 py-3">
-          <div className="h-10 w-10 rounded-lg bg-slate-200/80 shrink-0" />
-          <div className="flex-1 space-y-2 min-w-0">
-            <div className="h-3 w-2/3 rounded-full bg-slate-200/80" />
-            <div className="h-2.5 w-1/2 rounded-full bg-slate-200/80" />
+      if (r.isSkeleton) {
+        return (
+          <div className="flex items-center gap-3 animate-pulse px-2 py-3">
+            <div className="h-10 w-10 rounded-lg bg-slate-200/80 shrink-0" />
+            <div className="flex-1 space-y-2 min-w-0">
+              <div className="h-3 w-2/3 rounded-full bg-slate-200/80" />
+              <div className="h-2.5 w-1/2 rounded-full bg-slate-200/80" />
+            </div>
           </div>
-        </div>
-      );
-    }
+        );
+      }
 
-    const statusLower = r.status?.toLowerCase() ?? '';
-    const isDraft = statusLower === 'draft';
-    const isSentBack = statusLower === 'returned' || statusLower === 'sent back';
-    const isWithdrawn = statusLower === 'widthrawn' || statusLower === 'withdrawn';
+      const statusLower = r.status?.toLowerCase() ?? '';
+      const isDraft = statusLower === 'draft';
+      const isSentBack = statusLower === 'returned' || statusLower === 'sent back';
+      const isWithdrawn = statusLower === 'widthrawn' || statusLower === 'withdrawn';
 
-    return (
-      <div
-        onClick={() => router.visit(route("roi.entry.projects.show", r.id))}
-        className="cursor-pointer px-2 py-3 hover:bg-slate-50 transition-colors rounded-xl"
-      >
-        <div className="gap-2">
-          {/* Top Row: Type & Status Badge */}
-          <div className="flex items-start justify-between gap-2">
-            <p className={`text-[11px] font-medium ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
-            <div className="flex items-start justify-end gap-1">
-              <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap
-                ${isSentBack
-                  ? "bg-red-100 text-red-700 border border-red-200"
-                  : isDraft
-                  ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
-                  : isWithdrawn
-                  ? "bg-[#0565D2]/15 border-[#0565D2]/50 text-[#0565D2]"
-                  : "bg-gray-100 text-gray-700 border border-gray-200"
-                }`}>
-                {r.status_display_main ?? r.status}
-              </span>
-           
-              <div className="flex items-center justify-end">
-                <MoreActionsMenu  r={r} router={router} handleDelete={handleDelete} />
+      return (
+        <div
+          onClick={() => goToEntry(r)}
+          className="cursor-pointer px-2 py-3 hover:bg-slate-50 transition-colors rounded-xl"
+        >
+          <div className="gap-2">
+            {/* Top Row: Type & Status Badge */}
+            <div className="flex items-start justify-between gap-2">
+              <p className={`text-[11px] font-medium ${r.type === 1 ? "text-[#289800]" : "text-gray-500"}`}>{r.type === 1 ? 'Existing' : 'Potential'}</p>
+              <div className="flex items-start justify-end gap-1">
+                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap
+                  ${isSentBack
+                    ? "bg-red-100 text-red-700 border border-red-200"
+                    : isDraft
+                    ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                    : isWithdrawn
+                    ? "bg-[#0565D2]/15 border-[#0565D2]/50 text-[#0565D2]"
+                    : "bg-gray-100 text-gray-700 border border-gray-200"
+                  }`}>
+                  {r.status_display_main ?? r.status}
+                </span>
+            
+                <div className="flex items-center justify-end">
+                  <MoreActionsMenu  r={r} router={router} handleDelete={handleDelete} />
+                </div>
               </div>
+            </div>
+
+            {/* Middle Row: Company Details */}
+            <div className="min-w-0 leading-relaxed pt-2.5">     
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-medium">{r.reference ?? '—'}</p>
+                {r.is_group && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-[#0565D2]/15 border border-[#0565D2]/50 text-[#0565D2] whitespace-nowrap">
+                    {r.entry_count} entries
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
+              <p className="text-[11px] text-slate-800 font-semibold font-mono">{r.company_sap_code ?? ''}</p>
             </div>
           </div>
 
-          {/* Middle Row: Company Details */}
-          <div className="min-w-0 leading-relaxed pt-2.5">     
-            <p className="text-xs font-medium">{r.reference ?? '—'}</p>
-            <p className="text-sm font-semibold truncate">{r.company_name ?? '—'}</p>
-            <p className="text-[11px] text-slate-800 font-semibold font-mono">{r.company_sap_code ?? ''}</p>
+          {/* Bottom-Mid Row: Contract Info */}
+          <div className="flex items-center justify-between mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
+            <span>{r.is_group ? '' : `${r.contract_type ?? '—'} ${r.contract_years != null ? `· ${r.contract_years} yrs` : ''}`}</span>
+            <span className="normal-case text-slate-500">{r.last_saved_display ?? '—'}</span>
           </div>
         </div>
-
-        {/* Bottom-Mid Row: Contract Info */}
-        <div className="flex items-center justify-between mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
-          <span>{r.contract_type ?? '—'} {r.contract_years != null ? `· ${r.contract_years} yrs` : ''}</span>
-          <span className="normal-case text-slate-500">{r.last_saved_display ?? '—'}</span>
-        </div>
-      </div>
-    );
-  };
+      );
+    };
 
     // Intercepting data array mapping logic to display inline loader skeletons beautifully
     const rows = useMemo(() => {
@@ -472,6 +536,11 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
       }
       return serverDrafts?.data ?? [];
     }, [isLoading, serverDrafts]);
+
+    const displayRows = useMemo(
+      () => (isLoading ? rows : expandGroupRows(rows, expandedGroups)),
+      [rows, isLoading, expandedGroups]
+    );
 
     const pagination =
       serverDrafts && typeof serverDrafts.current_page === "number"
@@ -617,7 +686,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
               tiles={tiles}
               tableTitle="In-Progress Drafts"
               columns={columns}
-              rows={rows}
+              rows={displayRows}
               rowKey={(r) => String(r.id)}
               pagination={isLoading ? null : pagination}
               searchControl={searchControl}
@@ -626,15 +695,36 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
               renderCard={renderEntryCard}
             />
           </div>
-                {/* Floating "Create New Draft" button — mobile only */}
+          
+          {/* Floating "Create New Draft" button — mobile only */}
+          <div className="sm:hidden fixed bottom-6 right-6 z-50">
+            {showMobileCreateMenu && (
+              <div className="absolute bottom-16 right-0 flex flex-col gap-2 items-end">
+                <button
+                  type="button"
+                  onClick={() => router.visit(route("roi.entry.create"))}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg border border-gray-200 text-sm font-medium whitespace-nowrap"
+                >
+                  Single Entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.visit(route("roi.entry.group.create"))}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg border border-gray-200 text-sm font-medium whitespace-nowrap"
+                >
+                  Group Entry
+                </button>
+              </div>
+            )}
             <button
               type="button"
-              onClick={() => router.visit(route("roi.entry.create"))}
+              onClick={() => setShowMobileCreateMenu((v) => !v)}
               aria-label="Create New Draft"
-              className="sm:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center h-14 w-14 rounded-full bg-[#289800]/80 text-white shadow-lg active:scale-95 transition-transform"
+              className="flex items-center justify-center h-14 w-14 rounded-full bg-[#289800]/80 text-white shadow-lg active:scale-95 transition-transform"
             >
-              <FaPlus className="text-xl" />
+              <FaPlus className={`text-xl transition-transform ${showMobileCreateMenu ? 'rotate-45' : ''}`} />
             </button>
+          </div>
 
           <FlashMessages />
         </div>

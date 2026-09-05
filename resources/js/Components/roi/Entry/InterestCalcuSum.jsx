@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useProjectData } from "@/Context/ProjectContext";
 import { interest as calculateInterest } from "@/Utils/interest";
 
-const InterestCalcuSum = () => {
+const InterestCalcuSum = ({ variant = 'full', overrideTotals }) => {
   const { projectData } = useProjectData();
 
   // 1. Determine if contract type contains "outright"
@@ -18,8 +18,9 @@ const InterestCalcuSum = () => {
     return calculateInterest(projectData);
   }, [projectData, isOutright]);
 
-  // Pull totals from context (saved by Totals.jsx useEffect)
-  const totals = projectData?.totalProjectCost || {};
+  // Pull totals from context (saved by Totals.jsx useEffect), or from an override
+  // (used by the overall/group summary, which passes pre-summed totals across entries)
+  const totals = overrideTotals || projectData?.totalProjectCost || {};
   const totalCost = Number(totals.grandTotalCost || 0);
   const totalROI = Number(totals.grandROI || 0);
   const roiPct = Number(totals.grandROIPercentage || 0);
@@ -51,8 +52,10 @@ const InterestCalcuSum = () => {
     : (percentMargin ? `${percentMargin}%` : "");
 
   const mobileDetails = [
-    { label: 'ANNUAL INTEREST', value: annualInterestDisplay || '---' },
-    { label: 'PERCENT MARGIN', value: percentMarginDisplay || '---' },
+    ...(variant === 'full' ? [
+      { label: 'ANNUAL INTEREST', value: annualInterestDisplay || '---' },
+      { label: 'PERCENT MARGIN', value: percentMarginDisplay || '---' },
+    ] : []),
     { label: 'TOTAL GROSS SALES', value: f(totalSales) || '---' },
     { label: 'TOTAL COST', value: f(totalCost) || '---' },
     {
@@ -118,44 +121,50 @@ const InterestCalcuSum = () => {
     ))}
 </div>
 
-      {/* DESKTOP (and print): original two-box table layout, unchanged */}
-      <div className="hidden md:grid print:grid [grid-template-columns:40%_60%] items-start gap-4 mx-2 p-2 font-sans print:gap-2 print:p-0">
-        {/* Left Table: Static Values */}
-        <div className="overflow-hidden rounded-xl shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 min-w-44 print:shadow-none print:border-[1px] print:border-gray-300">
-          <table className="w-full border-collapse">
-            <tbody>
-              <tr className="border-b border-gray-200">
-                <td className="w-[65%] bg-[#90E274]/10 py-2 px-2 pl-3 text-[11px] font-semibold print:font-medium">
-                  Annual Interest
-                </td>
-                <td className="w-[35%] py-2 px-2 text-center font-medium border-l bg-white border-slate-300 text-xs">
-                  {isOutright ? "0%" : (projectData?.interest?.annualInterest ? `${projectData.interest.annualInterest}%` : "")}
-                </td>
-              </tr>
-              <tr>
-                <td className="w-[65%] bg-[#90E274]/10 py-2 px-2 pl-3 text-[11px] font-semibold print:font-medium">
-                  Percent Margin
-                </td>
-                <td className="w-[35%] py-2 px-2 text-center border-l font-medium bg-white border-slate-300 text-xs">
-                  {isOutright ? "0%" : (percentMargin ? `${percentMargin}%` : "")}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      {/* DESKTOP (and print): original two-box table layout, unchanged for variant='full' */}
+      <div className={
+        variant === 'full'
+          ? "hidden md:grid print:grid [grid-template-columns:35%_65%] items-start gap-4 mx-2 p-2 font-sans print:gap-0 print:p-0"
+          : "hidden md:flex print:flex justify-end mx-2 p-2 font-sans print:p-0"
+      }>
+        {/* Left Table: Static Values (only for the per-entry 'full' variant) */}
+        {variant === 'full' && (
+          <div className="overflow-hidden rounded-xl shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 print:shadow-none print:border-[1px] print:border-gray-200">
+            <table className="w-full border-collapse">
+              <tbody>
+                <tr className="border-b border-gray-200">
+                  <td className="w-[60%] bg-[#90E274]/10 py-2 px-2 pl-3 text-[11px] font-semibold print:font-normal">
+                    Annual Interest
+                  </td>
+                  <td className="w-[40%] py-2 px-2 text-center font-medium border-l bg-white border-gray-300 text-xs">
+                    {isOutright ? "0%" : (projectData?.interest?.annualInterest ? `${projectData.interest.annualInterest}%` : "")}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="w-[60%] bg-[#90E274]/10 py-2 px-2 pl-3 text-[11px] font-semibold print:font-normal">
+                    Percent Margin
+                  </td>
+                  <td className="w-[40%] py-2 px-2 text-center border-l font-medium bg-white border-gray-300 text-xs">
+                    {isOutright ? "0%" : (percentMargin ? `${percentMargin}%` : "")}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Right Column: Summary ROI Box */}
         <div className="flex justify-end w-full print:ml-2">
-          <div className="shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 rounded-xl overflow-hidden w-full mr-4 bg-white print:shadow-none print:border-[1px] print:border-gray-300">
+          <div className="shadow border border-[#2c2c2e]/10 border-b-[#2c2c2e]/20 rounded-xl overflow-hidden w-full mr-4 print:mr-0 bg-white print:shadow-none print:border-[1px] print:border-gray-200">
             <table className="w-full text-[11px] table-fixed">
               <colgroup>
-                <col className="w-[40%] " />
-                <col className="w-[60%] " />
+                <col className="w-[45%] " />
+                <col className="w-[55%] " />
               </colgroup>
 
               <tbody>
                 <tr className="border-b border-gray-200">
-                  <td className="px-3 py-2 font-semibold bg-[#E2F4D8]/20 text-[11px] print:font-medium">
+                  <td className="px-3 py-2 font-medium ">
                     Total Gross Sales
                   </td>
                   <td className="px-3 py-2 bg-white text-right border-l border-gray-300">
@@ -163,7 +172,7 @@ const InterestCalcuSum = () => {
                   </td>
                 </tr>
                 <tr className="border-b border-gray-200">
-                  <td className="px-3 py-2 font-semibold bg-[#E2F4D8]/20 text-[11px] print:font-medium">
+                  <td className="px-3 py-2 font-medium ">
                     Total Cost
                   </td>
                   <td className="px-3 py-2 bg-white text-right border-l border-gray-300">
@@ -179,7 +188,7 @@ const InterestCalcuSum = () => {
                 </tr>
 
                 <tr>
-                  <td className="py-2 text-[10px] text-gray-400 italic px-3"></td>
+                  <td></td>
                   <td
                     className={`px-3 py-2 bg-white text-right border-l border-gray-300 ${
                       roiPct > 0 ? "text-green-700" : roiPct < 0 ? "text-red-600" : ""

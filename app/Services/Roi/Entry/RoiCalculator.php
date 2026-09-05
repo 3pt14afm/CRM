@@ -57,6 +57,25 @@ class RoiCalculator
         return $num !== 0.0 ? $num : $fallback;
     }
 
+    /**
+     * Like toFloat(), but clamps a negative result to 0. Used for cost/price
+     * fields, which should never flow through arithmetic as negative.
+     */
+    private function toNonNegativeFloat(mixed $val, float $fallback = 0.0): float
+    {
+        return max($this->toFloat($val, $fallback), 0.0);
+    }
+
+    /**
+     * Like toFloat(), but treats a negative result the same as an absent
+     * value — falls back instead of letting a negative qty through.
+     */
+    private function toFloatOrFallbackIfNegative(mixed $val, float $fallback): float
+    {
+        $num = $this->toFloat($val, $fallback);
+        return $num < 0 ? $fallback : $num;
+    }
+
     // =========================================================================
     // CONTRACT TYPE FLAGS
     // =========================================================================
@@ -83,10 +102,10 @@ class RoiCalculator
 
     public function getRowCalculations(array $row, array $projectData): array
     {
-        $rawCost   = $this->toFloat($row['cost']   ?? 0);
+        $rawCost   = $this->toNonNegativeFloat($row['cost']   ?? 0);
         $qty       = $this->toFloat($row['qty']    ?? 0);
         $rawYields = $this->toFloat($row['yields'] ?? 0);
-        $rawPrice  = $this->toFloat($row['price']  ?? 0);
+        $rawPrice  = $this->toNonNegativeFloat($row['price']  ?? 0);
 
         $annualInterestRate = $this->toFloat($projectData['interest']['annualInterest'] ?? 0) / 100;
         $annualInterest     = $this->toFloat($projectData['interest']['annualInterest'] ?? 0);
@@ -176,8 +195,23 @@ class RoiCalculator
         $flags = $this->getContractFlags($projectData['companyInfo']['contractType'] ?? '');
 
         $annualInterest = $this->toFloat($projectData['interest']['annualInterest'] ?? 0);
-        $contractYears  = $this->orFallback($projectData['companyInfo']['contractYears'] ?? 1, 1.0);
-        $percentMargin  = ($annualInterest * $contractYears) / 100;
+
+        $companyInfo = $projectData['companyInfo'] ?? [];
+        $contractYearsProvided = array_key_exists('contractYears', $companyInfo);
+        $contractYears = $contractYearsProvided ? $this->toFloat($companyInfo['contractYears'], 1.0) : 1.0;
+        $percentMargin = ($annualInterest * $contractYears) / 100;
+
+        // An explicit 0 is an invalid contract length — mirror succeedingYears(), which already treats 0 as "no valid contract" and returns all zeros.
+        if ($contractYearsProvided && $contractYears <= 0) {
+            return [
+                'totalMachineQty' => 0.0, 'totalMachineCost' => 0.0, 'totalMachineSales' => 0.0, 'totalMachineMargin' => 0.0,
+                'totalConsumableQty' => 0.0, 'totalConsumableCost' => 0.0, 'totalConsumableSales' => 0.0,
+                'totalCompanyFeesAmount' => 0.0, 'totalCustomerFeesAmount' => 0.0,
+                'grandtotalCost' => 0.0, 'grandtotalSell' => 0.0, 'grossProfit' => 0.0, 'roiPercentage' => 0.0,
+                'machines' => [], 'consumables' => [], 'companyFees' => [], 'customerFees' => [],
+                'bundleDeduction' => 0.0, 'firstYearTotalCost' => 0.0, 'firstYearTotalSell' => 0.0,
+            ];
+        }
 
         $isBundleChecked = ($projectData['companyInfo']['bundledStdInk'] ?? false) === true;
         $bundleDeduction = ($flags['isMonthlyRental'] && $isBundleChecked)
@@ -318,7 +352,7 @@ class RoiCalculator
                     $qty = $this->to2Decimals($qty * ($printerMachineQty > 0 ? $printerMachineQty : 1));
                 }
             } else {
-                $qty = $this->toFloat($c['qty'] ?? 1, 1);
+                $qty = $this->toFloatOrFallbackIfNegative($c['qty'] ?? 1, 1.0);
             }
 
             $qty = $this->applyPerCartridgeRounding($qty, $flags['isPerCartridge']);
