@@ -231,7 +231,7 @@ const nFormat = (val) => {
 
                 <thead className="bg-[#E2F4D8]/70 text-[11px]">
                   <tr className="font-medium">
-                    <th className="px-3 py-1 text-center uppercase border border-gray-300 font-medium">OTHERS</th>
+                    <th className="px-3 py-1 text-center uppercase border border-gray-300 font-medium print:text-[10px]">OTHERS</th>
                     <th className="px-3 py-1 text-center border border-gray-300 uppercase print:text-[10px] font-medium">Amount</th>
                     <th className="px-3 py-1 text-center bg-[#f8f8f8] print:bg-white"></th>
                     <th colSpan={3} className="px-3 py-1 text-center border border-gray-300"></th>
@@ -250,7 +250,7 @@ const nFormat = (val) => {
                       const displayTotal = isA3ColorClick ? 0 : (Number(fee.total) || 0);
                       return (
                         <tr key={fee.id || idx} className="border-x-gray-300">
-                          <td className="border border-x-gray-300 border-gray-100 px-4 py-2 text-[12px] truncate border-r">
+                          <td className="border border-x-gray-300 border-gray-100 px-4 py-2 text-[12px] truncate border-r print:text-[11px]">
                             {fee.label}
                           </td>
                           <td className="border border-x-gray-300 border-gray-100 px-3 py-2 text-[11px] text-right border-r">
