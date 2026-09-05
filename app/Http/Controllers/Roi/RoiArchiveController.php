@@ -461,7 +461,7 @@ class RoiArchiveController extends Controller
      * freshly generated project_uid + sequential reference (same rules as
      * a brand-new draft).
      */
-        public function withdraw(Request $request, $id)
+    public function withdraw(Request $request, $id)
     {
         /** @var \App\Models\RoiArchiveProject $archived */
         $archived = RoiArchiveProject::with(['items', 'fees'])->findOrFail($id);
@@ -499,106 +499,7 @@ class RoiArchiveController extends Controller
             'group_size'         => $group->count(),
         ];
 
-        $entryProjects = DB::transaction(function () use ($group, $prefix) {
-            $created      = collect();
-            $newReference = null;
-
-            foreach ($group as $index => $row) {
-                $projectData = $row->only([
-                    'user_id',
-                    'location_id',
-                    'version',
-                    'last_saved_at',
-                    'type',
-                    'company_id',
-                    'company_name',
-                    'company_sap_code',
-                    'contract_years',
-                    'contract_type',
-                    'purpose',
-                    'bundled_std_ink',
-                    'annual_interest',
-                    'percent_margin',
-                    'mono_yield_monthly',
-                    'mono_yield_annual',
-                    'color_yield_monthly',
-                    'color_yield_annual',
-                    'mc_unit_cost',
-                    'mc_qty',
-                    'mc_total_cost',
-                    'mc_yields',
-                    'mc_cost_cpp',
-                    'mc_selling_price',
-                    'mc_total_sell',
-                    'mc_sell_cpp',
-                    'mc_total_bundled_price',
-                    'fees_total',
-                    'grand_total_cost',
-                    'grand_total_revenue',
-                    'grand_roi',
-                    'grand_roi_percentage',
-                    'yearly_breakdown',
-                    'entry_remarks',
-                    'entry_remarks_attachments',
-                    'notes',
-                    'comments',
-                ]);
-
-                $projectData['status']        = 'duplicate';
-                $projectData['version']       = 1;
-                $projectData['last_saved_at'] = now();
-
-                if ($index === 0) {
-                    // First row generates the new shared reference via the
-                    // existing collision-retry logic; group members below
-                    // reuse that reference.
-                    $entryProject = $this->createEntryWithUniqueReference($projectData, $prefix);
-                    $newReference = $entryProject->reference;
-
-                    // Explicit sequence: 0 for a standalone withdraw, 1 (master)
-                    // when this is the head of a group. createEntryWithUniqueReference()
-                    // never sets sequence, so this must be assigned here.
-                    $entryProject->sequence = $group->count() > 1 ? 1 : 0;
-                    $entryProject->save();
-                } else {
-                    $projectData['project_uid'] = (string) Str::ulid();
-                    $projectData['reference']   = $newReference;
-                    $projectData['sequence']    = $index + 1;
-
-                    $entryProject = RoiEntryProject::create($projectData);
-                }
-
-                // Bulk insert items
-                $itemRows = $row->items->map(function ($item) use ($entryProject) {
-                    $data = $item->toArray();
-                    unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
-                    $data['roi_entry_project_id'] = $entryProject->id;
-                    $data['created_at'] = now();
-                    $data['updated_at'] = now();
-                    return $data;
-                })->all();
-                if (!empty($itemRows)) {
-                    RoiEntryItem::insert($itemRows);
-                }
-
-                // Bulk insert fees
-                $feeRows = $row->fees->map(function ($fee) use ($entryProject) {
-                    $data = $fee->toArray();
-                    unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
-                    $data['roi_entry_project_id'] = $entryProject->id;
-                    $data['created_at'] = now();
-                    $data['updated_at'] = now();
-                    return $data;
-                })->all();
-                if (!empty($feeRows)) {
-                    RoiEntryFee::insert($feeRows);
-                }
-
-                $created->push($entryProject);
-            }
-
-            return $created;
-        });
+        $entryProjects = $this->copyArchivedGroupToDraft($group, $prefix, preserveNotesComments: true);
 
         $this->logArchiveWithdraw($archived, $actor, $oldValues, $entryProjects);
 
@@ -619,10 +520,91 @@ class RoiArchiveController extends Controller
                 : 'Project withdrawn back to draft as a duplicate.');
     }
 
+    /**
+     * Copies an archived project group into roi_entry_projects as new
+     * drafts with a freshly generated shared reference (same rules as a
+     * brand-new draft). Shared by withdraw() and duplicate() — the only
+     * difference between the two is whether notes/comments carry over.
+     */
+    private function copyArchivedGroupToDraft(
+        \Illuminate\Support\Collection $group,
+        string $prefix,
+        bool $preserveNotesComments
+    ): \Illuminate\Support\Collection {
+        return DB::transaction(function () use ($group, $prefix, $preserveNotesComments) {
+            $created      = collect();
+            $newReference = null;
 
-        /**
-     * "Duplicate" an archived project — same as withdraw(), but excludes
-     * the `notes` and `comments` fields from the copied data.
+            foreach ($group as $index => $row) {
+                $projectData = $row->only([
+                    'user_id', 'location_id', 'version', 'last_saved_at', 'type',
+                    'company_id', 'company_name', 'company_sap_code', 'contract_years',
+                    'contract_type', 'purpose', 'bundled_std_ink', 'annual_interest',
+                    'percent_margin', 'mono_yield_monthly', 'mono_yield_annual',
+                    'color_yield_monthly', 'color_yield_annual', 'mc_unit_cost', 'mc_qty',
+                    'mc_total_cost', 'mc_yields', 'mc_cost_cpp', 'mc_selling_price',
+                    'mc_total_sell', 'mc_sell_cpp', 'mc_total_bundled_price', 'fees_total',
+                    'grand_total_cost', 'grand_total_revenue', 'grand_roi',
+                    'grand_roi_percentage', 'yearly_breakdown', 'entry_remarks',
+                    'entry_remarks_attachments', 'notes', 'comments',
+                ]);
+
+                if (!$preserveNotesComments) {
+                    $projectData['notes']    = null;
+                    $projectData['comments'] = null;
+                }
+
+                $projectData['status']        = 'duplicate';
+                $projectData['version']       = 1;
+                $projectData['last_saved_at'] = now();
+
+                if ($index === 0) {
+                    $entryProject = $this->createEntryWithUniqueReference($projectData, $prefix);
+                    $newReference = $entryProject->reference;
+                    $entryProject->sequence = $group->count() > 1 ? 1 : 0;
+                    $entryProject->save();
+                } else {
+                    $projectData['project_uid'] = (string) Str::ulid();
+                    $projectData['reference']   = $newReference;
+                    $projectData['sequence']    = $index + 1;
+                    $entryProject = RoiEntryProject::create($projectData);
+                }
+
+                $itemRows = $row->items->map(function ($item) use ($entryProject) {
+                    $data = $item->toArray();
+                    unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
+                    $data['roi_entry_project_id'] = $entryProject->id;
+                    $data['created_at'] = now();
+                    $data['updated_at'] = now();
+                    return $data;
+                })->all();
+                if (!empty($itemRows)) {
+                    RoiEntryItem::insert($itemRows);
+                }
+
+                $feeRows = $row->fees->map(function ($fee) use ($entryProject) {
+                    $data = $fee->toArray();
+                    unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
+                    $data['roi_entry_project_id'] = $entryProject->id;
+                    $data['created_at'] = now();
+                    $data['updated_at'] = now();
+                    return $data;
+                })->all();
+                if (!empty($feeRows)) {
+                    RoiEntryFee::insert($feeRows);
+                }
+
+                $created->push($entryProject);
+            }
+
+            return $created;
+        });
+    }
+
+    /**
+     * "Duplicate" an archived project — identical to withdraw() except the
+     * new draft starts with blank notes/comments instead of carrying over
+     * the archived project's history.
      */
     public function duplicate(Request $request, $id)
     {
@@ -630,6 +612,15 @@ class RoiArchiveController extends Controller
         $archived = RoiArchiveProject::with(['items', 'fees'])->findOrFail($id);
 
         $this->ensureCanWithdrawArchive($archived);
+
+        $group = RoiArchiveProject::with(['items', 'fees'])
+            ->where('reference', $archived->reference)
+            ->orderBy('sequence')
+            ->get();
+
+        foreach ($group as $sibling) {
+            $this->ensureCanWithdrawArchive($sibling);
+        }
 
         $actor = Auth::user();
 
@@ -645,105 +636,40 @@ class RoiArchiveController extends Controller
         $oldValues = [
             'status'             => $archived->status,
             'archive_project_id' => $archived->id,
+            'group_size'         => $group->count(),
         ];
 
-        $entryProject = DB::transaction(function () use ($archived, $actor, $prefix) {
-            $projectData = $archived->only([
-                'user_id',
-                'location_id',
-                'version',
-                'last_saved_at',
-                'type',
-                'company_id',
-                'company_name',
-                'company_sap_code',
-                'contract_years',
-                'contract_type',
-                'purpose',
-                'bundled_std_ink',
-                'annual_interest',
-                'percent_margin',
-                'mono_yield_monthly',
-                'mono_yield_annual',
-                'color_yield_monthly',
-                'color_yield_annual',
-                'mc_unit_cost',
-                'mc_qty',
-                'mc_total_cost',
-                'mc_yields',
-                'mc_cost_cpp',
-                'mc_selling_price',
-                'mc_total_sell',
-                'mc_sell_cpp',
-                'mc_total_bundled_price',
-                'fees_total',
-                'grand_total_cost',
-                'grand_total_revenue',
-                'grand_roi',
-                'grand_roi_percentage',
-                'yearly_breakdown',
-                'entry_remarks',
-                'entry_remarks_attachments',
-                // 'notes' and 'comments' intentionally omitted
-            ]);
+        $entryProjects = $this->copyArchivedGroupToDraft($group, $prefix, preserveNotesComments: false);
 
-            $projectData['status']        = 'duplicate';
-            $projectData['version']       = 1;
-            $projectData['last_saved_at'] = now();
+        $this->logArchiveDuplicate($archived, $actor, $oldValues, $entryProjects);
 
-            $entryProject = $this->createEntryWithUniqueReference($projectData, $prefix);
-
-            // Bulk insert items
-            $itemRows = $archived->items->map(function ($item) use ($entryProject) {
-                $data = $item->toArray();
-                unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
-                $data['roi_entry_project_id'] = $entryProject->id;
-                $data['created_at'] = now();
-                $data['updated_at'] = now();
-                return $data;
-            })->all();
-            if (!empty($itemRows)) {
-                RoiEntryItem::insert($itemRows);
-            }
-
-            // Bulk insert fees
-            $feeRows = $archived->fees->map(function ($fee) use ($entryProject) {
-                $data = $fee->toArray();
-                unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
-                $data['roi_entry_project_id'] = $entryProject->id;
-                $data['created_at'] = now();
-                $data['updated_at'] = now();
-                return $data;
-            })->all();
-            if (!empty($feeRows)) {
-                RoiEntryFee::insert($feeRows);
-            }
-
-            return $entryProject;
-        });
-
-        $this->logArchiveDuplicate($archived, $actor, $oldValues, $entryProject);
+        $isGroup = $entryProjects->count() > 1;
 
         if ($request->wantsJson()) {
             return response()->json([
-                'message'        => 'Project duplicated to draft.',
-                'entryProjectId' => $entryProject->id,
+                'message'         => $isGroup ? 'Project group duplicated to Draft.' : 'Project duplicated to Draft.',
+                'entryProjectId'  => $entryProjects->first()->id,
+                'entryProjectIds' => $entryProjects->pluck('id'),
             ]);
         }
 
         return redirect()
             ->route('roi.entry.list')
-            ->with('success', 'Project duplicated to draft.');
+            ->with('success', $isGroup
+                ? 'Project group duplicated as new drafts.'
+                : 'Project duplicated as a new draft.');
     }
 
-    /**
-     * Logs the duplicate-from-archive action so it's traceable per user.
+        /**
+     * Logs the duplicate-from-archive action. Mirrors logArchiveWithdraw()
+     * but flags the activity as 'duplicate' so the two are distinguishable
+     * in the activity log despite sharing the same copy mechanics.
      */
     private function logArchiveDuplicate(
         RoiArchiveProject $archived,
         $actor,
         array $oldValues,
-        RoiEntryProject $entryProject
+        \Illuminate\Support\Collection $entryProjects
     ): void {
         $workflow = [
             'preparer_id'  => $archived->user_id,
@@ -754,19 +680,25 @@ class RoiArchiveController extends Controller
             'approver_id'  => $archived->approved_by,
         ];
 
+        $primaryEntry = $entryProjects->first();
+        $isGroup      = $entryProjects->count() > 1;
+
         try {
             RoiActivityLogger::log(
                 activityType: 'duplicate',
                 moduleType:   'ROI Archive',
-                details:      'Duplicated ROI #' . $archived->reference . ' from Archive to Draft (duplicate) as #' . $entryProject->reference,
-                subject:      $entryProject,
+                details:      $isGroup
+                    ? 'Duplicated ROI group #' . $archived->reference . ' (' . $entryProjects->count() . ' entries) from Archive to Draft as #' . $primaryEntry->reference
+                    : 'Duplicated ROI #' . $archived->reference . ' from Archive to Draft as #' . $primaryEntry->reference,
+                subject:      $primaryEntry,
                 oldValues:    $oldValues,
                 newValues:    [
-                    'status'              => 'duplicate',
-                    'entry_project_id'    => $entryProject->id,
-                    'new_reference'       => $entryProject->reference,
-                    'archive_reference'   => $archived->reference,
-                    'duplicated_by'       => $actor->id,
+                    'status'            => 'duplicate',
+                    'entry_project_id'  => $primaryEntry->id,
+                    'entry_project_ids' => $entryProjects->pluck('id')->all(),
+                    'new_reference'     => $primaryEntry->reference,
+                    'archive_reference' => $archived->reference,
+                    'duplicated_by'     => $actor->id,
                 ],
                 workflow:     $workflow
             );
@@ -774,6 +706,7 @@ class RoiArchiveController extends Controller
             Log::error('ROI archive duplicate activity log failed', ['message' => $e->getMessage()]);
         }
     }
+
     /**
      * Creates a RoiEntryProject with a fresh project_uid + sequential reference,
      * retrying on unique-constraint collisions. Mirrors the generation rules
