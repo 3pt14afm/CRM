@@ -42,6 +42,7 @@ import {
   buildSprfPayload,
   hasValidCompanyInfo,
   hasValidItemGroups,
+  getIncompleteItemErrors,
   validateDraft,
   validateSubmit,
   getInvalidMarkupFields,
@@ -202,7 +203,6 @@ const [companyInfo, setCompanyInfo] = useState({
   const [items, setItems] = useState([makeGroupRow()]);
   const [otherExpenses, setOtherExpenses] = useState(() => makeInitialExpenseRows());
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [itemErrors, setItemErrors] = useState({});
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
   const [showSendBackModal, setShowSendBackModal] = useState(false);
@@ -210,6 +210,12 @@ const [companyInfo, setCompanyInfo] = useState({
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const hydratedProjectIdRef = useRef(null);
+  const [hasAttemptedItemsSubmit, setHasAttemptedItemsSubmit] = useState(false);
+
+  const itemErrors = useMemo(
+    () => (hasAttemptedItemsSubmit ? getIncompleteItemErrors(items) : {}),
+    [items, hasAttemptedItemsSubmit]
+  );
 
   useEffect(() => {
     const currentProjectId = sourceProject?.id ?? null;
@@ -602,28 +608,39 @@ const [companyInfo, setCompanyInfo] = useState({
   const handleSubmit = () => {
     if (isSubmitting || readOnly) return;
 
-    // Clear previous client-side item errors
-    setItemErrors({});
+    const incompleteErrors = getIncompleteItemErrors(items);
+    const hasCostError = Object.keys(incompleteErrors).some((key) => key.endsWith('.costPerUnit'));
+    const hasMarkupOrSellingError = Object.keys(incompleteErrors).some((key) => key.endsWith('.markupPercent'));
 
-    const submitCheck = validateSubmit({
-      sourceProject,
-      companyInfo,
-      items,
-      remarks,
-    });
+    switch (true) {
+      case !sourceProject?.id:
+        toast.error('Please save draft first before submitting.');
+        return;
 
-    if (!submitCheck.ok) {
-      if (submitCheck.errors) {
-        setItemErrors(submitCheck.errors);
-      }
+      case !hasValidCompanyInfo(companyInfo):
+         toast.error("Company Information is required before submitting.");
+         return;
 
-      toast.error(submitCheck.message);
-      return;
-    }
+      case !hasValidItemGroups(items):
+        toast.error("Please add at least one item before submitting.");
+        return;
 
-    if (!hasRemarksAttachment) {
-      toast.error('Please attach at least one file in Remarks before submitting.');
-      return;
+      case hasCostError:
+        setHasAttemptedItemsSubmit(true);
+        toast.error('Please enter a valid cost per unit. Enter 0 if none applies.', { duration: 5000 });
+        return;
+
+      case hasMarkupOrSellingError:
+        setHasAttemptedItemsSubmit(true);
+        toast.error('Please enter a valid markup percentage. Enter 0 if none applies.', {duration: 5000,});
+        return;
+
+      case !hasRemarksAttachment:
+        toast.error('Please attach at least one file in Remarks before submitting.');
+        return;
+
+      default:
+        break;
     }
 
     setIsSubmitting(true);
