@@ -99,7 +99,7 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
               toast.dismiss(t);
               setTimeout(() => {
                 const processId = `duplicate-${row.id}`;
-                router.post(ziggyRoute("roi.archive.withdraw", row.id), {}, {
+                router.post(ziggyRoute("roi.archive.duplicate", row.id), {}, {
                   preserveScroll: true,
                   onStart:   () => toast.loading("Duplicating...", { id: processId }),
                   onSuccess: () => toast.success("Project duplicated to Draft.", { id: processId }),

@@ -129,8 +129,9 @@ Route::middleware(['auth', 'verified'])
             Route::get('/archive', [RoiArchiveController::class, 'index'])->name('roi.archive');
             Route::get('/archive/group/{reference}', [RoiArchiveController::class, 'showGroup'])->name('roi.archive.group.show');
             Route::get('/archive/{id}', [RoiArchiveController::class, 'show'])->name('roi.archive.show');
-            Route::post('/roi/archive/{id}/withdraw', [RoiArchiveController::class, 'withdraw'])->name('roi.archive.withdraw');
-
+            Route::post('/roi/archive/{id}/withdraw', [RoiArchiveController::class, 'withdraw'])
+            ->name('roi.archive.withdraw');
+            Route::post('/roi/archive/{id}/duplicate', [RoiArchiveController::class, 'duplicate'])->name('roi.archive.duplicate');
            // routes/web.php — archive print route
             Route::get('/archive/{id}/print', [RoiPrintController::class, 'printArchive'])->name('roi.archive.print');
             Route::get('/archive/group/{reference}/print', [RoiPrintController::class, 'printArchiveGroup'])->name('roi.archive.group.print');

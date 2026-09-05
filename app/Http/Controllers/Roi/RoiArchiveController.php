@@ -619,6 +619,161 @@ class RoiArchiveController extends Controller
                 : 'Project withdrawn back to draft as a duplicate.');
     }
 
+
+        /**
+     * "Duplicate" an archived project — same as withdraw(), but excludes
+     * the `notes` and `comments` fields from the copied data.
+     */
+    public function duplicate(Request $request, $id)
+    {
+        /** @var \App\Models\RoiArchiveProject $archived */
+        $archived = RoiArchiveProject::with(['items', 'fees'])->findOrFail($id);
+
+        $this->ensureCanWithdrawArchive($archived);
+
+        $actor = Auth::user();
+
+        if (!$actor->primary_location_id) {
+            abort(422, 'Your account has no primary location.');
+        }
+        $location = Location::find($actor->primary_location_id);
+        if (!$location || empty($location->code)) {
+            abort(422, 'Primary location has no code.');
+        }
+        $prefix = strtoupper(trim($location->code));
+
+        $oldValues = [
+            'status'             => $archived->status,
+            'archive_project_id' => $archived->id,
+        ];
+
+        $entryProject = DB::transaction(function () use ($archived, $actor, $prefix) {
+            $projectData = $archived->only([
+                'user_id',
+                'location_id',
+                'version',
+                'last_saved_at',
+                'type',
+                'company_id',
+                'company_name',
+                'company_sap_code',
+                'contract_years',
+                'contract_type',
+                'purpose',
+                'bundled_std_ink',
+                'annual_interest',
+                'percent_margin',
+                'mono_yield_monthly',
+                'mono_yield_annual',
+                'color_yield_monthly',
+                'color_yield_annual',
+                'mc_unit_cost',
+                'mc_qty',
+                'mc_total_cost',
+                'mc_yields',
+                'mc_cost_cpp',
+                'mc_selling_price',
+                'mc_total_sell',
+                'mc_sell_cpp',
+                'mc_total_bundled_price',
+                'fees_total',
+                'grand_total_cost',
+                'grand_total_revenue',
+                'grand_roi',
+                'grand_roi_percentage',
+                'yearly_breakdown',
+                'entry_remarks',
+                'entry_remarks_attachments',
+                // 'notes' and 'comments' intentionally omitted
+            ]);
+
+            $projectData['status']        = 'duplicate';
+            $projectData['version']       = 1;
+            $projectData['last_saved_at'] = now();
+
+            $entryProject = $this->createEntryWithUniqueReference($projectData, $prefix);
+
+            // Bulk insert items
+            $itemRows = $archived->items->map(function ($item) use ($entryProject) {
+                $data = $item->toArray();
+                unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
+                $data['roi_entry_project_id'] = $entryProject->id;
+                $data['created_at'] = now();
+                $data['updated_at'] = now();
+                return $data;
+            })->all();
+            if (!empty($itemRows)) {
+                RoiEntryItem::insert($itemRows);
+            }
+
+            // Bulk insert fees
+            $feeRows = $archived->fees->map(function ($fee) use ($entryProject) {
+                $data = $fee->toArray();
+                unset($data['id'], $data['roi_archive_project_id'], $data['created_at'], $data['updated_at']);
+                $data['roi_entry_project_id'] = $entryProject->id;
+                $data['created_at'] = now();
+                $data['updated_at'] = now();
+                return $data;
+            })->all();
+            if (!empty($feeRows)) {
+                RoiEntryFee::insert($feeRows);
+            }
+
+            return $entryProject;
+        });
+
+        $this->logArchiveDuplicate($archived, $actor, $oldValues, $entryProject);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message'        => 'Project duplicated to draft.',
+                'entryProjectId' => $entryProject->id,
+            ]);
+        }
+
+        return redirect()
+            ->route('roi.entry.list')
+            ->with('success', 'Project duplicated to draft.');
+    }
+
+    /**
+     * Logs the duplicate-from-archive action so it's traceable per user.
+     */
+    private function logArchiveDuplicate(
+        RoiArchiveProject $archived,
+        $actor,
+        array $oldValues,
+        RoiEntryProject $entryProject
+    ): void {
+        $workflow = [
+            'preparer_id'  => $archived->user_id,
+            'reviewer_id'  => $archived->reviewed_by,
+            'checker_id'   => $archived->checked_by,
+            'endorser_id'  => $archived->endorsed_by,
+            'confirmer_id' => $archived->confirmed_by,
+            'approver_id'  => $archived->approved_by,
+        ];
+
+        try {
+            RoiActivityLogger::log(
+                activityType: 'duplicate',
+                moduleType:   'ROI Archive',
+                details:      'Duplicated ROI #' . $archived->reference . ' from Archive to Draft (duplicate) as #' . $entryProject->reference,
+                subject:      $entryProject,
+                oldValues:    $oldValues,
+                newValues:    [
+                    'status'              => 'duplicate',
+                    'entry_project_id'    => $entryProject->id,
+                    'new_reference'       => $entryProject->reference,
+                    'archive_reference'   => $archived->reference,
+                    'duplicated_by'       => $actor->id,
+                ],
+                workflow:     $workflow
+            );
+        } catch (\Throwable $e) {
+            Log::error('ROI archive duplicate activity log failed', ['message' => $e->getMessage()]);
+        }
+    }
     /**
      * Creates a RoiEntryProject with a fresh project_uid + sequential reference,
      * retrying on unique-constraint collisions. Mirrors the generation rules
