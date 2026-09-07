@@ -9,6 +9,7 @@ const RENTAL_FEE  = ["Rental"];
 // ── Labels per contract type ───────────────────────────────────────────────
 const LABELS_BY_CONTRACT = {
   "Free Use + per Cartridge":  [...BASE_FEES],
+  "Free Use + per Cartridge (Government)": [...BASE_FEES],
   "Rental + Click Charge":     [...BASE_FEES, ...RENTAL_FEE, ...CLICK_FEES],
   "Free Use + Click Charge":   [...BASE_FEES, ...CLICK_FEES],
   "Rental + per Cartridge":    [...BASE_FEES, ...RENTAL_FEE],

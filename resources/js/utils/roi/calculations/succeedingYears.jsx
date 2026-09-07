@@ -13,7 +13,8 @@ export const succeedingYears = (projectData) => {
   const isPerCartridge = normalizedContractType.includes("per cartridge");
   const isOutright = normalizedContractType.includes("outright");
   const isOutrightOnly = normalizedContractType.includes("outright") && normalizedContractType.includes("only");
-  const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
+  const isFreeUseGovernment = normalizedContractType.includes("free use") && normalizedContractType.includes("cartridge") && normalizedContractType.includes("government");
+  const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly && !isFreeUseGovernment;
 
   const annualInterest = Number(projectData?.interest?.annualInterest) || 0;
   const percentMargin = (annualInterest * contractYears) / 100;
@@ -67,7 +68,7 @@ export const succeedingYears = (projectData) => {
       // useMachineRows.js for those contracts anyway, so checking qty > 0
       // here would always be true and would permanently bypass the printer
       // multiplier). Mirrors RoiCalculator.php.
-      if (isOutrightOnly && Number(m.qty) > 0) {
+      if ((isOutrightOnly || isFreeUseGovernment) && Number(m.qty) > 0) {
         machineQty = Number(m.qty);
       } else if (isMonthlyRental && Number(m.qty) > 0) {
         // Fixed Monthly Only: "others" machine qty is user-entered/editable
@@ -120,8 +121,8 @@ export const succeedingYears = (projectData) => {
       return { ...c, qty, yields: 0, price: 0, totalCost: qty * unitCost, totalSell: 0 };
     }
 
-    if (isOutrightOnly && (mode === 'mono' || mode === 'color' || isModeOthers)) {
-      // Outright Only: Respect user-entered qty for consumables
+    if ((isOutrightOnly || isFreeUseGovernment) && (mode === 'mono' || mode === 'color' || isModeOthers)) {
+      // Outright Only / Free Use + Cartridge (Government): respect user-entered qty
       qty = getSafeNumber(c.qty, 1);
     } else if (mode === 'mono' || mode === 'color' || isModeOthers) {
       if (hasValidYield(itemYields)) {

@@ -21,6 +21,18 @@ export const isOutrightOnlyContract = (ct) => {
   return n.includes('outright') && n.includes('only');
 };
 
+// "Free Use + Cartridge (Government)" is identical to "Free Use + per
+// Cartridge" for cost/price purposes (machine still amortized with
+// interest, still no machine selling price) — but AMPV-derived qty is
+// bypassed entirely, the same way Outright Only bypasses it: the mandatory
+// machine and every mono/color/others row just keep whatever qty the user
+// types. Hardcoded lowercase strings for the same case-insensitive-matching
+// reason as isOutrightOnlyContract above.
+export const isFreeUseGovernmentContract = (ct) => {
+  const n = String(ct || '').trim().toLowerCase();
+  return n.includes('free use') && n.includes('cartridge') && n.includes('government');
+};
+
 // Has the user actually typed anything into this (would-be-mandatory) row?
 // Used to tell a genuinely-configured machine apart from the untouched
 // blank row that gets auto-created before we know the real contract type.
@@ -198,23 +210,28 @@ const computePrinterQtyTotal = (rows = []) =>
 const isQtyEditable = (row, contractType = '') => {
   const exception = isExceptionContract(contractType);
   const outrightOnly = isOutrightOnlyContract(contractType);
+  const freeUseGov = isFreeUseGovernmentContract(contractType);
+  // AMPV is irrelevant for Free Use + Cartridge (Government), same as
+  // Outright Only — qty is always whatever the user typed, never derived.
+  const qtyAsIs = exception || freeUseGov;
 
   if (isPrinterRow(row)) {
     if (!row.isMandatory) {
-      return outrightOnly;
+      return outrightOnly || freeUseGov;
     }
     // return !exception;
     return true;
   }
 
   if (isMonoColorConsumable(row)) {
-    return exception;
+    return qtyAsIs;
   }
 
   // "others" rows (machine or consumable) are user-entered for exception
-  // contracts (Fixed Monthly Only / Outright Only 1yr) so users can directly
-  // specify quantities. Everywhere else they are locked/derived.
-  return exception;
+  // contracts (Fixed Monthly Only / Outright Only 1yr) and for Free Use +
+  // Cartridge (Government) so users can directly specify quantities.
+  // Everywhere else they are locked/derived.
+  return qtyAsIs;
 };
 
 const enforceRowQty = (row, contractType = '', printerQtyTotal = 1) => {

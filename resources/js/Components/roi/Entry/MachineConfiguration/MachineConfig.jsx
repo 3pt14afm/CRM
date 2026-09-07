@@ -56,7 +56,8 @@ function useRowRenderData({ row, contractType, errors, showOutrightErrors, showM
   const normalizedContractType = String(contractType).trim().toLowerCase();
   const isMonthlyRental = normalizedContractType === 'fixed monthly only';
   const isOutrightOnly = normalizedContractType.includes('outright') && normalizedContractType.includes('only');
-  const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
+  const isFreeUseGovernment = normalizedContractType.includes('free use') && normalizedContractType.includes('cartridge') && normalizedContractType.includes('government');
+  const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly && !isFreeUseGovernment;
 
   const isMachineRow = row.type === ROW_TYPE.MACHINE;
 
@@ -685,7 +686,8 @@ function MachineConfig({ readOnly, showOutrightErrors, showModeErrors }) {
     const normalizedContractType = String(contractType).trim().toLowerCase();
     const isMonthlyRental = normalizedContractType === 'fixed monthly only';
     const isOutrightOnly = normalizedContractType.includes('outright') && normalizedContractType.includes('only');
-    const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly;
+    const isFreeUseGovernment = normalizedContractType.includes('free use') && normalizedContractType.includes('cartridge') && normalizedContractType.includes('government');
+    const shouldEnforcePrinterQty = !isMonthlyRental && !isOutrightOnly && !isFreeUseGovernment;
 
     return rows.reduce((acc, row) => {
       const modeStr = String(row.mode || '').toLowerCase();
