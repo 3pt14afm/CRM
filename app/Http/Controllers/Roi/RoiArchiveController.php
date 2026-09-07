@@ -529,9 +529,10 @@ class RoiArchiveController extends Controller
     private function copyArchivedGroupToDraft(
         \Illuminate\Support\Collection $group,
         string $prefix,
-        bool $preserveNotesComments
+        bool $preserveNotesComments,
+        bool $forceGroupSequence = false,
     ): \Illuminate\Support\Collection {
-        return DB::transaction(function () use ($group, $prefix, $preserveNotesComments) {
+        return DB::transaction(function () use ($group, $prefix, $preserveNotesComments, $forceGroupSequence) {
             $created      = collect();
             $newReference = null;
 
@@ -561,12 +562,14 @@ class RoiArchiveController extends Controller
                 if ($index === 0) {
                     $entryProject = $this->createEntryWithUniqueReference($projectData, $prefix);
                     $newReference = $entryProject->reference;
-                    $entryProject->sequence = $group->count() > 1 ? 1 : 0;
+                    $entryProject->sequence   = $group->count() > 1 ? 1 : 0;
+                    $entryProject->from_group = $forceGroupSequence;
                     $entryProject->save();
                 } else {
                     $projectData['project_uid'] = (string) Str::ulid();
                     $projectData['reference']   = $newReference;
                     $projectData['sequence']    = $index + 1;
+                    $projectData['from_group']  = $forceGroupSequence; 
                     $entryProject = RoiEntryProject::create($projectData);
                 }
 
@@ -639,7 +642,7 @@ class RoiArchiveController extends Controller
             'group_size'         => $group->count(),
         ];
 
-        $entryProjects = $this->copyArchivedGroupToDraft($group, $prefix, preserveNotesComments: false);
+        $entryProjects = $this->copyArchivedGroupToDraft($group, $prefix, preserveNotesComments: false, forceGroupSequence: true);
 
         $this->logArchiveDuplicate($archived, $actor, $oldValues, $entryProjects);
 

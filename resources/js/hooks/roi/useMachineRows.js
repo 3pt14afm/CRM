@@ -203,7 +203,8 @@ const isQtyEditable = (row, contractType = '') => {
     if (!row.isMandatory) {
       return outrightOnly;
     }
-    return !exception;
+    // return !exception;
+    return true;
   }
 
   if (isMonoColorConsumable(row)) {
