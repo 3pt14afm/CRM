@@ -27,7 +27,7 @@ export const CONTRACT_TYPE = Object.freeze({
   CLICK:          'click',
   FIXED:          'fixed',
   RENTAL_SUPPLIES: 'rental + supplies',
-  
+  GOVERNMENT:      'government',
 });
 
 // ── Totals default (safe fallback for before first calculation) ────────────

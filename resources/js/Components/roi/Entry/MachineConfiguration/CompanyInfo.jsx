@@ -424,6 +424,7 @@ function CompanyInfo({ readOnly, showErrors = false }) {
             >
               <option value="" disabled>Select contract type</option>
               <option value="Free Use + per Cartridge">Free Use + per Cartridge</option>
+              <option value="Free Use + per Cartridge (Government)">Free Use + per Cartridge (Government)</option>
               <option value="Rental + Click Charge">Rental + Click Charge</option>
               <option value="Free Use + Click Charge">Free Use + Click Charge</option>
               <option value="Rental + per Cartridge">Rental + per Cartridge</option>

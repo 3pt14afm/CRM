@@ -93,6 +93,10 @@ class RoiCalculator
             'isOutrightClick' => str_contains($n, 'outright + click'),
             'isNonOutright'   => $n === 'non-outright',
             'isPerCartridge'  => str_contains($n, 'per cartridge'),
+            // Same cost/price model as Free Use + per Cartridge, but AMPV
+            // (yield-derived qty) is irrelevant — qty is always taken as
+            // entered, the same way Outright Only bypasses it.
+            'isFreeUseGovernment' => str_contains($n, 'free use') && str_contains($n, 'cartridge') && str_contains($n, 'government'),
         ];
     }
 
@@ -225,7 +229,7 @@ class RoiCalculator
         $companyFees  = $addFeesObj['company']  ?? [];
         $customerFees = $addFeesObj['customer'] ?? [];
 
-        $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'];
+        $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'] && !$flags['isFreeUseGovernment'];
 
         // Only the mandatory printer row drives this total — any other
         // printer-type row a user added just mirrors the mandatory row's
@@ -253,8 +257,10 @@ class RoiCalculator
             $isModeOthers  = in_array($mode, ['others', 'other']);
 
             if ($isModeOthers) {
-                if ($flags['isOutrightOnly']) {
-                    // Outright Only: Respect user-entered qty for "Others" machine rows
+                if ($flags['isOutrightOnly'] || $flags['isFreeUseGovernment']) {
+                    // Outright Only / Free Use + Cartridge (Government): AMPV
+                    // is irrelevant — respect user-entered qty for "Others"
+                    // machine rows as-is.
                     $machineQty = $this->toFloat($m['qty'] ?? 1, 1);
                 } elseif ($flags['isMonthlyRental']) {
                     // Fixed Monthly Only: "Others" machine qty is user-entered/
@@ -337,7 +343,10 @@ class RoiCalculator
                 ]);
             }
 
-            if ($flags['isOutrightOnly'] && (in_array($mode, ['mono', 'color']) || $isModeOthers)) {
+            if (($flags['isOutrightOnly'] || $flags['isFreeUseGovernment']) && (in_array($mode, ['mono', 'color']) || $isModeOthers)) {
+                // Outright Only / Free Use + Cartridge (Government): AMPV is
+                // irrelevant — respect user-entered qty as-is, no printer-qty
+                // multiplication.
                 $qty = $this->toFloat($c['qty'] ?? 1, 1);
             } elseif (in_array($mode, ['mono', 'color']) || $isModeOthers) {
                 $base = $mode === 'color' ? $annualColorYields : $annualMonoYields;
@@ -451,7 +460,7 @@ class RoiCalculator
 
         if ($succeedingYearCount === 0) return $emptyReturn;
 
-        $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'];
+        $shouldEnforcePrinterQty = !$flags['isMonthlyRental'] && !$flags['isOutrightOnly'] && !$flags['isFreeUseGovernment'];
 
         // Only the mandatory printer row drives this total — any other
         // printer-type row a user added just mirrors the mandatory row's
@@ -488,9 +497,10 @@ class RoiCalculator
 
             if ($isModeOthers) {
                 $enteredQty = $this->toFloat($m['qty'] ?? 0);
-                if (($flags['isOutrightOnly'] || $flags['isMonthlyRental']) && $enteredQty > 0) {
-                    // Outright Only and Fixed Monthly Only: "Others" machine
-                    // qty is user-entered/editable and must carry through to
+                if (($flags['isOutrightOnly'] || $flags['isMonthlyRental'] || $flags['isFreeUseGovernment']) && $enteredQty > 0) {
+                    // Outright Only, Fixed Monthly Only, and Free Use +
+                    // Cartridge (Government): "Others" machine qty is
+                    // user-entered/editable and must carry through to
                     // succeeding years unchanged, same as the 1st-year branch
                     // above. Mirrors succeedingYears.jsx.
                     $machineQty = $enteredQty;
@@ -535,7 +545,21 @@ class RoiCalculator
                 ]);
             }
 
-            if ((in_array($mode, ['mono', 'color']) || $isModeOthers) && $this->hasValidYield($itemYields)) {
+            if ($flags['isOutrightOnly'] || $flags['isFreeUseGovernment']) {
+                if (in_array($mode, ['mono', 'color']) || $isModeOthers) {
+                    // Outright Only / Free Use + Cartridge (Government): AMPV
+                    // is irrelevant — respect user-entered qty as-is here too,
+                    // no printer-qty multiplication, same as the 1st-year
+                    // branch. (Outright Only never actually reaches this
+                    // method since its contract is locked to 1 year, but Free
+                    // Use + Cartridge (Government) does, so this bypass must
+                    // be explicit rather than relying on shouldEnforcePrinterQty.)
+                    $qty = $this->toFloat($c['qty'] ?? 1, 1);
+                } else {
+                    $qty = $this->toFloatOrFallbackIfNegative($c['qty'] ?? 1, 1.0);
+                }
+            }
+            elseif ((in_array($mode, ['mono', 'color']) || $isModeOthers) && $this->hasValidYield($itemYields)) {
                 $base = $mode === 'color' ? $annualColorYields : $annualMonoYields;
                 if ($isModeOthers) {
                     $base = $this->resolveBaseYields($annualMonoYields, $annualColorYields);
