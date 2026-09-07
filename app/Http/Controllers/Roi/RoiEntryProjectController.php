@@ -573,29 +573,38 @@ class RoiEntryProjectController extends Controller
         abort_unless($project->user_id === Auth::id(), 403);
 
         $allowedStatuses = ['draft', 'returned', 'withdrawn', 'duplicate'];
-        if (!in_array($project->status, $allowedStatuses, true)) {
-            return back()->with('error', 'Only drafts or returned projects can be deleted.');
+
+        $group = RoiEntryProject::where('user_id', $project->user_id)
+            ->where('reference', $project->reference)
+            ->get();
+
+        foreach ($group as $sibling) {
+            abort_unless(in_array($sibling->status, $allowedStatuses, true), 403, 'Only drafts or returned projects can be deleted.');
         }
 
-        $project->load(['items', 'fees']);
+        $group->load(['items', 'fees']);
 
         $oldValues = [
-            'project' => $project->toArray(),
-            'items' => $project->items->map->toArray()->toArray(),
-            'fees' => $project->fees->map->toArray()->toArray(),
+            'project'    => $project->toArray(),
+            'group_size' => $group->count(),
+            'items'      => $group->flatMap->items->map->toArray()->toArray(),
+            'fees'       => $group->flatMap->fees->map->toArray()->toArray(),
         ];
 
-        DB::transaction(function () use ($project) {
-            \App\Models\RoiEntryItem::where('roi_entry_project_id', $project->id)->delete();
-            \App\Models\RoiEntryFee::where('roi_entry_project_id', $project->id)->delete();
-            $project->delete();
+        DB::transaction(function () use ($group) {
+            $ids = $group->pluck('id');
+            \App\Models\RoiEntryItem::whereIn('roi_entry_project_id', $ids)->delete();
+            \App\Models\RoiEntryFee::whereIn('roi_entry_project_id', $ids)->delete();
+            RoiEntryProject::whereIn('id', $ids)->delete();
         });
 
         try {
             RoiActivityLogger::log(
                 activityType: 'delete',
                 moduleType: 'ROI Entry',
-                details: 'Deleted ROI draft #' . ($oldValues['project']['reference'] ?? ''),
+                details: $group->count() > 1
+                    ? 'Deleted ROI draft group #' . ($oldValues['project']['reference'] ?? '') . ' (' . $group->count() . ' entries)'
+                    : 'Deleted ROI draft #' . ($oldValues['project']['reference'] ?? ''),
                 subject: null,
                 oldValues: $oldValues,
                 newValues: null

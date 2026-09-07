@@ -194,7 +194,7 @@ class RoiMultiEntryWorkflowService
                 'mono_yield_annual', 'color_yield_monthly', 'color_yield_annual', 'mc_unit_cost', 'mc_qty',
                 'mc_total_cost', 'mc_yields', 'mc_cost_cpp', 'mc_selling_price', 'mc_total_sell', 'mc_sell_cpp',
                 'mc_total_bundled_price', 'fees_total', 'grand_total_cost', 'grand_total_revenue', 'grand_roi',
-                'grand_roi_percentage', 'yearly_breakdown', 'notes', 'comments',
+                'grand_roi_percentage', 'yearly_breakdown', 'notes', 'comments', 'from_group',
             ]);
 
             $archived = RoiArchiveProject::create(array_merge($base, $overrides));

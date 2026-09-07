@@ -295,7 +295,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
                 {r.reference}
               </span>
 
-              {r.is_group && (
+              {r.entry_count > 1 && (
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-[#0565D2]/5 border border-[#0565D2]/50 text-[#0565D2] whitespace-nowrap">
                     {r.entry_count} entries
@@ -346,7 +346,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
             <div className="h-4 w-10 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
             <span className="font-medium flex items-center">
-              {r.is_group ? "" : (r.contract_years != null ? `${r.contract_years}` : "—")}
+              {r.entry_count > 1 ? "" : (r.contract_years != null ? `${r.contract_years}` : "—")}
             </span>
           ),
         },
@@ -357,7 +357,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
             <div className="h-4 w-20 bg-slate-200/80 rounded animate-pulse mx-auto" />
           ) : (
             <span className="font-medium flex items-center">
-              {r.is_group ? "" : (r.contract_type ?? "—")}
+              {r.entry_count > 1 ? "" : (r.contract_type ?? "—")}
             </span>
           ),
         },
@@ -506,7 +506,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
             <div className="min-w-0 leading-relaxed pt-2.5">     
               <div className="flex items-center gap-1.5">
                 <p className="text-xs font-medium">{r.reference ?? '—'}</p>
-                {r.is_group && (
+                {r.entry_count > 1 && (
                   <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-[#0565D2]/15 border border-[#0565D2]/50 text-[#0565D2] whitespace-nowrap">
                     {r.entry_count} entries
                   </span>
@@ -519,7 +519,7 @@ import ScrollableMultiSelect from '@/Components/ScrollableMultiSelect';
 
           {/* Bottom-Mid Row: Contract Info */}
           <div className="flex items-center justify-between mt-5 pb-1.5 text-[11px] uppercase font-medium text-zinc-700">
-            <span>{r.is_group ? '' : `${r.contract_type ?? '—'} ${r.contract_years != null ? `· ${r.contract_years} yrs` : ''}`}</span>
+            <span>{r.entry_count > 1 ? '' : `${r.contract_type ?? '—'} ${r.contract_years != null ? `· ${r.contract_years} yrs` : ''}`}</span>
             <span className="normal-case text-slate-500">{r.last_saved_display ?? '—'}</span>
           </div>
         </div>

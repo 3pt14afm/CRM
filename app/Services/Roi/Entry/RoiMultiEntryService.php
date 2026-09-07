@@ -293,6 +293,7 @@ class RoiMultiEntryService
                 'version' => $project->version,
                 'status' => 'For Review',
                 'current_level' => 2,
+                'from_group' => $project->from_group,
                 'submitted_at' => $isMaster ? now() : null,
                 'last_saved_at' => now(),
                 'reviewed_by' => $isMaster ? $matrix->reviewed_by : null,
