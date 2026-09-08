@@ -3,7 +3,12 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Support\Facades\Route; // <--- Add this
+use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\CheckBanned;
+use App\Http\Middleware\ContentSecurityPolicy;
+use App\Http\Middleware\EnsureAdmin;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -25,13 +30,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\CheckBanned::class, 
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
+            CheckBanned::class,
+            ContentSecurityPolicy::class,
         ]);
 
         $middleware->alias([
-            'admin' => \App\Http\Middleware\EnsureAdmin::class, 
+            'admin' => EnsureAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

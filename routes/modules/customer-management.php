@@ -116,14 +116,9 @@ Route::middleware(['auth', 'verified'])
               
                 // Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])->name('roi.current.attachments.show');
 
-                Route::get('/{id}/attachments/{attachmentIndex}/{filename?}', [RoiCurrentProjectController::class, 'showAttachment'])
-                    ->name('roi.current.attachments.show');
-
-                 Route::patch('/{id}/withdraw', [RoiCurrentProjectController::class, 'withdraw'])
-                    ->name('roi.current.withdraw');
-
-                Route::patch('/{id}/cancel', [RoiCurrentProjectController::class, 'cancel'])
-                    ->name('roi.current.cancel');
+                Route::get('/{id}/attachments/{attachmentIndex}/{filename?}', [RoiCurrentProjectController::class, 'showAttachment'])->name('roi.current.attachments.show');
+                Route::patch('/{id}/withdraw', [RoiCurrentProjectController::class, 'withdraw'])->name('roi.current.withdraw');
+                Route::patch('/{id}/cancel', [RoiCurrentProjectController::class, 'cancel'])->name('roi.current.cancel');
             });
 
             //ROI ARCHIVE ROUTES
@@ -147,8 +142,7 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/{id}/print', [ProposalController::class, 'print'])->name('print');
                 Route::post('/{id}/draft', [ProposalController::class, 'saveDraft'])->name('draft');
                 Route::post('/{id}/generate', [ProposalController::class, 'generate'])->name('generate');
-                Route::patch('/{id}/status', [ProposalController::class, 'changeStatus'])
-                ->name('status');
+                Route::patch('/{id}/status', [ProposalController::class, 'changeStatus'])->name('status');
             });
         });
 

@@ -21,6 +21,7 @@ export function expandGroupRows(rows, expandedGroups) {
           contract_type: sibling.contract_type,
           contract_years: sibling.contract_years,
           status: sibling.status,
+          machine_sku: sibling.machine_sku,
           is_group: false,
           _isSiblingRow: true,
           _parentReference: r.reference,

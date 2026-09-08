@@ -37,7 +37,7 @@ class RoiArchiveController extends Controller
 
         // Build the query using Eloquent
         $query = RoiArchiveProject::query()
-            ->with(['user', 'proposals'])
+            ->with(['user', 'proposals', 'items'])
             ->leftJoin('users as creator_user', 'roi_archive_projects.user_id', '=', 'creator_user.id')
             ->leftJoin('users as approved_user', 'roi_archive_projects.approved_by', '=', 'approved_user.id')
             ->leftJoin('users as rejected_user', 'roi_archive_projects.rejected_by', '=', 'rejected_user.id')
@@ -169,8 +169,13 @@ class RoiArchiveController extends Controller
         $siblingsByReference = RoiArchiveProject::query()
             ->whereIn('reference', $groupReferences)
             ->where('sequence', '>', 1)
+            ->with('items')
             ->orderBy('sequence')
             ->get(['id', 'reference', 'sequence', 'contract_type', 'contract_years', 'status'])
+            ->map(function ($sibling) {
+                $sibling->machine_sku = $this->resolveMachineLabel($sibling->items);
+                return $sibling;
+            })
             ->groupBy('reference');
 
         $archiveProjects = $archiveProjects->through(function ($p) use ($userId, $archiveEntryCounts, $siblingsByReference) {
@@ -202,6 +207,8 @@ class RoiArchiveController extends Controller
                 $p->entry_count = $archiveEntryCounts[$p->reference] ?? 1;
                 $p->is_group    = $p->entry_count > 1;
                 $p->sibling_entries = $p->is_group ? ($siblingsByReference[$p->reference] ?? collect())->values() : [];
+
+                $p->machine_sku = $this->resolveMachineLabel($p->items);
 
                 return $p;
             });
@@ -863,6 +870,33 @@ private function ensureCanViewArchive(RoiArchiveProject $project): void
             422,
             'Only approved projects can be withdrawn/duplicated.'
         );
+    }
+
+    /**
+     * Resolves the "Machine" column value for a set of ROI items.
+     * Priority: item flagged client_row_id = __mandatory_printer__.
+     * Fallback: all items with kind = "machine", numbered and comma-separated.
+     */
+    private function resolveMachineLabel($items): ?string
+    {
+        $printerItem = $items->firstWhere('client_row_id', '__mandatory_printer__');
+        if ($printerItem && $printerItem->sku) {
+            return $printerItem->sku;
+        }
+
+        $machines = $items
+            ->filter(fn ($item) => strtolower((string) $item->kind) === 'machine')
+            ->pluck('sku')
+            ->filter()
+            ->values();
+
+        if ($machines->isEmpty()) {
+            return null;
+        }
+
+        return $machines
+            ->map(fn ($sku, $i) => '(' . ($i + 1) . ') ' . $sku)
+            ->implode(', ');
     }
 
     private function buildMachineCatalog()

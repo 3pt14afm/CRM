@@ -442,7 +442,7 @@ const handleSort = (key) => {
         />
       ),
       cell: (r) => (
-        <div className="flex items-center w-full h-full">
+        <div className="flex items-center w-32 md:w-40 lg:w-56 xl:w-72 whitespace-normal break-words">
           <span className="font-medium cursor-pointer transition-all duration-200">
             {r.company_name ?? "—"}
           </span>
@@ -478,6 +478,17 @@ const handleSort = (key) => {
         />
       ),
       cell: (r) => <span className="font-medium flex items-center">{r.is_group ? "" : (r.contract_type ?? "—")}</span>,
+    },
+    {
+      key: "machine_sku",
+      header: <span className="text-[11px] font-bold uppercase tracking-wider">MACHINE</span>,
+      cell: (r) => (
+        <div className="w-20 md:w-24 lg:w-28 xl:w-32 whitespace-normal break-words">
+          <span className="font-medium">
+            {r.is_group ? "" : (r.machine_sku ?? "—")}
+          </span>
+        </div>
+      ),
     },
     {
       key: "type",
