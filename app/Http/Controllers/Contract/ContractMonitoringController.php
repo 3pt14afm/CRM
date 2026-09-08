@@ -73,7 +73,7 @@ class ContractMonitoringController extends Controller
 
         $contractsRaw = Contract::query()
             ->whereIn('company_id', $companyIds)
-            ->with('contractType')
+            ->with(['contractType', 'extensions'])
             ->when($ctx['statusesToShow'], fn ($q) => $q->whereIn('status', $ctx['statusesToShow']))
             ->when($ctx['typesToShow'], fn ($q) => $q->whereIn('ctid', $ctx['typesToShow']))
             ->get();
@@ -229,7 +229,7 @@ class ContractMonitoringController extends Controller
 
         $contractsRaw = Contract::query()
             ->whereIn('company_id', $companyIds)
-            ->with('contractType')
+            ->with(['contractType', 'extensions'])
             ->when($ctx['statusesToShow'], fn ($q) => $q->whereIn('status', $ctx['statusesToShow']))
             ->when($ctx['typesToShow'], fn ($q) => $q->whereIn('ctid', $ctx['typesToShow']))
             ->get();
@@ -507,21 +507,16 @@ class ContractMonitoringController extends Controller
                 ->orderByRaw("dates_sort.sort_value {$sortOrder}");
             })
             ->when($sortBy === 'remaining_days', function ($query) use ($sortOrder, $companyTable, $statusesToShow, $typesToShow) {
-                // Level 1: one row per contract, with its effective end date computed via a
-                // real JSON_TABLE JOIN (not a scalar subquery nested inside CASE/MIN — that
-                // form throws MySQL error 1210 once Laravel's paginate() count query
-                // re-shapes the SELECT list).
+                // Level 1: one row per contract, effective end date from contract_extensions
+                // (source of truth post-cutover) falling back to end_date.
                 $perContractEnd = DB::table('contracts as remaining_sort_c')
-                    ->leftJoin(
-                        DB::raw("JSON_TABLE(remaining_sort_c.extend_dates, '$[*]' COLUMNS (ext_date DATE PATH '$.date')) as jt"),
-                        DB::raw('1'), '=', DB::raw('1')
-                    )
+                    ->leftJoin('contract_extensions as ext', 'ext.contract_id', '=', 'remaining_sort_c.id')
                     ->when($statusesToShow, fn ($q) => $q->whereIn('remaining_sort_c.status', $statusesToShow))
                     ->when($typesToShow, fn ($q) => $q->whereIn('remaining_sort_c.ctid', $typesToShow))
                     ->select(
                         'remaining_sort_c.id',
                         'remaining_sort_c.company_id',
-                        DB::raw('COALESCE(MAX(jt.ext_date), remaining_sort_c.end_date) as effective_end')
+                        DB::raw('COALESCE(MAX(ext.date), remaining_sort_c.end_date) as effective_end')
                     )
                     ->groupBy('remaining_sort_c.id', 'remaining_sort_c.company_id', 'remaining_sort_c.end_date');
 

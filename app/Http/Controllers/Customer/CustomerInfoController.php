@@ -418,6 +418,7 @@ class CustomerInfoController extends Controller
 
         $contractsRaw = Contract::query()
             ->whereIn('company_id', $contractCompanyIds)
+            ->with('extensions')
             ->get();
 
         $contractsRaw->each(fn ($c) => $c->refreshStatus());

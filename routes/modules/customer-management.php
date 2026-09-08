@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified'])
         Route::post('/{contract}/archive', [ContractController::class, 'archive'])->name('archive');
         Route::get('/{company}/contracts', [ContractController::class, 'contracts'])->name('contracts');
         Route::get('/pdf/{contract}', [ContractController::class, 'viewPdf'])->name('pdf');
+        Route::get('/extension/pdf/{extension}', [ContractController::class, 'viewExtensionPdf'])->name('extension.pdf');
         Route::get('/create/{company?}', [ContractController::class, 'create'])->name('create');
         Route::get('/renewal', [ContractController::class, 'renewal'])->name('renewal');
         Route::get('/review', [ContractController::class, 'review'])->name('review');
@@ -115,14 +116,9 @@ Route::middleware(['auth', 'verified'])
               
                 // Route::get('/{id}/attachments/{attachmentId}', [RoiCurrentProjectController::class, 'showAttachment'])->name('roi.current.attachments.show');
 
-                Route::get('/{id}/attachments/{attachmentIndex}/{filename?}', [RoiCurrentProjectController::class, 'showAttachment'])
-                    ->name('roi.current.attachments.show');
-
-                 Route::patch('/{id}/withdraw', [RoiCurrentProjectController::class, 'withdraw'])
-                    ->name('roi.current.withdraw');
-
-                Route::patch('/{id}/cancel', [RoiCurrentProjectController::class, 'cancel'])
-                    ->name('roi.current.cancel');
+                Route::get('/{id}/attachments/{attachmentIndex}/{filename?}', [RoiCurrentProjectController::class, 'showAttachment'])->name('roi.current.attachments.show');
+                Route::patch('/{id}/withdraw', [RoiCurrentProjectController::class, 'withdraw'])->name('roi.current.withdraw');
+                Route::patch('/{id}/cancel', [RoiCurrentProjectController::class, 'cancel'])->name('roi.current.cancel');
             });
 
             //ROI ARCHIVE ROUTES
@@ -146,8 +142,7 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/{id}/print', [ProposalController::class, 'print'])->name('print');
                 Route::post('/{id}/draft', [ProposalController::class, 'saveDraft'])->name('draft');
                 Route::post('/{id}/generate', [ProposalController::class, 'generate'])->name('generate');
-                Route::patch('/{id}/status', [ProposalController::class, 'changeStatus'])
-                ->name('status');
+                Route::patch('/{id}/status', [ProposalController::class, 'changeStatus'])->name('status');
             });
         });
 

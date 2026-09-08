@@ -18,4 +18,5 @@ export default defineConfig({
         globals: true,
         setupFiles: ['./vitest.setup.js'],
     },
+    server: { host: '127.0.0.1' }
 });
