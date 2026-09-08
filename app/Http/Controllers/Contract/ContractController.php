@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AppliesCompanyVisibility;
 use App\Http\Controllers\Concerns\ManagesCompanyContracts;
 use App\Http\Controllers\Controller;
 use App\Models\Contracts\Contract;
+use App\Models\Contracts\ContractExtension;
 use App\Models\Contracts\ContractType;
 use App\Models\CustomerInfo\Company;
 use App\Models\User;
@@ -344,14 +345,13 @@ class ContractController extends Controller
 
         $contractsRaw = Contract::query()
             ->whereIn('company_id', $siblingCompanyIds)
-            ->with('contractType')
+            ->with(['contractType', 'extensions'])
             ->orderByDesc('start_date')
             ->get();
 
         $canManage = $this->canManageCompanyContracts($company);
 
-        $extendedByIds = $contractsRaw
-            ->flatMap(fn ($c) => collect($c->extend_dates ?? [])->pluck('extended_by'));
+        $extendedByIds = $contractsRaw->flatMap(fn ($c) => $c->extensions->pluck('extended_by'));
 
         $employeeIdsToResolve = $extendedByIds
             ->merge($contractsRaw->pluck('terminated_by'))
@@ -384,12 +384,13 @@ class ContractController extends Controller
                     'client_manager'     => $company->clientManager ? trim( $company->clientManager->first_name . ' ' . $company->clientManager->last_name ) : null,
                     'start_date'         => optional($c->start_date)->format('Y-m-d'),
                     'end_date'           => optional($c->end_date)->format('Y-m-d'),
-                    'extend_dates'       => collect($c->extend_dates ?? [])
-                        ->map(function ($entry) use ($employeeNamesById) {
-                            $entry['extended_by_name'] = $employeeNamesById[$entry['extended_by'] ?? null] ?? null;
-                            return $entry;
-                        })
-                        ->all(),
+                    'extend_dates'       => $c->extensions->map(fn ($ext) => [
+                        'date'             => optional($ext->date)->format('Y-m-d'),
+                        'extended_at'      => optional($ext->extended_at)->toDateTimeString(),
+                        'extended_by'      => $ext->extended_by,
+                        'extended_by_name' => $employeeNamesById[$ext->extended_by] ?? null,
+                        'pdf_url'          => $ext->pdf_path ? route('contract.extension.pdf', $ext->id) : null,
+                    ])->values()->all(),
                     'status'             => $c->status,
                     'uploader'           => $c->uploader,
                     'uploader_name'      => $employeeNamesById[$c->uploader] ?? null,
@@ -612,21 +613,14 @@ class ContractController extends Controller
         $contract = Contract::findOrFail($contractId);
         $company  = Company::findOrFail($contract->company_id);
 
-        // Admin, Privileged Employee, or Assigned Manager (including sibling
-        // branches under the same SAP code) can EXTEND — Approvers cannot.
         if (!$this->canManageCompanyContracts($company)) {
             abort(403, 'You are not authorized to extend this contract.');
         }
 
-        // A terminated or archived contract is in a final state and can
-        // never be extended again.
         if ($contract->isFinal()) {
             abort(403, "This contract has been {$contract->status} and can no longer be extended.");
         }
 
-        // Hard server-side block: a contract that's been expired 3+ months
-        // (measured from its latest effective end date to today) can never
-        // be extended, regardless of what the frontend sent.
         if ($this->isPastExtensionWindow($contract)) {
             abort(403, self::EXTENSION_WINDOW_EXPIRED_MESSAGE);
         }
@@ -642,46 +636,52 @@ class ContractController extends Controller
                 'date',
                 $currentEffectiveEnd ? "after:{$currentEffectiveEnd}" : null,
             ]),
+            'pdf' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
         ]);
 
-        $extendDates   = $contract->extend_dates ?? [];
-        $extendDates[] = [
-            'date'        => $validated['extended_end_date'],
-            'extended_at' => now()->toDateTimeString(),
-            'extended_by' => $employeeId,
-        ];
+        $path = $request->file('pdf')->store('contracts/extensions', 'local');
 
-        $contract->extend_dates = $extendDates;
-        $contract->save();
+        try {
+            DB::transaction(function () use ($contract, $validated, $path, $employeeId) {
+                $contract->extensions()->create([
+                    'date'        => $validated['extended_end_date'],
+                    'extended_at' => now(),
+                    'extended_by' => $employeeId,
+                    'pdf_path'    => $path,
+                ]);
+
+                $contract->refreshStatus();
+            });
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+            throw $e;
+        }
 
         ContractUploadLogger::extended($contract, $currentEffectiveEnd, $validated['extended_end_date']);
 
-        // Attach the current user's display name to the entry we just
-        // added so the modal can show "Extended by Andre Jarl Aniana"
-        // immediately, without waiting on a refetch of the contract list.
-        $currentUser     = Auth::user();
-        $currentUserName = $currentUser ? trim("{$currentUser->first_name} {$currentUser->last_name}") : null;
+        $contract->load('extensions');
 
-        $extendDatesWithNames = collect($contract->extend_dates)
-            ->map(function ($entry) use ($employeeId, $currentUserName) {
-                if (($entry['extended_by'] ?? null) === $employeeId) {
-                    $entry['extended_by_name'] = $currentUserName;
-                }
-                return $entry;
-            })
-            ->all();
+        $employeeIdsToResolve = $contract->extensions->pluck('extended_by')->filter()->unique();
+        $employeeNamesById = User::query()
+            ->whereIn('employee_id', $employeeIdsToResolve)
+            ->get(['employee_id', 'first_name', 'last_name'])
+            ->keyBy('employee_id')
+            ->map(fn ($u) => trim("{$u->first_name} {$u->last_name}"));
 
-        // Recompute the action-menu flags from the contract's *new* status
-        // (e.g. an expired contract that just got extended is now
-        // "extended", not "expired" anymore) so the frontend can swap the
-        // 3-dot menu from Archive to Terminate immediately, without
-        // waiting on a refetch of the whole contract list.
+        $extendDates = $contract->extensions->map(fn ($ext) => [
+            'date'             => optional($ext->date)->format('Y-m-d'),
+            'extended_at'      => optional($ext->extended_at)->toDateTimeString(),
+            'extended_by'      => $ext->extended_by,
+            'extended_by_name' => $employeeNamesById[$ext->extended_by] ?? null,
+            'pdf_url'          => route('contract.extension.pdf', $ext->id),
+        ])->values()->all();
+
         $isFinal                = $contract->isFinal();
         $extensionWindowExpired = $this->isPastExtensionWindow($contract);
 
         return response()->json([
             'id'                => $contract->id,
-            'extend_dates'      => $extendDatesWithNames,
+            'extend_dates'      => $extendDates,
             'status'            => $contract->status,
             'can_edit'          => !$isFinal,
             'can_extend'        => !$isFinal && !$extensionWindowExpired,
@@ -792,6 +792,28 @@ class ContractController extends Controller
 
         return response()->file(
             Storage::disk('local')->path($contract->pdf_path),
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    public function viewExtensionPdf($extensionId)
+    {
+        $extension = ContractExtension::with('contract')->findOrFail($extensionId);
+        $contract  = $extension->contract;
+        $company   = Company::find($contract->company_id);
+
+        if (!$company || !$this->canAccessCompanyContracts($company)) {
+            abort(403, 'You are not authorized to view this document.');
+        }
+
+        if (!$extension->pdf_path || !Storage::disk('local')->exists($extension->pdf_path)) {
+            abort(404, 'File not found on disk.');
+        }
+
+        ContractUploadLogger::viewedPdf($contract);
+
+        return response()->file(
+            Storage::disk('local')->path($extension->pdf_path),
             ['Content-Type' => 'application/pdf']
         );
     }

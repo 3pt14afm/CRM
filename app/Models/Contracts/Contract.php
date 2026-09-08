@@ -69,15 +69,15 @@ class Contract extends Model
 
     public function latestExtendedDate(): ?string
     {
-        if (empty($this->extend_dates)) {
+        if (!$this->exists) {
             return null;
         }
 
-        return collect($this->extend_dates)
-            ->pluck('date')
-            ->filter()
-            ->sort()
-            ->last();
+        if ($this->relationLoaded('extensions')) {
+            return $this->extensions->max('date')?->format('Y-m-d');
+        }
+
+        return $this->extensions()->max('date');
     }
 
     public function computeStatus(): string
@@ -99,11 +99,11 @@ class Contract extends Model
             return self::STATUS_EXPIRING_SOON;
         }
 
-        if (!empty($this->extend_dates)) {
-            return self::STATUS_EXTENDED;
-        }
+        $hasExtensions = $this->relationLoaded('extensions')
+            ? $this->extensions->isNotEmpty()
+            : $this->exists && $this->extensions()->exists();
 
-        return self::STATUS_ACTIVE;
+        return $hasExtensions ? self::STATUS_EXTENDED : self::STATUS_ACTIVE;
     }
 
     public function refreshStatus(): string
@@ -146,5 +146,10 @@ class Contract extends Model
     public function contractType()
     {
         return $this->belongsTo(ContractType::class, 'ctid', 'id');
+    }
+
+    public function extensions()
+    {
+        return $this->hasMany(ContractExtension::class)->orderBy('date');
     }
 }

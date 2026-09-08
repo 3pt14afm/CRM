@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified'])
         Route::post('/{contract}/archive', [ContractController::class, 'archive'])->name('archive');
         Route::get('/{company}/contracts', [ContractController::class, 'contracts'])->name('contracts');
         Route::get('/pdf/{contract}', [ContractController::class, 'viewPdf'])->name('pdf');
+        Route::get('/extension/pdf/{extension}', [ContractController::class, 'viewExtensionPdf'])->name('extension.pdf');
         Route::get('/create/{company?}', [ContractController::class, 'create'])->name('create');
         Route::get('/renewal', [ContractController::class, 'renewal'])->name('renewal');
         Route::get('/review', [ContractController::class, 'review'])->name('review');

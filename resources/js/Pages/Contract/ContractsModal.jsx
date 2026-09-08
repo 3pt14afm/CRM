@@ -54,6 +54,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     // ── Extend Date modal state ──
     const [extendTarget, setExtendTarget] = useState(null);
     const [extendDateValue, setExtendDateValue] = useState('');
+    const [extendPdfFile, setExtendPdfFile] = useState(null);
     const [extendError, setExtendError] = useState('');
     const [isExtending, setIsExtending] = useState(false);
 
@@ -314,13 +315,15 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
     };
 
     const submitExtend = () => {
-        if (!extendTarget || !extendDateValue) return;
+        if (!extendTarget || !extendDateValue || !extendPdfFile) return;
         setIsExtending(true);
         setExtendError('');
 
-        axios.post(route('contract.extend', extendTarget.id), {
-            extended_end_date: extendDateValue,
-        })
+        const formData = new FormData();
+        formData.append('extended_end_date', extendDateValue);
+        formData.append('pdf', extendPdfFile);
+
+        axios.post(route('contract.extend', extendTarget.id), formData)
             .then((res) => {
                 const {
                     extend_dates, status,
@@ -329,26 +332,19 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                 setContractsList((prev) =>
                     prev.map((c) =>
                         c.id === extendTarget.id
-                            ? {
-                                ...c,
-                                extend_dates,
-                                status,
-                                can_edit,
-                                can_extend,
-                                extension_expired,
-                                can_terminate,
-                                can_archive,
-                            }
+                            ? { ...c, extend_dates, status, can_edit, can_extend, extension_expired, can_terminate, can_archive }
                             : c
                     )
                 );
                 setExtendTarget(null);
                 setExtendDateValue('');
+                setExtendPdfFile(null);
                 toast.success('Contract extended successfully.');
             })
             .catch((err) => {
                 const message = err.response?.data?.message
                     || err.response?.data?.errors?.extended_end_date?.[0]
+                    || err.response?.data?.errors?.pdf?.[0]
                     || 'Failed to extend contract. Please try again.';
                 setExtendError(message);
                 toast.error(message);
@@ -850,9 +846,16 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                                                         <span className="absolute left-[4px] top-2 bottom-[-12px] w-px bg-slate-200"></span>
                                                         
                                                         <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100 transition-all duration-200 group-hover/li:border-emerald-200 group-hover/li:bg-emerald-50/50">
-                                                            <p className="font-semibold text-slate-800">
-                                                                New end date: <span className="text-emerald-600">{formatDate(entry.date)}</span>
-                                                            </p>
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <p className="font-semibold text-slate-800">
+                                                                    New end date: <span className="text-emerald-600">{formatDate(entry.date)}</span>
+                                                                </p>
+                                                                {entry.pdf_url && (
+                                                                    <a href={entry.pdf_url} target="_blank" rel="noopener noreferrer" className="text-[9px] md:text-[10px] font-semibold text-[#4FA34E] hover:text-emerald-700 flex-shrink-0">
+                                                                        View PDF
+                                                                    </a>
+                                                                )}
+                                                            </div>
                                                             <p className="text-[9px] md:text-[10px] text-slate-500 mt-1 flex items-center gap-1.5">
                                                                 <MdSchedule size={11} />
                                                                 Extended {formatDateTime(entry.extended_at)}
@@ -908,6 +911,16 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                         </p>
 
                         <div className="mt-4">
+                            <label className="block text-xs font-medium text-slate-600 mb-1">New Contract PDF</label>
+                            <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => setExtendPdfFile(e.target.files?.[0] ?? null)}
+                                className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-[#E9F7E7] file:text-[#2DA300] hover:file:bg-[#dcf3d8] border border-gray-200 rounded-lg px-2 py-1.5"
+                            />
+                        </div>
+
+                        <div className="mt-4">
                             <label className="block text-xs font-medium text-slate-600 mb-1">New End Date</label>
                             <input
                                 type="date"
@@ -931,7 +944,7 @@ const ContractsModal = forwardRef(function ContractsModal({ modalRow, highlightC
                             <button
                                 type="button"
                                 onClick={submitExtend}
-                                disabled={isExtending || !extendDateValue}
+                                disabled={isExtending || !extendDateValue || !extendPdfFile}
                                 className="h-9 px-4 rounded-lg text-sm font-semibold text-white bg-[#4FA34E] hover:bg-[#3d8f3c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {isExtending ? 'Saving…' : 'Save Extension'}

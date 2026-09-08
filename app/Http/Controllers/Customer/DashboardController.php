@@ -431,6 +431,7 @@ private function excludeDdtcCompanyIds($companyIds)
 
         Contract::query()
             ->whereIn('company_id', $visibleCompanyIds)
+            ->with('extensions')
             ->chunk(200, function ($contracts) use (&$counts, &$companyIdsWithContracts) {
                 foreach ($contracts as $contract) {
                     $contract->refreshStatus();
@@ -494,7 +495,7 @@ private function excludeDdtcCompanyIds($companyIds)
             $this->visibleCompanyIds($request->integer('as_user_id') ?: null)
         );
 
-        $contracts = Contract::with('contractType')
+        $contracts = Contract::with(['contractType', 'extensions'])
             ->whereIn('company_id', $visibleCompanyIds)
             ->get();
 
@@ -528,7 +529,7 @@ private function excludeDdtcCompanyIds($companyIds)
                     'days_remaining' => $effectiveDate
                         ? (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($effectiveDate)->startOfDay(), false)
                         : null,
-                    'was_extended'   => !empty($c->extend_dates),
+                    'was_extended'   => $c->extensions->isNotEmpty(),
                     'can_upload'     => $company ? $this->canManageCompanyContracts($company) : false,
                     'pdf_url' => $c->pdf_path ? route('contract.pdf', $c->id) : null,
                 ];
