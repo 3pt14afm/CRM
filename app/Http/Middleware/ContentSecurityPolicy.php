@@ -8,21 +8,23 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ContentSecurityPolicy
 {
-    /**
-     * Handle an incoming request.
-     */
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
 
         if (!$response->headers->has('Content-Security-Policy')) {
+            $isLocal = app()->environment('local');
+            $viteOrigins = $isLocal ? ' http://localhost:5173 http://127.0.0.1:5173' : '';
+            $viteWs = $isLocal ? ' ws://localhost:5173 ws://127.0.0.1:5173' : '';
+
             $csp = implode('; ', [
                 "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' http://localhost:5173 http://127.0.0.1:5173",
+                "script-src 'self' 'unsafe-inline'" . $viteOrigins,
                 "style-src 'self' 'unsafe-inline' https://fonts.bunny.net https://fonts.googleapis.com",
-                "font-src 'self' https://fonts.bunny.net https://fonts.gstatic.com http://localhost:5173 http://127.0.0.1:5173",
+                "font-src 'self' https://fonts.bunny.net https://fonts.gstatic.com" . $viteOrigins,
                 "img-src 'self' data: blob:",
-                "connect-src 'self' ws://localhost:5173 ws://127.0.0.1:5173",
+                "worker-src 'self' blob:",
+                "connect-src 'self'" . $viteWs,
                 "frame-src 'self' https://maps.google.com/ https://www.google.com/",
             ]);
 

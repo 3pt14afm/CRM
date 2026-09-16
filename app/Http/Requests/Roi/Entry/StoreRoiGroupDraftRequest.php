@@ -39,8 +39,8 @@ class StoreRoiGroupDraftRequest extends FormRequest
             'entries.*.entryRemarks.remarks' => ['nullable', 'string', 'max:5000'],
             'entries.*.entryRemarks.attachments' => ['nullable', 'array'],
 
-            'entries.*.entry_remarks_attachments' => ['nullable', 'array', 'max:3'],
-            'entries.*.entry_remarks_attachments.*' => ['file', 'max:10240'],
+            'entries.*.entry_remarks_attachments' => ['nullable', 'array', 'max:' . config('attachments.max_files_per_entry')],
+            'entries.*.entry_remarks_attachments.*' => ['file', 'max:' . config('attachments.max_file_size_kb')],
 
             'entries.*.machineConfiguration.machine' => ['nullable', 'array'],
             'entries.*.machineConfiguration.consumable' => ['nullable', 'array'],
@@ -59,6 +59,18 @@ class StoreRoiGroupDraftRequest extends FormRequest
     {
         $entries = $this->input('entries', []);
         $errors = [];
+
+        $totalAttachmentBytes = 0;
+        foreach (array_keys($entries) as $i) {
+            foreach (Arr::wrap($this->file("entries.$i.entry_remarks_attachments")) as $file) {
+                $totalAttachmentBytes += $file->getSize();
+            }
+        }
+
+        if ($totalAttachmentBytes > config('attachments.max_total_bytes')) {
+            $errors['entries.attachments_total'] =
+                'Total attachments across all entries exceed the allowed limit. Remove a file or choose smaller ones.';
+        }
 
         foreach ($entries as $i => $entry) {
             $monoMonthly = (float) data_get($entry, 'yield.monoAmvpYields.monthly', 0);

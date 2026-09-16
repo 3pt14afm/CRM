@@ -21,7 +21,7 @@ class StoreRoiDraftRequest extends FormRequest
             'companyInfo.projectUid' => ['nullable', 'string', 'max:255'],
             'companyInfo.companyName' => ['required', 'string', 'max:255'],
             'companyInfo.companySapCode' => ['nullable', 'string', 'max:255'],
-            'companyInfo.type' => ['nullable', 'integer', 'in:0,1'],  // ← add this
+            'companyInfo.type' => ['nullable', 'integer', 'in:0,1'], 
             'companyInfo.contractYears' => ['required', 'integer', 'min:0'],
             'companyInfo.contractType' => ['required', 'string', 'max:255'],
             'companyInfo.purpose' => ['nullable', 'string', 'max:5000'],
@@ -37,12 +37,8 @@ class StoreRoiDraftRequest extends FormRequest
             'entryRemarks.remarks' => ['nullable', 'string', 'max:5000'],
             'entryRemarks.attachments' => ['nullable', 'array'],
 
-            'entry_remarks_attachments' => ['nullable', 'array', 'max:3'],
-            'entry_remarks_attachments.*' => [
-                'file',
-                'max:10240',
-               
-            ],
+            'entry_remarks_attachments' => ['nullable', 'array', 'max:' . config('attachments.max_files_per_entry')],
+            'entry_remarks_attachments.*' => ['file', 'max:' . config('attachments.max_file_size_kb')],
 
             'machineConfiguration.machine' => ['nullable', 'array'],
             'machineConfiguration.consumable' => ['nullable', 'array'],
@@ -59,7 +55,16 @@ class StoreRoiDraftRequest extends FormRequest
 
     protected function passedValidation(): void
     {
+        $totalAttachmentBytes = 0;
+        foreach (Arr::wrap($this->file('entry_remarks_attachments')) as $file) {
+            $totalAttachmentBytes += $file->getSize();
+        }
 
+        if ($totalAttachmentBytes > config('attachments.max_total_bytes')) {
+            throw ValidationException::withMessages([
+                'entry_remarks_attachments' => 'Total attachments exceed the allowed limit. Remove a file or choose a smaller one.',
+            ]);
+        }
 
         $monoMonthly = (float) $this->input('yield.monoAmvpYields.monthly', 0);
         $colorMonthly = (float) $this->input('yield.colorAmvpYields.monthly', 0);

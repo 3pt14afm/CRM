@@ -1,0 +1,4 @@
+export const MAX_ATTACHMENTS_PER_ENTRY = 3;
+export const MAX_FILE_SIZE_MB = 10;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+export const MAX_UPLOAD_BUDGET_BYTES = 45 * 1024 * 1024; 

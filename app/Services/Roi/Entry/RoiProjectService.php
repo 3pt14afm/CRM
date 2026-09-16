@@ -281,9 +281,10 @@ class RoiProjectService
                 'comments' => $project->comments ?? [],
             ]);
 
-            if ($project->items->isNotEmpty()) {
+            $items = $project->items()->orderBy('id')->get();
+            if ($items->isNotEmpty()) {
                 $now = now();
-                $itemRows = $project->items->map(fn ($item) => [
+                $itemRows = $items->map(fn ($item) => [
                     'roi_current_project_id' => $newProject->id,
                     'client_row_id' => $item->client_row_id,
                     'kind' => $item->kind,

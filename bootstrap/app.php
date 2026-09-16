@@ -24,8 +24,6 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware('web')
                 ->group(base_path('routes/modules/customer-management.php'));
             
-
-
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -41,5 +39,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, $request) {
+            if ($request->header('X-Inertia') || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'The files you uploaded are too large. Please reduce the attachment sizes and try again.',
+                ], 413);
+            }
+        });
     })->create();

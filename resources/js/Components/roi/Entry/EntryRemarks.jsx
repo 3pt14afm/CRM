@@ -1,17 +1,16 @@
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect, useContext } from "react";
 import { useProjectData } from "@/Context/ProjectContext";
+import { GroupContext } from "@/Context/GroupProjectContext";
 import { FiX, FiPaperclip } from "react-icons/fi";
 import { FaFileCirclePlus } from "react-icons/fa6";
 import { usePage } from "@inertiajs/react";
+import { getRoiAttachmentKey, getRoiAttachmentName, openRoiAttachment, } from "@/utils/openRoiAttachment";
 import {
-  getRoiAttachmentKey,
-  getRoiAttachmentName,
-  openRoiAttachment,
-} from "@/utils/openRoiAttachment";
-
-const MAX_ATTACHMENTS = 3;
-const MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+  MAX_ATTACHMENTS_PER_ENTRY as MAX_ATTACHMENTS,
+  MAX_FILE_SIZE_MB,
+  MAX_FILE_SIZE_BYTES,
+  MAX_UPLOAD_BUDGET_BYTES,
+} from "@/Config/attachmentLimits";
 
 /* ──────────────────────────────────────────────────────────────
  * Module-level File store
@@ -57,8 +56,18 @@ export const getAttachmentFileObject = (attachment) => {
 /** Call after a successful SaveDraft to free memory. */
 export const clearAttachmentFileStore = () => fileObjectStore.clear();
 
+const getAttachmentsTotalSize = (list) => list.reduce((sum, item) => sum + (item?.size || 0), 0);
+const getOtherEntriesAttachmentTotal = (groupContext) => {
+  if (!groupContext) return 0;
+  return groupContext.groupData.entries.reduce((sum, entry, idx) => {
+    if (idx === groupContext.activeEntryIndex) return sum;
+    return sum + getAttachmentsTotalSize(entry?.entryRemarks?.attachments || []);
+  }, 0);
+};
+
 export default function EntryRemarks({ readOnly = false }) {
   const { projectData, setProjectData } = useProjectData();
+  const groupContext = useContext(GroupContext);
   const fileInputRef = useRef(null);
   const [showAttachHint, setShowAttachHint] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
@@ -72,8 +81,7 @@ export default function EntryRemarks({ readOnly = false }) {
 
   const { url } = usePage();
 
-  const projectId =
-    projectData?.metadata?.projectId ?? projectData?.id ?? null;
+  const projectId = projectData?.metadata?.projectId ?? projectData?.id ?? null;
 
   const pageRoute = url.includes("/archive/")
     ? "archive"
@@ -176,6 +184,7 @@ export default function EntryRemarks({ readOnly = false }) {
     );
 
     const nextAttachments = [...existingAttachments];
+    let runningTotal = getOtherEntriesAttachmentTotal(groupContext) + getAttachmentsTotalSize(existingAttachments);
 
     for (const file of selectedFiles) {
       const fileKey = `${file.name}-${file.size}-${file.lastModified || 0}`;
@@ -186,7 +195,7 @@ export default function EntryRemarks({ readOnly = false }) {
 
       if (file.size > MAX_FILE_SIZE_BYTES) {
         setAttachmentError(
-          `Each attachment must not exceed ${MAX_FILE_SIZE_MB} MB.`
+          `Attachment must not exceed ${MAX_FILE_SIZE_MB} MB.`
         );
         continue;
       }
@@ -198,19 +207,26 @@ export default function EntryRemarks({ readOnly = false }) {
         break;
       }
 
-      // ── Generate unique id and store File in module-level Map ──
+      if (runningTotal + file.size > MAX_UPLOAD_BUDGET_BYTES) {
+        setAttachmentError(
+          "Adding this file would exceed the upload limit. Remove a file or choose a smaller one."
+        );
+        continue;
+      }
+
       const fileId = generateFileId();
       fileObjectStore.set(fileId, file);
 
       nextAttachments.push({
         id: fileId,
-        file, // kept for backward compat, but may become {} after serialization
+        file,
         name: file.name,
         size: file.size,
         type: file.type,
         lastModified: file.lastModified,
       });
       existingKeys.add(fileKey);
+      runningTotal += file.size;
     }
 
     updateRemarks({ attachments: nextAttachments });

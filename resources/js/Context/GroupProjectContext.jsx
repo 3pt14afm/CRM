@@ -310,4 +310,5 @@ export const useGroupProjectData = () => {
   return context;
 };
 
+export { GroupContext };
 export default GroupProjectProvider;
