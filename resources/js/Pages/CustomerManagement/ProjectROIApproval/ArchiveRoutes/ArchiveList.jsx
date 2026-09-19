@@ -52,8 +52,9 @@ function ActionsDropdown({ row, isAdmin, hideView = false }) {
   const buttonRef = useRef(null);
 
   const isOwner = !!row.is_owner;
+  const canDuplicate = !!row.can_duplicate || isAdmin;
   const isApproved = String(row.status ?? "").toLowerCase() === "approved";
-  const canManage = isOwner && isApproved;
+  const canManage = canDuplicate && isApproved;
 
   const handleView = () => {
     setOpen(false);

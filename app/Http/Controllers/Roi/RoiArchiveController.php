@@ -19,14 +19,12 @@ use App\Models\RoiCurrentProject;
 use App\Services\RoiActivityLogger;
 use Illuminate\Support\Str;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class RoiArchiveController extends Controller
 {
     use ChecksPreferenceAccess;
-    /**
-     * Display a listing of the archived projects.
-     */
 
     public function index(Request $request)
     {
@@ -52,7 +50,7 @@ class RoiArchiveController extends Controller
 
         // Row-level visibility: non-admins only see projects they own or
         // are/were part of the approval chain for. Mirrors ensureCanViewArchive().
-        if (!$isAdmin && !$this->isRoiViewAllPrivileged()) {
+        if (!$isAdmin && !$this->isRoiViewAllPrivileged() && !$this->isRoiDuplicateAllPrivileged()) {
             $query->where(function ($q) use ($userId) {
                 $q->where('roi_archive_projects.user_id', $userId)
                 ->orWhere('roi_archive_projects.reviewed_by', $userId)
@@ -178,7 +176,7 @@ class RoiArchiveController extends Controller
             })
             ->groupBy('reference');
 
-        $archiveProjects = $archiveProjects->through(function ($p) use ($userId, $archiveEntryCounts, $siblingsByReference) {
+        $archiveProjects = $archiveProjects->through(function ($p) use ($userId, $isAdmin, $archiveEntryCounts, $siblingsByReference) {
                 $status = strtolower((string) ($p->status ?? ''));
                 $p->has_proposal = $p->proposals->isNotEmpty();
                 $p->decided_by_name = match ($status) {
@@ -204,6 +202,10 @@ class RoiArchiveController extends Controller
                     (int) ($p->approved_by  ?? 0),
                 ]), true);
 
+                $p->can_duplicate = $isAdmin
+                    || $p->is_owner
+                    || $this->isRoiDuplicateAllPrivileged();
+
                 $p->entry_count = $archiveEntryCounts[$p->reference] ?? 1;
                 $p->is_group    = $p->entry_count > 1;
                 $p->sibling_entries = $p->is_group ? ($siblingsByReference[$p->reference] ?? collect())->values() : [];
@@ -226,7 +228,7 @@ class RoiArchiveController extends Controller
         // two separate count() calls, so the total and today's figures come
         // from one identical row set with one round trip to the DB.
         $statsQuery = RoiArchiveProject::query()->where('sequence', '<=', 1);
-        if (!$isAdmin) {
+        if (!$isAdmin && !$this->isRoiViewAllPrivileged() && !$this->isRoiDuplicateAllPrivileged()) {
             $statsQuery->where(function ($q) use ($userId) {
                 $q->where('user_id', $userId)
                 ->orWhere('reviewed_by', $userId)
@@ -534,12 +536,13 @@ class RoiArchiveController extends Controller
      * difference between the two is whether notes/comments carry over.
      */
     private function copyArchivedGroupToDraft(
-        \Illuminate\Support\Collection $group,
+        Collection $group,
         string $prefix,
         bool $preserveNotesComments,
         bool $forceGroupSequence = false,
-    ): \Illuminate\Support\Collection {
-        return DB::transaction(function () use ($group, $prefix, $preserveNotesComments, $forceGroupSequence) {
+        ?int $ownerUserId = null,
+    ): Collection {
+        return DB::transaction(function () use ($group, $prefix, $preserveNotesComments, $forceGroupSequence, $ownerUserId) {
             $created      = collect();
             $newReference = null;
 
@@ -560,6 +563,10 @@ class RoiArchiveController extends Controller
                 if (!$preserveNotesComments) {
                     $projectData['notes']    = null;
                     $projectData['comments'] = null;
+                }
+
+                if ($ownerUserId !== null) {
+                    $projectData['user_id'] = $ownerUserId;
                 }
 
                 $projectData['status']        = 'duplicate';
@@ -621,7 +628,7 @@ class RoiArchiveController extends Controller
         /** @var \App\Models\RoiArchiveProject $archived */
         $archived = RoiArchiveProject::with(['items', 'fees'])->findOrFail($id);
 
-        $this->ensureCanWithdrawArchive($archived);
+        $this->ensureCanDuplicateArchive($archived);
 
         $group = RoiArchiveProject::with(['items', 'fees'])
             ->where('reference', $archived->reference)
@@ -629,7 +636,7 @@ class RoiArchiveController extends Controller
             ->get();
 
         foreach ($group as $sibling) {
-            $this->ensureCanWithdrawArchive($sibling);
+            $this->ensureCanDuplicateArchive($sibling);
         }
 
         $actor = Auth::user();
@@ -649,7 +656,7 @@ class RoiArchiveController extends Controller
             'group_size'         => $group->count(),
         ];
 
-        $entryProjects = $this->copyArchivedGroupToDraft($group, $prefix, preserveNotesComments: false, forceGroupSequence: true);
+        $entryProjects = $this->copyArchivedGroupToDraft($group, $prefix, preserveNotesComments: false, forceGroupSequence: true, ownerUserId: $actor->id);
 
         $this->logArchiveDuplicate($archived, $actor, $oldValues, $entryProjects);
 
@@ -679,10 +686,10 @@ class RoiArchiveController extends Controller
         RoiArchiveProject $archived,
         $actor,
         array $oldValues,
-        \Illuminate\Support\Collection $entryProjects
+        Collection $entryProjects
     ): void {
         $workflow = [
-            'preparer_id'  => $archived->user_id,
+            'preparer_id'  => $actor->id,
             'reviewer_id'  => $archived->reviewed_by,
             'checker_id'   => $archived->checked_by,
             'endorser_id'  => $archived->endorsed_by,
@@ -780,7 +787,7 @@ class RoiArchiveController extends Controller
         RoiArchiveProject $archived,
         $actor,
         array $oldValues,
-        \Illuminate\Support\Collection $entryProjects
+        Collection $entryProjects
     ): void {
         $workflow = [
             'preparer_id'  => $archived->user_id,
@@ -820,37 +827,34 @@ class RoiArchiveController extends Controller
 
     /**
      * Authorization gate logic check.
+     * Only admin, the project owner (preparer), or a user assigned
+     * somewhere in this project's approval chain (reviewer, checker,
+     * endorser, confirmer, approver, rejecter) may view it.
      */
-/**
- * Authorization gate logic check.
- * Only admin, the project owner (preparer), or a user assigned
- * somewhere in this project's approval chain (reviewer, checker,
- * endorser, confirmer, approver, rejecter) may view it.
- */
-private function ensureCanViewArchive(RoiArchiveProject $project): void
-{
-    abort_unless(Auth::check(), 403);
+    private function ensureCanViewArchive(RoiArchiveProject $project): void
+    {
+        abort_unless(Auth::check(), 403);
 
-    $userId  = (int) (Auth::id() ?? 0);
-    $isAdmin = $userId === 1;
+        $userId  = (int) (Auth::id() ?? 0);
+        $isAdmin = $userId === 1;
 
-    if ($isAdmin || $this->isRoiViewAllPrivileged()) {
-        return;
+        if ($isAdmin || $this->isRoiViewAllPrivileged() || $this->isRoiDuplicateAllPrivileged()) {
+            return;
+        }
+
+        $isOwner = (int) $project->user_id === $userId;
+
+        $isApprover = in_array($userId, array_filter([
+            (int) ($project->reviewed_by  ?? 0),
+            (int) ($project->checked_by   ?? 0),
+            (int) ($project->endorsed_by  ?? 0),
+            (int) ($project->confirmed_by ?? 0),
+            (int) ($project->approved_by  ?? 0),
+            (int) ($project->rejected_by  ?? 0),
+        ]), true);
+
+        abort_unless($isOwner || $isApprover, 403, 'You are not allowed to view this project.');
     }
-
-    $isOwner = (int) $project->user_id === $userId;
-
-    $isApprover = in_array($userId, array_filter([
-        (int) ($project->reviewed_by  ?? 0),
-        (int) ($project->checked_by   ?? 0),
-        (int) ($project->endorsed_by  ?? 0),
-        (int) ($project->confirmed_by ?? 0),
-        (int) ($project->approved_by  ?? 0),
-        (int) ($project->rejected_by  ?? 0),
-    ]), true);
-
-    abort_unless($isOwner || $isApprover, 403, 'You are not allowed to view this project.');
-}
     /**
      * Authorization gate for withdrawing an archived project.
      * Only the original preparer (or admin) can withdraw, and only when
@@ -864,6 +868,32 @@ private function ensureCanViewArchive(RoiArchiveProject $project): void
         $isAdmin = $userId === 1;
 
         abort_unless($isAdmin || (int) $project->user_id === $userId, 403, 'You are not allowed to withdraw this project.');
+
+        abort_unless(
+            strtolower((string) $project->status) === 'approved',
+            422,
+            'Only approved projects can be withdrawn/duplicated.'
+        );
+    }
+
+    /**
+     * Authorization gate for duplicating an archived project into a new
+     * draft. Unlike withdraw, this also allows a user granted
+     * ROI_DUPLICATE_ALL_ACCESS, so they can duplicate any archived
+     * project, not just their own.
+     */
+    private function ensureCanDuplicateArchive(RoiArchiveProject $project): void
+    {
+        abort_unless(Auth::check(), 403);
+
+        $userId  = (int) (Auth::id() ?? 0);
+        $isAdmin = $userId === 1;
+
+        abort_unless(
+            $isAdmin || (int) $project->user_id === $userId || $this->isRoiDuplicateAllPrivileged(),
+            403,
+            'You are not allowed to duplicate this project.'
+        );
 
         abort_unless(
             strtolower((string) $project->status) === 'approved',

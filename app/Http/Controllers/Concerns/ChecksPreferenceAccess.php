@@ -27,6 +27,11 @@ trait ChecksPreferenceAccess
         return $this->hasPreferenceAccess('ROI_VIEW_ALL_ACCESS');
     }
 
+    protected function isRoiDuplicateAllPrivileged(): bool
+    {
+        return $this->hasPreferenceAccess('ROI_DUPLICATE_ALL_ACCESS');
+    }
+
     protected function hasPreferenceAccess(string $settingsId): bool
     {
         $employeeId = Auth::user()->employee_id ?? null;
